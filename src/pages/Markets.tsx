@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, CircleCheck, Clock3, Database, Droplets, Search, ShieldCheck, TimerReset, Users } from "lucide-react";
+import { ArrowRight, ChartNoAxesCombined, CircleCheck, CircleDollarSign, Clock3, Coins, Database, Gift, RefreshCcw, Search, ShieldCheck, TimerReset, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { DEMO } from "../fixtures";
 import type { Launch } from "../types";
 import { TokenCard } from "../components/TokenCard";
 import { HolderRewardFlow } from "../components/HolderRewardFlow";
+import { useRuntime } from "../context";
 
 type DataState = "loading" | "live" | "empty" | "offline";
+const compactMoney = new Intl.NumberFormat("en-US", { style:"currency", currency:"USD", notation:"compact", maximumFractionDigits:1 });
 
 export function Markets() {
+  const { config } = useRuntime();
   const [launches, setLaunches] = useState<Launch[]>([]);
   const [state, setState] = useState<DataState>("loading");
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
@@ -27,6 +30,10 @@ export function Markets() {
 
   const sampleMode = state !== "live";
   const source = sampleMode ? DEMO : launches;
+  const platform = useMemo(() => {
+    const revenue = source.reduce((sum,item) => sum + Number(item.volume24hUsd || 0), 0) * config.fees.platformBps / 10_000;
+    return { revenue, buybacks: revenue * .5, stocks: source.reduce((sum,item) => sum + Number(item.rewardDistributedUsd || 0), 0) };
+  }, [source, config.fees.platformBps]);
   const filtered = useMemo(() => source.filter((item) =>
     (tab === "all" || item.status === tab) &&
     (stock === "all" || (stock === "stock" ? Boolean(item.stockSymbol) : !item.stockSymbol)) &&
@@ -36,26 +43,38 @@ export function Markets() {
   return <main className="explore-page">
     <section className="product-hero">
       <div className="hero-copy">
-        <div className="hero-kicker"><Droplets size={17}/> BUILT FOR THE PEOPLE WHO HOLD</div>
         <h1>Launch a coin.<br/><span>Build a portfolio.</span></h1>
         <p>AQUA turns trading activity into tokenized stock rewards for holders. Distribution is based on how much each wallet holds and how long it stays committed.</p>
         <div className="hero-actions">
           <Link className="primary" to="/create">Launch a holder-first coin <ArrowRight size={17}/></Link>
           <a className="secondary-button" href="#markets">Explore reward markets</a>
         </div>
-        <div className="fact-row">
-          <div><small>Into stock rewards</small><strong>1% of each trade</strong></div>
-          <div><small>Reward weighting</small><strong>Amount × time</strong></div>
-          <div><small>Stock asset utility</small><strong>Redeem where eligible</strong></div>
-          <div><small>Creator reward cut</small><strong>None</strong></div>
+        <div className="platform-metrics">
+          <PlatformMetric icon={<CircleDollarSign/>} label="24h platform revenue" value={compactMoney.format(platform.revenue)} note={sampleMode ? "Preview market estimate" : "From indexed market volume"}/>
+          <PlatformMetric icon={<RefreshCcw/>} label="AQUA buyback allocation" value={compactMoney.format(platform.buybacks)} note="50% of platform revenue" featured/>
+          <PlatformMetric icon={<Gift/>} label="Stock rewards airdropped" value={compactMoney.format(platform.stocks)} note={sampleMode ? "Across preview markets" : "Across indexed markets"}/>
         </div>
       </div>
       <HolderRewardFlow />
     </section>
 
     <section className="holder-standard">
-      <div><span>THE AQUA STANDARD</span><h2>Coins designed around holder value.</h2></div>
-      <p>Creators start the market. Holders receive the reward stream. Every eligible epoch shows which asset was purchased, how much entered the vault, and how distribution was calculated.</p>
+      <div><span>WHAT MAKES AQUA DIFFERENT</span><h2>A coin can do more than trade.</h2></div>
+      <p>Each market can buy tokenized stocks for its holders. AQUA then weighs rewards by the amount held and the time held. The creator starts the coin, but the reward stream belongs to eligible holders.</p>
+    </section>
+
+    <section className="aqua-flywheel">
+      <header><span className="eyebrow">THE AQUA FLYWHEEL</span><h2>Every launch can strengthen AQUA.</h2><p>Half of platform revenue is committed to buying the main AQUA token from the market. Holder stock rewards remain in a separate route.</p></header>
+      <div className="flywheel-track">
+        <FlywheelStep icon={<ChartNoAxesCombined/>} title="Markets trade" text="Activity grows across coins launched on AQUA."/>
+        <ArrowRight className="flywheel-arrow"/>
+        <FlywheelStep icon={<CircleDollarSign/>} title="Platform earns" text="The platform fee creates AQUA revenue."/>
+        <ArrowRight className="flywheel-arrow"/>
+        <FlywheelStep icon={<RefreshCcw/>} title="50% buys AQUA" text="Half of that revenue buys the main AQUA token." featured/>
+        <ArrowRight className="flywheel-arrow"/>
+        <FlywheelStep icon={<Coins/>} title="AQUA grows" text="The ecosystem feeds value back into its core token."/>
+      </div>
+      <div className="flywheel-return"><RefreshCcw/><span>More value in AQUA supports the next wave of launches.</span></div>
     </section>
 
     <section className="market-workspace" id="markets">
@@ -99,3 +118,5 @@ export function Markets() {
 }
 
 function ScoreBar({name,detail,width}:{name:string;detail:string;width:string}) { return <div><span><b>{name}</b><small>{detail}</small></span><i><em style={{width}}/></i></div>; }
+function PlatformMetric({icon,label,value,note,featured=false}:{icon:React.ReactNode;label:string;value:string;note:string;featured?:boolean}) { return <div className={`platform-metric ${featured?"featured":""}`}><span>{icon}</span><small>{label}</small><strong>{value}</strong><em>{note}</em></div>; }
+function FlywheelStep({icon,title,text,featured=false}:{icon:React.ReactNode;title:string;text:string;featured?:boolean}) { return <article className={`flywheel-step ${featured?"featured":""}`}><span>{icon}</span><b>{title}</b><p>{text}</p></article>; }
