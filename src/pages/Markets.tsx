@@ -59,16 +59,7 @@ export function Markets() {
       <HolderRewardFlow />
     </section>
 
-    <section className="holder-standard">
-      <h2>A coin can do more<br/>than trade.</h2>
-      <div className="holder-standard-copy">
-        <p>Each market can buy tokenized stocks for its holders.</p>
-        <p>AQUA weighs each reward by how much is held and for how long. Creators launch the coin. Eligible holders receive the stock rewards.</p>
-      </div>
-    </section>
-
     <section className="aqua-flywheel">
-      <svg className="liquid-section-frame" viewBox="0 0 1200 470" preserveAspectRatio="none" aria-hidden="true"><path d="M31 4 C162 0 220 13 342 6 S575 0 701 7 S931 1 1168 5 C1185 6 1196 18 1196 38 V389 C1196 432 1170 459 1125 464 H61 C24 461 5 439 4 402 V45 C4 21 13 8 31 4 Z"/><path className="frame-current" d="M31 4 C162 0 220 13 342 6 S575 0 701 7 S931 1 1168 5"/></svg>
       <div className="flywheel-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
       <header><span className="eyebrow">THE AQUA FLYWHEEL</span><h2>Every launch can strengthen AQUA.</h2><p>Half of platform revenue is committed to buying the main AQUA token from the market. Holder stock rewards remain in a separate route.</p></header>
       <div className="flywheel-track">
@@ -79,6 +70,34 @@ export function Markets() {
         <FlywheelStep icon="aquaBuy" title="50% buys AQUA" text="Half of that revenue buys the main AQUA token."/>
         <ArrowRight className="flywheel-arrow"/>
         <FlywheelStep icon="growth" title="AQUA grows" text="The ecosystem feeds value back into its core token."/>
+      </div>
+    </section>
+
+    <section className="creator-locking">
+      <div className="creator-locking-copy">
+        <h2>Lock supply.<br/><span>Earn a larger fee share.</span></h2>
+        <p>Creators can lock part of their coin in AQUA’s verified vault. The more supply they lock, and the longer they commit it for, the larger the share of their coin’s trading fees they can earn.</p>
+        <p className="creator-locking-note"><strong>Dev buys stay unlocked at launch.</strong> A separate locking flow lets the creator choose the amount and duration before fee rewards begin.</p>
+        <Link to="/create">Launch a coin <ArrowRight size={16}/></Link>
+      </div>
+      <div className="creator-locking-model" aria-label="Creator fee model">
+        <div className="lock-factor">
+          <span>More supply locked</span>
+          <div className="lock-water-track"><i className="supply-level"/></div>
+          <small>Verified commitment</small>
+        </div>
+        <b className="lock-operator">+</b>
+        <div className="lock-factor">
+          <span>Longer lock period</span>
+          <div className="lock-water-track"><i className="duration-level"/></div>
+          <small>Longer alignment</small>
+        </div>
+        <b className="lock-operator">=</b>
+        <div className="lock-result">
+          <span>Higher creator fee share</span>
+          <strong>Earn from each trade</strong>
+          <small>The rate applies while the verified lock remains active.</small>
+        </div>
       </div>
     </section>
 
@@ -103,18 +122,8 @@ export function Markets() {
       {state !== "loading" && !filtered.length && <div className="empty-state"><Search/><h3>No matching markets</h3><p>Try another coin, ticker, or reward asset.</p></div>}
     </section>
 
-    <section className="score-band">
-      <div className="score-copy"><h2>Holding longer should matter.</h2><p>A momentary snapshot can reward wallets that arrive seconds before distribution. AQUA’s model is designed to combine eligible balance and holding time for a fairer share.</p><Link to="/how-it-works">See the reward model <ArrowRight size={16}/></Link></div>
-      <div className="score-demo">
-        <div className="score-formula"><span>eligible balance</span><b>×</b><span>holding time</span><b>=</b><strong>AQUA Score</strong></div>
-        <div className="score-bars"><ScoreBar name="Mara" detail="1,000 coins · 30 days" width="100%"/><ScoreBar name="Jules" detail="1,000 coins · 7 days" width="23%"/><ScoreBar name="Ari" detail="250 coins · 30 days" width="25%"/></div>
-        <small>Illustrative example. Final rules depend on the deployed reward program.</small>
-      </div>
-    </section>
-
   </main>;
 }
 
-function ScoreBar({name,detail,width}:{name:string;detail:string;width:string}) { return <div><span><b>{name}</b><small>{detail}</small></span><i><em style={{width}}/></i></div>; }
-function PlatformMetric({icon,label,value,note}:{icon:AquaGlyphKind;label:string;value:string;note:string}) { return <div className="platform-metric"><svg className="liquid-card-frame" viewBox="0 0 240 160" preserveAspectRatio="none" aria-hidden="true"><path d="M18 3 C52 0 69 8 105 4 C149 0 174 9 221 4 C232 4 237 12 237 24 V123 C237 138 226 151 211 153 H25 C11 153 3 142 3 128 V23 C3 11 8 5 18 3 Z"/><path className="frame-current" d="M18 3 C52 0 69 8 105 4 C149 0 174 9 221 4"/></svg><span><AquaGlyph kind={icon}/></span><small>{label}</small><strong>{value}</strong><em>{note}</em></div>; }
+function PlatformMetric({icon,label,value,note}:{icon:AquaGlyphKind;label:string;value:string;note:string}) { return <div className="platform-metric"><svg className="liquid-card-frame" viewBox="0 0 240 160" preserveAspectRatio="none" aria-hidden="true"><path d="M18 3 C52 0 69 8 105 4 C149 0 174 9 221 4 C232 4 237 12 237 24 V123 C237 138 226 151 211 153 H25 C11 153 3 142 3 128 V23 C3 11 8 5 18 3 Z"/></svg><span><AquaGlyph kind={icon}/></span><small>{label}</small><strong>{value}</strong><em>{note}</em></div>; }
 function FlywheelStep({icon,title,text}:{icon:AquaGlyphKind;title:string;text:string}) { return <article className="flywheel-step"><span><AquaGlyph kind={icon}/></span><b>{title}</b><p>{text}</p></article>; }
