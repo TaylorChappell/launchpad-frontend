@@ -69,6 +69,7 @@ export function Markets() {
 
     <section className="aqua-flywheel">
       <svg className="liquid-section-frame" viewBox="0 0 1200 470" preserveAspectRatio="none" aria-hidden="true"><path d="M31 4 C162 0 220 13 342 6 S575 0 701 7 S931 1 1168 5 C1185 6 1196 18 1196 38 V389 C1196 432 1170 459 1125 464 H61 C24 461 5 439 4 402 V45 C4 21 13 8 31 4 Z"/><path className="frame-current" d="M31 4 C162 0 220 13 342 6 S575 0 701 7 S931 1 1168 5"/></svg>
+      <div className="flywheel-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
       <header><span className="eyebrow">THE AQUA FLYWHEEL</span><h2>Every launch can strengthen AQUA.</h2><p>Half of platform revenue is committed to buying the main AQUA token from the market. Holder stock rewards remain in a separate route.</p></header>
       <div className="flywheel-track">
         <FlywheelStep icon="markets" title="Markets trade" text="Activity grows across coins launched on AQUA."/>
