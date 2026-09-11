@@ -10,26 +10,23 @@ cp .env.example .env
 npm run dev
 ```
 
-Set `VITE_API_URL` to your Railway backend URL with no trailing slash.
+The default API is `https://launchpad-backend-production-63dc.up.railway.app`. Set `VITE_API_URL` only when you want to override it.
 
 ## GitHub Pages deployment
 
 ### Recommended: GitHub Actions
 
 1. Create a new GitHub repository and upload this folder.
-2. Open repository **Settings → Secrets and variables → Actions → Variables**.
-3. Create a repository variable named `VITE_API_URL` containing your Railway backend URL.
-4. Open **Settings → Pages** and choose **GitHub Actions** as the source.
-5. Push to `main`. The included workflow builds and deploys the site.
-6. Add the final GitHub Pages origin to Railway's `FRONTEND_URLS` variable.
+2. Open **Settings → Pages** and choose **GitHub Actions** as the source.
+3. Push to `main`. The included workflow builds and deploys the site.
+4. Add the final GitHub Pages origin to Railway's `FRONTEND_URLS` variable.
 
 ### Alternative: deploy from a branch
 
-1. Put your Railway URL in `public/config.js`.
-2. Run `npm install` and `npm run build`.
-3. Commit the generated `docs` folder.
-4. Open **Settings → Pages**, choose **Deploy from a branch**, select `main`, and select `/docs`.
-5. Add the final GitHub Pages origin to Railway's `FRONTEND_URLS` variable.
+1. Run `npm install` and `npm run build`.
+2. Commit the generated `docs` folder.
+3. Open **Settings → Pages**, choose **Deploy from a branch**, select `main`, and select `/docs`.
+4. Add the final GitHub Pages origin to Railway's `FRONTEND_URLS` variable.
 
 The generated `docs/index.html` references compiled JavaScript in `docs/assets`. Do not publish the unbuilt Vite source by itself. A request for `/src/main.tsx` means GitHub Pages was serving the source `index.html` instead of the production build. The root page included in this package also redirects branch deployments to `docs/` as a fallback.
 
