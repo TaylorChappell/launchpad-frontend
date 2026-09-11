@@ -30,3 +30,4 @@ The frontend does not contain its own network toggle variable. It reads `/api/co
 Phantom connects through its browser provider. MetaMask connects through MetaMask's Solana SDK. Message signing is implemented for both. The modal includes proper wallet icons, detection state, installation link, and a blurred backdrop.
 
 Real launch and trade submission remains locked until the selected network has a deployed launchpad program ID and the transaction adapter is wired to that audited deployment.
+ 
