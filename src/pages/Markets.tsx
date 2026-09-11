@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, ChartNoAxesCombined, CircleCheck, CircleDollarSign, Clock3, Coins, Database, Gift, RefreshCcw, Search, ShieldCheck, TimerReset, Users } from "lucide-react";
+import { ArrowRight, ChartNoAxesCombined, CircleCheck, CircleDollarSign, Clock3, Coins, Database, Gift, RefreshCcw, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { DEMO } from "../fixtures";
@@ -59,8 +59,11 @@ export function Markets() {
     </section>
 
     <section className="holder-standard">
-      <div><span>WHAT MAKES AQUA DIFFERENT</span><h2>A coin can do more than trade.</h2></div>
-      <p>Each market can buy tokenized stocks for its holders. AQUA then weighs rewards by the amount held and the time held. The creator starts the coin, but the reward stream belongs to eligible holders.</p>
+      <h2>A coin can do more<br/>than trade.</h2>
+      <div className="holder-standard-copy">
+        <p>Each market can buy tokenized stocks for its holders.</p>
+        <p>AQUA weighs each reward by how much is held and for how long. Creators launch the coin. Eligible holders receive the stock rewards.</p>
+      </div>
     </section>
 
     <section className="aqua-flywheel">
@@ -80,7 +83,6 @@ export function Markets() {
     <section className="market-workspace" id="markets">
       <header className="workspace-heading">
         <div>
-          <span className="eyebrow">REWARD MARKETS</span>
           <h2>{sampleMode ? "Discover the model" : "Explore holder rewards"}</h2>
           <p>{sampleMode ? "Illustrative markets show how stock rewards appear. Sample values are never presented as live activity." : "Compare the stock asset, reward vault and holder community behind every market."}</p>
         </div>
@@ -100,7 +102,7 @@ export function Markets() {
     </section>
 
     <section className="score-band">
-      <div className="score-copy"><span className="eyebrow">AQUA SCORE</span><h2>Holding longer should matter.</h2><p>A momentary snapshot can reward wallets that arrive seconds before distribution. AQUA’s model is designed to combine eligible balance and holding time for a fairer share.</p><Link to="/how-it-works">See the reward model <ArrowRight size={16}/></Link></div>
+      <div className="score-copy"><h2>Holding longer should matter.</h2><p>A momentary snapshot can reward wallets that arrive seconds before distribution. AQUA’s model is designed to combine eligible balance and holding time for a fairer share.</p><Link to="/how-it-works">See the reward model <ArrowRight size={16}/></Link></div>
       <div className="score-demo">
         <div className="score-formula"><span>eligible balance</span><b>×</b><span>holding time</span><b>=</b><strong>AQUA Score</strong></div>
         <div className="score-bars"><ScoreBar name="Mara" detail="1,000 coins · 30 days" width="100%"/><ScoreBar name="Jules" detail="1,000 coins · 7 days" width="23%"/><ScoreBar name="Ari" detail="250 coins · 30 days" width="25%"/></div>
@@ -108,12 +110,6 @@ export function Markets() {
       </div>
     </section>
 
-    <section className="assurance-strip">
-      <div><TimerReset/><span><b>Time-weighted</b><small>Conviction is part of the calculation.</small></span></div>
-      <div><ShieldCheck/><span><b>Transparent vaults</b><small>Reward assets and epochs stay visible.</small></span></div>
-      <div><Users/><span><b>Holder owned</b><small>The reward stream is not a creator cut.</small></span></div>
-      <Link className="primary" to="/create">Launch on AQUA <ArrowRight size={17}/></Link>
-    </section>
   </main>;
 }
 
