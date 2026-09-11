@@ -1,48 +1,48 @@
-import { ArrowRight, CheckCircle2, CircleDollarSign, ExternalLink, GitBranch, Landmark, LockKeyhole, ShieldAlert, Waves } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleDollarSign, Coins, ExternalLink, Gift, LockKeyhole, ShieldAlert, TimerReset, Users, Waves } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useRuntime } from "../context";
 
 export function HowItWorks() {
   const { config } = useRuntime();
-  const explorerBase = config.network === "devnet" ? "https://explorer.solana.com/address/" : "https://explorer.solana.com/address/";
+  const explorerBase = "https://explorer.solana.com/address/";
   return <main className="page how-page">
-    <header className="how-hero"><span className="eyebrow">SYSTEM MECHANISM</span><h1>Know where every unit goes.</h1><p>AQUA separates pricing, platform revenue, reward reserves and liquidity migration into explicit stages.</p></header>
+    <header className="how-hero"><h1>Rewards favor conviction, not snapshots.</h1><p>AQUA is built for coins that create ongoing value for the people who hold them. Trading can fund a transparent stock vault, while balance and time shape each holder’s share.</p></header>
 
-    <section className="system-map" aria-label="AQUA transaction flow">
-      <div className="map-grid">
-        <MapNode icon={<CircleDollarSign/>} label="Wallet trade" detail="User approved"/>
-        <span className="map-arrow"><ArrowRight/></span>
-        <MapNode icon={<GitBranch/>} label="Virtual curve" detail="Published reserve model" featured/>
-        <span className="map-arrow"><ArrowRight/></span>
-        <div className="map-split"><MapNode icon={<Landmark/>} label="Platform route" detail={`${(config.fees.platformBps/100).toFixed(2)}% each curve trade`}/><MapNode icon={<Waves/>} label="Reward reserve" detail={`${(config.fees.rewardsBps/100).toFixed(2)}% when enabled`}/></div>
-      </div>
-      <div className="graduation-route"><span>Market reserve reaches {config.graduationSol} SOL</span><i/><b>Eligible for Orca liquidity migration</b></div>
+    <section className="holder-flow" aria-label="AQUA holder reward flow">
+      <FlowNode icon={<CircleDollarSign/>} label="Coin trades" detail="Community activity"/>
+      <ArrowRight/>
+      <FlowNode icon={<Gift/>} label="1% reward stream" detail="Separate from revenue" featured/>
+      <ArrowRight/>
+      <FlowNode icon={<Coins/>} label="Stock vault" detail="Verified tokenized asset"/>
+      <ArrowRight/>
+      <FlowNode icon={<Users/>} label="Eligible holders" detail="Weighted by amount and time"/>
     </section>
 
-    <section className="technical-layout">
-      <div className="technical-intro"><span className="eyebrow">EXACT RULES</span><h2>What the interface can verify</h2><p>These values come from the active backend configuration. Contract-level behavior must match the deployed program before live transactions are enabled.</p><div className={`program-status ${config.transactionsEnabled?"ready":"inactive"}`}><LockKeyhole/><span><b>{config.transactionsEnabled?"Program configured":"No live program configured"}</b><small>{config.programId ? config.programId : `${config.network} transactions are disabled`}</small></span>{config.programId&&<a href={`${explorerBase}${config.programId}${config.network === "devnet" ? "?cluster=devnet" : ""}`} target="_blank" rel="noreferrer" aria-label="Open program in Solana Explorer"><ExternalLink/></a>}</div></div>
-      <div className="rule-table">
-        <Rule title="Pricing" value="Virtual reserve curve" text="Buy and sell quotes use the curve reserves returned for the market."/>
-        <Rule title="Platform fee" value={`${(config.fees.platformBps/100).toFixed(2)}%`} text="Applied to virtual curve trades and routed separately from rewards."/>
-        <Rule title="Reward fee" value={`${(config.fees.rewardsBps/100).toFixed(2)}% optional`} text="Only applies when the launch selects a verified stock reward asset."/>
-        <Rule title="Graduation" value={`${config.graduationSol} SOL`} text="The market becomes eligible for Orca migration at the configured reserve target."/>
-      </div>
+    <section className="score-explanation">
+      <div className="technical-intro"><span className="eyebrow">THE REWARD MODEL</span><h2>Every wallet builds a score.</h2><p>Instead of using one balance snapshot alone, the reward model is designed to track eligible balance over time. The longer a wallet maintains a balance, the more weight it can build for the epoch.</p><div className="formula-large"><span>balance</span><b>×</b><span>time held</span><b>=</b><strong>AQUA Score</strong></div></div>
+      <div className="score-example"><header><b>Example epoch</b><small>Illustrative only</small></header><ExampleRow name="Mara" holding="1,000 coins for 30 days" score="30,000" share="67.4%" width="100%"/><ExampleRow name="Jules" holding="1,000 coins for 7 days" score="7,000" share="15.7%" width="23%"/><ExampleRow name="Ari" holding="250 coins for 30 days" score="7,500" share="16.9%" width="25%"/><footer>Example percentages normalize these three wallet scores together.</footer></div>
     </section>
 
-    <section className="details-section">
-      <header><span className="eyebrow">OPERATIONAL DETAILS</span><h2>Questions serious traders should ask</h2></header>
+    <section className="principles-section">
+      <header><span className="eyebrow">HOLDER-FIRST PRINCIPLES</span><h2>The creator launches it. The community earns from it.</h2></header>
       <div className="detail-grid">
-        <article className="detail-panel"><h3>Before graduation</h3><ul><li><CheckCircle2/>The market trades against virtual SOL reserves.</li><li><CheckCircle2/>Quotes include the applicable fee routes.</li><li><CheckCircle2/>Progress is measured against the configured reserve target.</li></ul></article>
-        <article className="detail-panel"><h3>Stock rewards</h3><ul><li><CheckCircle2/>Only verified Solana xStock mints may be selected.</li><li><CheckCircle2/>Reward epochs record the asset, amount, wallet count and snapshot slot.</li><li><CheckCircle2/>A failed registry check disables stock launches instead of guessing.</li></ul></article>
-        <article className="detail-panel warning"><h3>Deployment requirements</h3><ul><li><ShieldAlert/>Live behavior depends on the deployed and audited Solana program.</li><li><ShieldAlert/>LP ownership, authority controls and migration transactions must be verified onchain.</li><li><ShieldAlert/>AQUA disables transaction submission when a program is not configured.</li></ul></article>
+        <article className="detail-panel"><Waves/><h3>Separate reward vault</h3><p>The stock reward fee follows its own route rather than becoming creator or platform revenue.</p></article>
+        <article className="detail-panel"><TimerReset/><h3>Time has weight</h3><p>Holding duration is intended to reduce last-second farming and reward sustained participation.</p></article>
+        <article className="detail-panel"><CheckCircle2/><h3>Visible proof</h3><p>Each published epoch records its asset, amount, eligible wallets, snapshot slot, and allocation root.</p></article>
       </div>
     </section>
 
-    <section className="mode-comparison"><div><span className="eyebrow">LAUNCH OPTIONS</span><h2>Choose one fee route.</h2></div><div className="mode-card"><span>SOL MARKET</span><b>1.00%</b><p>Platform fee only. Graduates toward token and SOL liquidity.</p></div><div className="mode-card featured"><span>STOCK REWARDS</span><b>2.00%</b><p>1% platform fee plus a separate 1% stock reward reserve.</p></div></section>
+    <section className="redemption-note"><div><Coins/><span><b>Real tokenized stock assets</b><p>Reward assets can represent instruments such as NVIDIA or Apple xStocks. Where the holder and provider are eligible, those assets may be transferred or redeemed through the provider’s process.</p></span></div><div className="legal"><ShieldAlert/>These products can be restricted by country, provider, or market status. A coin is not itself a share of the paired company.</div></section>
 
-    <section className="final-cta"><div><span className="eyebrow">CREATE MARKET</span><h2>Review the terms before you sign.</h2><p>The launch flow shows the active network, fee routes and transaction availability.</p></div><Link className="primary" to="/create">Configure a launch <ArrowRight size={17}/></Link></section>
+    <section className="infrastructure-details">
+      <div><span className="eyebrow">UNDER THE SURFACE</span><h2>The market machinery stays verifiable.</h2><p>AQUA can use a virtual reserve model while a market is launching, then become eligible for Orca liquidity at the configured reserve target. This mechanism supports the experience, but it is not the reason holders choose AQUA.</p><div className={`program-status ${config.transactionsEnabled?"ready":"inactive"}`}><LockKeyhole/><span><b>{config.transactionsEnabled?"Launch program configured":"Transactions are currently disabled"}</b><small>{config.programId ? config.programId : "A deployed program is required for live actions"}</small></span>{config.programId&&<a href={`${explorerBase}${config.programId}${config.useTestnet ? "?cluster=devnet" : ""}`} target="_blank" rel="noreferrer" aria-label="Open program in Solana Explorer"><ExternalLink/></a>}</div></div>
+      <div className="rule-table"><Rule title="Platform fee" value={`${(config.fees.platformBps/100).toFixed(2)}%`} text="Supports the launchpad and remains separate from holder rewards."/><Rule title="Stock reward stream" value={`${(config.fees.rewardsBps/100).toFixed(2)}%`} text="Applies when a verified tokenized stock reward is selected."/><Rule title="Reward weighting" value="Balance × time" text="Designed to determine each eligible wallet’s relative epoch share."/><Rule title="Orca eligibility" value={`${config.graduationSol} SOL`} text="The configured reserve target for liquidity migration eligibility."/></div>
+    </section>
+
+    <section className="final-cta"><div><h2>Launch for the people who stay.</h2><p>Choose a coin identity and the tokenized stock your holders can earn.</p></div><Link className="primary" to="/create">Create a holder-first coin <ArrowRight size={17}/></Link></section>
   </main>;
 }
 
-function MapNode({icon,label,detail,featured=false}:{icon:React.ReactNode;label:string;detail:string;featured?:boolean}) { return <div className={`map-node ${featured?"featured":""}`}><span>{icon}</span><b>{label}</b><small>{detail}</small></div>; }
+function FlowNode({icon,label,detail,featured=false}:{icon:React.ReactNode;label:string;detail:string;featured?:boolean}) { return <div className={`flow-step ${featured?"featured":""}`}><span>{icon}</span><b>{label}</b><small>{detail}</small></div>; }
 function Rule({title,value,text}:{title:string;value:string;text:string}) { return <div><span>{title}</span><b>{value}</b><p>{text}</p></div>; }
+function ExampleRow({name,holding,score,share,width}:{name:string;holding:string;score:string;share:string;width:string}) { return <div className="example-row"><span><b>{name}</b><small>{holding}</small></span><div><i style={{width}}/></div><strong>{score}<small>score · {share}</small></strong></div>; }

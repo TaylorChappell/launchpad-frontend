@@ -1,4 +1,4 @@
-import { BookOpen, CircleHelp, Compass, Gift, Menu, Plus, X } from "lucide-react";
+import { CircleHelp, Compass, Gift, Menu, Plus, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useState, type ReactNode } from "react";
 import { useRuntime, useWallet } from "../context";
@@ -26,8 +26,6 @@ export function Layout({ children }: { children: ReactNode }) {
         <NavLink to="/" className="brand" aria-label="AQUA home"><AquaMark /><b>AQUA</b></NavLink>
         <nav aria-label="Primary navigation">{links.map((link) => <NavLink key={link.to} to={link.to} end={link.to === "/"}>{link.label}</NavLink>)}</nav>
         <div className="header-actions">
-          <a className="docs-link" href="https://github.com/taylorchappell/launchpad-frontend" target="_blank" rel="noreferrer"><BookOpen size={15}/> Docs</a>
-          <span className={`network-pill ${config.useTestnet ? "testnet" : "mainnet"}`}><i />{config.useTestnet ? "Devnet" : "Mainnet"}</span>
           {wallet.address ? <button className="wallet-button connected" onClick={() => void wallet.disconnect()}>{short}</button> : <button className="wallet-button" onClick={() => wallet.setModalOpen(true)}>Connect wallet</button>}
           <button className="mobile-menu" onClick={() => setMobile(!mobile)} aria-label="Toggle navigation" aria-expanded={mobile}>{mobile ? <X /> : <Menu />}</button>
         </div>
@@ -37,7 +35,7 @@ export function Layout({ children }: { children: ReactNode }) {
     {error && <div className="system-banner"><b>Backend unavailable</b><span>Live data could not be loaded. Actions remain disabled until the connection recovers.</span></div>}
     {children}
     <footer className="site-footer">
-      <div><NavLink to="/" className="brand"><AquaMark compact /><b>AQUA</b></NavLink><p>Transparent Solana launches with optional tokenized stock rewards.</p></div>
+      <div><NavLink to="/" className="brand"><AquaMark compact /><b>AQUA</b></NavLink><p>The launchpad for coins that build tokenized stock rewards for their holders.</p></div>
       <nav aria-label="Footer navigation">{links.map((link) => <NavLink key={link.to} to={link.to}>{link.label}</NavLink>)}</nav>
       <small>Tokenized stocks are regulated products and may be restricted in your jurisdiction. Verify every transaction before signing.</small>
     </footer>

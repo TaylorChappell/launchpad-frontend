@@ -1,17 +1,15 @@
 import { ExternalLink, X } from "lucide-react";
 import { WalletMetamask, WalletPhantom } from "@web3icons/react";
-import { useRuntime, useWallet } from "../context";
+import { useWallet } from "../context";
 
 export function WalletModal() {
   const wallet = useWallet();
-  const { config } = useRuntime();
   if (!wallet.modalOpen) return null;
   return <div className="wallet-overlay" role="presentation" onMouseDown={() => wallet.setModalOpen(false)}>
     <section className="wallet-modal" role="dialog" aria-modal="true" aria-labelledby="wallet-title" onMouseDown={(event) => event.stopPropagation()}>
       <button className="modal-close" onClick={() => wallet.setModalOpen(false)} aria-label="Close wallet dialog"><X size={17}/></button>
       <h2 id="wallet-title">Connect to AQUA</h2>
-      <p className="wallet-copy">Choose a Solana wallet. AQUA cannot move funds without a transaction you approve.</p>
-      <div className="wallet-network"><span>Requested network</span><b>{config.useTestnet ? "SOLANA DEVNET" : "SOLANA MAINNET"}</b></div>
+      <p className="wallet-copy">Choose a wallet to explore rewards, check eligibility, or sign a transaction. AQUA cannot move funds without your approval.</p>
       <div className="wallet-list">
         <WalletRow kind="phantom" name="Phantom" status={wallet.phantomInstalled ? "Detected" : "Install required"} action={wallet.phantomInstalled ? "Connect" : "Get"} icon={<span className="wallet-logo"><WalletPhantom variant="background" size={30}/></span>}/>
         <WalletRow kind="metamask" name="MetaMask" status="Solana account" icon={<span className="wallet-logo"><WalletMetamask variant="background" size={30}/></span>}/>
