@@ -1,20 +1,48 @@
-import { ArrowRight, Droplets, LineChart, LockKeyhole, ShieldCheck, Waves } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleDollarSign, ExternalLink, GitBranch, Landmark, LockKeyhole, ShieldAlert, Waves } from "lucide-react";
 import { Link } from "react-router-dom";
-
-const steps = [
-  { icon: LineChart, number: "01", title: "Start on a virtual curve", text: "A new token begins trading against virtual SOL reserves. Price moves predictably as tokens are bought and sold." },
-  { icon: Droplets, number: "02", title: "Fees follow clear routes", text: "Every curve trade includes a 1% platform fee. Stock-enabled launches add a separate 1% holder reward fee." },
-  { icon: ShieldCheck, number: "03", title: "The stock reserve grows", text: "Reward fees accumulate in a visible vault and are converted into the market's selected tokenized stock." },
-  { icon: Waves, number: "04", title: "Liquidity graduates", text: "When the curve reaches 85 SOL, liquidity moves into an Orca pool and the market enters its next stage." },
-];
+import { useRuntime } from "../context";
 
 export function HowItWorks() {
+  const { config } = useRuntime();
+  const explorerBase = config.network === "devnet" ? "https://explorer.solana.com/address/" : "https://explorer.solana.com/address/";
   return <main className="page how-page">
-    <section className="how-hero"><span className="eyebrow">HOW IT WORKS</span><h1>One clear current from launch to liquidity.</h1><p>Equity Launch gives creators a transparent curve, optional tokenized stock rewards and a defined path into Orca.</p></section>
-    <section className="how-steps">{steps.map(({ icon: Icon, number, title, text }) => <article key={number}><header><span>{number}</span><Icon /></header><h2>{title}</h2><p>{text}</p></article>)}</section>
-    <section className="fee-panel"><div><span className="eyebrow">FEE STRUCTURE</span><h2>Simple enough to verify.</h2><p>Stock rewards are kept separate from platform revenue so every amount can be tracked from collection to distribution.</p><div className="fee-note"><LockKeyhole /> Your wallet approves every launch and trade.</div></div><div className="fee-table"><div><span>Platform fee</span><strong>1.00%</strong><small>On every virtual curve trade</small></div><div><span>Stock reward fee</span><strong>1.00%</strong><small>Only on stock-enabled launches</small></div><div><span>Graduation target</span><strong>85 SOL</strong><small>Before Orca liquidity</small></div></div></section>
-    <section className="mode-section"><div className="section-heading"><div><span className="eyebrow">TWO LAUNCH MODES</span><h2>Choose the structure that fits.</h2></div></div><div className="mode-grid"><article><span>STANDARD</span><h3>SOL market</h3><p>A direct token launch with a 1% platform fee and no stock reward reserve.</p><strong>Token / SOL</strong></article><article className="featured"><span>STOCK REWARDS</span><h3>Reward-enabled market</h3><p>An additional 1% is reserved to purchase the selected tokenized stock for holders.</p><strong>Token / xStock rewards</strong></article></div></section>
-    <section className="launch-cta"><div><span className="eyebrow">CREATE A MARKET</span><h2>Set your launch in motion.</h2><p>Choose the name, pair, socials and optional developer buy before signing with your wallet.</p></div><Link className="primary hero-primary" to="/create">Start a launch <ArrowRight size={17} /></Link></section>
+    <header className="how-hero"><span className="eyebrow">SYSTEM MECHANISM</span><h1>Know where every unit goes.</h1><p>AQUA separates pricing, platform revenue, reward reserves and liquidity migration into explicit stages.</p></header>
+
+    <section className="system-map" aria-label="AQUA transaction flow">
+      <div className="map-grid">
+        <MapNode icon={<CircleDollarSign/>} label="Wallet trade" detail="User approved"/>
+        <span className="map-arrow"><ArrowRight/></span>
+        <MapNode icon={<GitBranch/>} label="Virtual curve" detail="Published reserve model" featured/>
+        <span className="map-arrow"><ArrowRight/></span>
+        <div className="map-split"><MapNode icon={<Landmark/>} label="Platform route" detail={`${(config.fees.platformBps/100).toFixed(2)}% each curve trade`}/><MapNode icon={<Waves/>} label="Reward reserve" detail={`${(config.fees.rewardsBps/100).toFixed(2)}% when enabled`}/></div>
+      </div>
+      <div className="graduation-route"><span>Market reserve reaches {config.graduationSol} SOL</span><i/><b>Eligible for Orca liquidity migration</b></div>
+    </section>
+
+    <section className="technical-layout">
+      <div className="technical-intro"><span className="eyebrow">EXACT RULES</span><h2>What the interface can verify</h2><p>These values come from the active backend configuration. Contract-level behavior must match the deployed program before live transactions are enabled.</p><div className={`program-status ${config.transactionsEnabled?"ready":"inactive"}`}><LockKeyhole/><span><b>{config.transactionsEnabled?"Program configured":"No live program configured"}</b><small>{config.programId ? config.programId : `${config.network} transactions are disabled`}</small></span>{config.programId&&<a href={`${explorerBase}${config.programId}${config.network === "devnet" ? "?cluster=devnet" : ""}`} target="_blank" rel="noreferrer" aria-label="Open program in Solana Explorer"><ExternalLink/></a>}</div></div>
+      <div className="rule-table">
+        <Rule title="Pricing" value="Virtual reserve curve" text="Buy and sell quotes use the curve reserves returned for the market."/>
+        <Rule title="Platform fee" value={`${(config.fees.platformBps/100).toFixed(2)}%`} text="Applied to virtual curve trades and routed separately from rewards."/>
+        <Rule title="Reward fee" value={`${(config.fees.rewardsBps/100).toFixed(2)}% optional`} text="Only applies when the launch selects a verified stock reward asset."/>
+        <Rule title="Graduation" value={`${config.graduationSol} SOL`} text="The market becomes eligible for Orca migration at the configured reserve target."/>
+      </div>
+    </section>
+
+    <section className="details-section">
+      <header><span className="eyebrow">OPERATIONAL DETAILS</span><h2>Questions serious traders should ask</h2></header>
+      <div className="detail-grid">
+        <article className="detail-panel"><h3>Before graduation</h3><ul><li><CheckCircle2/>The market trades against virtual SOL reserves.</li><li><CheckCircle2/>Quotes include the applicable fee routes.</li><li><CheckCircle2/>Progress is measured against the configured reserve target.</li></ul></article>
+        <article className="detail-panel"><h3>Stock rewards</h3><ul><li><CheckCircle2/>Only verified Solana xStock mints may be selected.</li><li><CheckCircle2/>Reward epochs record the asset, amount, wallet count and snapshot slot.</li><li><CheckCircle2/>A failed registry check disables stock launches instead of guessing.</li></ul></article>
+        <article className="detail-panel warning"><h3>Deployment requirements</h3><ul><li><ShieldAlert/>Live behavior depends on the deployed and audited Solana program.</li><li><ShieldAlert/>LP ownership, authority controls and migration transactions must be verified onchain.</li><li><ShieldAlert/>AQUA disables transaction submission when a program is not configured.</li></ul></article>
+      </div>
+    </section>
+
+    <section className="mode-comparison"><div><span className="eyebrow">LAUNCH OPTIONS</span><h2>Choose one fee route.</h2></div><div className="mode-card"><span>SOL MARKET</span><b>1.00%</b><p>Platform fee only. Graduates toward token and SOL liquidity.</p></div><div className="mode-card featured"><span>STOCK REWARDS</span><b>2.00%</b><p>1% platform fee plus a separate 1% stock reward reserve.</p></div></section>
+
+    <section className="final-cta"><div><span className="eyebrow">CREATE MARKET</span><h2>Review the terms before you sign.</h2><p>The launch flow shows the active network, fee routes and transaction availability.</p></div><Link className="primary" to="/create">Configure a launch <ArrowRight size={17}/></Link></section>
   </main>;
 }
 
+function MapNode({icon,label,detail,featured=false}:{icon:React.ReactNode;label:string;detail:string;featured?:boolean}) { return <div className={`map-node ${featured?"featured":""}`}><span>{icon}</span><b>{label}</b><small>{detail}</small></div>; }
+function Rule({title,value,text}:{title:string;value:string;text:string}) { return <div><span>{title}</span><b>{value}</b><p>{text}</p></div>; }

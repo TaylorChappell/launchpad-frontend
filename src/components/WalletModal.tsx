@@ -1,27 +1,29 @@
-import { X } from "lucide-react";
+import { ExternalLink, X } from "lucide-react";
 import { WalletMetamask, WalletPhantom } from "@web3icons/react";
-import { useWallet } from "../context";
+import { useRuntime, useWallet } from "../context";
 
 export function WalletModal() {
   const wallet = useWallet();
+  const { config } = useRuntime();
   if (!wallet.modalOpen) return null;
   return <div className="wallet-overlay" role="presentation" onMouseDown={() => wallet.setModalOpen(false)}>
     <section className="wallet-modal" role="dialog" aria-modal="true" aria-labelledby="wallet-title" onMouseDown={(event) => event.stopPropagation()}>
-      <button className="modal-close" onClick={() => wallet.setModalOpen(false)} aria-label="Close"><X size={17} /></button>
-      <h2 id="wallet-title">Connect a wallet</h2>
-      <p className="wallet-copy">Choose a wallet that supports Solana. Every launch and trade still requires your approval.</p>
+      <button className="modal-close" onClick={() => wallet.setModalOpen(false)} aria-label="Close wallet dialog"><X size={17}/></button>
+      <h2 id="wallet-title">Connect to AQUA</h2>
+      <p className="wallet-copy">Choose a Solana wallet. AQUA cannot move funds without a transaction you approve.</p>
+      <div className="wallet-network"><span>Requested network</span><b>{config.useTestnet ? "SOLANA DEVNET" : "SOLANA MAINNET"}</b></div>
       <div className="wallet-list">
-        <WalletRow kind="phantom" name="Phantom" installed={wallet.phantomInstalled} icon={<span className="wallet-logo phantom"><WalletPhantom variant="background" size={29} /></span>} />
-        <WalletRow kind="metamask" name="MetaMask" installed icon={<span className="wallet-logo metamask"><WalletMetamask variant="background" size={29} /></span>} />
+        <WalletRow kind="phantom" name="Phantom" status={wallet.phantomInstalled ? "Detected" : "Install required"} action={wallet.phantomInstalled ? "Connect" : "Get"} icon={<span className="wallet-logo"><WalletPhantom variant="background" size={30}/></span>}/>
+        <WalletRow kind="metamask" name="MetaMask" status="Solana account" icon={<span className="wallet-logo"><WalletMetamask variant="background" size={30}/></span>}/>
       </div>
-      {!wallet.phantomInstalled && <div className="not-installed"><span>Not installed</span><a href="https://phantom.com/download" target="_blank" rel="noreferrer"><WalletPhantom variant="branded" size={18} /> Phantom <b>Get ↗</b></a></div>}
+      <p className="wallet-note">MetaMask connects through its Solana account support. {!wallet.phantomInstalled && <>Need Phantom? <a href="https://phantom.com/download" target="_blank" rel="noreferrer">Install Phantom <ExternalLink size={11}/></a></>}</p>
     </section>
   </div>;
 }
 
-function WalletRow({ kind, name, installed, icon }: { kind: "phantom" | "metamask"; name: string; installed: boolean; icon: React.ReactNode }) {
+function WalletRow({ kind, name, status, icon, action="Connect" }: { kind: "phantom" | "metamask"; name: string; status: string; icon: React.ReactNode; action?: string }) {
   const wallet = useWallet();
   return <button className="wallet-row" disabled={Boolean(wallet.connecting)} onClick={() => void wallet.connect(kind)}>
-    {icon}<span className="wallet-name"><strong>{name}</strong><small>{installed ? "Detected" : "Not installed"}</small></span><span className="wallet-connect">{wallet.connecting === kind ? "Connecting…" : "Connect"}</span>
+    {icon}<span className="wallet-name"><strong>{name}</strong><small>{status}</small></span><span className="wallet-connect">{wallet.connecting === kind ? "Connecting…" : action}</span>
   </button>;
 }

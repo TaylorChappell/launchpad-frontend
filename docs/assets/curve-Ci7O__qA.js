@@ -1,0 +1,2 @@
+function m(e,r,o=30,s=1e9){const n=e*.01,t=r?e*.01:0,a=e-n-t,c=s-o*s/(o+a);return{platformFee:n,rewardFee:t,netSol:a,tokensOut:c}}function u(e,r,o=30,s=1e9,n=0){const t=o-o*s/(s+e),a=t*.01,c=r?t*.01:0;return{platformFee:a,rewardFee:c,solOut:Math.max(0,Math.min(t-a-c,n))}}function l(e){return["AQUA","Action: create",`Wallet: ${e.wallet}`,`Request: ${e.requestId}`,`Token: ${e.symbol.toUpperCase()}`,`Pair: ${e.stockSymbol??"SOL"}`,`Timestamp: ${e.timestamp}`].join(`
+`)}export{u as a,l as b,m as q};

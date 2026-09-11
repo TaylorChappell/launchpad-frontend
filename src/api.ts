@@ -1,8 +1,8 @@
-import type { Launch, RuntimeConfig, StockOption, Trade } from "./types";
+import type { Launch, RewardEpoch, RuntimeConfig, StockOption, Trade } from "./types";
 
 const DEFAULT_API_URL = "https://launchpad-backend-production-63dc.up.railway.app";
 const cleanUrl = (value: unknown) => typeof value === "string" && /^https?:\/\//i.test(value.trim()) ? value.trim().replace(/\/$/, "") : null;
-export const API_URL = cleanUrl(window.EQUITY_LAUNCH_CONFIG?.API_URL) ?? cleanUrl(import.meta.env.VITE_API_URL) ?? DEFAULT_API_URL;
+export const API_URL = cleanUrl(window.AQUA_CONFIG?.API_URL) ?? cleanUrl(import.meta.env.VITE_API_URL) ?? DEFAULT_API_URL;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, init);
@@ -16,7 +16,7 @@ export const api = {
   launches: () => request<{ launches: Launch[] }>("/api/launches"),
   launch: (id: string) => request<{ launch: Launch; trades: Trade[] }>(`/api/launches/${encodeURIComponent(id)}`),
   stocks: () => request<{ stocks: StockOption[] }>("/api/stocks"),
-  rewards: () => request<{ epochs: unknown[] }>("/api/rewards"),
+  rewards: () => request<{ epochs: RewardEpoch[] }>("/api/rewards"),
   upload: async (body: FormData) => request<{ imageId: string; imageUrl: string }>("/api/uploads", { method: "POST", body }),
   createLaunch: (body: unknown) => request<{ launch: Launch; onchainStatus: string }>("/api/launches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
 };

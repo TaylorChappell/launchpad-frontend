@@ -3,19 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#031018" />
-    <meta name="description" content="Launch community tokens on Solana with virtual curves, Orca liquidity and optional tokenized stock rewards." />
+    <meta name="theme-color" content="#020b11" />
+    <meta name="description" content="AQUA launches transparent Solana markets with virtual curves, Orca liquidity and optional tokenized stock rewards." />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <title>Equity Launch | Community Markets</title>
+    <title>AQUA | Markets that reward holders</title>
   </head>
   <body>
     <div id="root"></div>
     <script>
-      if ("__EL_BUILD_MODE__" !== "built" && location.hostname.endsWith("github.io")) {
+      if ("__AQUA_BUILD_MODE__" !== "built" && location.hostname.endsWith("github.io")) {
         location.replace("./docs/");
       }
     </script>
-    <script src="./config.js"></script>
+    <script vite-ignore src="./config.js"></script>
     <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>

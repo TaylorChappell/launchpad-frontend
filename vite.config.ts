@@ -5,12 +5,12 @@ export default defineConfig({
   plugins: [
     react(),
     {
-      name: "equity-launch-pages-mode",
+      name: "aqua-pages-mode",
       transformIndexHtml(html) {
-        return html.replace("__EL_BUILD_MODE__", "built");
+        return html.replace("__AQUA_BUILD_MODE__", "built");
       },
     },
   ],
   base: "./",
-  build: { outDir: "docs", emptyOutDir: true, sourcemap: true },
+  build: { outDir: "docs", emptyOutDir: true, sourcemap: false },
 });

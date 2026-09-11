@@ -1,91 +1,95 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BadgeCheck, Droplets, Search, ShieldCheck, Sparkles, TrendingUp, Waves } from "lucide-react";
+import { ArrowRight, CircleCheck, Clock3, Database, Search, ShieldCheck, Waves } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { DEMO } from "../fixtures";
 import type { Launch } from "../types";
 import { TokenCard } from "../components/TokenCard";
+import { LiquidityFlow } from "../components/LiquidityFlow";
+import { useRuntime } from "../context";
 
-const flow = [
-  { n: "01", title: "Launch on the curve", text: "Create a token with optional developer buy and social links. Trading starts immediately on a virtual SOL curve." },
-  { n: "02", title: "Build the reserve", text: "Every trade moves the curve. Stock-enabled markets direct an extra 1% into their holder reward reserve." },
-  { n: "03", title: "Reward holders", text: "Accumulated SOL is converted into the selected tokenized stock and prepared for transparent holder distributions." },
-  { n: "04", title: "Graduate to Orca", text: "At 85 SOL, the market graduates into permanent Orca liquidity with its full trading history intact." },
-];
+type DataState = "loading" | "live" | "empty" | "offline";
 
 export function Markets() {
-  const [launches, setLaunches] = useState<Launch[]>(DEMO);
+  const { config } = useRuntime();
+  const [launches, setLaunches] = useState<Launch[]>([]);
+  const [state, setState] = useState<DataState>("loading");
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("all");
   const [stock, setStock] = useState("all");
-  useEffect(() => { api.launches().then((data) => { if (data.launches.length) setLaunches(data.launches); }).catch(() => undefined); }, []);
-  const filtered = useMemo(() => launches.filter((item) => (tab === "all" || item.status === tab) && (stock === "all" || (stock === "stock" ? Boolean(item.stockSymbol) : !item.stockSymbol)) && [item.name, item.symbol, item.mint, item.stockSymbol].some((value) => String(value ?? "").toLowerCase().includes(query.toLowerCase()))), [launches, query, tab, stock]);
+
+  useEffect(() => {
+    api.launches().then((data) => {
+      setLaunches(data.launches);
+      setState(data.launches.length ? "live" : "empty");
+      setUpdatedAt(new Date());
+    }).catch(() => setState("offline"));
+  }, []);
+
+  const sampleMode = state !== "live";
+  const source = sampleMode ? DEMO : launches;
+  const filtered = useMemo(() => source.filter((item) =>
+    (tab === "all" || item.status === tab) &&
+    (stock === "all" || (stock === "stock" ? Boolean(item.stockSymbol) : !item.stockSymbol)) &&
+    [item.name, item.symbol, item.mint, item.stockSymbol].some((value) => String(value ?? "").toLowerCase().includes(query.toLowerCase()))
+  ), [source, query, tab, stock]);
 
   return <main className="explore-page">
-    <section className="ocean-hero">
-      <div className="hero-current hero-current-one" />
-      <div className="hero-current hero-current-two" />
+    <section className="product-hero">
       <div className="hero-copy">
-        <div className="hero-kicker"><span><Waves size={15} /></span> Solana markets with real-world rewards</div>
-        <h1>Launch a token.<br /><em>Reward conviction.</em></h1>
-        <p>Community tokens begin on a virtual curve, graduate into Orca liquidity, and can turn trading activity into tokenized stock rewards for holders.</p>
+        <div className="hero-kicker"><Waves size={16}/> SOLANA LAUNCH INFRASTRUCTURE</div>
+        <h1>Launch markets.<br/><span>Reward holders.</span></h1>
+        <p>Start on a transparent virtual curve. Route trading fees into optional tokenized stock rewards. Graduate liquidity to Orca at {config.graduationSol} SOL.</p>
         <div className="hero-actions">
-          <Link className="primary hero-primary" to="/create">Launch a token <ArrowRight size={17} /></Link>
-          <a className="secondary-button" href="#popular">Explore markets</a>
+          <Link className="primary" to="/create">Create market <ArrowRight size={17}/></Link>
+          <a className="secondary-button" href="#markets">View markets</a>
         </div>
-        <div className="hero-trust">
-          <span><ShieldCheck size={15} /> Wallet approved</span>
-          <span><BadgeCheck size={15} /> Transparent fees</span>
-          <span><Droplets size={15} /> Orca liquidity</span>
+        <div className="fact-row">
+          <div><small>Platform fee</small><strong>{(config.fees.platformBps / 100).toFixed(2)}%</strong></div>
+          <div><small>Optional reward fee</small><strong>{(config.fees.rewardsBps / 100).toFixed(2)}%</strong></div>
+          <div><small>Liquidity destination</small><strong>Orca</strong></div>
         </div>
       </div>
-      <div className="hero-art" aria-hidden="true">
-        <div className="art-glow" />
-        <img src={`${import.meta.env.BASE_URL}hero-liquidity.png`} alt="" />
-        <div className="float-card float-card-top"><small>HOLDER REWARDS</small><strong>1% into xStocks</strong><span>Automatic reserve</span></div>
-        <div className="float-card float-card-bottom"><i /><div><small>GRADUATION</small><strong>Orca liquidity</strong></div></div>
+      <LiquidityFlow />
+    </section>
+
+    <section className="market-workspace" id="markets">
+      <header className="workspace-heading">
+        <div>
+          <span className="eyebrow">MARKET DISCOVERY</span>
+          <h2>{sampleMode ? "Preview markets" : "Active markets"}</h2>
+          <p>{sampleMode ? "Examples are provided to demonstrate the product layout. No values below represent live trading." : "Newest markets returned by the AQUA index."}</p>
+        </div>
+        <div className={`data-badge ${state}`}>
+          {state === "live" ? <CircleCheck/> : state === "loading" ? <Clock3/> : <Database/>}
+          <span><b>{state === "live" ? "LIVE DATA" : state === "loading" ? "LOADING" : "SAMPLE DATA"}</b><small>{state === "live" && updatedAt ? `Updated ${updatedAt.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}` : state === "offline" ? "Backend unavailable" : "Devnet has no launches"}</small></span>
+        </div>
+      </header>
+
+      <div className="market-controls">
+        <div className="tabs" aria-label="Market status">{[["all", "All"], ["curve", "On curve"], ["orca", "Orca"]].map(([value, label]) => <button className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{label}</button>)}</div>
+        <div className="filters"><select aria-label="Filter by reward type" value={stock} onChange={(event) => setStock(event.target.value)}><option value="all">All reward types</option><option value="stock">Stock rewards</option><option value="sol">SOL only</option></select><label><Search size={16}/><input aria-label="Search markets" placeholder="Search name, ticker or mint" value={query} onChange={(event) => setQuery(event.target.value)}/></label></div>
       </div>
-      <div className="hero-stats">
-        <Metric label="Volume flowing" value="$1.42M" detail="24 hour volume" />
-        <Metric label="Active markets" value={String(launches.length)} detail="Curve and Orca" />
-        <Metric label="Holder rewards" value="$601K" detail="Distributed onchain" />
-        <Metric label="Graduation" value="85 SOL" detail="Into Orca liquidity" />
+
+      {state === "loading" ? <div className="market-skeletons">{[0,1,2].map(i => <div key={i}/>)}</div> : <div className="token-grid">{filtered.map((launch, index) => <TokenCard key={launch.id} launch={launch} sample={sampleMode} featured={index === 0}/>)}</div>}
+      {state !== "loading" && !filtered.length && <div className="empty-state"><Search/><h3>No matching markets</h3><p>Clear the filters or search for another token.</p></div>}
+    </section>
+
+    <section className="mechanism-band">
+      <div className="mechanism-heading"><span className="eyebrow">THE AQUA ROUTE</span><h2>One trade. Clear destinations.</h2><p>Every fee has a defined path that can be verified against the program and reward epochs.</p><Link to="/how-it-works">Inspect the full mechanism <ArrowRight size={16}/></Link></div>
+      <div className="route-list">
+        <article><span>01</span><div><b>Trade on the curve</b><p>Price follows the published virtual reserve model.</p></div><strong>MARKET</strong></article>
+        <article><span>02</span><div><b>Separate the fees</b><p>Platform revenue and stock rewards use distinct routes.</p></div><strong>1% + 1%</strong></article>
+        <article><span>03</span><div><b>Graduate liquidity</b><p>The market becomes eligible for its Orca pool at {config.graduationSol} SOL.</p></div><strong>ORCA</strong></article>
       </div>
     </section>
 
-    <section className="explore-shell" id="popular">
-      <div className="section-heading">
-        <div><span className="eyebrow">LIVE MARKETS</span><h2>Popular launches</h2><p>Track the communities building momentum across the curve and Orca.</p></div>
-        <Link to="/create">Create your market <ArrowRight size={15} /></Link>
-      </div>
-      <div className="ticker">
-        <div><TrendingUp size={14} /><strong>NVDAx</strong><span>$176.42</span><em>+2.8%</em></div>
-        <div><strong>AAPLx</strong><span>$229.18</span><em>+1.1%</em></div>
-        <div><strong>TSLAx</strong><span>$421.07</span><em className="negative">-0.7%</em></div>
-        <div><strong>SPYx</strong><span>$687.33</span><em>+0.5%</em></div>
-      </div>
-      <section className="market-controls">
-        <div className="tabs">{[["all", "All markets"], ["curve", "On the curve"], ["orca", "Orca live"]].map(([value, label]) => <button className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{label}</button>)}</div>
-        <div className="filters"><select aria-label="Filter by reward type" value={stock} onChange={(event) => setStock(event.target.value)}><option value="all">All pairs</option><option value="stock">Stock rewards</option><option value="sol">SOL only</option></select><label><Search size={15} /><input aria-label="Search markets" placeholder="Search token or mint" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div>
-      </section>
-      <div className="token-grid">{filtered.map((launch) => <TokenCard key={launch.id} launch={launch} />)}</div>
-      {!filtered.length && <div className="empty">No markets match those filters.</div>}
+    <section className="assurance-strip">
+      <div><ShieldCheck/><span><b>Wallet controlled</b><small>You approve every signature.</small></span></div>
+      <div><Database/><span><b>Verifiable routes</b><small>Program and epoch data stay visible.</small></span></div>
+      <div><CircleCheck/><span><b>Honest states</b><small>Preview and live data are never mixed.</small></span></div>
+      <Link className="primary" to="/create">Launch on AQUA <ArrowRight size={17}/></Link>
     </section>
-
-    <section className="flow-section">
-      <div className="section-heading centered"><div><span className="eyebrow">FROM IDEA TO LIQUIDITY</span><h2>A launch that moves with the market</h2><p>Every stage is visible, from the first curve trade to the final liquidity position.</p></div></div>
-      <div className="flow-grid">{flow.map((step) => <article key={step.n}><span>{step.n}</span><div className="flow-icon">{step.n === "01" ? <Sparkles /> : step.n === "02" ? <TrendingUp /> : step.n === "03" ? <Droplets /> : <Waves />}</div><h3>{step.title}</h3><p>{step.text}</p></article>)}</div>
-      <Link className="text-link" to="/how-it-works">See the complete process <ArrowRight size={16} /></Link>
-    </section>
-
-    <section className="rewards-feature">
-      <div className="reward-visual" aria-hidden="true"><div className="reward-rings"><i /><i /><i /></div><div className="reward-core">NVDA<span>xStock</span></div><div className="reward-drop drop-one" /><div className="reward-drop drop-two" /></div>
-      <div className="reward-copy"><span className="eyebrow">STOCK REWARDS</span><h2>Trading activity becomes holder value.</h2><p>Stock-enabled launches collect an additional 1% reward fee. The reserve purchases the selected tokenized stock and prepares it for holder distribution.</p><ul><li><BadgeCheck /> Every reserve purchase is visible onchain</li><li><BadgeCheck /> Rewards accumulate before economical distribution</li><li><BadgeCheck /> Standard SOL launches remain available</li></ul><Link className="secondary-button" to="/rewards">View holder rewards <ArrowRight size={16} /></Link></div>
-    </section>
-
-    <section className="launch-cta"><div><span className="eyebrow">READY TO LAUNCH</span><h2>Bring your market to the surface.</h2><p>Set the token, choose its reward structure and begin the curve in one clear flow.</p></div><Link className="primary hero-primary" to="/create">Launch your token <ArrowRight size={17} /></Link></section>
   </main>;
 }
-
-function Metric({ label, value, detail }: { label: string; value: string; detail: string }) { return <div><small>{label}</small><strong>{value}</strong><span>{detail}</span></div>; }
-

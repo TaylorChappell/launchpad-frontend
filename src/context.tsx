@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { createSolanaClient, type SolanaClient } from "@metamask/connect-solana";
+import type { SolanaClient } from "@metamask/connect-solana";
 import { toast } from "sonner";
 import { api } from "./api";
 import type { RuntimeConfig } from "./types";
@@ -46,7 +46,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         adapter.current = { kind: "phantom", provider };
         setAddress(result.publicKey.toString());
       } else {
-        const client = await createSolanaClient({ dapp: { name: "Equity Launch", url: window.location.origin, iconUrl: `${window.location.origin}${import.meta.env.BASE_URL}favicon.svg` }, api: { supportedNetworks: config.network === "devnet" ? { devnet: config.publicRpcUrl } : { mainnet: config.publicRpcUrl } }, analytics: { enabled: false, integrationType: "direct" } });
+        const { createSolanaClient } = await import("@metamask/connect-solana");
+        const client = await createSolanaClient({ dapp: { name: "AQUA", url: window.location.origin, iconUrl: `${window.location.origin}${import.meta.env.BASE_URL}favicon.svg` }, api: { supportedNetworks: config.network === "devnet" ? { devnet: config.publicRpcUrl } : { mainnet: config.publicRpcUrl } }, analytics: { enabled: false, integrationType: "direct" } });
         const wallet = client.getWallet();
         const feature = wallet.features["standard:connect"] as StandardConnect | undefined;
         if (!feature) throw new Error("MetaMask does not expose a Solana account.");
@@ -57,7 +58,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setAddress(account.address);
       }
       setKind(next); setModalOpen(false); toast.success(`${next === "phantom" ? "Phantom" : "MetaMask"} connected`);
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Wallet connection failed."); throw error; }
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Wallet connection failed."); }
     finally { setConnecting(null); }
   }, [config.network, config.publicRpcUrl]);
 
