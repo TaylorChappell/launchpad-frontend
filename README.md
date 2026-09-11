@@ -36,10 +36,11 @@ The public API origin can be changed without editing application code:
 ```js
 window.AQUA_CONFIG = {
   API_URL: "https://launchpad-backend-production-63dc.up.railway.app",
+  X_URL: "https://x.com/your-aqua-handle",
 };
 ```
 
-After changing `public/config.js`, run `npm run build` so Vite copies it into `docs/config.js`.
+Replace `X_URL` with AQUA's real X profile. After changing `public/config.js`, run `npm run build` so Vite copies it into `docs/config.js`.
 
 ## Network switching
 

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CircleCheck, Clock3, Database, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
-import { DEMO } from "../fixtures";
 import type { Launch } from "../types";
 import { TokenCard } from "../components/TokenCard";
 import { HolderRewardFlow } from "../components/HolderRewardFlow";
@@ -19,7 +18,7 @@ export function Markets() {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("all");
-  const [stock, setStock] = useState("stock");
+  const [stock, setStock] = useState("all");
 
   useEffect(() => {
     api.launches().then((data) => {
@@ -29,17 +28,17 @@ export function Markets() {
     }).catch(() => setState("offline"));
   }, []);
 
-  const sampleMode = state !== "live";
-  const source = sampleMode ? DEMO : launches;
   const platform = useMemo(() => {
-    const revenue = source.reduce((sum,item) => sum + Number(item.volume24hUsd || 0), 0) * config.fees.platformBps / 10_000;
-    return { revenue, buybacks: revenue * .5, stocks: source.reduce((sum,item) => sum + Number(item.rewardDistributedUsd || 0), 0) };
-  }, [source, config.fees.platformBps]);
-  const filtered = useMemo(() => source.filter((item) =>
-    (tab === "all" || item.status === tab) &&
-    (stock === "all" || (stock === "stock" ? Boolean(item.stockSymbol) : !item.stockSymbol)) &&
-    [item.name, item.symbol, item.mint, item.stockSymbol].some((value) => String(value ?? "").toLowerCase().includes(query.toLowerCase()))
-  ), [source, query, tab, stock]);
+    const revenue = launches.reduce((sum,item) => sum + Number(item.volume24hUsd || 0), 0) * config.fees.platformBps / 10_000;
+    return { revenue, buybacks: revenue * .5, stocks: launches.reduce((sum,item) => sum + Number(item.rewardDistributedUsd || 0), 0) };
+  }, [launches, config.fees.platformBps]);
+  const filtered = useMemo(() => launches
+    .filter((item) =>
+      (tab === "all" || item.status === tab) &&
+      (stock === "all" || (stock === "stock" ? Boolean(item.stockSymbol) : !item.stockSymbol)) &&
+      [item.name, item.symbol, item.mint, item.stockSymbol].some((value) => String(value ?? "").toLowerCase().includes(query.toLowerCase()))
+    )
+    .sort((a, b) => Number(b.volume24hUsd || 0) - Number(a.volume24hUsd || 0)), [launches, query, tab, stock]);
 
   return <main className="explore-page">
     <section className="product-hero">
@@ -51,9 +50,9 @@ export function Markets() {
           <a className="secondary-button" href="#markets">Explore reward markets</a>
         </div>
         <div className="platform-metrics">
-          <PlatformMetric icon="revenue" label="24h platform revenue" value={compactMoney.format(platform.revenue)} note={sampleMode ? "Preview market estimate" : "From indexed market volume"}/>
+          <PlatformMetric icon="revenue" label="24h platform revenue" value={compactMoney.format(platform.revenue)} note="From indexed market volume"/>
           <PlatformMetric icon="buyback" label="AQUA buyback allocation" value={compactMoney.format(platform.buybacks)} note="50% of platform revenue"/>
-          <PlatformMetric icon="rewards" label="Stock rewards airdropped" value={compactMoney.format(platform.stocks)} note={sampleMode ? "Across preview markets" : "Across indexed markets"}/>
+          <PlatformMetric icon="rewards" label="Stock rewards airdropped" value={compactMoney.format(platform.stocks)} note="Across launched markets"/>
         </div>
       </div>
       <HolderRewardFlow />
@@ -77,7 +76,6 @@ export function Markets() {
       <div className="creator-locking-copy">
         <h2>Lock supply.<br/><span>Earn a larger fee share.</span></h2>
         <p>Creators can lock part of their coin in AQUA’s verified vault. The more supply they lock, and the longer they commit it for, the larger the share of their coin’s trading fees they can earn.</p>
-        <p className="creator-locking-note"><strong>Dev buys stay unlocked at launch.</strong> A separate locking flow lets the creator choose the amount and duration before fee rewards begin.</p>
         <Link to="/create">Launch a coin <ArrowRight size={16}/></Link>
       </div>
       <div className="creator-locking-model" aria-label="Creator fee model">
@@ -104,26 +102,26 @@ export function Markets() {
     <section className="market-workspace" id="markets">
       <header className="workspace-heading">
         <div>
-          <h2>{sampleMode ? "Discover the model" : "Explore holder rewards"}</h2>
-          <p>{sampleMode ? "Illustrative markets show how stock rewards appear. Sample values are never presented as live activity." : "Compare the stock asset, reward vault and holder community behind every market."}</p>
+          <h2>Markets</h2>
+          <p>The most popular coins launched through AQUA, ranked by 24 hour trading volume.</p>
         </div>
         <div className={`data-badge ${state}`}>
           {state === "live" ? <CircleCheck/> : state === "loading" ? <Clock3/> : <Database/>}
-          <span><b>{state === "live" ? "LIVE DATA" : state === "loading" ? "LOADING" : "SAMPLE DATA"}</b><small>{state === "live" && updatedAt ? `Updated ${updatedAt.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}` : state === "offline" ? "Backend unavailable" : "No launches indexed yet"}</small></span>
+          <span><b>{state === "live" ? "LIVE DATA" : state === "loading" ? "LOADING" : state === "offline" ? "OFFLINE" : "NO MARKETS"}</b><small>{state === "live" && updatedAt ? `Updated ${updatedAt.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}` : state === "offline" ? "Backend unavailable" : "No launches indexed yet"}</small></span>
         </div>
       </header>
 
       <div className="market-controls">
         <div className="tabs" aria-label="Market status">{[["all", "All"], ["curve", "Launching"], ["orca", "On Orca"]].map(([value, label]) => <button className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{label}</button>)}</div>
-        <div className="filters"><select aria-label="Filter by reward type" value={stock} onChange={(event) => setStock(event.target.value)}><option value="stock">Stock rewards</option><option value="all">All markets</option><option value="sol">No stock reward</option></select><label><Search size={16}/><input aria-label="Search markets" placeholder="Search coin or stock reward" value={query} onChange={(event) => setQuery(event.target.value)}/></label></div>
+        <div className="filters"><select aria-label="Filter by reward type" value={stock} onChange={(event) => setStock(event.target.value)}><option value="all">All markets</option><option value="stock">Stock rewards</option><option value="sol">No stock reward</option></select><label><Search size={16}/><input aria-label="Search markets" placeholder="Search coin or stock reward" value={query} onChange={(event) => setQuery(event.target.value)}/></label></div>
       </div>
 
-      {state === "loading" ? <div className="market-skeletons">{[0,1,2].map(i => <div key={i}/>)}</div> : <div className="token-grid">{filtered.map((launch, index) => <TokenCard key={launch.id} launch={launch} sample={sampleMode} featured={index === 0}/>)}</div>}
-      {state !== "loading" && !filtered.length && <div className="empty-state"><Search/><h3>No matching markets</h3><p>Try another coin, ticker, or reward asset.</p></div>}
+      {state === "loading" ? <div className="market-skeletons">{[0,1,2].map(i => <div key={i}/>)}</div> : <div className="token-grid">{filtered.map((launch, index) => <TokenCard key={launch.id} launch={launch} sample={false} featured={index === 0}/>)}</div>}
+      {state !== "loading" && !filtered.length && <div className="empty-state"><Search/><h3>{state === "offline" ? "Markets unavailable" : launches.length ? "No matching markets" : "No markets launched yet"}</h3><p>{state === "offline" ? "AQUA could not reach the market index. Try again shortly." : launches.length ? "Try another coin, ticker, or reward asset." : "Launched coins will appear here once they have indexed."}</p></div>}
     </section>
 
   </main>;
 }
 
-function PlatformMetric({icon,label,value,note}:{icon:AquaGlyphKind;label:string;value:string;note:string}) { return <div className="platform-metric"><svg className="liquid-card-frame" viewBox="0 0 240 160" preserveAspectRatio="none" aria-hidden="true"><path d="M18 3 C52 0 69 8 105 4 C149 0 174 9 221 4 C232 4 237 12 237 24 V123 C237 138 226 151 211 153 H25 C11 153 3 142 3 128 V23 C3 11 8 5 18 3 Z"/></svg><span><AquaGlyph kind={icon}/></span><small>{label}</small><strong>{value}</strong><em>{note}</em></div>; }
+function PlatformMetric({icon,label,value,note}:{icon:AquaGlyphKind;label:string;value:string;note:string}) { return <div className="platform-metric"><span><AquaGlyph kind={icon}/></span><small>{label}</small><strong>{value}</strong><em>{note}</em></div>; }
 function FlywheelStep({icon,title,text}:{icon:AquaGlyphKind;title:string;text:string}) { return <article className="flywheel-step"><span><AquaGlyph kind={icon}/></span><b>{title}</b><p>{text}</p></article>; }

@@ -19,6 +19,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const [opening, setOpening] = useState(true);
   const short = wallet.address ? `${wallet.address.slice(0, 4)}…${wallet.address.slice(-4)}` : "";
   const isPreview = config.useTestnet || !config.transactionsEnabled;
+  const xUrl = window.AQUA_CONFIG?.X_URL?.trim() || "https://x.com";
 
   useEffect(() => {
     const fallback = window.setTimeout(() => setOpening(false), 2600);
@@ -47,11 +48,22 @@ export function Layout({ children }: { children: ReactNode }) {
     {error && <div className="system-banner"><b>Backend unavailable</b><span>Live data could not be loaded. Actions remain disabled until the connection recovers.</span></div>}
     {children}
     <footer className="site-footer">
-      <div><NavLink to="/" className="brand"><AquaMark compact /><b>AQUA</b></NavLink><p>The launchpad for coins that build tokenized stock rewards for their holders.</p></div>
-      <nav aria-label="Footer navigation">{links.map((link) => <NavLink key={link.to} to={link.to}>{link.label}</NavLink>)}</nav>
-      <small>Tokenized stocks are regulated products and may be restricted in your jurisdiction. Verify every transaction before signing.</small>
+      <small>© {new Date().getFullYear()} AQUA. All rights reserved.</small>
+      <nav aria-label="Legal navigation"><NavLink to="/terms">Terms of Service</NavLink><NavLink to="/privacy">Privacy Policy</NavLink></nav>
+      <div className="footer-socials">
+        <a href={xUrl} target="_blank" rel="noreferrer" aria-label="AQUA on X" title="AQUA on X"><XBrandIcon/></a>
+        <a href="https://www.orca.so/" target="_blank" rel="noreferrer" aria-label="Visit Orca" title="Orca"><OrcaIcon/></a>
+      </div>
     </footer>
     <nav className="bottom-nav" aria-label="Mobile navigation">{links.map((link) => { const Icon = link.icon; return <NavLink key={link.to} to={link.to} end={link.to === "/"}><Icon size={18} />{link.label}</NavLink>; })}</nav>
     <WalletModal />
   </div>;
+}
+
+function XBrandIcon() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h3.7l3.9 5.2 4.6-5.2h1.7l-5.5 6.4 5.9 8.6h-3.7l-4.3-5.8-5.1 5.8H4.5l6-7L5 4.5Zm3 1.4 8.3 12.2h1.1L9.1 5.9H8Z"/></svg>;
+}
+
+function OrcaIcon() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.2 14.3c1.7-4.8 5.2-7.8 10.1-7.8 2.7 0 4.7 1 5.9 2.7-2.3-.6-4 .1-5.2 2.1 2.2.1 3.8 1 4.8 2.7-2.8-.5-4.8.1-6.2 1.7-1.7 2-4 3-6.9 2.8 1.7-1 2.8-2.2 3.1-3.7-1.8.7-3.7.5-5.6-.5Zm7.4-3.6c.8.1 1.5.5 1.9 1.2-.9.3-1.7.2-2.4-.4.1-.3.3-.6.5-.8Z"/></svg>;
 }
