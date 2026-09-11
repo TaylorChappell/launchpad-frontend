@@ -21,7 +21,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const isPreview = config.useTestnet || !config.transactionsEnabled;
 
   useEffect(() => {
-    const fallback = window.setTimeout(() => setOpening(false), 1800);
+    const fallback = window.setTimeout(() => setOpening(false), 2600);
     return () => window.clearTimeout(fallback);
   }, []);
 

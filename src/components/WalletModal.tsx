@@ -1,11 +1,39 @@
 import { ExternalLink, X } from "lucide-react";
 import { WalletMetamask, WalletPhantom } from "@web3icons/react";
+import { useEffect, useState } from "react";
 import { useWallet } from "../context";
 
 export function WalletModal() {
   const wallet = useWallet();
-  if (!wallet.modalOpen) return null;
-  return <div className="wallet-overlay wallet-connect-overlay" role="presentation" onMouseDown={() => wallet.setModalOpen(false)}>
+  const [mounted, setMounted] = useState(wallet.modalOpen);
+  const [closing, setClosing] = useState(false);
+
+  useEffect(() => {
+    if (wallet.modalOpen) {
+      setMounted(true);
+      setClosing(false);
+      return;
+    }
+    if (!mounted) return;
+    setClosing(true);
+    const timeout = window.setTimeout(() => {
+      setMounted(false);
+      setClosing(false);
+    }, 900);
+    return () => window.clearTimeout(timeout);
+  }, [wallet.modalOpen, mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") wallet.setModalOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [mounted, wallet]);
+
+  if (!mounted) return null;
+  return <div className={`wallet-overlay wallet-connect-overlay ${closing ? "closing" : ""}`} role="presentation" onMouseDown={() => wallet.setModalOpen(false)}>
     <div className="wallet-transition-wave" aria-hidden="true"/>
     <div className="wallet-transition-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
     <section className="wallet-modal" role="dialog" aria-modal="true" aria-labelledby="wallet-title" onMouseDown={(event) => event.stopPropagation()}>
@@ -16,7 +44,7 @@ export function WalletModal() {
         <WalletRow kind="phantom" name="Phantom" status={wallet.phantomInstalled ? "Detected" : "Install required"} action={wallet.phantomInstalled ? "Connect" : "Get"} icon={<span className="wallet-logo"><WalletPhantom variant="background" size={30}/></span>}/>
         <WalletRow kind="metamask" name="MetaMask" status="Solana account" icon={<span className="wallet-logo"><WalletMetamask variant="background" size={30}/></span>}/>
       </div>
-      <p className="wallet-note">MetaMask connects through its Solana account support. {!wallet.phantomInstalled && <>Need Phantom? <a href="https://phantom.com/download" target="_blank" rel="noreferrer">Install Phantom <ExternalLink size={11}/></a></>}</p>
+      {!wallet.phantomInstalled && <p className="wallet-note">Need Phantom? <a href="https://phantom.com/download" target="_blank" rel="noreferrer">Install Phantom <ExternalLink size={11}/></a></p>}
     </section>
   </div>;
 }

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, ChartNoAxesCombined, CircleCheck, CircleDollarSign, Clock3, Coins, Database, Gift, RefreshCcw, Search } from "lucide-react";
+import { ArrowRight, CircleCheck, Clock3, Database, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { DEMO } from "../fixtures";
 import type { Launch } from "../types";
 import { TokenCard } from "../components/TokenCard";
 import { HolderRewardFlow } from "../components/HolderRewardFlow";
+import { AquaGlyph, type AquaGlyphKind } from "../components/AquaIcons";
 import { useRuntime } from "../context";
 
 type DataState = "loading" | "live" | "empty" | "offline";
@@ -50,9 +51,9 @@ export function Markets() {
           <a className="secondary-button" href="#markets">Explore reward markets</a>
         </div>
         <div className="platform-metrics">
-          <PlatformMetric icon={<CircleDollarSign/>} label="24h platform revenue" value={compactMoney.format(platform.revenue)} note={sampleMode ? "Preview market estimate" : "From indexed market volume"}/>
-          <PlatformMetric icon={<RefreshCcw/>} label="AQUA buyback allocation" value={compactMoney.format(platform.buybacks)} note="50% of platform revenue" featured/>
-          <PlatformMetric icon={<Gift/>} label="Stock rewards airdropped" value={compactMoney.format(platform.stocks)} note={sampleMode ? "Across preview markets" : "Across indexed markets"}/>
+          <PlatformMetric icon="revenue" label="24h platform revenue" value={compactMoney.format(platform.revenue)} note={sampleMode ? "Preview market estimate" : "From indexed market volume"}/>
+          <PlatformMetric icon="buyback" label="AQUA buyback allocation" value={compactMoney.format(platform.buybacks)} note="50% of platform revenue"/>
+          <PlatformMetric icon="rewards" label="Stock rewards airdropped" value={compactMoney.format(platform.stocks)} note={sampleMode ? "Across preview markets" : "Across indexed markets"}/>
         </div>
       </div>
       <HolderRewardFlow />
@@ -67,17 +68,17 @@ export function Markets() {
     </section>
 
     <section className="aqua-flywheel">
+      <svg className="liquid-section-frame" viewBox="0 0 1200 470" preserveAspectRatio="none" aria-hidden="true"><path d="M31 4 C162 0 220 13 342 6 S575 0 701 7 S931 1 1168 5 C1185 6 1196 18 1196 38 V389 C1196 432 1170 459 1125 464 H61 C24 461 5 439 4 402 V45 C4 21 13 8 31 4 Z"/><path className="frame-current" d="M31 4 C162 0 220 13 342 6 S575 0 701 7 S931 1 1168 5"/></svg>
       <header><span className="eyebrow">THE AQUA FLYWHEEL</span><h2>Every launch can strengthen AQUA.</h2><p>Half of platform revenue is committed to buying the main AQUA token from the market. Holder stock rewards remain in a separate route.</p></header>
       <div className="flywheel-track">
-        <FlywheelStep icon={<ChartNoAxesCombined/>} title="Markets trade" text="Activity grows across coins launched on AQUA."/>
+        <FlywheelStep icon="markets" title="Markets trade" text="Activity grows across coins launched on AQUA."/>
         <ArrowRight className="flywheel-arrow"/>
-        <FlywheelStep icon={<CircleDollarSign/>} title="Platform earns" text="The platform fee creates AQUA revenue."/>
+        <FlywheelStep icon="earn" title="Platform earns" text="The platform fee creates AQUA revenue."/>
         <ArrowRight className="flywheel-arrow"/>
-        <FlywheelStep icon={<RefreshCcw/>} title="50% buys AQUA" text="Half of that revenue buys the main AQUA token." featured/>
+        <FlywheelStep icon="aquaBuy" title="50% buys AQUA" text="Half of that revenue buys the main AQUA token."/>
         <ArrowRight className="flywheel-arrow"/>
-        <FlywheelStep icon={<Coins/>} title="AQUA grows" text="The ecosystem feeds value back into its core token."/>
+        <FlywheelStep icon="growth" title="AQUA grows" text="The ecosystem feeds value back into its core token."/>
       </div>
-      <div className="flywheel-return"><RefreshCcw/><span>More value in AQUA supports the next wave of launches.</span></div>
     </section>
 
     <section className="market-workspace" id="markets">
@@ -114,5 +115,5 @@ export function Markets() {
 }
 
 function ScoreBar({name,detail,width}:{name:string;detail:string;width:string}) { return <div><span><b>{name}</b><small>{detail}</small></span><i><em style={{width}}/></i></div>; }
-function PlatformMetric({icon,label,value,note,featured=false}:{icon:React.ReactNode;label:string;value:string;note:string;featured?:boolean}) { return <div className={`platform-metric ${featured?"featured":""}`}><span>{icon}</span><small>{label}</small><strong>{value}</strong><em>{note}</em></div>; }
-function FlywheelStep({icon,title,text,featured=false}:{icon:React.ReactNode;title:string;text:string;featured?:boolean}) { return <article className={`flywheel-step ${featured?"featured":""}`}><span>{icon}</span><b>{title}</b><p>{text}</p></article>; }
+function PlatformMetric({icon,label,value,note}:{icon:AquaGlyphKind;label:string;value:string;note:string}) { return <div className="platform-metric"><svg className="liquid-card-frame" viewBox="0 0 240 160" preserveAspectRatio="none" aria-hidden="true"><path d="M18 3 C52 0 69 8 105 4 C149 0 174 9 221 4 C232 4 237 12 237 24 V123 C237 138 226 151 211 153 H25 C11 153 3 142 3 128 V23 C3 11 8 5 18 3 Z"/><path className="frame-current" d="M18 3 C52 0 69 8 105 4 C149 0 174 9 221 4"/></svg><span><AquaGlyph kind={icon}/></span><small>{label}</small><strong>{value}</strong><em>{note}</em></div>; }
+function FlywheelStep({icon,title,text}:{icon:AquaGlyphKind;title:string;text:string}) { return <article className="flywheel-step"><span><AquaGlyph kind={icon}/></span><b>{title}</b><p>{text}</p></article>; }

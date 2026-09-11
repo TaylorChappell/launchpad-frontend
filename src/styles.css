@@ -1721,3 +1721,232 @@ body::before {
   .wallet-connect-overlay .wallet-modal { width: min(430px, calc(100% - 8px)); }
   .opening-mark .aqua-mark { width: 78px; height: 78px; }
 }
+
+/* AQUA frames and custom icon language */
+.aqua-glyph {
+  display: block;
+  overflow: visible;
+  color: currentColor;
+}
+
+.aqua-glyph path,
+.aqua-glyph rect,
+.aqua-glyph circle {
+  stroke: currentColor;
+  stroke-width: 1.55;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.aqua-glyph .glyph-bubble { fill: currentColor; stroke: none; opacity: .82; }
+
+.platform-metric {
+  min-height: 151px;
+  border: 0;
+  border-radius: 23px 23px 48px 22px;
+  background: linear-gradient(148deg, rgba(8,36,48,.82), rgba(3,19,29,.62));
+  box-shadow: inset 0 1px rgba(255,255,255,.035), 0 16px 38px rgba(0,7,13,.15);
+}
+
+.platform-metric.featured,
+.platform-metric.featured:hover {
+  background: linear-gradient(148deg, rgba(8,36,48,.82), rgba(3,19,29,.62));
+}
+
+.platform-metric.featured strong { color: #effdfe; }
+
+.liquid-card-frame,
+.liquid-section-frame {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  color: rgba(113,231,240,.28);
+  pointer-events: none;
+}
+
+.platform-metric > .liquid-card-frame { position: absolute; z-index: 1; }
+
+.liquid-card-frame path,
+.liquid-section-frame path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.liquid-card-frame .frame-current,
+.liquid-section-frame .frame-current {
+  color: rgba(137,248,250,.72);
+  stroke-dasharray: 12 24;
+  filter: drop-shadow(0 0 5px rgba(101,239,242,.26));
+  animation: frame-current 5.5s linear infinite;
+}
+
+.platform-metric:hover .liquid-card-frame {
+  color: rgba(122,241,246,.52);
+  filter: drop-shadow(0 0 8px rgba(59,202,229,.13));
+}
+
+.platform-metric > span {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(119,239,244,.22);
+  border-radius: 48% 52% 58% 42%;
+  color: #8ff5f5;
+  background: radial-gradient(circle at 35% 28%, rgba(138,250,251,.16), rgba(32,124,199,.08));
+  box-shadow: inset 0 1px rgba(255,255,255,.09), 0 8px 22px rgba(13,126,163,.09);
+}
+
+.platform-metric > span .aqua-glyph { width: 21px; height: 21px; }
+
+.aqua-flywheel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 0;
+  border-radius: 34px 34px 96px 34px;
+  background:
+    radial-gradient(circle at 50% 112%, rgba(29,197,213,.16), transparent 34rem),
+    linear-gradient(145deg, rgba(6,32,44,.82), rgba(3,20,30,.76));
+  box-shadow: inset 0 1px rgba(255,255,255,.035), 0 28px 80px rgba(0,7,13,.24);
+}
+
+.aqua-flywheel > :not(.liquid-section-frame) { position: relative; z-index: 2; }
+.aqua-flywheel > .liquid-section-frame { color: rgba(109,226,237,.28); }
+
+.aqua-flywheel::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: -5%;
+  top: -16px;
+  width: 110%;
+  height: 54px;
+  background: linear-gradient(180deg, rgba(102,241,244,.12), transparent 84%);
+  -webkit-mask-image: var(--liquid-wave-mask);
+  mask-image: var(--liquid-wave-mask);
+  -webkit-mask-size: 108% 100%;
+  mask-size: 108% 100%;
+  animation: wave-mask-current 3.8s linear infinite alternate;
+  pointer-events: none;
+}
+
+.flywheel-step {
+  border-color: rgba(116,219,231,.14);
+  border-radius: 20px 20px 42px 20px;
+  background: linear-gradient(148deg, rgba(3,23,33,.78), rgba(2,16,25,.66));
+}
+
+.flywheel-step.featured,
+.flywheel-step.featured:hover {
+  border-color: rgba(116,219,231,.14);
+  background: linear-gradient(148deg, rgba(3,23,33,.78), rgba(2,16,25,.66));
+}
+
+.flywheel-step > span {
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(115,235,241,.2);
+  border-radius: 48% 52% 61% 39%;
+  background: radial-gradient(circle at 34% 27%, rgba(122,246,247,.17), rgba(43,128,215,.07));
+}
+
+.flywheel-step .aqua-glyph { width: 24px; height: 24px; }
+
+/* Persistent wallet waterline and exit motion */
+.wallet-transition-wave {
+  -webkit-mask-size: 108% 100%;
+  mask-size: 108% 100%;
+  animation: wallet-wave-up .9s cubic-bezier(.16,.76,.23,1) forwards, wave-mask-current 3.2s .9s ease-in-out infinite alternate;
+}
+
+.wallet-transition-bubbles i {
+  animation-name: transition-bubble-up;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+}
+
+.wallet-transition-bubbles i:nth-child(1){animation-duration:4.3s;animation-delay:.1s}.wallet-transition-bubbles i:nth-child(2){animation-duration:5.1s;animation-delay:.65s}.wallet-transition-bubbles i:nth-child(3){animation-duration:4.7s;animation-delay:1.1s}.wallet-transition-bubbles i:nth-child(4){animation-duration:5.5s;animation-delay:.3s}.wallet-transition-bubbles i:nth-child(5){animation-duration:4.5s;animation-delay:1.4s}.wallet-transition-bubbles i:nth-child(6){animation-duration:5.3s;animation-delay:.9s}.wallet-transition-bubbles i:nth-child(7){animation-duration:4.9s;animation-delay:.2s}.wallet-transition-bubbles i:nth-child(8){animation-duration:5.7s;animation-delay:1.6s}.wallet-transition-bubbles i:nth-child(9){animation-duration:4.4s;animation-delay:.75s}.wallet-transition-bubbles i:nth-child(10){animation-duration:5.2s;animation-delay:1.25s}.wallet-transition-bubbles i:nth-child(11){animation-duration:4.6s;animation-delay:1.9s}
+
+.wallet-connect-overlay .wallet-modal .modal-close {
+  position: absolute;
+  z-index: 5;
+  top: 17px;
+  right: 17px;
+  left: auto;
+  margin: 0;
+}
+
+.wallet-connect-overlay.closing { pointer-events: none; animation: wallet-underwater-out .82s .08s ease forwards; }
+.wallet-connect-overlay.closing .wallet-transition-wave { animation: wallet-wave-down .82s cubic-bezier(.7,0,.84,.24) forwards; }
+.wallet-connect-overlay.closing .wallet-transition-bubbles { animation: bubbles-fade-out .38s ease forwards; }
+.wallet-connect-overlay.closing .wallet-modal { animation: wallet-panel-sink .62s cubic-bezier(.55,0,.75,.35) forwards; }
+
+/* Slower opening wipe with a moving wave edge */
+.opening-reveal-water {
+  -webkit-mask-size: 108% 100%;
+  mask-size: 108% 100%;
+  animation: opening-wave-down-slow 1.95s .16s cubic-bezier(.67,.02,.28,1) both, wave-mask-current .7s linear infinite alternate;
+}
+
+.opening-mark { animation: opening-mark-drift-slow 1.72s ease both; }
+.opening-bubbles i { animation-duration: 1.72s; }
+
+@keyframes frame-current {
+  to { stroke-dashoffset: -72; }
+}
+
+@keyframes wave-mask-current {
+  0% { -webkit-mask-position: 0 0; mask-position: 0 0; }
+  100% { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+}
+
+@keyframes wallet-wave-up {
+  0% { transform: translateY(105%); }
+  74% { transform: translateY(8.5%); }
+  88% { transform: translateY(10.8%); }
+  100% { transform: translateY(10%); }
+}
+
+@keyframes wallet-wave-down {
+  0% { transform: translateY(10%); }
+  100% { transform: translateY(106%); }
+}
+
+@keyframes wallet-underwater-out {
+  0% { opacity: 1; background-color: rgba(0,8,13,.28); -webkit-backdrop-filter: blur(15px) saturate(120%); backdrop-filter: blur(15px) saturate(120%); }
+  100% { opacity: 0; background-color: rgba(0,8,13,0); -webkit-backdrop-filter: blur(0) saturate(100%); backdrop-filter: blur(0) saturate(100%); }
+}
+
+@keyframes wallet-panel-sink {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  22% { transform: translateY(-8px) scale(1.006); }
+  100% { opacity: 0; transform: translateY(72vh) scale(.96); }
+}
+
+@keyframes bubbles-fade-out {
+  to { opacity: 0; }
+}
+
+@keyframes opening-wave-down-slow {
+  0% { transform: translateY(0); }
+  36% { transform: translateY(0); }
+  100% { transform: translateY(105%); }
+}
+
+@keyframes opening-mark-drift-slow {
+  0% { opacity: 0; transform: translateY(13vh) scale(.88); }
+  18% { opacity: 1; transform: translateY(10vh) scale(1); }
+  62% { opacity: 1; transform: translateY(10vh) scale(1); }
+  100% { opacity: 0; transform: translateY(25vh) scale(.96); }
+}
+
+@media (max-width: 740px) {
+  .platform-metric { min-height: 78px; border-radius: 19px 19px 34px 19px; }
+  .aqua-flywheel { border-radius: 26px 26px 66px 26px; }
+}
