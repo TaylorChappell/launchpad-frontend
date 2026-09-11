@@ -1,6 +1,8 @@
 import type { Launch, RuntimeConfig, StockOption, Trade } from "./types";
 
-export const API_URL = String(import.meta.env.VITE_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const runtimeApiUrl = window.EQUITY_LAUNCH_CONFIG?.API_URL;
+const configuredRuntimeUrl = runtimeApiUrl && !runtimeApiUrl.includes("YOUR-BACKEND") ? runtimeApiUrl : null;
+export const API_URL = String(configuredRuntimeUrl ?? import.meta.env.VITE_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, init);
