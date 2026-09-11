@@ -1324,3 +1324,400 @@ body::before {
   .platform-metric:hover { transform: translateY(-3px); }
   .wallet-modal-bubbles { inset: -64px -20px; }
 }
+
+/* Wave motion system */
+:root {
+  --liquid-wave-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='%23000' d='M0 18 C12 4 24 31 38 15 C52 -1 65 28 78 13 C87 4 94 7 100 15 V100 H0 Z'/%3E%3C/svg%3E");
+}
+
+.platform-metric::before,
+.flywheel-step::after,
+.token-card::before,
+.secondary-button::before,
+.wallet-row::before,
+.primary::before,
+.wallet-button:not(.connected)::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: -6%;
+  top: 110%;
+  bottom: auto;
+  width: 112%;
+  height: 92%;
+  aspect-ratio: auto;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 15% 38%, transparent 0 3px, rgba(188,253,255,.34) 4px 5px, transparent 6px),
+    radial-gradient(circle at 34% 64%, transparent 0 2px, rgba(188,253,255,.25) 3px 4px, transparent 5px),
+    radial-gradient(circle at 63% 38%, transparent 0 4px, rgba(188,253,255,.29) 5px 6px, transparent 7px),
+    radial-gradient(circle at 84% 68%, transparent 0 2px, rgba(188,253,255,.24) 3px 4px, transparent 5px),
+    linear-gradient(165deg, rgba(62,228,231,.21), rgba(38,126,239,.14));
+  -webkit-mask-image: var(--liquid-wave-mask);
+  mask-image: var(--liquid-wave-mask);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  transform: translateX(0);
+  transition: top .72s cubic-bezier(.16,.74,.25,1), transform .9s ease;
+  pointer-events: none;
+}
+
+.platform-metric:hover::before { top: 37%; transform: translateX(-2.5%); }
+.flywheel-step:hover::after { top: 43%; bottom: auto; transform: translateX(-2.5%); }
+.token-card:hover::before { top: 50%; bottom: auto; transform: translateX(-2.5%); }
+.secondary-button:hover::before,
+.primary:hover::before { top: 16%; bottom: auto; transform: translateX(-2.5%); }
+.wallet-row:hover::before { top: 18%; bottom: auto; transform: translateX(-2.5%); }
+
+.platform-metric:hover::before,
+.flywheel-step:hover::after,
+.token-card:hover::before,
+.secondary-button:hover::before,
+.wallet-row:hover::before,
+.primary:hover::before,
+.wallet-button:not(.connected):hover::before {
+  animation: hover-wave-drift 2.5s ease-in-out infinite alternate;
+}
+
+.platform-metric::after {
+  right: auto;
+  left: 23%;
+  bottom: -10px;
+  width: 5px;
+  height: 5px;
+  border-color: rgba(180,252,255,.45);
+  box-shadow: 48px 12px 0 1px rgba(145,243,247,.16), 109px -3px 0 -1px rgba(178,251,253,.25), 152px 17px 0 2px rgba(123,229,238,.13);
+}
+
+.platform-metric:hover::after { animation: hover-bubbles-up 1.25s ease-out both; }
+
+.primary {
+  isolation: isolate;
+}
+
+.primary::after { display: none; }
+.primary::before { background: linear-gradient(165deg, rgba(255,255,255,.28), rgba(60,172,240,.18)); }
+
+.wallet-button:not(.connected) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 132px;
+  border-color: rgba(153,248,251,.58);
+  background: linear-gradient(115deg, #a9fbfc 0%, #58e7eb 48%, #39a9fb 100%);
+  background-size: 180% 100%;
+  box-shadow: 0 8px 24px rgba(43,204,221,.19), inset 0 1px rgba(255,255,255,.46);
+  transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s ease, background-position .55s ease;
+}
+
+.wallet-button > span { position: relative; z-index: 2; }
+
+.wallet-button:not(.connected)::before {
+  top: 110%;
+  height: 115%;
+  background:
+    radial-gradient(circle at 18% 48%, transparent 0 2px, rgba(255,255,255,.62) 3px 4px, transparent 5px),
+    radial-gradient(circle at 55% 70%, transparent 0 2px, rgba(255,255,255,.5) 3px 4px, transparent 5px),
+    radial-gradient(circle at 82% 42%, transparent 0 3px, rgba(255,255,255,.56) 4px 5px, transparent 6px),
+    linear-gradient(165deg, rgba(255,255,255,.42), rgba(38,129,240,.25));
+}
+
+.wallet-button:not(.connected)::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: 18%;
+  bottom: -8px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid rgba(255,255,255,.75);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 30px 9px 0 -1px rgba(255,255,255,.54), 66px 0 0 1px rgba(255,255,255,.44), 94px 12px 0 -1px rgba(255,255,255,.58);
+}
+
+.wallet-button:not(.connected):hover {
+  transform: translateY(-3px);
+  background-position: 100% 0;
+  box-shadow: 0 14px 38px rgba(43,204,221,.34), 0 0 0 4px rgba(101,239,242,.07), inset 0 1px rgba(255,255,255,.55);
+}
+
+.wallet-button:not(.connected):hover::before { top: 4%; }
+.wallet-button:not(.connected):hover::after { animation: button-bubbles-up .95s ease-out both; }
+
+/* Water-filled progress indicators */
+.progress,
+.score-bars i,
+.example-row > div {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(104,220,230,.13);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(2,16,24,.92), rgba(9,40,51,.82));
+  box-shadow: inset 0 2px 7px rgba(0,7,12,.48);
+}
+
+.progress { height: 8px; }
+.progress.big { height: 11px; }
+.score-bars i { height: 11px; }
+.example-row > div { height: 10px; }
+
+.progress i,
+.score-bars em,
+.example-row > div i {
+  position: relative;
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #18cbbf, #68eff1 52%, #329dff 100%);
+  background-size: 180% 100%;
+  box-shadow: inset 0 1px rgba(231,255,255,.48), 0 0 17px rgba(42,198,237,.34);
+  animation: progress-current 3.6s linear infinite, bar-fill 1s ease both;
+}
+
+.progress i::before,
+.score-bars em::before,
+.example-row > div i::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 70%, rgba(255,255,255,.7) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 48% 36%, rgba(255,255,255,.5) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 78% 64%, rgba(255,255,255,.58) 0 1px, transparent 1.5px),
+    linear-gradient(180deg, rgba(255,255,255,.2), transparent 55%);
+  background-size: 48px 100%, 62px 100%, 76px 100%, 100% 100%;
+  animation: progress-bubbles 2.4s linear infinite;
+}
+
+/* Wallet transition enters from below the waterline */
+.wallet-connect-overlay {
+  overflow: hidden;
+  background: rgba(0,8,13,0);
+  -webkit-backdrop-filter: blur(0) saturate(100%);
+  backdrop-filter: blur(0) saturate(100%);
+  animation: wallet-underwater-in .72s ease forwards;
+}
+
+.wallet-connect-overlay::before { display: none; }
+
+.wallet-transition-wave {
+  position: absolute;
+  z-index: 0;
+  left: -8vw;
+  top: -36vh;
+  width: 116vw;
+  height: 150vh;
+  background:
+    radial-gradient(circle at 52% 15%, rgba(52,190,224,.23), transparent 34rem),
+    linear-gradient(180deg, rgba(8,64,82,.94), rgba(2,18,28,.985) 44%, #020d15 100%);
+  -webkit-mask-image: var(--liquid-wave-mask);
+  mask-image: var(--liquid-wave-mask);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  transform: translateY(105%);
+  animation: wallet-wave-up .78s cubic-bezier(.16,.76,.23,1) forwards;
+  pointer-events: none;
+}
+
+.wallet-transition-wave::after {
+  content: "";
+  position: absolute;
+  inset: 8% 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(158,249,251,.62), transparent);
+  filter: blur(2px);
+  opacity: .7;
+}
+
+.wallet-transition-bubbles {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.wallet-transition-bubbles i {
+  position: absolute;
+  bottom: -28px;
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(171,250,252,.58);
+  border-radius: 50%;
+  box-shadow: inset 0 0 6px rgba(162,248,250,.12), 0 0 13px rgba(59,196,225,.13);
+  opacity: 0;
+  animation: transition-bubble-up 1.05s ease-out both;
+}
+
+.wallet-transition-bubbles i:nth-child(1){left:6%;width:7px;height:7px;animation-delay:.04s}
+.wallet-transition-bubbles i:nth-child(2){left:14%;width:15px;height:15px;animation-delay:.18s}
+.wallet-transition-bubbles i:nth-child(3){left:25%;animation-delay:.1s}
+.wallet-transition-bubbles i:nth-child(4){left:36%;width:6px;height:6px;animation-delay:.3s}
+.wallet-transition-bubbles i:nth-child(5){left:46%;width:13px;height:13px;animation-delay:.12s}
+.wallet-transition-bubbles i:nth-child(6){left:57%;width:8px;height:8px;animation-delay:.24s}
+.wallet-transition-bubbles i:nth-child(7){left:67%;width:17px;height:17px;animation-delay:.06s}
+.wallet-transition-bubbles i:nth-child(8){left:76%;width:7px;height:7px;animation-delay:.28s}
+.wallet-transition-bubbles i:nth-child(9){left:85%;width:12px;height:12px;animation-delay:.14s}
+.wallet-transition-bubbles i:nth-child(10){left:93%;width:6px;height:6px;animation-delay:.34s}
+.wallet-transition-bubbles i:nth-child(11){left:51%;width:5px;height:5px;animation-delay:.38s}
+
+.wallet-connect-overlay .wallet-modal {
+  z-index: 2;
+  overflow: hidden;
+  border-color: rgba(126,237,243,.25);
+  background:
+    linear-gradient(155deg, rgba(9,40,52,.97), rgba(3,19,28,.985));
+  box-shadow: 0 42px 130px rgba(0,3,8,.72), inset 0 1px rgba(255,255,255,.08), 0 0 70px rgba(25,160,203,.08);
+  animation: wallet-panel-float-up .84s .12s cubic-bezier(.16,.82,.24,1.08) both;
+}
+
+.wallet-connect-overlay .wallet-modal::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: -12%;
+  right: -12%;
+  bottom: -46%;
+  height: 62%;
+  background: linear-gradient(180deg, rgba(62,219,226,.09), rgba(32,119,213,.05));
+  -webkit-mask-image: var(--liquid-wave-mask);
+  mask-image: var(--liquid-wave-mask);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  animation: modal-water-bob 5s 1s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.wallet-modal > :not(.wallet-modal-bubbles) { position: relative; z-index: 2; }
+
+/* One-time refresh reveal. Layout remains mounted during route changes. */
+.opening-reveal {
+  position: fixed;
+  z-index: 250;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: all;
+}
+
+.opening-reveal-water {
+  position: absolute;
+  left: -8vw;
+  top: -36vh;
+  width: 116vw;
+  height: 150vh;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(55,213,225,.18), transparent 26rem),
+    linear-gradient(180deg, #063044, #031a27 48%, #020d15 100%);
+  -webkit-mask-image: var(--liquid-wave-mask);
+  mask-image: var(--liquid-wave-mask);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  transform: translateY(0);
+  animation: opening-wave-down 1.25s .12s cubic-bezier(.67,.02,.28,1) both;
+}
+
+.opening-mark {
+  position: relative;
+  z-index: 2;
+  transform: translateY(10vh);
+  animation: opening-mark-drift 1.05s ease both;
+}
+
+.opening-mark .aqua-mark { width: 96px; height: 96px; filter: drop-shadow(0 20px 35px rgba(20,182,219,.24)); }
+
+.opening-bubbles { position: absolute; inset: 0; }
+.opening-bubbles i {
+  position: absolute;
+  bottom: 7%;
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(174,251,253,.52);
+  border-radius: 50%;
+  opacity: 0;
+  animation: opening-bubble-rise 1.05s ease-out both;
+}
+.opening-bubbles i:nth-child(1){left:8%;width:7px;height:7px;animation-delay:.03s}.opening-bubbles i:nth-child(2){left:19%;width:14px;height:14px;animation-delay:.2s}.opening-bubbles i:nth-child(3){left:31%;animation-delay:.1s}.opening-bubbles i:nth-child(4){left:43%;width:6px;height:6px;animation-delay:.28s}.opening-bubbles i:nth-child(5){left:54%;width:15px;height:15px;animation-delay:.06s}.opening-bubbles i:nth-child(6){left:66%;width:8px;height:8px;animation-delay:.24s}.opening-bubbles i:nth-child(7){left:78%;width:13px;height:13px;animation-delay:.12s}.opening-bubbles i:nth-child(8){left:89%;width:6px;height:6px;animation-delay:.3s}.opening-bubbles i:nth-child(9){left:95%;animation-delay:.16s}
+
+@keyframes hover-wave-drift {
+  0% { transform: translateX(-2.5%); }
+  100% { transform: translateX(2.5%); }
+}
+
+@keyframes hover-bubbles-up {
+  0% { opacity: 0; transform: translateY(0) scale(.55); }
+  18% { opacity: .72; }
+  100% { opacity: 0; transform: translateY(-105px) scale(1.18); }
+}
+
+@keyframes button-bubbles-up {
+  0% { opacity: 0; transform: translateY(0) scale(.55); }
+  24% { opacity: .84; }
+  100% { opacity: 0; transform: translateY(-48px) scale(1.2); }
+}
+
+@keyframes progress-current {
+  to { background-position: 180% 0; }
+}
+
+@keyframes progress-bubbles {
+  from { background-position: 0 7px, 0 5px, 0 8px, 0 0; }
+  to { background-position: 48px -7px, 62px -9px, 76px -6px, 0 0; }
+}
+
+@keyframes wallet-underwater-in {
+  0% { background-color: rgba(0,8,13,0); -webkit-backdrop-filter: blur(0) saturate(100%); backdrop-filter: blur(0) saturate(100%); }
+  100% { background-color: rgba(0,8,13,.28); -webkit-backdrop-filter: blur(15px) saturate(120%); backdrop-filter: blur(15px) saturate(120%); }
+}
+
+@keyframes wallet-wave-up {
+  0% { transform: translateY(105%); }
+  76% { transform: translateY(-1.5%); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes transition-bubble-up {
+  0% { opacity: 0; transform: translateY(0) scale(.58); }
+  18% { opacity: .82; }
+  100% { opacity: 0; transform: translateY(-104vh) scale(1.18); }
+}
+
+@keyframes wallet-panel-float-up {
+  0% { opacity: 0; transform: translateY(78vh) scale(.96); }
+  72% { opacity: 1; transform: translateY(-12px) scale(1.008); }
+  88% { transform: translateY(4px) scale(1); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes modal-water-bob {
+  0%,100% { transform: translateX(-2%); }
+  50% { transform: translateX(2%) translateY(-8px); }
+}
+
+@keyframes opening-wave-down {
+  0% { transform: translateY(0); }
+  30% { transform: translateY(0); }
+  100% { transform: translateY(105%); }
+}
+
+@keyframes opening-mark-drift {
+  0% { opacity: 0; transform: translateY(13vh) scale(.88); }
+  25% { opacity: 1; transform: translateY(10vh) scale(1); }
+  64% { opacity: 1; transform: translateY(10vh) scale(1); }
+  100% { opacity: 0; transform: translateY(24vh) scale(.96); }
+}
+
+@keyframes opening-bubble-rise {
+  0% { opacity: 0; transform: translateY(20px) scale(.6); }
+  18% { opacity: .76; }
+  100% { opacity: 0; transform: translateY(-78vh) scale(1.18); }
+}
+
+@media (max-width: 740px) {
+  .wallet-button:not(.connected) { min-width: 0; }
+  .wallet-connect-overlay .wallet-modal { width: min(430px, calc(100% - 8px)); }
+  .opening-mark .aqua-mark { width: 78px; height: 78px; }
+}

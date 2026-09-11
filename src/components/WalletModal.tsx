@@ -6,8 +6,9 @@ export function WalletModal() {
   const wallet = useWallet();
   if (!wallet.modalOpen) return null;
   return <div className="wallet-overlay wallet-connect-overlay" role="presentation" onMouseDown={() => wallet.setModalOpen(false)}>
+    <div className="wallet-transition-wave" aria-hidden="true"/>
+    <div className="wallet-transition-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
     <section className="wallet-modal" role="dialog" aria-modal="true" aria-labelledby="wallet-title" onMouseDown={(event) => event.stopPropagation()}>
-      <div className="wallet-modal-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/></div>
       <button className="modal-close" onClick={() => wallet.setModalOpen(false)} aria-label="Close wallet dialog"><X size={17}/></button>
       <h2 id="wallet-title">Connect to AQUA</h2>
       <p className="wallet-copy">Choose a wallet to explore rewards, check eligibility, or sign a transaction. AQUA cannot move funds without your approval.</p>

@@ -1,6 +1,6 @@
 import { CircleHelp, Compass, Gift, Menu, Plus, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRuntime, useWallet } from "../context";
 import { WalletModal } from "./WalletModal";
 import { AquaMark } from "./AquaMark";
@@ -16,17 +16,29 @@ export function Layout({ children }: { children: ReactNode }) {
   const wallet = useWallet();
   const { config, error } = useRuntime();
   const [mobile, setMobile] = useState(false);
+  const [opening, setOpening] = useState(true);
   const short = wallet.address ? `${wallet.address.slice(0, 4)}…${wallet.address.slice(-4)}` : "";
   const isPreview = config.useTestnet || !config.transactionsEnabled;
 
+  useEffect(() => {
+    const fallback = window.setTimeout(() => setOpening(false), 1800);
+    return () => window.clearTimeout(fallback);
+  }, []);
+
   return <div className="app-shell">
+    {opening && <div className="opening-reveal" aria-hidden="true">
+      <div className="opening-reveal-water" onAnimationEnd={(event) => { if (event.currentTarget === event.target) setOpening(false); }}>
+        <div className="opening-mark"><AquaMark /></div>
+        <div className="opening-bubbles"><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
+      </div>
+    </div>}
     {isPreview && <div className="environment-bar"><span>{config.useTestnet ? "DEVNET PREVIEW" : "TRANSACTIONS PAUSED"}</span><p>{config.useTestnet ? "No live funds. Market examples are clearly labeled." : "The live program is not currently accepting transactions."}</p></div>}
     <header className="site-header">
       <div className="header-inner">
         <NavLink to="/" className="brand" aria-label="AQUA home"><AquaMark /><b>AQUA</b></NavLink>
         <nav aria-label="Primary navigation">{links.map((link) => <NavLink key={link.to} to={link.to} end={link.to === "/"}>{link.label}</NavLink>)}</nav>
         <div className="header-actions">
-          {wallet.address ? <button className="wallet-button connected" onClick={() => void wallet.disconnect()}>{short}</button> : <button className="wallet-button" onClick={() => wallet.setModalOpen(true)}>Connect wallet</button>}
+          {wallet.address ? <button className="wallet-button connected" onClick={() => void wallet.disconnect()}><span>{short}</span></button> : <button className="wallet-button" onClick={() => wallet.setModalOpen(true)}><span>Connect wallet</span></button>}
           <button className="mobile-menu" onClick={() => setMobile(!mobile)} aria-label="Toggle navigation" aria-expanded={mobile}>{mobile ? <X /> : <Menu />}</button>
         </div>
       </div>
