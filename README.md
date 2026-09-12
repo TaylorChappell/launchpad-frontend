@@ -36,10 +36,11 @@ The public API origin can be changed without editing application code:
 ```js
 window.AQUA_CONFIG = {
   API_URL: "https://launchpad-backend-production-63dc.up.railway.app",
+  X_URL: "https://x.com/your-aqua-handle",
 };
 ```
 
-After changing `public/config.js`, run `npm run build` so Vite copies it into `docs/config.js`.
+Replace `X_URL` with AQUA's real X profile. After changing `public/config.js`, run `npm run build` so Vite copies it into `docs/config.js`.
 
 ## Network switching
 
@@ -47,4 +48,4 @@ The frontend reads its network from `/api/config`. Set `USE_TESTNET=true` on Rai
 
 ## Wallet support
 
-Phantom connects through its browser provider. MetaMask connects through MetaMask Solana account support. Launch and trading actions remain unavailable until the selected network has a deployed launchpad program configured by the backend.
+Phantom connects through its browser provider. MetaMask connects through MetaMask Solana account support. Launch and trading actions remain unavailable until the backend supplies audited Orca Wavebreak transaction builders for the selected network.

@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, CircleCheck, Clock3, Database, Search, ShieldCheck, Waves } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowRight, CircleCheck, Clock3, Database, Search } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { api } from "../api";
-import { DEMO } from "../fixtures";
 import type { Launch } from "../types";
 import { TokenCard } from "../components/TokenCard";
-import { LiquidityFlow } from "../components/LiquidityFlow";
+import { HolderRewardFlow } from "../components/HolderRewardFlow";
+import { AquaGlyph, type AquaGlyphKind } from "../components/AquaIcons";
 import { useRuntime } from "../context";
 
 type DataState = "loading" | "live" | "empty" | "offline";
+const compactMoney = new Intl.NumberFormat("en-US", { style:"currency", currency:"USD", notation:"compact", maximumFractionDigits:1 });
 
 export function Markets() {
   const { config } = useRuntime();
+  const location = useLocation();
   const [launches, setLaunches] = useState<Launch[]>([]);
   const [state, setState] = useState<DataState>("loading");
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
@@ -27,69 +29,106 @@ export function Markets() {
     }).catch(() => setState("offline"));
   }, []);
 
-  const sampleMode = state !== "live";
-  const source = sampleMode ? DEMO : launches;
-  const filtered = useMemo(() => source.filter((item) =>
-    (tab === "all" || item.status === tab) &&
-    (stock === "all" || (stock === "stock" ? Boolean(item.stockSymbol) : !item.stockSymbol)) &&
-    [item.name, item.symbol, item.mint, item.stockSymbol].some((value) => String(value ?? "").toLowerCase().includes(query.toLowerCase()))
-  ), [source, query, tab, stock]);
+  useEffect(() => {
+    if (!(location.state as { focusMarketSearch?: boolean } | null)?.focusMarketSearch) return;
+    document.getElementById("markets")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => (document.getElementById("market-search") as HTMLInputElement | null)?.focus({ preventScroll: true }), 380);
+  }, [location.state]);
+
+  const platform = useMemo(() => {
+    const revenue = launches.reduce((sum,item) => sum + Number(item.volume24hUsd || 0), 0) * config.fees.platformBps / 10_000;
+    return { revenue, buybacks: revenue * .5, stocks: launches.reduce((sum,item) => sum + Number(item.rewardDistributedUsd || 0), 0) };
+  }, [launches, config.fees.platformBps]);
+  const filtered = useMemo(() => launches
+    .filter((item) =>
+      (tab === "all" || (tab === "curve" ? item.status !== "orca" : item.status === "orca")) &&
+      (stock === "all" || (stock === "stock" ? Boolean(item.stockSymbol) : !item.stockSymbol)) &&
+      [item.name, item.symbol, item.mint, item.stockSymbol].some((value) => String(value ?? "").toLowerCase().includes(query.toLowerCase()))
+    )
+    .sort((a, b) => Number(b.volume24hUsd || 0) - Number(a.volume24hUsd || 0)), [launches, query, tab, stock]);
 
   return <main className="explore-page">
     <section className="product-hero">
       <div className="hero-copy">
-        <div className="hero-kicker"><Waves size={16}/> SOLANA LAUNCH INFRASTRUCTURE</div>
-        <h1>Launch markets.<br/><span>Reward holders.</span></h1>
-        <p>Start on a transparent virtual curve. Route trading fees into optional tokenized stock rewards. Graduate liquidity to Orca at {config.graduationSol} SOL.</p>
+        <h1>Launch a coin.<br/><span>Build a portfolio.</span></h1>
+        <p>AQUA turns trading activity into tokenized stock rewards for holders. Distribution is based on how much each wallet holds and how long it stays committed.</p>
         <div className="hero-actions">
-          <Link className="primary" to="/create">Create market <ArrowRight size={17}/></Link>
-          <a className="secondary-button" href="#markets">View markets</a>
+          <Link className="primary" to="/create">Launch a holder-first coin <ArrowRight size={17}/></Link>
+          <a className="secondary-button" href="#markets">Explore reward markets</a>
         </div>
-        <div className="fact-row">
-          <div><small>Platform fee</small><strong>{(config.fees.platformBps / 100).toFixed(2)}%</strong></div>
-          <div><small>Optional reward fee</small><strong>{(config.fees.rewardsBps / 100).toFixed(2)}%</strong></div>
-          <div><small>Liquidity destination</small><strong>Orca</strong></div>
+        <div className="platform-metrics">
+          <PlatformMetric icon="revenue" label="24h platform revenue" value={compactMoney.format(platform.revenue)} note="From indexed market volume"/>
+          <PlatformMetric icon="buyback" label="AQUA buyback allocation" value={compactMoney.format(platform.buybacks)} note="50% of platform revenue"/>
+          <PlatformMetric icon="rewards" label="Stock rewards airdropped" value={compactMoney.format(platform.stocks)} note="Across launched markets"/>
         </div>
       </div>
-      <LiquidityFlow />
+      <HolderRewardFlow />
+    </section>
+
+    <section className="aqua-flywheel">
+      <div className="flywheel-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
+      <header><span className="eyebrow">THE AQUA FLYWHEEL</span><h2>Every launch can strengthen AQUA.</h2><p>Half of platform revenue is committed to buying the main AQUA token from the market. Holder stock rewards remain in a separate route.</p></header>
+      <div className="flywheel-track">
+        <FlywheelStep icon="markets" title="Markets trade" text="Activity grows across coins launched on AQUA."/>
+        <ArrowRight className="flywheel-arrow"/>
+        <FlywheelStep icon="earn" title="Platform earns" text="The platform fee creates AQUA revenue."/>
+        <ArrowRight className="flywheel-arrow"/>
+        <FlywheelStep icon="aquaBuy" title="50% buys AQUA" text="Half of that revenue buys the main AQUA token."/>
+        <ArrowRight className="flywheel-arrow"/>
+        <FlywheelStep icon="growth" title="AQUA grows" text="The ecosystem feeds value back into its core token."/>
+      </div>
+    </section>
+
+    <section className="creator-locking">
+      <div className="creator-locking-copy">
+        <h2>Lock supply.<br/><span>Earn a larger fee share.</span></h2>
+        <p>Creators can lock part of their coin in AQUA’s verified vault. The more supply they lock, and the longer they commit it for, the larger the share of their coin’s trading fees they can earn.</p>
+        <Link to="/create">Launch a coin <ArrowRight size={16}/></Link>
+      </div>
+      <div className="creator-locking-model" aria-label="Creator fee model">
+        <div className="lock-factor">
+          <span>More supply locked</span>
+          <div className="lock-water-track"><i className="supply-level"/></div>
+          <small>Verified commitment</small>
+        </div>
+        <b className="lock-operator">+</b>
+        <div className="lock-factor">
+          <span>Longer lock period</span>
+          <div className="lock-water-track"><i className="duration-level"/></div>
+          <small>Longer alignment</small>
+        </div>
+        <b className="lock-operator">=</b>
+        <div className="lock-result">
+          <span>Higher creator fee share</span>
+          <strong>Earn from each trade</strong>
+          <small>The rate applies while the verified lock remains active.</small>
+        </div>
+      </div>
     </section>
 
     <section className="market-workspace" id="markets">
       <header className="workspace-heading">
         <div>
-          <span className="eyebrow">MARKET DISCOVERY</span>
-          <h2>{sampleMode ? "Preview markets" : "Active markets"}</h2>
-          <p>{sampleMode ? "Examples are provided to demonstrate the product layout. No values below represent live trading." : "Newest markets returned by the AQUA index."}</p>
+          <h2>Markets</h2>
+          <p>The most popular coins launched through AQUA, ranked by 24 hour trading volume.</p>
         </div>
-        <div className={`data-badge ${state}`}>
+        {state !== "empty" && <div className={`data-badge ${state}`}>
           {state === "live" ? <CircleCheck/> : state === "loading" ? <Clock3/> : <Database/>}
-          <span><b>{state === "live" ? "LIVE DATA" : state === "loading" ? "LOADING" : "SAMPLE DATA"}</b><small>{state === "live" && updatedAt ? `Updated ${updatedAt.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}` : state === "offline" ? "Backend unavailable" : "Devnet has no launches"}</small></span>
-        </div>
+          <span><b>{state === "live" ? "LIVE DATA" : state === "loading" ? "LOADING" : "OFFLINE"}</b><small>{state === "live" && updatedAt ? `Updated ${updatedAt.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}` : state === "offline" ? "Backend unavailable" : "Fetching indexed markets"}</small></span>
+        </div>}
       </header>
 
       <div className="market-controls">
-        <div className="tabs" aria-label="Market status">{[["all", "All"], ["curve", "On curve"], ["orca", "Orca"]].map(([value, label]) => <button className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{label}</button>)}</div>
-        <div className="filters"><select aria-label="Filter by reward type" value={stock} onChange={(event) => setStock(event.target.value)}><option value="all">All reward types</option><option value="stock">Stock rewards</option><option value="sol">SOL only</option></select><label><Search size={16}/><input aria-label="Search markets" placeholder="Search name, ticker or mint" value={query} onChange={(event) => setQuery(event.target.value)}/></label></div>
+        <div className="tabs" aria-label="Market status">{[["all", "All"], ["curve", "Wavebreak"], ["orca", "Whirlpools"]].map(([value, label]) => <button className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{label}</button>)}</div>
+        <div className="filters"><select aria-label="Filter by reward type" value={stock} onChange={(event) => setStock(event.target.value)}><option value="all">All markets</option><option value="stock">Stock rewards</option><option value="sol">No stock reward</option></select><label><Search size={16}/><input id="market-search" aria-label="Search markets" placeholder="Search coin or stock reward" value={query} onChange={(event) => setQuery(event.target.value)}/></label></div>
       </div>
 
-      {state === "loading" ? <div className="market-skeletons">{[0,1,2].map(i => <div key={i}/>)}</div> : <div className="token-grid">{filtered.map((launch, index) => <TokenCard key={launch.id} launch={launch} sample={sampleMode} featured={index === 0}/>)}</div>}
-      {state !== "loading" && !filtered.length && <div className="empty-state"><Search/><h3>No matching markets</h3><p>Clear the filters or search for another token.</p></div>}
+      {state === "loading" ? <div className="market-skeletons">{[0,1,2].map(i => <div key={i}/>)}</div> : <div className="token-grid">{filtered.map((launch, index) => <TokenCard key={launch.id} launch={launch} sample={false} featured={index === 0}/>)}</div>}
+      {state !== "loading" && !filtered.length && <div className="empty-state"><Search/><h3>{state === "offline" ? "Markets unavailable" : launches.length ? "No matching markets" : "No markets launched yet"}</h3><p>{state === "offline" ? "AQUA could not reach the market index. Try again shortly." : launches.length ? "Try another coin, ticker, or reward asset." : "Launched coins will appear here once they have indexed."}</p></div>}
     </section>
 
-    <section className="mechanism-band">
-      <div className="mechanism-heading"><span className="eyebrow">THE AQUA ROUTE</span><h2>One trade. Clear destinations.</h2><p>Every fee has a defined path that can be verified against the program and reward epochs.</p><Link to="/how-it-works">Inspect the full mechanism <ArrowRight size={16}/></Link></div>
-      <div className="route-list">
-        <article><span>01</span><div><b>Trade on the curve</b><p>Price follows the published virtual reserve model.</p></div><strong>MARKET</strong></article>
-        <article><span>02</span><div><b>Separate the fees</b><p>Platform revenue and stock rewards use distinct routes.</p></div><strong>1% + 1%</strong></article>
-        <article><span>03</span><div><b>Graduate liquidity</b><p>The market becomes eligible for its Orca pool at {config.graduationSol} SOL.</p></div><strong>ORCA</strong></article>
-      </div>
-    </section>
-
-    <section className="assurance-strip">
-      <div><ShieldCheck/><span><b>Wallet controlled</b><small>You approve every signature.</small></span></div>
-      <div><Database/><span><b>Verifiable routes</b><small>Program and epoch data stay visible.</small></span></div>
-      <div><CircleCheck/><span><b>Honest states</b><small>Preview and live data are never mixed.</small></span></div>
-      <Link className="primary" to="/create">Launch on AQUA <ArrowRight size={17}/></Link>
-    </section>
   </main>;
 }
+
+function PlatformMetric({icon,label,value,note}:{icon:AquaGlyphKind;label:string;value:string;note:string}) { return <div className="platform-metric"><span><AquaGlyph kind={icon}/></span><small>{label}</small><strong>{value}</strong><em>{note}</em></div>; }
+function FlywheelStep({icon,title,text}:{icon:AquaGlyphKind;title:string;text:string}) { return <article className="flywheel-step"><span><AquaGlyph kind={icon}/></span><b>{title}</b><p>{text}</p></article>; }
