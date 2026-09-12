@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { buildLaunchMessage, decimalToRaw } from "../launch";
-import type { Launch, LaunchConfirmation, StockOption, TransactionEnvelope } from "../types";
+import type { Launch, StockOption, TransactionEnvelope } from "../types";
 
 type LaunchCurrency = "SOL" | "USDC" | "STOCK";
 type Form = {
@@ -44,7 +44,7 @@ const normaliseTelegram = (value: string) => {
   if (/^(t\.me|telegram\.me)\//i.test(clean)) return `https://${clean}`;
   return `https://t.me/${clean}`;
 };
-const isEnvelope = (value: LaunchConfirmation): value is LaunchConfirmation & TransactionEnvelope => Boolean(value.transactionBase64 && value.lastValidBlockHeight && value.transactionVersion !== undefined);
+const isEnvelope = (value: Partial<TransactionEnvelope>): value is TransactionEnvelope => Boolean(value.transactionBase64 && value.lastValidBlockHeight && value.transactionVersion !== undefined);
 
 export function Create() {
   const wallet = useWallet();
@@ -177,6 +177,10 @@ export function Create() {
         return;
       }
       const fresh = await api.retryLaunchTransaction(pending.launchId, wallet.address);
+      if (fresh.status === "live") {
+        setStage("lock", "done"); setPending(null); setExecutionState("complete"); toast.success("AQUA market launched"); return;
+      }
+      if (!fresh.step || !isEnvelope(fresh)) throw new Error("The backend returned an incomplete recovery step.");
       await continueLaunch({ envelope: fresh, stage: fresh.step, launchId: pending.launchId });
     } catch (error) {
       setStage(pending.stage, "error"); setExecutionState("error");
@@ -191,6 +195,10 @@ export function Create() {
       const fresh = await api.retryLaunchTransaction(recoverableLaunch.id, wallet.address);
       const restored = initialProgress();
       restored.approval = "done"; restored.mint = "done";
+      if (fresh.status === "live") {
+        restored.pool = "done"; restored.liquidity = "done"; restored.lock = "done"; setProgress(restored); setExecutionState("complete"); setRecoverableLaunch(null); toast.success("AQUA market launched"); return;
+      }
+      if (!fresh.step || !isEnvelope(fresh)) throw new Error("The backend returned an incomplete recovery step.");
       if (fresh.step === "liquidity" || fresh.step === "lock") restored.pool = "done";
       if (fresh.step === "lock") restored.liquidity = "done";
       setProgress(restored);

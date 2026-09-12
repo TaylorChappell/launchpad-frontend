@@ -128,9 +128,13 @@ export type LaunchIntentResponse = TransactionEnvelope & {
   next: string;
 };
 
-export type LaunchRetryResponse = TransactionEnvelope & {
+export type LaunchRetryResponse = Partial<TransactionEnvelope> & {
   launchId: string;
-  step: "pool" | "liquidity" | "lock";
+  step?: "pool" | "liquidity" | "lock";
+  status?: "live";
+  whirlpoolAddress?: string;
+  positionMint?: string;
+  liquidityLockedPermanently?: boolean;
 };
 
 export type LaunchConfirmation = Partial<TransactionEnvelope> & {
