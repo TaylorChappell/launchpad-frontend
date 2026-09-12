@@ -47,7 +47,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setAddress(result.publicKey.toString());
       } else {
         const { createSolanaClient } = await import("@metamask/connect-solana");
-        const client = await createSolanaClient({ dapp: { name: "AQUA", url: window.location.origin, iconUrl: `${window.location.origin}${import.meta.env.BASE_URL}aqua-logo.png` }, api: { supportedNetworks: config.network === "devnet" ? { devnet: config.publicRpcUrl } : { mainnet: config.publicRpcUrl } }, analytics: { enabled: false, integrationType: "direct" } });
+        const client = await createSolanaClient({ dapp: { name: "AQUA", url: window.location.origin, iconUrl: `${window.location.origin}${import.meta.env.BASE_URL}favicon.svg` }, api: { supportedNetworks: config.network === "devnet" ? { devnet: config.publicRpcUrl } : { mainnet: config.publicRpcUrl } }, analytics: { enabled: false, integrationType: "direct" } });
         const wallet = client.getWallet();
         const feature = wallet.features["standard:connect"] as StandardConnect | undefined;
         if (!feature) throw new Error("MetaMask does not expose a Solana account.");
