@@ -48,7 +48,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="opening-bubbles"><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
       </div>
     </div>}
-    {isPreview && <div className="environment-bar"><span>{config.useTestnet ? "DEVNET PREVIEW" : "TRANSACTIONS PAUSED"}</span><p>{config.useTestnet ? "No live funds. Market examples are clearly labeled." : "The live program is not currently accepting transactions."}</p></div>}
+    {isPreview && <div className="environment-bar"><span>{config.useTestnet ? "DEVNET PREVIEW" : "TRANSACTIONS PAUSED"}</span><p>{config.useTestnet ? "No live funds are used." : "The live program is not currently accepting transactions."}</p></div>}
     <header className="site-header">
       <div className="header-inner">
         <NavLink to="/" className="brand" aria-label="AQUA home"><AquaMark /><b>AQUA</b></NavLink>

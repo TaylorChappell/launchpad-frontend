@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@metamask/connect-solana": "^2.1.1",
+    "@solana/web3.js": "^1.98.4",
     "@web3icons/react": "^4.1.21",
+    "bs58": "^6.0.0",
     "lucide-react": "^0.468.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

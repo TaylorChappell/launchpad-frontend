@@ -44,8 +44,8 @@ Replace `X_URL` with AQUA's real X profile. After changing `public/config.js`, r
 
 ## Network switching
 
-The frontend reads its network from `/api/config`. Set `USE_TESTNET=true` on Railway for Devnet or `USE_TESTNET=false` for Mainnet.
+The frontend reads its network from `/api/config`. Set `USE_TESTNET=true` on Railway for Devnet or `USE_TESTNET=false` for the live network.
 
 ## Wallet support
 
-Phantom connects through its browser provider. MetaMask connects through MetaMask Solana account support. Launch and trading actions remain unavailable until the backend supplies audited Orca Wavebreak transaction builders for the selected network.
+Phantom connects through its browser provider. MetaMask connects through MetaMask Solana account support. The launch wizard signs each backend-issued Orca transaction in order: token mint, Whirlpool creation, liquidity, permanent position lock, and the optional developer buy.

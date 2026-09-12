@@ -1,100 +1,452 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, ChevronDown, Clock3, ImagePlus, Loader2, LockKeyhole, ShieldCheck, Sparkles, TimerReset, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  CircleDollarSign,
+  Coins,
+  Droplets,
+  ExternalLink,
+  ImagePlus,
+  Info,
+  Loader2,
+  LockKeyhole,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Waves,
+  X,
+} from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
-import { buildLaunchMessage, estimateLaunchFees } from "../launch";
-import type { StockOption } from "../types";
+import { buildLaunchMessage, decimalToRaw } from "../launch";
+import type { LaunchConfirmation, StockOption, TransactionEnvelope } from "../types";
 
-type Form = {name:string; symbol:string; description:string; stockSymbol:string; xUrl:string; websiteUrl:string; telegramUrl:string};
-const empty: Form = {name:"",symbol:"",description:"",stockSymbol:"SOL",xUrl:"",websiteUrl:"",telegramUrl:""};
-const url = (value:string,prefix="https://") => value.trim() ? (/^https?:\/\//i.test(value.trim()) ? value.trim() : `${prefix}${value.trim()}`) : null;
+type Form = {
+  name: string;
+  symbol: string;
+  description: string;
+  xUrl: string;
+  websiteUrl: string;
+  telegramUrl: string;
+  initialPrice: string;
+  rangeMultiplier: 100 | 1000 | 10000;
+  devBuy: boolean;
+  devBuyAmount: string;
+};
+type ChainStage = "mint" | "pool" | "liquidity" | "lock" | "devBuy";
+type ProgressKey = "approval" | ChainStage;
+type ProgressState = "waiting" | "active" | "done" | "error";
+type PendingAction = { envelope: TransactionEnvelope; stage: ChainStage; launchId: string; signature?: string };
+
+const empty: Form = {
+  name: "",
+  symbol: "",
+  description: "",
+  xUrl: "",
+  websiteUrl: "",
+  telegramUrl: "",
+  initialPrice: "0.0001",
+  rangeMultiplier: 1000,
+  devBuy: false,
+  devBuyAmount: "0",
+};
+const wizardSteps = [
+  { label: "Coin", short: "Set the identity" },
+  { label: "Reward stock", short: "Choose the pair" },
+  { label: "Market", short: "Set the launch" },
+  { label: "Review", short: "Check and launch" },
+] as const;
+const chainSteps: Array<{ key: ProgressKey; label: string; detail: string }> = [
+  { key: "approval", label: "Authorise launch", detail: "Confirm the launch details" },
+  { key: "mint", label: "Create token", detail: "Create the Token-2022 mint" },
+  { key: "pool", label: "Open Whirlpool", detail: "Create the Orca stock pair" },
+  { key: "liquidity", label: "Add liquidity", detail: "Fund the market range" },
+  { key: "lock", label: "Lock liquidity", detail: "Lock the position permanently" },
+  { key: "devBuy", label: "Developer buy", detail: "Swap stock into your coin" },
+];
+const initialProgress = (): Record<ProgressKey, ProgressState> => ({ approval: "waiting", mint: "waiting", pool: "waiting", liquidity: "waiting", lock: "waiting", devBuy: "waiting" });
+const normaliseUrl = (value: string, prefix = "https://") => value.trim() ? (/^https?:\/\//i.test(value.trim()) ? value.trim() : `${prefix}${value.trim()}`) : null;
+const normaliseTelegram = (value: string) => {
+  const clean = value.trim().replace(/^@/, "");
+  if (!clean) return null;
+  if (/^https?:\/\//i.test(clean)) return clean;
+  if (/^(t\.me|telegram\.me)\//i.test(clean)) return `https://${clean}`;
+  return `https://t.me/${clean}`;
+};
+const isEnvelope = (value: LaunchConfirmation): value is LaunchConfirmation & TransactionEnvelope => Boolean(value.transactionBase64 && value.lastValidBlockHeight && value.transactionVersion !== undefined);
 
 export function Create() {
-  const nav = useNavigate();
   const wallet = useWallet();
   const { config } = useRuntime();
-  const [form,setForm] = useState(empty);
-  const [stocks,setStocks] = useState<StockOption[]>([]);
-  const [stockState,setStockState] = useState<"loading"|"ready"|"unavailable">("loading");
-  const [devBuy,setDevBuy] = useState(false);
-  const [devSol,setDevSol] = useState(1);
-  const [ack,setAck] = useState(false);
-  const [file,setFile] = useState<File|null>(null);
-  const [preview,setPreview] = useState("");
-  const [busy,setBusy] = useState(false);
-  const [launchOpen,setLaunchOpen] = useState(false);
+  const [form, setForm] = useState<Form>(empty);
+  const [step, setStep] = useState(0);
+  const [stocks, setStocks] = useState<StockOption[]>([]);
+  const [stockLoading, setStockLoading] = useState(true);
+  const [stockError, setStockError] = useState("");
+  const [stockQuery, setStockQuery] = useState("");
+  const [visibleStocks, setVisibleStocks] = useState(10);
+  const [stock, setStock] = useState<StockOption | null>(null);
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState("");
+  const [executionOpen, setExecutionOpen] = useState(false);
+  const [executionState, setExecutionState] = useState<"running" | "error" | "complete">("running");
+  const [progress, setProgress] = useState(initialProgress);
+  const [pending, setPending] = useState<PendingAction | null>(null);
+  const [launchId, setLaunchId] = useState("");
+  const [executionError, setExecutionError] = useState("");
 
-  useEffect(() => {
-    api.stocks().then(data => { setStocks(data.stocks); setStockState(data.stocks.length ? "ready" : "unavailable"); if (data.stocks.length) setForm(current => current.stockSymbol === "SOL" ? {...current, stockSymbol:data.stocks[0].symbol} : current); }).catch(() => setStockState("unavailable"));
-  }, []);
+  const update = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }));
+
+  async function loadStocks() {
+    setStockLoading(true);
+    setStockError("");
+    try {
+      const result = await api.stocks();
+      setStocks(result.stocks);
+      if (!stock && result.stocks[0]) setStock(result.stocks[0]);
+      if (!result.stocks.length) setStockError("No verified Orca stock pairs are available right now.");
+    } catch (error) {
+      setStockError(error instanceof Error ? error.message : "Could not load verified stocks.");
+    } finally {
+      setStockLoading(false);
+    }
+  }
+
+  useEffect(() => { void loadStocks(); }, []);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
-  const reward = form.stockSymbol !== "SOL";
-  const stock = stocks.find(item => item.symbol === form.stockSymbol);
-  const quote = useMemo(() => estimateLaunchFees(devBuy ? devSol : 0, reward, config.fees.platformBps, config.fees.rewardsBps), [devBuy, devSol, reward, config.fees.platformBps, config.fees.rewardsBps]);
-  const detailsReady = form.name.trim().length >= 2 && form.symbol.length >= 2;
-  const rewardsReady = !reward || (Boolean(stock?.mint) && ack);
-  const readyForOptions = detailsReady && rewardsReady;
-  const set = (key:keyof Form,value:string) => setForm(current => ({...current,[key]:value}));
+  const filteredStocks = useMemo(() => {
+    const query = stockQuery.trim().toLowerCase();
+    const result = query ? stocks.filter((item) => `${item.symbol} ${item.underlyingSymbol} ${item.name}`.toLowerCase().includes(query)) : stocks;
+    return result.slice(0, visibleStocks);
+  }, [stocks, stockQuery, visibleStocks]);
+  const stockResultsCount = useMemo(() => {
+    const query = stockQuery.trim().toLowerCase();
+    return query ? stocks.filter((item) => `${item.symbol} ${item.underlyingSymbol} ${item.name}`.toLowerCase().includes(query)).length : stocks.length;
+  }, [stocks, stockQuery]);
+  const initialPrice = Number(form.initialPrice);
+  const marketReady = Number.isFinite(initialPrice) && initialPrice > 0 && (!form.devBuy || Number(form.devBuyAmount) > 0);
+  const validForStep = [form.name.trim().length >= 2 && form.symbol.trim().length >= 2, Boolean(stock) && acknowledged, marketReady, true];
+  const transferFee = config.fees.transferFeeBps / 100;
+  const platformFee = config.fees.platformBps / 100;
+  const rewardFee = config.fees.stockRewardsBps / 100;
 
-  function openLaunchOptions() {
-    if (!wallet.address) { wallet.setModalOpen(true); return; }
-    if (!detailsReady || !rewardsReady) { toast.error("Complete the required launch details."); return; }
-    setLaunchOpen(true);
+  function chooseArtwork(next: File | null) {
+    if (next && next.size > 3 * 1024 * 1024) {
+      toast.error("Artwork must be 3 MB or smaller.");
+      return;
+    }
+    if (preview) URL.revokeObjectURL(preview);
+    setFile(next);
+    setPreview(next ? URL.createObjectURL(next) : "");
   }
 
-  async function launch() {
-    if (!config.transactionsEnabled || !wallet.address) return;
-    setBusy(true);
+  function nextStep() {
+    if (!validForStep[step]) {
+      toast.error(step === 0 ? "Add a coin name and ticker." : step === 1 ? "Choose a stock and confirm the restriction notice." : "Enter a valid starting price.");
+      return;
+    }
+    setStep((current) => Math.min(3, current + 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function setStage(key: ProgressKey, value: ProgressState) {
+    setProgress((current) => ({ ...current, [key]: value }));
+  }
+
+  async function continueLaunch(action: PendingAction) {
+    let retryAction = action;
+    setExecutionState("running");
+    setExecutionError("");
+    setStage(action.stage, "active");
+    setPending(action);
     try {
-      const clientRequestId=crypto.randomUUID(); const timestamp=Date.now();
-      const message=buildLaunchMessage({wallet:wallet.address,requestId:clientRequestId,symbol:form.symbol,stockSymbol:reward?form.stockSymbol:null,timestamp});
-      const signed=await wallet.signMessage(message); let imageId:string|null=null;
-      if(file){const body=new FormData();body.set("file",file);body.set("creatorWallet",wallet.address);body.set("clientRequestId",clientRequestId);body.set("symbol",form.symbol);body.set("stockSymbol",reward?form.stockSymbol:"");body.set("timestamp",String(timestamp));body.set("signature",signed.signature);body.set("message",signed.message);imageId=(await api.upload(body)).imageId;}
-      const result=await api.createLaunch({creatorWallet:wallet.address,clientRequestId,name:form.name.trim(),symbol:form.symbol,description:form.description.trim(),imageId,stockSymbol:reward?stock!.symbol:null,stockName:reward?stock!.name:null,stockMint:reward?stock!.mint:null,devBuySol:devBuy?devSol:0,xUrl:url(form.xUrl),websiteUrl:url(form.websiteUrl),telegramUrl:url(form.telegramUrl,"https://t.me/"),timestamp,signature:signed.signature,message:signed.message});
-      toast.success("Wavebreak launch signed and saved"); setLaunchOpen(false); nav(`/token/${result.launch.id}`);
-    } catch(error) { toast.error(error instanceof Error ? error.message : "Launch failed."); }
-    finally { setBusy(false); }
+      let signature = action.signature;
+      if (!signature) {
+        signature = await wallet.sendTransaction(action.envelope);
+        retryAction = { ...action, signature };
+        setPending(retryAction);
+      }
+
+      if (action.stage === "devBuy") {
+        setStage("devBuy", "done");
+        setPending(null);
+        setExecutionState("complete");
+        toast.success("AQUA market launched");
+        return;
+      }
+
+      const confirmation = await api.confirmLaunch(action.launchId, signature);
+      setStage(action.stage, "done");
+
+      if (confirmation.status === "live") {
+        if (confirmation.devBuy && form.devBuy) {
+          await continueLaunch({ envelope: confirmation.devBuy, stage: "devBuy", launchId: action.launchId });
+        } else {
+          setPending(null);
+          setExecutionState("complete");
+          toast.success("AQUA market launched");
+        }
+        return;
+      }
+
+      if (!confirmation.nextStep || !isEnvelope(confirmation)) throw new Error("The backend returned an incomplete launch step.");
+      await continueLaunch({ envelope: confirmation, stage: confirmation.nextStep, launchId: action.launchId });
+    } catch (error) {
+      setStage(action.stage, "error");
+      setPending(retryAction);
+      setExecutionState("error");
+      setExecutionError(error instanceof Error ? error.message : "The launch could not continue.");
+    }
   }
 
-  return <main className="page create-page">
-    <header className="create-heading"><h1>Create a coin that gives back.</h1><p>Choose the tokenized stock your community can earn, then launch directly through Orca Wavebreak. AQUA keeps holder rewards separate from platform revenue and makes the distribution record visible.</p></header>
+  async function beginLaunch() {
+    if (!wallet.address) {
+      wallet.setModalOpen(true);
+      return;
+    }
+    if (!stock || !acknowledged || !marketReady || !form.name.trim() || !form.symbol.trim()) {
+      toast.error("Complete every required launch step first.");
+      return;
+    }
+    if (!config.transactionsEnabled) {
+      toast.error("On-chain launching is not enabled by the backend.");
+      return;
+    }
 
-    <section className="creator-promise"><span><Sparkles/></span><div><b>Holder-first by default</b><p>The stock reward stream is for eligible holders. Creators do not receive a separate cut from the reward vault.</p></div><strong>1% → stock rewards</strong></section>
+    setExecutionOpen(true);
+    setExecutionState("running");
+    setExecutionError("");
+    setProgress(initialProgress());
+    setStage("approval", "active");
+    setLaunchId("");
+    setPending(null);
 
-    <div className="create-layout">
-      <section className="form-stack">
-        <FormPanel title="Token identity" note="Required">
-          <div className="token-fields">
-            <label className="artwork" aria-label="Upload token image">{preview?<span style={{backgroundImage:`url(${preview})`}}/>:<><ImagePlus/><b>Upload token image</b><small>PNG, JPG or WebP<br/>Maximum 3 MB</small></>}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{const next=e.target.files?.[0]??null;setFile(next);setPreview(next?URL.createObjectURL(next):"");}}/>{file&&<button type="button" aria-label="Remove token image" onClick={(e)=>{e.preventDefault();setFile(null);setPreview("");}}><X size={14}/></button>}</label>
-            <div className="field-grid"><Field label="Token name"><input value={form.name} maxLength={32} placeholder="Example: Neural Index" onChange={e=>set("name",e.target.value)}/></Field><Field label="Ticker"><input value={form.symbol} maxLength={10} placeholder="NEUR" onChange={e=>set("symbol",e.target.value.replace(/[^a-z0-9]/gi,"").toUpperCase())}/></Field><Field label="Description" wide><textarea rows={4} maxLength={360} value={form.description} placeholder="Tell holders what this community represents." onChange={e=>set("description",e.target.value)}/><small>{form.description.length}/360</small></Field></div>
+    try {
+      const clientRequestId = crypto.randomUUID();
+      const timestamp = Date.now();
+      const symbol = form.symbol.trim().toUpperCase();
+      const message = buildLaunchMessage({ wallet: wallet.address, requestId: clientRequestId, symbol, stockSymbol: stock.symbol, timestamp });
+      const signed = await wallet.signMessage(message);
+      let imageId: string | null = null;
+
+      if (file) {
+        const body = new FormData();
+        body.set("file", file);
+        body.set("creatorWallet", wallet.address);
+        body.set("clientRequestId", clientRequestId);
+        body.set("symbol", symbol);
+        body.set("stockSymbol", stock.symbol);
+        body.set("timestamp", String(timestamp));
+        body.set("signature", signed.signature);
+        body.set("message", signed.message);
+        imageId = (await api.upload(body)).imageId;
+      }
+
+      const intent = await api.createLaunch({
+        creatorWallet: wallet.address,
+        clientRequestId,
+        symbol,
+        stockSymbol: stock.symbol,
+        timestamp,
+        signature: signed.signature,
+        message: signed.message,
+        name: form.name.trim(),
+        description: form.description.trim(),
+        imageId,
+        stockMint: stock.mint,
+        initialPrice,
+        curveEndPrice: initialPrice * form.rangeMultiplier,
+        devBuyStockRaw: form.devBuy ? decimalToRaw(form.devBuyAmount, stock.decimals) : "0",
+        devBuyLamports: "0",
+        sniperDefense: false,
+        xUrl: normaliseUrl(form.xUrl),
+        websiteUrl: normaliseUrl(form.websiteUrl),
+        telegramUrl: normaliseTelegram(form.telegramUrl),
+      });
+      setLaunchId(intent.launchId);
+      setStage("approval", "done");
+      await continueLaunch({ envelope: intent, stage: "mint", launchId: intent.launchId });
+    } catch (error) {
+      setStage("approval", "error");
+      setExecutionState("error");
+      setExecutionError(error instanceof Error ? error.message : "The launch could not be prepared.");
+    }
+  }
+
+  const shownChainSteps = chainSteps.filter((item) => item.key !== "devBuy" || form.devBuy);
+
+  return <main className="page launch-wizard-page">
+    <header className="launch-wizard-hero">
+      <div>
+        <span className="launch-hero-kicker"><Droplets size={16}/> Launch on AQUA</span>
+        <h1>Create the coin.<br/><span>Choose the stock.</span></h1>
+        <p>Set up a Token-2022 coin and open its tokenized stock market directly on Orca.</p>
+      </div>
+      <div className="launch-hero-current" aria-hidden="true">
+        <i/><i/><i/><i/><i/>
+        <Waves/>
+      </div>
+    </header>
+
+    <section className="wizard-shell">
+      <div className="wizard-caustics" aria-hidden="true"/>
+      <aside className="wizard-rail" aria-label="Launch steps">
+        <div className="wizard-rail-head"><span>Launch setup</span><b>{step + 1} of {wizardSteps.length}</b></div>
+        <div className="wizard-rail-track"><i style={{ height: `${(step / (wizardSteps.length - 1)) * 100}%` }}/></div>
+        {wizardSteps.map((item, index) => <button
+          key={item.label}
+          className={`${index === step ? "active" : ""} ${index < step ? "done" : ""}`}
+          onClick={() => { if (index <= step) setStep(index); }}
+          disabled={index > step}
+        >
+          <span>{index < step ? <Check size={15}/> : index + 1}</span>
+          <div><b>{item.label}</b><small>{item.short}</small></div>
+        </button>)}
+        <div className="wizard-rail-note"><ShieldCheck/><span>Every eligible stock is verified against Orca before it appears here.</span></div>
+      </aside>
+
+      <div className="wizard-main">
+        {step === 0 && <WizardSection title="Build your coin" description="Give it a clear identity. Links and artwork are optional.">
+          <div className="coin-identity-grid">
+            <label className="wizard-artwork">
+              {preview ? <img src={preview} alt="Token artwork preview"/> : <><ImagePlus/><b>Add artwork</b><small>PNG, JPG, WebP or GIF</small></>}
+              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => chooseArtwork(event.target.files?.[0] ?? null)}/>
+              {preview && <button type="button" aria-label="Remove artwork" onClick={(event) => { event.preventDefault(); chooseArtwork(null); }}><X size={15}/></button>}
+            </label>
+            <div className="wizard-field-grid">
+              <Field label="Coin name"><input value={form.name} maxLength={32} placeholder="Aqua Robotics" onChange={(event) => update("name", event.target.value)}/></Field>
+              <Field label="Ticker"><div className="ticker-input"><span>$</span><input value={form.symbol} maxLength={10} placeholder="AQR" onChange={(event) => update("symbol", event.target.value.replace(/[^a-z0-9]/gi, "").toUpperCase())}/></div></Field>
+              <Field label="Short description" wide><textarea value={form.description} rows={4} maxLength={360} placeholder="What is this community built around?" onChange={(event) => update("description", event.target.value)}/><small className="field-count">{form.description.length}/360</small></Field>
+            </div>
           </div>
-        </FormPanel>
+          <details className="wizard-optional">
+            <summary><span>Project links</span><small>Optional</small><ChevronDown size={16}/></summary>
+            <div className="wizard-field-grid three">
+              <Field label="X"><input value={form.xUrl} placeholder="x.com/account" onChange={(event) => update("xUrl", event.target.value)}/></Field>
+              <Field label="Website"><input value={form.websiteUrl} placeholder="project.com" onChange={(event) => update("websiteUrl", event.target.value)}/></Field>
+              <Field label="Telegram"><input value={form.telegramUrl} placeholder="t.me/community" onChange={(event) => update("telegramUrl", event.target.value)}/></Field>
+            </div>
+          </details>
+        </WizardSection>}
 
-        <FormPanel title="Holder reward" note="Choose the value stream">
-          <div className="pair-choices"><Choice selected={reward} disabled={stockState !== "ready"} title="Tokenized stock rewards" text="1% of each trade enters a separate reserve used to buy the selected reward asset." onClick={()=>set("stockSymbol",stocks[0]?.symbol??"SOL")}/><Choice selected={!reward} title="Standard SOL market" text="No stock reward stream. The 1% platform fee still applies." onClick={()=>set("stockSymbol","SOL")}/></div>
-          {stockState === "unavailable" && <div className="inline-notice"><AlertTriangle/><div><b>Stock rewards are temporarily unavailable</b><span>The verified xStock registry did not return eligible Solana assets. Standard launches remain available.</span></div></div>}
-          {reward && <div className="stock-config"><Field label="Verified stock reward"><select value={form.stockSymbol} onChange={e=>{set("stockSymbol",e.target.value);setAck(false);}}>{stocks.map(item=><option key={item.symbol} value={item.symbol} disabled={item.halted}>{item.symbol} · {item.name}{item.halted?" (halted)":""}</option>)}</select></Field><label className="legal-check"><input type="checkbox" checked={ack} onChange={e=>setAck(e.target.checked)}/><span>I understand tokenized stocks can be restricted or halted and may not be available in my jurisdiction.</span></label></div>}
-        </FormPanel>
+        {step === 1 && <WizardSection title="Choose the reward stock" description="This stock becomes the permanent pool pair and the asset holders earn.">
+          <div className="stock-search"><Search size={17}/><input value={stockQuery} placeholder="Search stocks or tickers" onChange={(event) => { setStockQuery(event.target.value); setVisibleStocks(10); }}/><span>{stocks.length} verified</span></div>
+          {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Checking supported Orca stocks</span></div> : stockError ? <div className="stock-error"><Info/><span>{stockError}</span><button onClick={() => void loadStocks()}><RefreshCw size={14}/> Retry</button></div> : <>
+            <div className="stock-picker">
+              {filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { setStock(item); setAcknowledged(false); }}>
+                <StockLogo stock={item}/>
+                <div><b>{item.symbol}</b><small>{item.name}</small></div>
+                <span>{item.marketOpen === false ? "Market closed" : "Orca ready"}</span>
+                <i>{stock?.mint === item.mint && <Check size={14}/>}</i>
+              </button>)}
+            </div>
+            {filteredStocks.length === 0 && <div className="no-stock-results">No verified stocks match “{stockQuery}”.</div>}
+            {filteredStocks.length < stockResultsCount && <button className="stock-more" onClick={() => setVisibleStocks((value) => value + 20)}>Show more stocks</button>}
+          </>}
+          {stock && <div className="selected-stock-strip"><StockLogo stock={stock}/><div><small>Selected pair</small><b>${form.symbol || "TOKEN"} / {stock.symbol}</b></div><span>Cannot be changed after launch</span></div>}
+          <label className="stock-ack"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)}/><span>I understand tokenized stocks may be restricted or unavailable in my jurisdiction.</span></label>
+        </WizardSection>}
 
-        <FormPanel title="Reward rules" note="Platform standard">
-          <div className="reward-rules"><RuleIcon icon={<TimerReset/>} title="Amount × time" text="Eligible balance and holding duration combine into an AQUA Score."/><RuleIcon icon={<Clock3/>} title="Epoch distribution" text="Rewards accumulate for batched purchase and transparent distribution."/><RuleIcon icon={<ShieldCheck/>} title="Separate vault" text="Reward value is kept distinct from the platform fee route."/></div>
-          <p className="rules-note"><LockKeyhole/>These rules are fixed by the reward program, not changed by individual creators.</p>
-        </FormPanel>
+        {step === 2 && <WizardSection title="Set the market" description={`Price your coin in ${stock?.symbol ?? "the selected stock"} and choose the active liquidity range.`}>
+          <div className="market-config-grid">
+            <Field label={`Starting price in ${stock?.symbol ?? "stock"}`}><div className="unit-input"><input inputMode="decimal" value={form.initialPrice} onChange={(event) => update("initialPrice", event.target.value)} /><span>{stock?.symbol ?? "STOCK"}</span></div><small className="field-help">Price for one ${form.symbol || "token"}</small></Field>
+            <Field label="Market range"><div className="range-options">{([100, 1000, 10000] as const).map((value) => <button key={value} className={form.rangeMultiplier === value ? "selected" : ""} onClick={() => update("rangeMultiplier", value)}>{value.toLocaleString()}x</button>)}</div><small className="field-help">How far liquidity extends above the starting price</small></Field>
+          </div>
 
-        <details className="optional-panel"><summary><span><ChevronDown/> Project links</span><small>Optional</small></summary><div className="field-grid"><Field label="X account or post"><input value={form.xUrl} placeholder="x.com/account or /status/..." onChange={e=>set("xUrl",e.target.value)}/></Field><Field label="Website"><input value={form.websiteUrl} placeholder="yourproject.xyz" onChange={e=>set("websiteUrl",e.target.value)}/></Field><Field label="Telegram" wide><input value={form.telegramUrl} placeholder="t.me/yourcommunity" onChange={e=>set("telegramUrl",e.target.value)}/></Field></div></details>
+          <div className="dev-buy-card">
+            <div className="dev-buy-heading"><span><CircleDollarSign/></span><div><b>Developer buy</b><small>Optional first buy using {stock?.symbol ?? "the paired stock"}</small></div><button className={`wizard-switch ${form.devBuy ? "on" : ""}`} onClick={() => update("devBuy", !form.devBuy)} aria-pressed={form.devBuy}><i/></button></div>
+            {form.devBuy && <Field label={`Amount in ${stock?.symbol ?? "stock"}`}><div className="unit-input"><input inputMode="decimal" value={form.devBuyAmount} onChange={(event) => update("devBuyAmount", event.target.value)}/><span>{stock?.symbol ?? "STOCK"}</span></div></Field>}
+          </div>
 
-        <section className="launch-bottom"><div><h2>Ready to make it real?</h2><p>Your wallet will show the Orca Wavebreak launch transaction before anything is submitted.</p></div><button className="primary launch-button" disabled={!readyForOptions} onClick={openLaunchOptions}>{wallet.address ? `Launch ${form.symbol ? `$${form.symbol}` : "coin"}` : "Connect wallet to launch"}</button></section>
+          <div className="launch-rules-grid">
+            <div><Droplets/><span><small>Total transfer fee</small><b>{transferFee}%</b></span></div>
+            <div><Coins/><span><small>Holder stock rewards</small><b>{rewardFee}%</b></span></div>
+            <div><Sparkles/><span><small>Platform route</small><b>{platformFee}%</b></span></div>
+            <div><LockKeyhole/><span><small>Liquidity</small><b>Locked</b></span></div>
+          </div>
+        </WizardSection>}
+
+        {step === 3 && <WizardSection title="Review your launch" description="Check the permanent details before your wallet creates the market.">
+          <div className="launch-review-head">
+            <div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div>
+            <div><h3>{form.name || "Unnamed coin"}</h3><span>${form.symbol || "TICKER"}</span></div>
+            <span className="review-ready"><CheckCircle2/> Ready</span>
+          </div>
+          <div className="review-grid">
+            <ReviewItem label="Paired stock" value={stock ? `${stock.symbol} · ${stock.name}` : "Not selected"}/>
+            <ReviewItem label="Starting price" value={`${form.initialPrice || "0"} ${stock?.symbol ?? "STOCK"}`}/>
+            <ReviewItem label="Liquidity range" value={`${form.rangeMultiplier.toLocaleString()}x`}/>
+            <ReviewItem label="Developer buy" value={form.devBuy ? `${form.devBuyAmount} ${stock?.symbol ?? "STOCK"}` : "None"}/>
+            <ReviewItem label="Transfer fee" value={`${transferFee}% total`}/>
+            <ReviewItem label="Liquidity position" value="Permanently locked"/>
+          </div>
+          <div className="review-notice"><Info/><p>You will approve one message and up to {form.devBuy ? "five" : "four"} on-chain transactions. AQUA only asks for the next transaction after the previous one is confirmed.</p></div>
+          <button className="wizard-launch-button" onClick={() => void beginLaunch()}>
+            <span className="button-current"/>
+            {wallet.address ? <><Waves/> Launch ${form.symbol || "coin"}</> : <><Waves/> Connect wallet to launch</>}
+          </button>
+        </WizardSection>}
+
+        <footer className="wizard-actions">
+          <button className="wizard-back" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ArrowLeft/> Back</button>
+          {step < 3 && <button className="wizard-next" onClick={nextStep} disabled={!validForStep[step]}>Continue <ArrowRight/></button>}
+        </footer>
+      </div>
+    </section>
+
+    {executionOpen && <div className="launch-execution-overlay" role="presentation">
+      <section className="launch-execution" role="dialog" aria-modal="true" aria-labelledby="execution-title">
+        <div className="execution-water" aria-hidden="true"><i/><i/><i/><i/></div>
+        {executionState === "complete" ? <div className="execution-complete">
+          <span><Check/></span>
+          <small>Market live</small>
+          <h2 id="execution-title">Your coin is on Orca.</h2>
+          <p>The pool is open and its liquidity position is permanently locked.</p>
+          <Link className="primary full" to={`/token/${launchId}`}>View ${form.symbol} market <ExternalLink size={16}/></Link>
+        </div> : <>
+          <header className="execution-heading">
+            <div><small>Launching ${form.symbol}</small><h2 id="execution-title">Follow your wallet</h2><p>Approve each step as it becomes ready.</p></div>
+            {executionState === "error" && <button onClick={() => setExecutionOpen(false)} aria-label="Close launch progress"><X/></button>}
+          </header>
+          <div className="execution-steps">
+            {shownChainSteps.map((item) => <div key={item.key} className={progress[item.key]}>
+              <span>{progress[item.key] === "done" ? <Check/> : progress[item.key] === "active" ? <Loader2 className="spin"/> : progress[item.key] === "error" ? <X/> : null}</span>
+              <div><b>{item.label}</b><small>{item.detail}</small></div>
+              <em>{progress[item.key] === "active" ? "Wallet" : progress[item.key] === "done" ? "Confirmed" : progress[item.key] === "error" ? "Stopped" : "Waiting"}</em>
+            </div>)}
+          </div>
+          {executionState === "error" && <div className="execution-error"><Info/><span>{executionError}</span></div>}
+          {executionState === "error" && <div className="execution-actions">
+            {pending ? <button className="primary full" onClick={() => void continueLaunch(pending)}><RefreshCw/> Retry this step</button> : <button className="primary full" onClick={() => void beginLaunch()}><RefreshCw/> Start again</button>}
+            <button className="execution-close" onClick={() => setExecutionOpen(false)}>Return to review</button>
+          </div>}
+        </>}
       </section>
-    </div>
-
-    {launchOpen && <div className="wallet-overlay" role="presentation" onMouseDown={()=>!busy&&setLaunchOpen(false)}><section className="launch-options-modal" role="dialog" aria-modal="true" aria-labelledby="launch-options-title" onMouseDown={event=>event.stopPropagation()}><button className="modal-close" onClick={()=>setLaunchOpen(false)} aria-label="Close launch options"><X size={17}/></button><span className="modal-mascot"><img src={`${import.meta.env.BASE_URL}aqua-logo.png`} alt=""/></span><h2 id="launch-options-title">One last launch option</h2><p>Choose whether your wallet should buy tokens in the Orca Wavebreak launch transaction. This is public and does not receive special reward treatment.</p><div className="switch-row"><div><b>Initial developer buy</b><small>Optional, maximum 10 SOL</small></div><button className={`switch ${devBuy?"on":""}`} onClick={()=>setDevBuy(!devBuy)} aria-label="Toggle initial developer buy" aria-pressed={devBuy}><i/></button></div>{devBuy&&<><div className="dev-amount"><span>Initial buy</span><b>{devSol.toFixed(1)} SOL</b></div><input className="range" type="range" min="0.1" max="10" step="0.1" value={devSol} onChange={e=>setDevSol(Number(e.target.value))}/><div className="launch-option-note">Estimated {quote.netSol.toFixed(3)} SOL enters the market after fees.</div></>}<div className="modal-launch-summary"><span>{form.name} · ${form.symbol}</span><b>{reward ? `${form.stockSymbol} holder rewards` : "Standard SOL market"}</b></div><div className={`deployment-state ${config.transactionsEnabled?"ready":"unavailable"}`}>{config.transactionsEnabled?<ShieldCheck/>:<LockKeyhole/>}<div><b>{config.transactionsEnabled?"Wavebreak launch ready":"Wavebreak launching is not active yet"}</b><span>{config.transactionsEnabled?"Your wallet will display the final Orca transaction.":"The backend must be connected to Orca Wavebreak before submission."}</span></div></div><button className="primary full" disabled={!config.transactionsEnabled||busy} onClick={()=>void launch()}>{busy?<><Loader2 className="spin"/>Waiting for wallet</>:"Sign and launch on Orca"}</button></section></div>}
+    </div>}
   </main>;
 }
 
-function FormPanel({title,note,children}:{title:string;note:string;children:React.ReactNode}) { return <section className="form-panel"><header><h2>{title}</h2><small>{note}</small></header>{children}</section>; }
-function Field({label,wide,children}:{label:string;wide?:boolean;children:React.ReactNode}) { return <label className={wide?"field wide":"field"}><span>{label}</span>{children}</label>; }
-function Choice({selected,title,text,onClick,disabled=false}:{selected:boolean;title:string;text:string;onClick:()=>void;disabled?:boolean}) { return <button className={`pair-choice ${selected?"selected":""}`} onClick={onClick} disabled={disabled}><b>{title}</b>{selected&&<Check/>}<small>{text}</small>{disabled&&<em>Unavailable</em>}</button>; }
-function RuleIcon({icon,title,text}:{icon:React.ReactNode;title:string;text:string}) { return <div><span>{icon}</span><b>{title}</b><small>{text}</small></div>; }
+function WizardSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+  return <section className="wizard-section"><header><h2>{title}</h2><p>{description}</p></header><div className="wizard-section-body">{children}</div></section>;
+}
+
+function Field({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
+  return <label className={`wizard-field ${wide ? "wide" : ""}`}><span>{label}</span>{children}</label>;
+}
+
+function StockLogo({ stock }: { stock: StockOption }) {
+  const [failed, setFailed] = useState(false);
+  return <span className="stock-logo">{stock.logoUrl && !failed ? <img src={stock.logoUrl} alt="" onError={() => setFailed(true)}/> : stock.underlyingSymbol.slice(0, 2)}</span>;
+}
+
+function ReviewItem({ label, value }: { label: string; value: string }) {
+  return <div><small>{label}</small><b>{value}</b></div>;
+}

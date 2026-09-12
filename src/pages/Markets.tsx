@@ -16,7 +16,6 @@ export function Markets() {
   const [launches, setLaunches] = useState<Launch[]>([]);
   const [state, setState] = useState<DataState>("loading");
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const [tab, setTab] = useState("all");
 
   useEffect(() => {
     api.launches().then((data) => {
@@ -30,9 +29,8 @@ export function Markets() {
     const revenue = launches.reduce((sum,item) => sum + Number(item.volume24hUsd || 0), 0) * config.fees.platformBps / 10_000;
     return { revenue, buybacks: revenue * .5, stocks: launches.reduce((sum,item) => sum + Number(item.rewardDistributedUsd || 0), 0) };
   }, [launches, config.fees.platformBps]);
-  const filtered = useMemo(() => launches
-    .filter((item) => tab === "all" || (tab === "curve" ? item.status !== "orca" : item.status === "orca"))
-    .sort((a, b) => Number(b.volume24hUsd || 0) - Number(a.volume24hUsd || 0)), [launches, tab]);
+  const filtered = useMemo(() => [...launches]
+    .sort((a, b) => Number(b.volume24hUsd || 0) - Number(a.volume24hUsd || 0)), [launches]);
 
   return <main className="explore-page">
     <section className="product-hero">
@@ -105,12 +103,8 @@ export function Markets() {
         </div>}
       </header>
 
-      <div className="market-controls">
-        <div className="tabs" aria-label="Market status">{[["all", "All"], ["curve", "Wavebreak"], ["orca", "Whirlpools"]].map(([value, label]) => <button className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{label}</button>)}</div>
-      </div>
-
-      {state === "loading" ? <div className="market-skeletons">{[0,1,2].map(i => <div key={i}/>)}</div> : <div className="token-grid">{filtered.map((launch, index) => <TokenCard key={launch.id} launch={launch} sample={false} featured={index === 0}/>)}</div>}
-      {state !== "loading" && !filtered.length && <div className="empty-state"><Database/><h3>{state === "offline" ? "Markets unavailable" : launches.length ? "No markets in this stage" : "No markets launched yet"}</h3><p>{state === "offline" ? "AQUA could not reach the market index. Try again shortly." : launches.length ? "Choose another market stage." : "Launched coins will appear here once they have indexed."}</p></div>}
+      {state === "loading" ? <div className="market-skeletons markets-list-top">{[0,1,2].map(i => <div key={i}/>)}</div> : <div className="token-grid markets-list-top">{filtered.map((launch, index) => <TokenCard key={launch.id} launch={launch} featured={index === 0}/>)}</div>}
+      {state !== "loading" && !filtered.length && <div className="empty-state markets-list-top"><Database/><h3>{state === "offline" ? "Markets unavailable" : "No markets launched yet"}</h3><p>{state === "offline" ? "AQUA could not reach the market index. Try again shortly." : "Launched coins will appear here once they have indexed."}</p></div>}
     </section>
 
   </main>;
