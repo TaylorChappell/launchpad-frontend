@@ -1,4 +1,4 @@
-import type { Launch, LaunchConfirmation, LaunchIntentResponse, LaunchRetryResponse, MarketSnapshot, RuntimeConfig, StockOption, Trade, TransactionEnvelope, WalletReward } from "./types";
+import type { BatchStepValidation, Launch, LaunchConfirmation, LaunchIntentResponse, LaunchRetryResponse, MarketSnapshot, RuntimeConfig, StockOption, Trade, TransactionEnvelope, WalletReward } from "./types";
 
 const DEFAULT_API_URL = "https://launchpad-backend-production-63dc.up.railway.app";
 const cleanUrl = (value: unknown) => typeof value === "string" && /^https?:\/\//i.test(value.trim()) ? value.trim().replace(/\/$/, "") : null;
@@ -26,6 +26,6 @@ export const api = {
   createLaunch: (body: unknown) => request<LaunchIntentResponse>("/api/launches", json(body)),
   retryLaunchTransaction: (id: string, creator: string) => request<LaunchRetryResponse>(`/api/launches/${encodeURIComponent(id)}/retry-transaction`, json({ creator })),
   confirmLaunch: (id: string, signature: string) => request<LaunchConfirmation>(`/api/launches/${encodeURIComponent(id)}/confirm`, json({ signature })),
-  validateBatchStep: (id: string, step: "pool" | "liquidity" | "lock", signedTransactionBase64: string) => request<{ ready: true; step: string }>(`/api/launches/${encodeURIComponent(id)}/validate-batch-step`, json({ step, signedTransactionBase64 })),
+  validateBatchStep: (id: string, step: "pool" | "liquidity" | "lock", signedTransactionBase64: string) => request<BatchStepValidation>(`/api/launches/${encodeURIComponent(id)}/validate-batch-step`, json({ step, signedTransactionBase64 })),
   tradeTransaction: (id: string, body: { trader: string; side: "buy" | "sell"; amountRaw: string; slippageBps: number }) => request<TransactionEnvelope>(`/api/launches/${encodeURIComponent(id)}/trade-transaction`, json(body)),
 };

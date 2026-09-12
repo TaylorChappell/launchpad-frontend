@@ -146,13 +146,23 @@ export function Create() {
         activeStage = signed.step;
         setPending({ launchId: id, stage: signed.step });
         setStage(signed.step, "active");
-        await api.validateBatchStep(id, signed.step, signed.signedTransactionBase64);
-        const signature = await wallet.submitSignedTransaction(signed);
+        const validation = await api.validateBatchStep(id, signed.step, signed.signedTransactionBase64);
+        if (validation.confirmationRecorded) {
+          setStage(signed.step, "done");
+          continue;
+        }
+        const signature = validation.alreadyConfirmed
+          ? validation.signature
+          : await wallet.submitSignedTransaction(signed);
+        if (!signature) throw new Error(`AQUA could not recover the confirmed ${signed.step} transaction.`);
         finalConfirmation = await api.confirmLaunch(id, signature);
         setStage(signed.step, "done");
       }
-      if (finalConfirmation?.status !== "live") throw new Error("The lock confirmed, but the backend did not mark the market live.");
-      if (finalConfirmation.devBuy && hasInitialBuy) {
+      if (finalConfirmation?.status !== "live") {
+        const recovered = await api.retryLaunchTransaction(id, wallet.address!);
+        if (recovered.status !== "live") throw new Error("The launch steps confirmed, but the backend did not mark the market live.");
+      }
+      if (finalConfirmation?.devBuy && hasInitialBuy) {
         await continueLaunch({ envelope: finalConfirmation.devBuy, stage: "devBuy", launchId: id });
         return;
       }

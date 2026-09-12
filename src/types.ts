@@ -143,6 +143,7 @@ export type TransactionEnvelope = {
 
 export type LaunchBatchEnvelope = TransactionEnvelope & { step: "pool" | "liquidity" | "lock" };
 export type SignedTransactionEnvelope = LaunchBatchEnvelope & { signedTransactionBase64: string };
+export type BatchStepValidation = { ready: true; step: "pool" | "liquidity" | "lock"; alreadyConfirmed?: boolean; confirmationRecorded?: boolean; signature?: string };
 
 export type LaunchIntentResponse = TransactionEnvelope & {
   launchId: string;
