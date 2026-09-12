@@ -35,6 +35,7 @@ export type StockOption = {
 };
 
 export type LaunchStatus = "mint_pending" | "pool_pending" | "liquidity_pending" | "live";
+export type IndexingStatus = "pending_indexing" | "orca_indexed" | "indexed";
 
 export type Launch = {
   id: string;
@@ -53,6 +54,8 @@ export type Launch = {
   status: LaunchStatus;
   progress: number;
   marketCapUsd: number;
+  fdvUsd: number;
+  tvlUsd: number;
   priceUsd: number;
   volume24hUsd: number;
   change24h: number;
@@ -79,6 +82,14 @@ export type Launch = {
   positionAddress?: string | null;
   lockConfig?: string | null;
   liquidityLockedPermanently: boolean;
+  poolActive: boolean;
+  poolLiquidityRaw: string;
+  positionLiquidityRaw: string;
+  indexingStatus: IndexingStatus;
+  aquaIndexed: boolean;
+  orcaIndexed: boolean;
+  externalIndexed: boolean;
+  lastIndexedAt: number | null;
   creatorFeesAccruedRaw: string;
   rewardFeesAccruedRaw: string;
   buybackFeesAccruedRaw: string;
@@ -95,6 +106,16 @@ export type Trade = {
   token_amount_raw?: string;
   price_usd_cents?: number;
   created_at?: number;
+};
+
+export type MarketSnapshot = {
+  sampledAt: number;
+  priceUsd: number;
+  fdvUsd: number;
+  tvlUsd: number;
+  volume24hUsd: number;
+  holderCount: number;
+  txCount: number;
 };
 
 export type WalletReward = {
@@ -120,6 +141,9 @@ export type TransactionEnvelope = {
   lastValidBlockHeight: number;
 };
 
+export type LaunchBatchEnvelope = TransactionEnvelope & { step: "pool" | "liquidity" | "lock" };
+export type SignedTransactionEnvelope = LaunchBatchEnvelope & { signedTransactionBase64: string };
+
 export type LaunchIntentResponse = TransactionEnvelope & {
   launchId: string;
   step: "mint";
@@ -135,6 +159,7 @@ export type LaunchRetryResponse = Partial<TransactionEnvelope> & {
   whirlpoolAddress?: string;
   positionMint?: string;
   liquidityLockedPermanently?: boolean;
+  batch?: LaunchBatchEnvelope[];
 };
 
 export type LaunchConfirmation = Partial<TransactionEnvelope> & {
@@ -149,4 +174,7 @@ export type LaunchConfirmation = Partial<TransactionEnvelope> & {
   devBuyStockRaw?: string;
   devBuy?: (TransactionEnvelope & { quote?: Record<string, unknown> }) | null;
   creatorLockWizard?: string;
+  batch?: LaunchBatchEnvelope[];
+  indexingStatus?: IndexingStatus;
+  lockReady?: boolean;
 };

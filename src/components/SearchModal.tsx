@@ -97,7 +97,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
             <span className="search-result-name"><b>{launch.name}</b><small>${launch.symbol}</small></span>
             <span className="search-result-tags"><em>{launch.status === "live" ? "Whirlpool" : "Launching"}</em>{launch.stockSymbol && <em className="reward-tag">{launch.stockSymbol} rewards</em>}</span>
           </span>
-          <span className="search-result-value"><b>{compactMoney.format(launch.marketCapUsd)}</b><small>market cap</small></span>
+          <span className="search-result-value"><b>{launch.aquaIndexed ? compactMoney.format(launch.marketCapUsd) : "Indexing"}</b><small>market cap</small></span>
         </button>)}
         {state === "ready" && !results.length && <div className="search-modal-empty"><Search/><b>No matching markets</b><span>Try a coin name, ticker, stock, mint, or wallet.</span></div>}
       </div>

@@ -8,8 +8,8 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
-import { buildLaunchMessage, decimalToRaw } from "../launch";
-import type { Launch, StockOption, TransactionEnvelope } from "../types";
+import { decimalToRaw } from "../launch";
+import type { Launch, LaunchBatchEnvelope, LaunchConfirmation, StockOption, TransactionEnvelope } from "../types";
 
 type LaunchCurrency = "SOL" | "USDC" | "STOCK";
 type Form = {
@@ -19,7 +19,7 @@ type Form = {
 type ChainStage = "mint" | "pool" | "liquidity" | "lock" | "devBuy";
 type ProgressKey = "approval" | ChainStage;
 type ProgressState = "waiting" | "active" | "done" | "error";
-type PendingAction = { envelope: TransactionEnvelope; stage: ChainStage; launchId: string; signature?: string };
+type PendingAction = { launchId: string; stage: ChainStage; envelope?: TransactionEnvelope; signature?: string };
 
 const empty: Form = { name: "", symbol: "", description: "", xUrl: "", websiteUrl: "", telegramUrl: "", launchCurrency: "SOL", launchAmount: "" };
 const wizardSteps = [
@@ -28,12 +28,12 @@ const wizardSteps = [
   { label: "Launch", short: "Choose how to enter" },
 ] as const;
 const chainSteps: Array<{ key: ProgressKey; label: string; detail: string }> = [
-  { key: "approval", label: "Authorise launch", detail: "Confirm the launch details" },
-  { key: "mint", label: "Create token", detail: "Create the Token-2022 mint" },
-  { key: "pool", label: "Open Whirlpool", detail: "Create the Orca stock pair" },
-  { key: "liquidity", label: "Add liquidity", detail: "Fund the opening market" },
-  { key: "lock", label: "Lock liquidity", detail: "Lock the position permanently" },
-  { key: "devBuy", label: "Initial buy", detail: "Complete the optional first buy" },
+  { key: "approval", label: "Prepare launch", detail: "Store artwork and immutable metadata" },
+  { key: "mint", label: "Create token", detail: "Wallet approval 1 of 2" },
+  { key: "pool", label: "Approve Orca market", detail: "Wallet approval 2 signs the launch batch" },
+  { key: "liquidity", label: "Verify liquidity", detail: "Prove the opening position is active" },
+  { key: "lock", label: "Lock liquidity", detail: "Permanently lock the verified position" },
+  { key: "devBuy", label: "Initial buy", detail: "Optional transaction after launch" },
 ];
 const initialProgress = (): Record<ProgressKey, ProgressState> => ({ approval: "waiting", mint: "waiting", pool: "waiting", liquidity: "waiting", lock: "waiting", devBuy: "waiting" });
 const normaliseUrl = (value: string, prefix = "https://") => value.trim() ? (/^https?:\/\//i.test(value.trim()) ? value.trim() : `${prefix}${value.trim()}`) : null;
@@ -106,7 +106,7 @@ export function Create() {
   const amount = Number(form.launchAmount || "0");
   const hasInitialBuy = Number.isFinite(amount) && amount > 0;
   const amountValid = !form.launchAmount.trim() || hasInitialBuy;
-  const validForStep = [form.name.trim().length >= 2 && form.symbol.trim().length >= 2, Boolean(stock) && acknowledged, amountValid];
+  const validForStep = [form.name.trim().length >= 2 && form.symbol.trim().length >= 2 && Boolean(file), Boolean(stock) && acknowledged, amountValid];
   const transferFee = config.fees.transferFeeBps / 100;
   const platformFee = config.fees.platformBps / 100;
   const rewardFee = config.fees.stockRewardsBps / 100;
@@ -121,7 +121,7 @@ export function Create() {
 
   function nextStep() {
     if (!validForStep[step]) {
-      toast.error(step === 0 ? "Add a coin name and ticker." : step === 1 ? "Choose a stock and confirm the restriction notice." : "Enter a valid amount.");
+      toast.error(step === 0 ? "Add a coin name, ticker, and artwork." : step === 1 ? "Choose a stock and confirm the restriction notice." : "Enter a valid amount.");
       return;
     }
     setStep((current) => Math.min(wizardSteps.length - 1, current + 1));
@@ -130,7 +130,42 @@ export function Create() {
 
   function setStage(key: ProgressKey, value: ProgressState) { setProgress((current) => ({ ...current, [key]: value })); }
 
+  function finishLaunch() {
+    setPending(null); setExecutionState("complete"); setRecoverableLaunch(null); toast.success("AQUA market launched");
+  }
+
+  async function executeLaunchBatch(id: string, batch: LaunchBatchEnvelope[]) {
+    let activeStage: ChainStage = batch[0]?.step ?? "pool";
+    try {
+      if (!batch.length) throw new Error("The backend did not return the Orca launch batch.");
+      setPending({ launchId: id, stage: activeStage });
+      setStage(activeStage, "active");
+      const signedBatch = await wallet.signTransactionBatch(batch);
+      let finalConfirmation: LaunchConfirmation | null = null;
+      for (const signed of signedBatch) {
+        activeStage = signed.step;
+        setPending({ launchId: id, stage: signed.step });
+        setStage(signed.step, "active");
+        await api.validateBatchStep(id, signed.step, signed.signedTransactionBase64);
+        const signature = await wallet.submitSignedTransaction(signed);
+        finalConfirmation = await api.confirmLaunch(id, signature);
+        setStage(signed.step, "done");
+      }
+      if (finalConfirmation?.status !== "live") throw new Error("The lock confirmed, but the backend did not mark the market live.");
+      if (finalConfirmation.devBuy && hasInitialBuy) {
+        await continueLaunch({ envelope: finalConfirmation.devBuy, stage: "devBuy", launchId: id });
+        return;
+      }
+      finishLaunch();
+    } catch (error) {
+      setPending({ launchId: id, stage: activeStage });
+      setStage(activeStage, "error"); setExecutionState("error");
+      setExecutionError(error instanceof Error ? error.message : "The Orca launch batch could not continue.");
+    }
+  }
+
   async function continueLaunch(action: PendingAction) {
+    if (!action.envelope) throw new Error("The next launch transaction is unavailable.");
     setExecutionState("running"); setExecutionError(""); setStage(action.stage, "active");
     let retryAction = action;
     setPending(action);
@@ -146,16 +181,26 @@ export function Create() {
       }
       const confirmation = await api.confirmLaunch(action.launchId, signature);
       setStage(action.stage, "done");
+      if (action.stage === "mint") {
+        if (!confirmation.batch?.length) throw new Error("The backend did not return the Orca launch batch.");
+        await executeLaunchBatch(action.launchId, confirmation.batch);
+        return;
+      }
       if (confirmation.status === "live") {
         if (confirmation.devBuy && hasInitialBuy) await continueLaunch({ envelope: confirmation.devBuy, stage: "devBuy", launchId: action.launchId });
-        else { setPending(null); setExecutionState("complete"); toast.success("AQUA market launched"); }
+        else finishLaunch();
         return;
       }
       if (!confirmation.nextStep || !isEnvelope(confirmation)) throw new Error("The backend returned an incomplete launch step.");
       await continueLaunch({ envelope: confirmation, stage: confirmation.nextStep, launchId: action.launchId });
     } catch (error) {
-      setPending(retryAction);
-      setStage(action.stage, "error"); setExecutionState("error");
+      if (action.stage === "mint" && retryAction.signature) {
+        setPending({ launchId: action.launchId, stage: "pool" });
+        setStage("mint", "done"); setStage("pool", "error");
+      } else {
+        setPending(retryAction); setStage(action.stage, "error");
+      }
+      setExecutionState("error");
       setExecutionError(error instanceof Error ? error.message : "The launch could not continue.");
     }
   }
@@ -180,6 +225,7 @@ export function Create() {
       if (fresh.status === "live") {
         setStage("lock", "done"); setPending(null); setExecutionState("complete"); toast.success("AQUA market launched"); return;
       }
+      if (fresh.batch?.length) { await executeLaunchBatch(pending.launchId, fresh.batch); return; }
       if (!fresh.step || !isEnvelope(fresh)) throw new Error("The backend returned an incomplete recovery step.");
       await continueLaunch({ envelope: fresh, stage: fresh.step, launchId: pending.launchId });
     } catch (error) {
@@ -198,11 +244,19 @@ export function Create() {
       if (fresh.status === "live") {
         restored.pool = "done"; restored.liquidity = "done"; restored.lock = "done"; setProgress(restored); setExecutionState("complete"); setRecoverableLaunch(null); toast.success("AQUA market launched"); return;
       }
-      if (!fresh.step || !isEnvelope(fresh)) throw new Error("The backend returned an incomplete recovery step.");
-      if (fresh.step === "liquidity" || fresh.step === "lock") restored.pool = "done";
-      if (fresh.step === "lock") restored.liquidity = "done";
-      setProgress(restored);
-      await continueLaunch({ envelope: fresh, stage: fresh.step, launchId: recoverableLaunch.id });
+      if (fresh.batch?.length) {
+        const first = fresh.batch[0]?.step;
+        if (first === "liquidity" || first === "lock") restored.pool = "done";
+        if (first === "lock") restored.liquidity = "done";
+        setProgress(restored);
+        await executeLaunchBatch(recoverableLaunch.id, fresh.batch);
+      } else {
+        if (!fresh.step || !isEnvelope(fresh)) throw new Error("The backend returned an incomplete recovery step.");
+        if (fresh.step === "liquidity" || fresh.step === "lock") restored.pool = "done";
+        if (fresh.step === "lock") restored.liquidity = "done";
+        setProgress(restored);
+        await continueLaunch({ envelope: fresh, stage: fresh.step, launchId: recoverableLaunch.id });
+      }
       setRecoverableLaunch(null);
     } catch (error) {
       setExecutionState("error");
@@ -212,7 +266,7 @@ export function Create() {
 
   async function beginLaunch() {
     if (!wallet.address) { wallet.setModalOpen(true); return; }
-    if (!stock || !acknowledged || !amountValid || !form.name.trim() || !form.symbol.trim()) { toast.error("Complete every required launch step first."); return; }
+    if (!stock || !file || !acknowledged || !amountValid || !form.name.trim() || !form.symbol.trim()) { toast.error("Complete every required launch step first."); return; }
     if (hasInitialBuy && form.launchCurrency !== "STOCK") {
       toast.error(`${form.launchCurrency} routing is not enabled by the current backend yet. Choose ${stock.symbol} or leave the initial buy empty.`); return;
     }
@@ -221,19 +275,13 @@ export function Create() {
     setExecutionOpen(true); setExecutionState("running"); setExecutionError(""); setProgress(initialProgress()); setPending(null);
     setStage("approval", "active"); setLaunchId("");
     try {
-      const clientRequestId = crypto.randomUUID(); const timestamp = Date.now(); const symbol = form.symbol.trim().toUpperCase();
-      const message = buildLaunchMessage({ wallet: wallet.address, requestId: clientRequestId, symbol, stockSymbol: stock.symbol, timestamp });
-      const signed = await wallet.signMessage(message);
-      let imageId: string | null = null;
-      if (file) {
-        const body = new FormData(); body.set("file", file); body.set("creatorWallet", wallet.address); body.set("clientRequestId", clientRequestId);
-        body.set("symbol", symbol); body.set("stockSymbol", stock.symbol); body.set("timestamp", String(timestamp)); body.set("signature", signed.signature); body.set("message", signed.message);
-        imageId = (await api.upload(body)).imageId;
-      }
+      const clientRequestId = crypto.randomUUID(); const symbol = form.symbol.trim().toUpperCase();
+      const body = new FormData(); body.set("file", file); body.set("creatorWallet", wallet.address); body.set("clientRequestId", clientRequestId);
+      const imageId = (await api.upload(body)).imageId;
       const initialBuyRaw = hasInitialBuy ? decimalToRaw(form.launchAmount, currencyDecimals) : "0";
       const intent = await api.createLaunch({
-        creatorWallet: wallet.address, clientRequestId, symbol, stockSymbol: stock.symbol, timestamp,
-        signature: signed.signature, message: signed.message, name: form.name.trim(), description: form.description.trim(), imageId,
+        creatorWallet: wallet.address, clientRequestId, symbol, stockSymbol: stock.symbol,
+        name: form.name.trim(), description: form.description.trim(), imageId,
         stockMint: stock.mint, launchCurrency: form.launchCurrency, launchAmountRaw: initialBuyRaw,
         devBuyStockRaw: form.launchCurrency === "STOCK" ? initialBuyRaw : "0",
         devBuyLamports: form.launchCurrency === "SOL" ? initialBuyRaw : "0",
@@ -262,7 +310,7 @@ export function Create() {
       </aside>
 
       <div className="wizard-main">
-        {step === 0 && <WizardSection title="Create your coin" description="Add the basics. Everything except the name and ticker is optional.">
+        {step === 0 && <WizardSection title="Create your coin" description="Add a name, ticker, and artwork. The description and socials are optional.">
           <div className="coin-identity-grid">
             <label className="wizard-artwork">
               {preview ? <img src={preview} alt="Token artwork preview"/> : <><ImagePlus/><b>Add artwork</b><small>PNG, JPG, WebP or GIF</small></>}
@@ -320,7 +368,7 @@ export function Create() {
     {executionOpen && <div className="launch-execution-overlay" role="presentation"><section className="launch-execution" role="dialog" aria-modal="true" aria-labelledby="execution-title">
       <div className="execution-water" aria-hidden="true"><i/><i/><i/><i/></div>
       {executionState === "complete" ? <div className="execution-complete"><span><Check/></span><small>Market live</small><h2 id="execution-title">Your coin is on Orca.</h2><p>The pool is open and its liquidity position is permanently locked.</p><Link className="primary full" to={`/token/${launchId}`}>View ${form.symbol} market <ExternalLink size={16}/></Link></div> : <>
-        <header className="execution-heading"><div><small>Launching ${form.symbol}</small><h2 id="execution-title">Follow your wallet</h2><p>Approve each step as it becomes ready.</p></div>{executionState === "error" && <button onClick={() => setExecutionOpen(false)} aria-label="Close launch progress"><X/></button>}</header>
+        <header className="execution-heading"><div><small>Launching ${form.symbol}</small><h2 id="execution-title">Two wallet approvals</h2><p>Create the token first, then approve the complete Orca launch batch.</p></div>{executionState === "error" && <button onClick={() => setExecutionOpen(false)} aria-label="Close launch progress"><X/></button>}</header>
         <div className="execution-steps">{shownChainSteps.map((item) => <div key={item.key} className={progress[item.key]}><span>{progress[item.key] === "done" ? <Check/> : progress[item.key] === "active" ? <Loader2 className="spin"/> : progress[item.key] === "error" ? <X/> : null}</span><div><b>{item.label}</b><small>{item.detail}</small></div><em>{progress[item.key] === "active" ? "Wallet" : progress[item.key] === "done" ? "Confirmed" : progress[item.key] === "error" ? "Stopped" : "Waiting"}</em></div>)}</div>
         {executionState === "error" && <div className="execution-error"><Info/><span>{executionError}</span></div>}
         {executionState === "error" && <div className="execution-actions"><button className="primary full" onClick={() => void retryLaunch()}><RefreshCw/> {pending?.signature ? "Retry confirmation" : "Build a fresh transaction"}</button><button className="execution-close" onClick={() => setExecutionOpen(false)}>Return to launch</button></div>}

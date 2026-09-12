@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { SolanaClient } from "@metamask/connect-solana";
 import { toast } from "sonner";
 import { api } from "./api";
-import type { RuntimeConfig, TransactionEnvelope } from "./types";
+import type { LaunchBatchEnvelope, RuntimeConfig, SignedTransactionEnvelope, TransactionEnvelope } from "./types";
 
 type PhantomProvider = {
   isPhantom?: boolean;
@@ -10,12 +10,13 @@ type PhantomProvider = {
   disconnect: () => Promise<void>;
   signMessage: (message: Uint8Array, encoding: string) => Promise<{ signature: Uint8Array }>;
   signAndSendTransaction: (transaction: unknown, options?: { preflightCommitment?: string; maxRetries?: number }) => Promise<{ signature: string } | string>;
+  signAllTransactions?: (transactions: unknown[]) => Promise<Array<{ serialize: () => Uint8Array }>>;
 };
 type SolanaAccount = { address: string };
 type StandardConnect = { connect: () => Promise<{ accounts?: readonly SolanaAccount[] }> };
 type SolanaSignMessage = { signMessage: (input: { account: SolanaAccount; message: Uint8Array }) => Promise<readonly { signature: Uint8Array }[]> };
 type SolanaSignAndSend = { signAndSendTransaction: (input: { account: SolanaAccount; transaction: Uint8Array; chain: string; options?: { preflightCommitment?: string; maxRetries?: number } }) => Promise<readonly { signature: Uint8Array }[]> };
-type SolanaSignTransaction = { signTransaction: (input: { account: SolanaAccount; transaction: Uint8Array; chain: string }) => Promise<readonly { signedTransaction: Uint8Array }[]> };
+type SolanaSignTransaction = { signTransaction: (...inputs: Array<{ account: SolanaAccount; transaction: Uint8Array; chain: string }>) => Promise<readonly { signedTransaction: Uint8Array }[]> };
 type WalletStandard = { accounts: readonly SolanaAccount[]; features: Record<string, unknown> };
 type MetaAdapter = { client: SolanaClient; wallet: WalletStandard; account: SolanaAccount };
 type Adapter = { kind: "phantom"; provider: PhantomProvider } | { kind: "metamask"; value: MetaAdapter };
@@ -59,6 +60,8 @@ type WalletValue = {
   disconnect: () => Promise<void>;
   signMessage: (message: string) => Promise<{ message: string; signature: string }>;
   sendTransaction: (envelope: TransactionEnvelope) => Promise<string>;
+  signTransactionBatch: (envelopes: LaunchBatchEnvelope[]) => Promise<SignedTransactionEnvelope[]>;
+  submitSignedTransaction: (envelope: SignedTransactionEnvelope) => Promise<string>;
 };
 const WalletContext = createContext<WalletValue | null>(null);
 const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
@@ -209,7 +212,46 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [address, config.network, config.publicRpcUrl]);
 
-  const value = useMemo(() => ({ address, kind, connecting, modalOpen, setModalOpen, phantomInstalled, connect, disconnect, signMessage, sendTransaction }), [address, kind, connecting, modalOpen, phantomInstalled, connect, disconnect, signMessage, sendTransaction]);
+  const signTransactionBatch = useCallback(async (envelopes: LaunchBatchEnvelope[]) => {
+    if (!adapter.current || !address) throw new Error("Connect your wallet first.");
+    if (!envelopes.length) throw new Error("No launch transactions were prepared.");
+    const { Transaction, VersionedTransaction } = await import("@solana/web3.js");
+    const transactions = envelopes.map((envelope) => {
+      const bytes = decodeBase64(envelope.transactionBase64);
+      return envelope.transactionVersion === 0 ? VersionedTransaction.deserialize(bytes) : Transaction.from(bytes);
+    });
+    try {
+      if (adapter.current.kind === "phantom") {
+        if (!adapter.current.provider.signAllTransactions) throw new Error("Update Phantom to use AQUA's two-approval launch flow.");
+        const signed = await adapter.current.provider.signAllTransactions(transactions);
+        if (signed.length !== envelopes.length) throw new Error("Phantom did not sign the complete launch batch.");
+        return signed.map((transaction, index) => ({ ...envelopes[index], signedTransactionBase64: base64(transaction.serialize()) }));
+      }
+      const { wallet, account } = adapter.current.value;
+      const feature = wallet.features["solana:signTransaction"] as SolanaSignTransaction | undefined;
+      if (!feature) throw new Error("MetaMask does not support transaction batch signing.");
+      const chain = config.network === "devnet" ? "solana:devnet" : "solana:mainnet";
+      const results = await feature.signTransaction(...envelopes.map((envelope) => ({ account, transaction: decodeBase64(envelope.transactionBase64), chain })));
+      if (results.length !== envelopes.length) throw new Error("MetaMask did not sign the complete launch batch.");
+      return results.map((result, index) => ({ ...envelopes[index], signedTransactionBase64: base64(result.signedTransaction) }));
+    } catch (error) {
+      throw new Error(friendlyWalletError(error));
+    }
+  }, [address, config.network]);
+
+  const submitSignedTransaction = useCallback(async (envelope: SignedTransactionEnvelope) => {
+    try {
+      const { Connection } = await import("@solana/web3.js");
+      const connection = new Connection(config.publicRpcUrl, "confirmed");
+      const signature = await connection.sendRawTransaction(decodeBase64(envelope.signedTransactionBase64), { maxRetries: 5, preflightCommitment: "confirmed" });
+      await waitForConfirmation(connection, signature, envelope.lastValidBlockHeight);
+      return signature;
+    } catch (error) {
+      throw new Error(friendlyWalletError(error));
+    }
+  }, [config.publicRpcUrl]);
+
+  const value = useMemo(() => ({ address, kind, connecting, modalOpen, setModalOpen, phantomInstalled, connect, disconnect, signMessage, sendTransaction, signTransactionBatch, submitSignedTransaction }), [address, kind, connecting, modalOpen, phantomInstalled, connect, disconnect, signMessage, sendTransaction, signTransactionBatch, submitSignedTransaction]);
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 }
 

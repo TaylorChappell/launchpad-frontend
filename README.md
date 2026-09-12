@@ -48,4 +48,6 @@ The frontend reads its network from `/api/config`. Set `USE_TESTNET=true` on Rai
 
 ## Wallet support
 
-Phantom connects through its browser provider. MetaMask connects through MetaMask Solana account support. The launch wizard signs each backend-issued Orca transaction in order: token mint, Whirlpool creation, liquidity, permanent position lock, and the optional developer buy.
+Phantom connects through its browser provider. MetaMask connects through MetaMask Solana account support. A standard launch uses two wallet approvals. The first creates the Token-2022 mint. The second signs the ordered Orca pool, active-liquidity, and permanent-lock batch. AQUA validates and submits those signed transactions one at a time so the lock cannot land before active liquidity is proven. An optional first buy is a separate post-launch transaction.
+
+New markets display `Pending indexing` until the built-in backend indexer records on-chain metrics. Market charts use stored backend snapshots and never generate sample price movement.

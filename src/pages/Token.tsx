@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
-import type { Launch, StockOption, Trade } from "../types";
+import type { Launch, MarketSnapshot, StockOption, Trade } from "../types";
 import { Metric, TokenMark } from "../components/TokenCard";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
@@ -28,6 +28,7 @@ export function Token() {
   const [launch, setLaunch] = useState<Launch | null>(null);
   const [stock, setStock] = useState<StockOption | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [snapshots, setSnapshots] = useState<MarketSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("1");
@@ -35,16 +36,17 @@ export function Token() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([api.launch(id), api.stocks().catch(() => ({ stocks: [] }))]).then(([launchData, stockData]) => {
+    Promise.all([api.launch(id), api.stocks().catch(() => ({ stocks: [] })), api.marketData(id).catch(() => ({ snapshots: [] }))]).then(([launchData, stockData, marketData]) => {
       if (!active) return;
       setLaunch(launchData.launch);
       setTrades(launchData.trades);
+      setSnapshots(marketData.snapshots);
       setStock(stockData.stocks.find((item) => item.mint === launchData.launch.stockMint) ?? null);
     }).catch(() => undefined).finally(() => { if (active) setLoaded(true); });
     return () => { active = false; };
   }, [id]);
 
-  const chart = useMemo(() => !launch ? [] : Array.from({ length: 38 }, (_, index) => ({ index, price: Math.max(.000001, launch.priceUsd || launch.initialPrice || .0001) * (.78 + index / 145) * (1 + Math.sin(index * .67) * .025) })), [launch]);
+  const chart = useMemo(() => snapshots.map((item) => ({ time: item.sampledAt, price: item.priceUsd })), [snapshots]);
 
   if (!launch && loaded) return <main className="page empty-state"><h2>Market not found</h2><p>This market is not present in the AQUA index.</p><Link className="primary" to="/">Return to Explore</Link></main>;
   if (!launch) return <main className="page"><div className="page-loading">Loading market…</div></main>;
@@ -78,15 +80,15 @@ export function Token() {
     <Link className="back" to="/"><ArrowLeft/>Explore markets</Link>
     <section className="token-hero">
       <div className="token-identity"><TokenMark launch={launch} large/><div><div><h1>{launch.name}</h1><span>${launch.symbol}</span><em className={launch.status}>{launch.status === "live" ? "ORCA WHIRLPOOL" : "LAUNCHING"}</em></div><p>{launch.description}</p><footer>{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2/> Website</a>}<a href={explorerUrl} target="_blank" rel="noreferrer">Explorer <ExternalLink/></a><button onClick={() => { void navigator.clipboard.writeText(launch.mint); toast.success("Mint copied"); }}><Copy/> {launch.mint.slice(0, 5)}…{launch.mint.slice(-4)}</button></footer></div></div>
-      <div className="hero-metrics"><Metric label="Stock reward" value={launch.stockSymbol}/><Metric label="Distributed" value={`$${compact.format(launch.rewardDistributedUsd)}`}/><Metric label="Holders" value={compact.format(launch.holderCount)}/><Metric label="Market cap" value={`$${compact.format(launch.marketCapUsd)}`}/></div>
+      <div className="hero-metrics"><Metric label="Stock reward" value={launch.stockSymbol}/><Metric label="TVL" value={launch.aquaIndexed ? `$${compact.format(launch.tvlUsd)}` : "Indexing"}/><Metric label="Holders" value={launch.aquaIndexed ? compact.format(launch.holderCount) : "Indexing"}/><Metric label="Market cap" value={launch.aquaIndexed ? `$${compact.format(launch.marketCapUsd)}` : "Indexing"}/></div>
     </section>
 
     <div className="token-layout"><section className="token-main">
-      <div className="chart-panel"><header><div><small>ORCA WHIRLPOOL PRICE</small><b>{money.format(launch.priceUsd || launch.initialPrice)}</b></div><span>{launch.status === "live" ? "INDEXED" : "OPENING"}</span></header><div className="chart"><ResponsiveContainer><AreaChart data={chart}><defs><linearGradient id="tokenFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#73edf2" stopOpacity=".25"/><stop offset="1" stopColor="#73edf2" stopOpacity="0"/></linearGradient></defs><CartesianGrid vertical={false} stroke="rgba(137,214,223,.07)"/><YAxis orientation="right" axisLine={false} tickLine={false} tick={{ fill: "#648087", fontSize: 10 }}/><Tooltip contentStyle={{ background: "#061820", border: "1px solid rgba(137,214,223,.18)", borderRadius: 8 }}/><Area type="monotone" dataKey="price" stroke="#73edf2" fill="url(#tokenFill)" strokeWidth={2}/></AreaChart></ResponsiveContainer></div></div>
+      <div className="chart-panel"><header><div><small>ORCA WHIRLPOOL PRICE</small><b>{launch.aquaIndexed ? money.format(launch.priceUsd) : "Pending"}</b></div><span>{launch.indexingStatus === "indexed" ? "INDEXED" : launch.indexingStatus === "orca_indexed" ? "ORCA INDEXED" : "PENDING INDEXING"}</span></header><div className="chart">{chart.length ? <ResponsiveContainer><AreaChart data={chart}><defs><linearGradient id="tokenFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#73edf2" stopOpacity=".25"/><stop offset="1" stopColor="#73edf2" stopOpacity="0"/></linearGradient></defs><CartesianGrid vertical={false} stroke="rgba(137,214,223,.07)"/><YAxis orientation="right" axisLine={false} tickLine={false} tick={{ fill: "#648087", fontSize: 10 }}/><Tooltip contentStyle={{ background: "#061820", border: "1px solid rgba(137,214,223,.18)", borderRadius: 8 }}/><Area type="monotone" dataKey="price" stroke="#73edf2" fill="url(#tokenFill)" strokeWidth={2}/></AreaChart></ResponsiveContainer> : <div className="page-loading">Market data will appear after the first index pass.</div>}</div></div>
 
       <div className="info-grid">
         <div className="info-panel reward"><Gift/><b>Earn {launch.stockSymbol}</b><div><Metric label="Distributed" value={`$${compact.format(launch.rewardDistributedUsd)}`}/><Metric label="Reward reserve" value={BigInt(launch.rewardVaultStockRaw || "0") > 0n ? `${formatRaw(launch.rewardVaultStockRaw, stockDecimals)} ${launch.stockSymbol}` : "Accumulating"}/></div><p>Reward weight combines eligible balance and holding time.</p></div>
-        <div className="info-panel"><small>ORCA MARKET</small><h2>{launch.status === "live" ? "Live" : "Launching"}</h2><p>{launch.status === "live" ? "The stock-paired Whirlpool is open and its initial position is permanently locked." : "The creator is completing the signed launch transactions."}</p>{launch.liquidityLockedPermanently && <span className="pool-lock-status"><LockKeyhole/> Permanent liquidity lock</span>}</div>
+        <div className="info-panel"><small>ORCA MARKET</small><h2>{launch.status === "live" ? "Live" : "Launching"}</h2><p>{launch.status === "live" ? launch.indexingStatus === "pending_indexing" ? "The Whirlpool is live. AQUA, Orca, and external market indexes are still discovering it." : "The stock-paired Whirlpool is open and its initial position is permanently locked." : "The creator is completing the signed launch transactions."}</p>{launch.liquidityLockedPermanently && <span className="pool-lock-status"><LockKeyhole/> Permanent liquidity lock</span>}</div>
       </div>
 
       <div className="activity"><header><div><b>Market activity</b><span>Indexed transactions</span></div><strong>{launch.txCount.toLocaleString()} total</strong></header><div className="activity-scroll"><table><thead><tr><th>Type</th><th>Wallet</th><th>{launch.stockSymbol}</th><th>Tokens</th></tr></thead><tbody>{trades.length ? trades.map((item) => <tr key={item.id}><td className={item.side}>{item.side.toUpperCase()}</td><td>{item.wallet}</td><td>{formatRaw(item.gross_quote_raw, stockDecimals)}</td><td>{formatRaw(item.token_amount_raw, launch.tokenDecimals)}</td></tr>) : <tr><td colSpan={4} className="no-activity">No indexed trades yet.</td></tr>}</tbody></table></div></div>

@@ -10,6 +10,8 @@ export function TokenMark({ launch, large=false }: { launch: Launch; large?: boo
 }
 
 export function TokenCard({ launch, featured = false }: { launch: Launch; sample?: boolean; featured?: boolean }) {
+  const indexed = launch.aquaIndexed;
+  const marketStatus = launch.status !== "live" ? "Launch transactions in progress" : launch.indexingStatus === "indexed" ? "Indexed across AQUA, Orca, and aggregators" : launch.indexingStatus === "orca_indexed" ? "Live on Orca, external indexing pending" : "Market live, indexing in progress";
   return <Link className={`token-card ${featured ? "featured" : ""}`} to={`/token/${launch.id}`}>
     <div className="token-head">
       <TokenMark launch={launch}/>
@@ -17,9 +19,9 @@ export function TokenCard({ launch, featured = false }: { launch: Launch; sample
       <ArrowUpRight className="card-arrow" size={17}/>
     </div>
     <div className="reward-card-focus"><span><Gift/>HOLDER REWARD</span><strong>Earn {launch.stockSymbol}</strong><small>${compact.format(launch.rewardDistributedUsd)} distributed to holders</small></div>
-    <div className="token-stats"><Metric label="Market cap" value={`$${compact.format(launch.marketCapUsd)}`}/><Metric label="24h volume" value={`$${compact.format(launch.volume24hUsd)}`}/><Metric label="Holders" value={compact.format(launch.holderCount)}/></div>
+    <div className="token-stats"><Metric label="Market cap" value={indexed ? `$${compact.format(launch.marketCapUsd)}` : "Indexing"}/><Metric label="24h volume" value={indexed ? `$${compact.format(launch.volume24hUsd)}` : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
     <div className="token-foot"><span><LockKeyhole size={14}/>Liquidity locked</span><strong><Users size={14}/>{compact.format(launch.holderCount)}</strong></div>
-    <div className="market-status"><span className={launch.status === "live" ? "orca" : launch.status}/><small>{launch.status === "live" ? "Trading in an Orca Whirlpool" : "Launch transactions in progress"}</small></div>
+    <div className="market-status"><span className={launch.status === "live" ? "orca" : launch.status}/><small>{marketStatus}</small></div>
   </Link>;
 }
 
