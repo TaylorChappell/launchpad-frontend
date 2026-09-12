@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, CircleCheck, Clock3, Database, Search } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { ArrowRight, CircleCheck, Clock3, Database } from "lucide-react";
+import { Link } from "react-router-dom";
 import { api } from "../api";
 import type { Launch } from "../types";
 import { TokenCard } from "../components/TokenCard";
@@ -13,13 +13,10 @@ const compactMoney = new Intl.NumberFormat("en-US", { style:"currency", currency
 
 export function Markets() {
   const { config } = useRuntime();
-  const location = useLocation();
   const [launches, setLaunches] = useState<Launch[]>([]);
   const [state, setState] = useState<DataState>("loading");
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const [query, setQuery] = useState("");
   const [tab, setTab] = useState("all");
-  const [stock, setStock] = useState("all");
 
   useEffect(() => {
     api.launches().then((data) => {
@@ -29,23 +26,13 @@ export function Markets() {
     }).catch(() => setState("offline"));
   }, []);
 
-  useEffect(() => {
-    if (!(location.state as { focusMarketSearch?: boolean } | null)?.focusMarketSearch) return;
-    document.getElementById("markets")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    window.setTimeout(() => (document.getElementById("market-search") as HTMLInputElement | null)?.focus({ preventScroll: true }), 380);
-  }, [location.state]);
-
   const platform = useMemo(() => {
     const revenue = launches.reduce((sum,item) => sum + Number(item.volume24hUsd || 0), 0) * config.fees.platformBps / 10_000;
     return { revenue, buybacks: revenue * .5, stocks: launches.reduce((sum,item) => sum + Number(item.rewardDistributedUsd || 0), 0) };
   }, [launches, config.fees.platformBps]);
   const filtered = useMemo(() => launches
-    .filter((item) =>
-      (tab === "all" || (tab === "curve" ? item.status !== "orca" : item.status === "orca")) &&
-      (stock === "all" || (stock === "stock" ? Boolean(item.stockSymbol) : !item.stockSymbol)) &&
-      [item.name, item.symbol, item.mint, item.stockSymbol].some((value) => String(value ?? "").toLowerCase().includes(query.toLowerCase()))
-    )
-    .sort((a, b) => Number(b.volume24hUsd || 0) - Number(a.volume24hUsd || 0)), [launches, query, tab, stock]);
+    .filter((item) => tab === "all" || (tab === "curve" ? item.status !== "orca" : item.status === "orca"))
+    .sort((a, b) => Number(b.volume24hUsd || 0) - Number(a.volume24hUsd || 0)), [launches, tab]);
 
   return <main className="explore-page">
     <section className="product-hero">
@@ -120,11 +107,10 @@ export function Markets() {
 
       <div className="market-controls">
         <div className="tabs" aria-label="Market status">{[["all", "All"], ["curve", "Wavebreak"], ["orca", "Whirlpools"]].map(([value, label]) => <button className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{label}</button>)}</div>
-        <div className="filters"><select aria-label="Filter by reward type" value={stock} onChange={(event) => setStock(event.target.value)}><option value="all">All markets</option><option value="stock">Stock rewards</option><option value="sol">No stock reward</option></select><label><Search size={16}/><input id="market-search" aria-label="Search markets" placeholder="Search coin or stock reward" value={query} onChange={(event) => setQuery(event.target.value)}/></label></div>
       </div>
 
       {state === "loading" ? <div className="market-skeletons">{[0,1,2].map(i => <div key={i}/>)}</div> : <div className="token-grid">{filtered.map((launch, index) => <TokenCard key={launch.id} launch={launch} sample={false} featured={index === 0}/>)}</div>}
-      {state !== "loading" && !filtered.length && <div className="empty-state"><Search/><h3>{state === "offline" ? "Markets unavailable" : launches.length ? "No matching markets" : "No markets launched yet"}</h3><p>{state === "offline" ? "AQUA could not reach the market index. Try again shortly." : launches.length ? "Try another coin, ticker, or reward asset." : "Launched coins will appear here once they have indexed."}</p></div>}
+      {state !== "loading" && !filtered.length && <div className="empty-state"><Database/><h3>{state === "offline" ? "Markets unavailable" : launches.length ? "No markets in this stage" : "No markets launched yet"}</h3><p>{state === "offline" ? "AQUA could not reach the market index. Try again shortly." : launches.length ? "Choose another market stage." : "Launched coins will appear here once they have indexed."}</p></div>}
     </section>
 
   </main>;

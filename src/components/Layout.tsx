@@ -1,9 +1,10 @@
 import { CircleHelp, Compass, Gift, Menu, Plus, Search, X } from "lucide-react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState, type ReactNode } from "react";
+import { NavLink } from "react-router-dom";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRuntime, useWallet } from "../context";
 import { WalletModal } from "./WalletModal";
 import { AquaMark } from "./AquaMark";
+import { SearchModal } from "./SearchModal";
 
 const links = [
   { to: "/", label: "Explore", icon: Compass },
@@ -14,11 +15,10 @@ const links = [
 
 export function Layout({ children }: { children: ReactNode }) {
   const wallet = useWallet();
-  const location = useLocation();
-  const navigate = useNavigate();
   const { config, error } = useRuntime();
   const [mobile, setMobile] = useState(false);
   const [opening, setOpening] = useState(true);
+  const [searchOpen, setSearchOpen] = useState(false);
   const short = wallet.address ? `${wallet.address.slice(0, 4)}…${wallet.address.slice(-4)}` : "";
   const isPreview = config.useTestnet || !config.transactionsEnabled;
   const xUrl = window.AQUA_CONFIG?.X_URL?.trim() || "https://x.com";
@@ -28,17 +28,18 @@ export function Layout({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(fallback);
   }, []);
 
-  function openMarketSearch() {
-    const focusSearch = () => {
-      document.getElementById("markets")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      window.setTimeout(() => (document.getElementById("market-search") as HTMLInputElement | null)?.focus({ preventScroll: true }), 380);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+
+  useEffect(() => {
+    const openWithShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (wallet.modalOpen || searchOpen || event.key !== "/" || target?.matches("input, textarea, select, [contenteditable='true']")) return;
+      event.preventDefault();
+      setSearchOpen(true);
     };
-    if (location.pathname !== "/") {
-      navigate("/", { state: { focusMarketSearch: true } });
-      return;
-    }
-    focusSearch();
-  }
+    window.addEventListener("keydown", openWithShortcut);
+    return () => window.removeEventListener("keydown", openWithShortcut);
+  }, [searchOpen, wallet.modalOpen]);
 
   return <div className="app-shell">
     {opening && <div className="opening-reveal" aria-hidden="true">
@@ -53,7 +54,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <NavLink to="/" className="brand" aria-label="AQUA home"><AquaMark /><b>AQUA</b></NavLink>
         <nav aria-label="Primary navigation">{links.map((link) => <NavLink key={link.to} to={link.to} end={link.to === "/"}>{link.label}</NavLink>)}</nav>
         <div className="header-actions">
-          <button className="header-search" onClick={openMarketSearch} aria-label="Search markets" title="Search markets"><Search size={18}/></button>
+          <button className="header-search" onClick={() => { setMobile(false); setSearchOpen(true); }} aria-label="Search AQUA markets"><Search size={17}/><span>Search coins, stocks...</span><kbd>/</kbd></button>
           {wallet.address ? <button className="wallet-button connected" onClick={() => void wallet.disconnect()}><span>{short}</span></button> : <button className="wallet-button" onClick={() => wallet.setModalOpen(true)}><span>Connect wallet</span></button>}
           <button className="mobile-menu" onClick={() => setMobile(!mobile)} aria-label="Toggle navigation" aria-expanded={mobile}>{mobile ? <X /> : <Menu />}</button>
         </div>
@@ -72,6 +73,7 @@ export function Layout({ children }: { children: ReactNode }) {
     </footer>
     <nav className="bottom-nav" aria-label="Mobile navigation">{links.map((link) => { const Icon = link.icon; return <NavLink key={link.to} to={link.to} end={link.to === "/"}><Icon size={18} />{link.label}</NavLink>; })}</nav>
     <WalletModal />
+    <SearchModal open={searchOpen} onClose={closeSearch}/>
   </div>;
 }
 
