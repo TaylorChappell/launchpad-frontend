@@ -5,7 +5,9 @@ export type RuntimeConfig = {
   publicRpcUrl: string;
   aquaProgramId: string | null;
   programId: string | null;
+  programInitialized?: boolean;
   transactionsEnabled: boolean;
+  transactionsDisabledReason?: string | null;
   whirlpools: { programId: string; config: string; tickSpacing: number; pair: string; liquidityLock: "permanent" };
   fees: { transferFeeBps: number; platformBps: number; stockRewardsBps: number; universal: boolean };
   creatorLocks: { minimumSeconds: number; maximumSeconds: number; maximumFeeShareBps: number };
@@ -124,6 +126,11 @@ export type LaunchIntentResponse = TransactionEnvelope & {
   mint: string;
   market: string;
   next: string;
+};
+
+export type LaunchRetryResponse = TransactionEnvelope & {
+  launchId: string;
+  step: "pool" | "liquidity" | "lock";
 };
 
 export type LaunchConfirmation = Partial<TransactionEnvelope> & {

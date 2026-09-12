@@ -27,7 +27,9 @@ const fallback: RuntimeConfig = {
   publicRpcUrl: "https://api.devnet.solana.com",
   aquaProgramId: null,
   programId: null,
+  programInitialized: false,
   transactionsEnabled: false,
+  transactionsDisabledReason: "AQUA launch transactions are not configured.",
   whirlpools: { programId: "", config: "", tickSpacing: 64, pair: "tokenized stock", liquidityLock: "permanent" },
   fees: { transferFeeBps: 200, platformBps: 100, stockRewardsBps: 100, universal: true },
   creatorLocks: { minimumSeconds: 86_400, maximumSeconds: 31_536_000, maximumFeeShareBps: 10_000 },
@@ -61,6 +63,43 @@ type WalletValue = {
 const WalletContext = createContext<WalletValue | null>(null);
 const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const decodeBase64 = (value: string) => Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
+const wait = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+function friendlyWalletError(error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error);
+  if (/block height exceeded|blockhash not found|signature .* expired|transaction expired/i.test(raw)) {
+    return "This transaction expired before approval. Build a fresh transaction and try again.";
+  }
+  if (/user rejected|rejected the request|declined|cancelled|canceled/i.test(raw)) {
+    return "Transaction cancelled. Nothing was submitted.";
+  }
+  if (/insufficient funds|insufficient lamports/i.test(raw)) {
+    return "This wallet does not have enough SOL to pay the transaction and account creation costs.";
+  }
+  if (/failed to simulate|simulation failed|invalidaccountdata|instructionerror/i.test(raw)) {
+    return "This transaction failed its safety check and was not submitted. Build a fresh transaction before trying again.";
+  }
+  return "The wallet could not complete this transaction. Nothing was submitted.";
+}
+
+async function waitForConfirmation(connection: import("@solana/web3.js").Connection, signature: string, lastValidBlockHeight: number) {
+  for (;;) {
+    const [{ value }, blockHeight] = await Promise.all([
+      connection.getSignatureStatuses([signature], { searchTransactionHistory: true }),
+      connection.getBlockHeight("confirmed"),
+    ]);
+    const status = value[0];
+    if (status?.err) throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`);
+    if (status?.confirmationStatus === "confirmed" || status?.confirmationStatus === "finalized") return;
+    if (blockHeight > lastValidBlockHeight) {
+      const finalStatus = (await connection.getSignatureStatuses([signature], { searchTransactionHistory: true })).value[0];
+      if (finalStatus?.err) throw new Error(`Transaction failed: ${JSON.stringify(finalStatus.err)}`);
+      if (finalStatus?.confirmationStatus === "confirmed" || finalStatus?.confirmationStatus === "finalized") return;
+      throw new Error(`Signature ${signature} has expired: block height exceeded.`);
+    }
+    await wait(1_200);
+  }
+}
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const { config } = useRuntime();
@@ -132,48 +171,42 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [address]);
 
   const sendTransaction = useCallback(async (envelope: TransactionEnvelope) => {
-    if (!adapter.current || !address) throw new Error("Connect your wallet first.");
-    const [{ Connection, Transaction, VersionedTransaction }, { default: bs58 }] = await Promise.all([import("@solana/web3.js"), import("bs58")]);
-    const connection = new Connection(config.publicRpcUrl, "confirmed");
-    const bytes = decodeBase64(envelope.transactionBase64);
-    let transaction: unknown;
-    let transactionBlockhash: string | undefined;
-    if (envelope.transactionVersion === 0) {
-      const parsed = VersionedTransaction.deserialize(bytes);
-      transaction = parsed;
-      transactionBlockhash = parsed.message.recentBlockhash;
-    } else {
-      const parsed = Transaction.from(bytes);
-      transaction = parsed;
-      transactionBlockhash = parsed.recentBlockhash;
-    }
-    const blockhash = envelope.recentBlockhash || transactionBlockhash;
-    if (!blockhash) throw new Error("The transaction does not contain a recent blockhash.");
-    let signature: string;
+    try {
+      if (!adapter.current || !address) throw new Error("Connect your wallet first.");
+      const [{ Connection, Transaction, VersionedTransaction }, { default: bs58 }] = await Promise.all([import("@solana/web3.js"), import("bs58")]);
+      const connection = new Connection(config.publicRpcUrl, "confirmed");
+      const bytes = decodeBase64(envelope.transactionBase64);
+      let transaction: unknown;
+      if (envelope.transactionVersion === 0) transaction = VersionedTransaction.deserialize(bytes);
+      else transaction = Transaction.from(bytes);
+      let signature: string;
 
-    if (adapter.current.kind === "phantom") {
-      const result = await adapter.current.provider.signAndSendTransaction(transaction, { preflightCommitment: "confirmed", maxRetries: 3 });
-      signature = typeof result === "string" ? result : result.signature;
-    } else {
-      const { wallet, account } = adapter.current.value;
-      const chain = config.network === "devnet" ? "solana:devnet" : "solana:mainnet";
-      const sendFeature = wallet.features["solana:signAndSendTransaction"] as SolanaSignAndSend | undefined;
-      if (sendFeature) {
-        const [result] = await sendFeature.signAndSendTransaction({ account, transaction: bytes, chain, options: { preflightCommitment: "confirmed", maxRetries: 3 } });
-        if (!result) throw new Error("MetaMask did not return a transaction signature.");
-        signature = bs58.encode(result.signature);
+      if (adapter.current.kind === "phantom") {
+        const result = await adapter.current.provider.signAndSendTransaction(transaction, { preflightCommitment: "confirmed", maxRetries: 5 });
+        signature = typeof result === "string" ? result : result.signature;
       } else {
-        const signFeature = wallet.features["solana:signTransaction"] as SolanaSignTransaction | undefined;
-        if (!signFeature) throw new Error("MetaMask does not support Solana transactions.");
-        const [result] = await signFeature.signTransaction({ account, transaction: bytes, chain });
-        if (!result) throw new Error("MetaMask did not return a signed transaction.");
-        signature = await connection.sendRawTransaction(result.signedTransaction, { maxRetries: 3, preflightCommitment: "confirmed" });
+        const { wallet, account } = adapter.current.value;
+        const chain = config.network === "devnet" ? "solana:devnet" : "solana:mainnet";
+        const sendFeature = wallet.features["solana:signAndSendTransaction"] as SolanaSignAndSend | undefined;
+        if (sendFeature) {
+          const [result] = await sendFeature.signAndSendTransaction({ account, transaction: bytes, chain, options: { preflightCommitment: "confirmed", maxRetries: 5 } });
+          if (!result) throw new Error("MetaMask did not return a transaction signature.");
+          signature = bs58.encode(result.signature);
+        } else {
+          const signFeature = wallet.features["solana:signTransaction"] as SolanaSignTransaction | undefined;
+          if (!signFeature) throw new Error("MetaMask does not support Solana transactions.");
+          const [result] = await signFeature.signTransaction({ account, transaction: bytes, chain });
+          if (!result) throw new Error("MetaMask did not return a signed transaction.");
+          signature = await connection.sendRawTransaction(result.signedTransaction, { maxRetries: 5, preflightCommitment: "confirmed" });
+        }
       }
-    }
 
-    const confirmation = await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight: envelope.lastValidBlockHeight }, "confirmed");
-    if (confirmation.value.err) throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
-    return signature;
+      await waitForConfirmation(connection, signature, envelope.lastValidBlockHeight);
+      return signature;
+    } catch (error) {
+      console.error("AQUA wallet transaction failed", error);
+      throw new Error(friendlyWalletError(error));
+    }
   }, [address, config.network, config.publicRpcUrl]);
 
   const value = useMemo(() => ({ address, kind, connecting, modalOpen, setModalOpen, phantomInstalled, connect, disconnect, signMessage, sendTransaction }), [address, kind, connecting, modalOpen, phantomInstalled, connect, disconnect, signMessage, sendTransaction]);

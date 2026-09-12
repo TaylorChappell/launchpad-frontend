@@ -2663,6 +2663,47 @@ body::before {
   height: 124px;
 }
 
+.launch-resume-banner {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 13px 15px;
+  overflow: hidden;
+  border: 1px solid rgba(96, 224, 228, .25);
+  border-radius: 18px 21px 17px 22px / 21px 17px 22px 18px;
+  background: linear-gradient(105deg, rgba(8, 37, 48, .96), rgba(7, 29, 42, .94));
+  box-shadow: 0 15px 45px rgba(0, 17, 28, .24), inset 0 1px rgba(181, 252, 251, .07);
+}
+
+.launch-resume-banner::after {
+  content: "";
+  position: absolute;
+  inset: auto -8% -34px;
+  height: 48px;
+  border-radius: 48% 52% 0 0;
+  background: rgba(35, 200, 205, .08);
+  animation: wizard-water-drift 4.8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.launch-resume-banner > * { position: relative; z-index: 1; }
+.launch-resume-banner > span { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; color: #90f4ee; background: rgba(38, 203, 205, .11); }
+.launch-resume-banner > span svg { width: 18px; }
+.launch-resume-banner > div { display: grid; gap: 4px; }
+.launch-resume-banner b { color: #e8fbfa; font: 700 .84rem/1.1 "Manrope", sans-serif; }
+.launch-resume-banner small { color: #789ba2; font-size: .72rem; }
+.launch-resume-banner button { display: inline-flex; align-items: center; gap: 7px; padding: 10px 13px; border: 1px solid rgba(101, 231, 229, .2); border-radius: 12px; color: #071b24; background: #70e5df; font: 750 .72rem/1 "Manrope", sans-serif; }
+.launch-resume-banner button svg { width: 14px; }
+
+@keyframes wizard-water-drift {
+  from { transform: translate3d(-2%, 0, 0) rotate(-.4deg); }
+  to { transform: translate3d(2%, -5px, 0) rotate(.4deg); }
+}
+
 .launch-wizard-page::before {
   content: "";
   position: absolute;
@@ -3337,6 +3378,9 @@ body::before {
 @media (max-width: 740px) {
   .launch-wizard-page { width: calc(100% - 28px); padding-top: 22px; padding-bottom: 82px; }
   .launch-wizard-only { padding-top: 26px; }
+  .launch-resume-banner { grid-template-columns: 38px minmax(0, 1fr); }
+  .launch-resume-banner > span { width: 38px; height: 38px; }
+  .launch-resume-banner button { grid-column: 1 / -1; justify-content: center; }
   .launch-wizard-hero { min-height: 0; display: block; padding: 20px 2px 36px; }
   .launch-wizard-hero h1 { font-size: clamp(2.7rem, 13vw, 4rem); }
   .launch-wizard-hero p { font-size: .88rem; }

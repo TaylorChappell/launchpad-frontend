@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { buildLaunchMessage, decimalToRaw } from "../launch";
-import type { LaunchConfirmation, StockOption, TransactionEnvelope } from "../types";
+import type { Launch, LaunchConfirmation, StockOption, TransactionEnvelope } from "../types";
 
 type LaunchCurrency = "SOL" | "USDC" | "STOCK";
 type Form = {
@@ -63,9 +63,10 @@ export function Create() {
   const [executionOpen, setExecutionOpen] = useState(false);
   const [executionState, setExecutionState] = useState<"running" | "error" | "complete">("running");
   const [progress, setProgress] = useState(initialProgress);
-  const [pending, setPending] = useState<PendingAction | null>(null);
   const [launchId, setLaunchId] = useState("");
   const [executionError, setExecutionError] = useState("");
+  const [pending, setPending] = useState<PendingAction | null>(null);
+  const [recoverableLaunch, setRecoverableLaunch] = useState<Launch | null>(null);
 
   const update = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -83,6 +84,15 @@ export function Create() {
 
   useEffect(() => { void loadStocks(); }, []);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  useEffect(() => {
+    if (!wallet.address) { setRecoverableLaunch(null); return; }
+    let active = true;
+    api.launches().then(({ launches }) => {
+      if (!active) return;
+      setRecoverableLaunch(launches.find((item) => item.creatorWallet === wallet.address && item.status !== "live") ?? null);
+    }).catch(() => { if (active) setRecoverableLaunch(null); });
+    return () => { active = false; };
+  }, [wallet.address]);
 
   const filteredStocks = useMemo(() => {
     const query = stockQuery.trim().toLowerCase();
@@ -121,13 +131,15 @@ export function Create() {
   function setStage(key: ProgressKey, value: ProgressState) { setProgress((current) => ({ ...current, [key]: value })); }
 
   async function continueLaunch(action: PendingAction) {
+    setExecutionState("running"); setExecutionError(""); setStage(action.stage, "active");
     let retryAction = action;
-    setExecutionState("running"); setExecutionError(""); setStage(action.stage, "active"); setPending(action);
+    setPending(action);
     try {
       let signature = action.signature;
       if (!signature) {
         signature = await wallet.sendTransaction(action.envelope);
-        retryAction = { ...action, signature }; setPending(retryAction);
+        retryAction = { ...action, signature };
+        setPending(retryAction);
       }
       if (action.stage === "devBuy") {
         setStage("devBuy", "done"); setPending(null); setExecutionState("complete"); toast.success("AQUA market launched"); return;
@@ -142,8 +154,51 @@ export function Create() {
       if (!confirmation.nextStep || !isEnvelope(confirmation)) throw new Error("The backend returned an incomplete launch step.");
       await continueLaunch({ envelope: confirmation, stage: confirmation.nextStep, launchId: action.launchId });
     } catch (error) {
-      setStage(action.stage, "error"); setPending(retryAction); setExecutionState("error");
+      setPending(retryAction);
+      setStage(action.stage, "error"); setExecutionState("error");
       setExecutionError(error instanceof Error ? error.message : "The launch could not continue.");
+    }
+  }
+
+  async function retryLaunch() {
+    if (!pending || !wallet.address) { await beginLaunch(); return; }
+    if (pending.signature) { await continueLaunch(pending); return; }
+    try {
+      setExecutionState("running"); setExecutionError(""); setStage(pending.stage, "active");
+      if (pending.stage === "mint") { await beginLaunch(); return; }
+      if (pending.stage === "devBuy") {
+        const envelope = await api.tradeTransaction(pending.launchId, {
+          trader: wallet.address,
+          side: "buy",
+          amountRaw: decimalToRaw(form.launchAmount, currencyDecimals),
+          slippageBps: 300,
+        });
+        await continueLaunch({ envelope, stage: "devBuy", launchId: pending.launchId });
+        return;
+      }
+      const fresh = await api.retryLaunchTransaction(pending.launchId, wallet.address);
+      await continueLaunch({ envelope: fresh, stage: fresh.step, launchId: pending.launchId });
+    } catch (error) {
+      setStage(pending.stage, "error"); setExecutionState("error");
+      setExecutionError(error instanceof Error ? error.message : "A fresh transaction could not be prepared.");
+    }
+  }
+
+  async function resumeExistingLaunch() {
+    if (!recoverableLaunch || !wallet.address) return;
+    setExecutionOpen(true); setExecutionState("running"); setExecutionError(""); setLaunchId(recoverableLaunch.id); setPending(null);
+    try {
+      const fresh = await api.retryLaunchTransaction(recoverableLaunch.id, wallet.address);
+      const restored = initialProgress();
+      restored.approval = "done"; restored.mint = "done";
+      if (fresh.step === "liquidity" || fresh.step === "lock") restored.pool = "done";
+      if (fresh.step === "lock") restored.liquidity = "done";
+      setProgress(restored);
+      await continueLaunch({ envelope: fresh, stage: fresh.step, launchId: recoverableLaunch.id });
+      setRecoverableLaunch(null);
+    } catch (error) {
+      setExecutionState("error");
+      setExecutionError(error instanceof Error ? error.message : "The existing launch could not be resumed.");
     }
   }
 
@@ -153,10 +208,10 @@ export function Create() {
     if (hasInitialBuy && form.launchCurrency !== "STOCK") {
       toast.error(`${form.launchCurrency} routing is not enabled by the current backend yet. Choose ${stock.symbol} or leave the initial buy empty.`); return;
     }
-    if (!config.transactionsEnabled) { toast.error("On-chain launching is not enabled by the backend."); return; }
+    if (!config.transactionsEnabled) { toast.error(config.transactionsDisabledReason ?? "On-chain launching is not enabled by the backend."); return; }
 
-    setExecutionOpen(true); setExecutionState("running"); setExecutionError(""); setProgress(initialProgress());
-    setStage("approval", "active"); setLaunchId(""); setPending(null);
+    setExecutionOpen(true); setExecutionState("running"); setExecutionError(""); setProgress(initialProgress()); setPending(null);
+    setStage("approval", "active"); setLaunchId("");
     try {
       const clientRequestId = crypto.randomUUID(); const timestamp = Date.now(); const symbol = form.symbol.trim().toUpperCase();
       const message = buildLaunchMessage({ wallet: wallet.address, requestId: clientRequestId, symbol, stockSymbol: stock.symbol, timestamp });
@@ -186,6 +241,7 @@ export function Create() {
   const shownChainSteps = chainSteps.filter((item) => item.key !== "devBuy" || hasInitialBuy);
 
   return <main className="page launch-wizard-page launch-wizard-only">
+    {recoverableLaunch && <section className="launch-resume-banner"><span><RefreshCw/></span><div><b>Continue ${recoverableLaunch.symbol}</b><small>A previous launch has a confirmed on-chain step waiting to continue.</small></div><button onClick={() => void resumeExistingLaunch()}>Resume launch <ArrowRight/></button></section>}
     <section className="wizard-shell">
       <div className="wizard-caustics" aria-hidden="true"/>
       <aside className="wizard-rail" aria-label="Launch steps">
@@ -259,7 +315,7 @@ export function Create() {
         <header className="execution-heading"><div><small>Launching ${form.symbol}</small><h2 id="execution-title">Follow your wallet</h2><p>Approve each step as it becomes ready.</p></div>{executionState === "error" && <button onClick={() => setExecutionOpen(false)} aria-label="Close launch progress"><X/></button>}</header>
         <div className="execution-steps">{shownChainSteps.map((item) => <div key={item.key} className={progress[item.key]}><span>{progress[item.key] === "done" ? <Check/> : progress[item.key] === "active" ? <Loader2 className="spin"/> : progress[item.key] === "error" ? <X/> : null}</span><div><b>{item.label}</b><small>{item.detail}</small></div><em>{progress[item.key] === "active" ? "Wallet" : progress[item.key] === "done" ? "Confirmed" : progress[item.key] === "error" ? "Stopped" : "Waiting"}</em></div>)}</div>
         {executionState === "error" && <div className="execution-error"><Info/><span>{executionError}</span></div>}
-        {executionState === "error" && <div className="execution-actions">{pending ? <button className="primary full" onClick={() => void continueLaunch(pending)}><RefreshCw/> Retry this step</button> : <button className="primary full" onClick={() => void beginLaunch()}><RefreshCw/> Start again</button>}<button className="execution-close" onClick={() => setExecutionOpen(false)}>Return to launch</button></div>}
+        {executionState === "error" && <div className="execution-actions"><button className="primary full" onClick={() => void retryLaunch()}><RefreshCw/> {pending?.signature ? "Retry confirmation" : "Build a fresh transaction"}</button><button className="execution-close" onClick={() => setExecutionOpen(false)}>Return to launch</button></div>}
       </>}
     </section></div>}
   </main>;
