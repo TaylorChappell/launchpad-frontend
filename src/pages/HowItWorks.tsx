@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Clock3, ExternalLink, LockKeyhole, Waves } from "lucide-react";
+import { ArrowRight, BadgeDollarSign, Clock3, ExternalLink, LockKeyhole } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AquaGlyph, type AquaGlyphKind } from "../components/AquaIcons";
 import { HolderRewardFlow } from "../components/HolderRewardFlow";
@@ -74,7 +74,7 @@ export function HowItWorks() {
           <div className="locking-factor-bubble"><span><Clock3/></span><small>Lock duration</small><strong>Commit longer</strong><em>Time verified</em></div>
         </div>
         <div className="locking-merge" aria-hidden="true"><i/><i/><i/></div>
-        <div className="locking-fee-pool"><span><Waves/></span><div><small>Creator fee share</small><strong>More commitment, more fees</strong><em>Earned while the lock stays active</em></div><div className="locking-pool-water" aria-hidden="true"><i/><i/><i/></div></div>
+        <div className="locking-fee-pool"><span><BadgeDollarSign/></span><div><small>Creator fee share</small><strong>More commitment, more fees</strong><em>Earned while the lock stays active</em></div><div className="locking-pool-water" aria-hidden="true"><i/><i/><i/></div></div>
       </div>
     </section>
   </main>;

@@ -1,0 +1,1 @@
+import{j as e}from"./index-D9t62Yd7.js";function t({count:r=12}){return e.jsx("div",{className:"page-bubbles","aria-hidden":"true",children:Array.from({length:r},(a,s)=>e.jsx("i",{},s))})}export{t as P};
