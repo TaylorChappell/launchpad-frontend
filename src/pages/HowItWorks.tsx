@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, ExternalLink } from "lucide-react";
+import { ArrowRight, Clock3, ExternalLink, LockKeyhole, Waves } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AquaGlyph, type AquaGlyphKind } from "../components/AquaIcons";
 import { HolderRewardFlow } from "../components/HolderRewardFlow";
@@ -47,7 +47,7 @@ export function HowItWorks() {
       <HolderRewardFlow/>
     </section>
 
-    <section className="aqua-flywheel how-flywheel">
+    <section className="aqua-flywheel how-flywheel unframed-flywheel">
       <div className="flywheel-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
       <header><h2>Every launch can strengthen AQUA.</h2><p>Half of platform revenue is committed to buying the main AQUA token from the market. Holder stock rewards remain in a separate route.</p></header>
       <div className="flywheel-track">
@@ -66,12 +66,15 @@ export function HowItWorks() {
         <h2>Lock supply.<br/><span>Earn a larger fee share.</span></h2>
         <p>Creators can lock part of their coin in AQUA’s verified vault. More supply and a longer commitment can unlock a larger share of that coin’s platform fee.</p>
       </div>
-      <div className="creator-locking-model" aria-label="Creator fee model">
-        <div className="lock-factor"><span>Supply locked</span><div className="lock-water-track"><i className="supply-level"/></div><small>Verified onchain</small></div>
-        <b className="lock-operator">+</b>
-        <div className="lock-factor"><span>Lock duration</span><div className="lock-water-track"><i className="duration-level"/></div><small>Longer alignment</small></div>
-        <b className="lock-operator">=</b>
-        <div className="lock-result"><span>Creator fee share</span><strong>Earn from each trade</strong><small>Only while the verified lock is active</small></div>
+      <div className="creator-locking-model creator-locking-current" aria-label="More supply locked for longer can earn a larger creator fee share">
+        <div className="locking-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/></div>
+        <div className="locking-input-row">
+          <div className="locking-factor-bubble"><span><LockKeyhole/></span><small>Supply locked</small><strong>Lock more</strong><em>Verified onchain</em></div>
+          <div className="locking-flow" aria-hidden="true"><i/><i/><i/></div>
+          <div className="locking-factor-bubble"><span><Clock3/></span><small>Lock duration</small><strong>Commit longer</strong><em>Time verified</em></div>
+        </div>
+        <div className="locking-merge" aria-hidden="true"><i/><i/><i/></div>
+        <div className="locking-fee-pool"><span><Waves/></span><div><small>Creator fee share</small><strong>More commitment, more fees</strong><em>Earned while the lock stays active</em></div><div className="locking-pool-water" aria-hidden="true"><i/><i/><i/></div></div>
       </div>
     </section>
   </main>;

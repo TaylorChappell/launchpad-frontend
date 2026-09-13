@@ -11,9 +11,11 @@ export function buildLaunchMessage(input: { wallet: string; requestId: string; s
 }
 
 export function decimalToRaw(value: string, decimals: number) {
-  const normalized = value.trim();
-  if (!/^\d+(\.\d+)?$/.test(normalized)) throw new Error("Enter a valid stock amount.");
-  const [whole, fraction = ""] = normalized.split(".");
-  if (fraction.length > decimals) throw new Error(`This stock supports up to ${decimals} decimal places.`);
+  if (!Number.isInteger(decimals) || decimals < 0) throw new Error("This asset has an invalid decimal configuration.");
+  const normalized = value.trim().replace(",", ".");
+  if (!normalized || !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) throw new Error("Enter a valid amount.");
+  const [wholeInput, fraction = ""] = normalized.split(".");
+  if (fraction.length > decimals) throw new Error(`This asset supports up to ${decimals} decimal places.`);
+  const whole = wholeInput || "0";
   return `${whole}${fraction.padEnd(decimals, "0")}`.replace(/^0+(?=\d)/, "") || "0";
 }

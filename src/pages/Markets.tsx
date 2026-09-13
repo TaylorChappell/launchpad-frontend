@@ -42,7 +42,6 @@ export function Markets() {
           <h2>Explore markets</h2>
           <p>Popular AQUA launches, ranked by 24 hour volume.</p>
         </div>
-        <span className="market-count">{state === "loading" ? "Loading" : `${filtered.length} market${filtered.length === 1 ? "" : "s"}`}</span>
       </header>
 
       {state === "loading" ? <div className="market-skeletons markets-list-top">{[0,1,2].map(i => <div key={i}/>)}</div> : <div className="token-grid markets-list-top">{filtered.map((launch, index) => <TokenCard key={launch.id} launch={launch} featured={index === 0}/>)}</div>}
