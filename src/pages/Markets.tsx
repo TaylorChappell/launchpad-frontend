@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Database, Gift, Waves } from "lucide-react";
+import { ArrowRight, Database } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import type { Launch } from "../types";
 import { TokenCard } from "../components/TokenCard";
 import { PageBubbles } from "../components/PageBubbles";
+import { AquaMark } from "../components/AquaMark";
+import { OrcaMark } from "../components/OrcaMark";
 
 type DataState = "loading" | "live" | "empty" | "offline";
 
@@ -14,8 +16,9 @@ export function Markets() {
 
   useEffect(() => {
     api.launches().then((data) => {
-      setLaunches(data.launches);
-      setState(data.launches.length ? "live" : "empty");
+      const liveLaunches = data.launches.filter((launch) => launch.status === "live");
+      setLaunches(liveLaunches);
+      setState(liveLaunches.length ? "live" : "empty");
     }).catch(() => setState("offline"));
   }, []);
 
@@ -23,12 +26,14 @@ export function Markets() {
     .sort((a, b) => Number(b.volume24hUsd || 0) - Number(a.volume24hUsd || 0)), [launches]);
 
   return <main className="explore-page">
-    <PageBubbles count={14}/>
+    <PageBubbles count={18}/>
     <section className="explore-intro">
-      <span className="explore-intro-icon"><Gift/></span>
-      <div><h1>Coins that reward the people who hold.</h1><p>Every AQUA market is paired with a tokenized stock. Hold a coin, build time-weighted rewards, then claim the stock it is paired with.</p></div>
-      <Link to="/create">Launch a coin <ArrowRight size={16}/></Link>
-      <Waves className="explore-intro-wave" aria-hidden="true"/>
+      <span className="explore-aqua-logo"><AquaMark/><i/><i/></span>
+      <div className="explore-intro-copy"><h1>Coins that reward the people who hold.</h1><p><strong>AQUA is a token launchpad built directly on <a href="https://www.orca.so/" target="_blank" rel="noreferrer">Orca</a>.</strong> Every market pairs a coin with a tokenized stock, so holding over time can earn claimable stock rewards.</p></div>
+      <div className="explore-intro-actions">
+        <Link to="/how-it-works">How it works <ArrowRight size={16}/></Link>
+        <a href="https://www.orca.so/" target="_blank" rel="noreferrer"><OrcaMark/>Visit Orca</a>
+      </div>
     </section>
 
     <section className="market-workspace" id="markets">

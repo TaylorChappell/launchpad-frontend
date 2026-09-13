@@ -64,6 +64,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
   const results = useMemo(() => {
     const term = query.trim().toLowerCase();
     return launches
+      .filter((launch) => launch.status === "live")
       .filter((launch) => !term || [launch.name, launch.symbol, launch.stockSymbol, launch.stockName, launch.mint, launch.creatorWallet]
         .some((value) => String(value ?? "").toLowerCase().includes(term)))
       .sort((a, b) => Number(b.volume24hUsd || 0) - Number(a.volume24hUsd || 0))
@@ -95,7 +96,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
           <TokenMark launch={launch}/>
           <span className="search-result-main">
             <span className="search-result-name"><b>{launch.name}</b><small>${launch.symbol}</small></span>
-            <span className="search-result-tags"><em>{launch.status === "live" ? "Whirlpool" : "Launching"}</em>{launch.stockSymbol && <em className="reward-tag">{launch.stockSymbol} rewards</em>}</span>
+            <span className="search-result-tags"><em>Orca Whirlpool</em>{launch.stockSymbol && <em className="reward-tag">{launch.stockSymbol} rewards</em>}</span>
           </span>
           <span className="search-result-value"><b>{launch.aquaIndexed ? compactMoney.format(launch.marketCapUsd) : "Indexing"}</b><small>market cap</small></span>
         </button>)}

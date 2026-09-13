@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, CircleDollarSign, Coins, Gift, LockKeyhole, TimerReset, Users } from "lucide-react";
+import { ArrowRight, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AquaGlyph, type AquaGlyphKind } from "../components/AquaIcons";
-import { HolderRewardFlow } from "../components/HolderRewardFlow";
+import { OrcaMark } from "../components/OrcaMark";
 import { PageBubbles } from "../components/PageBubbles";
 import { api } from "../api";
 import { useRuntime } from "../context";
@@ -15,7 +15,7 @@ export function HowItWorks() {
   const [launches, setLaunches] = useState<Launch[]>([]);
 
   useEffect(() => {
-    api.launches().then((data) => setLaunches(data.launches)).catch(() => setLaunches([]));
+    api.launches().then((data) => setLaunches(data.launches.filter((launch) => launch.status === "live"))).catch(() => setLaunches([]));
   }, []);
 
   const platform = useMemo(() => {
@@ -28,35 +28,22 @@ export function HowItWorks() {
   }, [launches, config.fees.platformBps]);
 
   return <main className="how-story-page">
-    <PageBubbles count={16}/>
-    <section className="product-hero how-story-hero">
+    <PageBubbles count={20}/>
+    <section className="product-hero how-story-hero orca-story-hero">
       <div className="hero-copy">
-        <h1>Launch a coin.<br/><span>Build a portfolio.</span></h1>
-        <p>AQUA turns market activity into tokenized stock rewards for holders. Each reward is weighted by how much a wallet holds and how long it stays committed.</p>
+        <h1>Built on Orca.<br/><span>Designed for holders.</span></h1>
+        <p>AQUA launches coins directly into Orca Whirlpools, each paired with one tokenized stock. Trading happens on Orca while AQUA turns the reward share into stock claims weighted by balance and time held.</p>
         <div className="hero-actions">
-          <Link className="primary" to="/create">Launch a holder-first coin <ArrowRight size={17}/></Link>
-          <Link className="secondary-button" to="/">Explore markets</Link>
+          <Link className="primary" to="/">Explore markets <ArrowRight size={17}/></Link>
+          <a className="secondary-button orca-visit-button" href="https://www.orca.so/" target="_blank" rel="noreferrer"><OrcaMark/>Visit Orca <ExternalLink size={14}/></a>
         </div>
         <div className="platform-metrics">
-          <PlatformMetric icon="revenue" label="24h platform revenue" value={compactMoney.format(platform.revenue)} note="From indexed market volume"/>
+          <PlatformMetric icon="revenue" label="24h platform revenue" value={compactMoney.format(platform.revenue)} note="From live market volume"/>
           <PlatformMetric icon="buyback" label="AQUA buyback allocation" value={compactMoney.format(platform.buybacks)} note="50% of platform revenue"/>
-          <PlatformMetric icon="rewards" label="Stocks airdropped" value={compactMoney.format(platform.stocks)} note="Across AQUA markets"/>
+          <PlatformMetric icon="rewards" label="Stocks airdropped" value={compactMoney.format(platform.stocks)} note="Across live AQUA markets"/>
         </div>
       </div>
-      <HolderRewardFlow/>
-    </section>
-
-    <section className="how-mechanism">
-      <header><h2>One market. One permanent reward asset.</h2><p>The stock selected at launch stays attached to the coin, from its Orca market to every future holder reward.</p></header>
-      <div className="holder-flow" aria-label="AQUA holder reward flow">
-        <FlowNode icon={<CircleDollarSign/>} label="The coin trades" detail="Activity runs through Orca"/>
-        <ArrowRight/>
-        <FlowNode icon={<Gift/>} label="Rewards accumulate" detail="The stock route stays separate" featured/>
-        <ArrowRight/>
-        <FlowNode icon={<TimerReset/>} label="Holding is measured" detail="Balance and time build weight"/>
-        <ArrowRight/>
-        <FlowNode icon={<Users/>} label="Holders claim" detail="Published proofs unlock stock"/>
-      </div>
+      <OrcaLaunchGraphic/>
     </section>
 
     <section className="aqua-flywheel how-flywheel">
@@ -86,17 +73,6 @@ export function HowItWorks() {
         <div className="lock-result"><span>Creator fee share</span><strong>Earn from each trade</strong><small>Only while the verified lock is active</small></div>
       </div>
     </section>
-
-    <section className="score-explanation how-score">
-      <div className="technical-intro"><h2>Rewards follow conviction.</h2><p>Eligible balance gains weight for every second it remains held. Selling reduces the future weight of that balance.</p><div className="formula-large"><span>balance</span><b>×</b><span>time held</span><b>=</b><strong>reward share</strong></div></div>
-      <div className="score-example"><header><b>Example reward period</b><small>Illustrative</small></header><ExampleRow name="Mara" holding="1,000 coins for 30 days" score="30,000" share="67.4%" width="100%"/><ExampleRow name="Jules" holding="1,000 coins for 7 days" score="7,000" share="15.7%" width="23%"/><ExampleRow name="Ari" holding="250 coins for 30 days" score="7,500" share="16.9%" width="25%"/><footer>Each eligible wallet receives its share of the paired stock.</footer></div>
-    </section>
-
-    <section className="how-foundation">
-      <article><span><Coins/></span><div><h3>Direct Orca market</h3><p>The coin opens in a stock-paired Whirlpool with active liquidity.</p></div></article>
-      <article><span><LockKeyhole/></span><div><h3>Locked launch liquidity</h3><p>The initial liquidity position is permanently locked.</p></div></article>
-      <article><span><CheckCircle2/></span><div><h3>Verifiable claims</h3><p>Reward allocations use published proofs that wallets can verify.</p></div></article>
-    </section>
   </main>;
 }
 
@@ -108,10 +84,15 @@ function FlywheelStep({ icon, title, text }: { icon: AquaGlyphKind; title: strin
   return <article className="flywheel-step"><span><AquaGlyph kind={icon}/></span><b>{title}</b><p>{text}</p></article>;
 }
 
-function FlowNode({ icon, label, detail, featured = false }: { icon: React.ReactNode; label: string; detail: string; featured?: boolean }) {
-  return <div className={`flow-step ${featured ? "featured" : ""}`}><span>{icon}</span><b>{label}</b><small>{detail}</small></div>;
-}
-
-function ExampleRow({ name, holding, score, share, width }: { name: string; holding: string; score: string; share: string; width: string }) {
-  return <div className="example-row"><span><b>{name}</b><small>{holding}</small></span><div><i style={{ width }}/></div><strong>{score}<small>score · {share}</small></strong></div>;
+function OrcaLaunchGraphic() {
+  return <div className="orca-launch-graphic" role="img" aria-label="AQUA coins launch into Orca Whirlpools">
+    <div className="orca-current" aria-hidden="true"><i/><i/><i/></div>
+    <div className="orca-hero-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/></div>
+    <div className="orca-hero-mark" aria-hidden="true"><span/><OrcaMark/></div>
+    <div className="orca-pair-orbit" aria-hidden="true">
+      <span className="orca-aqua-node"><img src={`${import.meta.env.BASE_URL}aqua-logo.png`} alt=""/></span>
+      <span className="orca-stock-node"><i/><i/><i/></span>
+    </div>
+    <div className="orca-surface" aria-hidden="true"><i/><i/><i/></div>
+  </div>;
 }
