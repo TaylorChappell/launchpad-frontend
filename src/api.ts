@@ -4,10 +4,24 @@ const DEFAULT_API_URL = "https://launchpad-backend-production-63dc.up.railway.ap
 const cleanUrl = (value: unknown) => typeof value === "string" && /^https?:\/\//i.test(value.trim()) ? value.trim().replace(/\/$/, "") : null;
 export const API_URL = cleanUrl(window.AQUA_CONFIG?.API_URL) ?? cleanUrl(import.meta.env.VITE_API_URL) ?? DEFAULT_API_URL;
 
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  rebuildRequired: boolean;
+
+  constructor(message: string, status: number, body: { code?: string; rebuildRequired?: boolean }) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = body.code;
+    this.rebuildRequired = Boolean(body.rebuildRequired);
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, init);
-  const body = await response.json().catch(() => ({})) as T & { error?: string };
-  if (!response.ok) throw new Error(body.error ?? `Request failed (${response.status})`);
+  const body = await response.json().catch(() => ({})) as T & { error?: string; code?: string; rebuildRequired?: boolean };
+  if (!response.ok) throw new ApiError(body.error ?? `Request failed (${response.status})`, response.status, body);
   return body;
 }
 

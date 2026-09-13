@@ -6,7 +6,7 @@ import {
 import { NetworkSolana, TokenUSDC } from "@web3icons/react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { api } from "../api";
+import { ApiError, api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
 import { PageBubbles } from "../components/PageBubbles";
@@ -132,7 +132,7 @@ export function Create() {
     setPending(null); setExecutionState("complete"); setRecoverableLaunch(null); toast.success("AQUA market launched");
   }
 
-  async function executeLaunchBatch(id: string, batch: LaunchBatchEnvelope[]) {
+  async function executeLaunchBatch(id: string, batch: LaunchBatchEnvelope[], repairAttempted = false) {
     let activeStage: ChainStage = batch[0]?.step ?? "pool";
     try {
       if (!batch.length) throw new Error("The backend did not return the Orca launch batch.");
@@ -166,9 +166,21 @@ export function Create() {
       }
       finishLaunch();
     } catch (error) {
+      let failure: unknown = error;
+      if (!repairAttempted && error instanceof ApiError && error.rebuildRequired && wallet.address) {
+        try {
+          const fresh = await api.retryLaunchTransaction(id, wallet.address);
+          if (fresh.status === "live") { finishLaunch(); return; }
+          if (!fresh.batch?.length) throw new Error("The backend could not rebuild the remaining Orca launch transactions.");
+          await executeLaunchBatch(id, fresh.batch, true);
+          return;
+        } catch (recoveryError) {
+          failure = recoveryError;
+        }
+      }
       setPending({ launchId: id, stage: activeStage });
       setStage(activeStage, "error"); setExecutionState("error");
-      setExecutionError(error instanceof Error ? error.message : "The Orca launch batch could not continue.");
+      setExecutionError(failure instanceof Error ? failure.message : "The Orca launch batch could not continue.");
     }
   }
 
