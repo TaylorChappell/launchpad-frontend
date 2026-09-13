@@ -33,7 +33,7 @@ export function HowItWorks() {
     <section className="product-hero how-story-hero">
       <div className="hero-copy">
         <h1>Built on Orca.<br/><span>Designed for holders.</span></h1>
-        <p>AQUA launches coins directly into Orca Whirlpools, each paired with one tokenized stock. Trading happens on Orca while AQUA turns the reward share into stock claims weighted by balance and time held.</p>
+        <p>AQUA launches coins directly into Orca Whirlpools. Creators choose a SOL or xStock trading pair, plus one permanent tokenized-stock reward asset. AQUA turns the reward share into claims weighted by balance and time held.</p>
         <div className="hero-actions">
           <Link className="primary" to="/">Explore markets <ArrowRight size={17}/></Link>
           <a className="secondary-button orca-visit-button" href="https://www.orca.so/" target="_blank" rel="noreferrer"><OrcaMark/>Visit Orca <ExternalLink size={14}/></a>

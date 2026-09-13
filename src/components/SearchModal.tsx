@@ -96,7 +96,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
           <TokenMark launch={launch}/>
           <span className="search-result-main">
             <span className="search-result-name"><b>{launch.name}</b><small>${launch.symbol}</small></span>
-            <span className="search-result-tags"><em>Orca Whirlpool</em>{launch.stockSymbol && <em className="reward-tag">{launch.stockSymbol} rewards</em>}</span>
+            <span className="search-result-tags"><em>{launch.symbol} / {launch.pairSymbol}</em>{launch.stockSymbol && <em className="reward-tag">{launch.stockSymbol} rewards</em>}</span>
           </span>
           <span className="search-result-value"><b>{launch.aquaIndexed ? compactMoney.format(launch.marketCapUsd) : "Indexing"}</b><small>market cap</small></span>
         </button>)}

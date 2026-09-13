@@ -3,7 +3,7 @@ import {
   ArrowLeft, ArrowRight, Check, Coins, Droplets, ExternalLink, ImagePlus, Info,
   Loader2, RefreshCw, Search, X,
 } from "lucide-react";
-import { NetworkSolana, TokenUSDC } from "@web3icons/react";
+import { NetworkSolana } from "@web3icons/react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { ApiError, api } from "../api";
@@ -13,21 +13,21 @@ import { PageBubbles } from "../components/PageBubbles";
 import { TokenMark } from "../components/TokenCard";
 import type { Launch, LaunchBatchEnvelope, LaunchConfirmation, StockOption, TransactionEnvelope } from "../types";
 
-type LaunchCurrency = "SOL" | "USDC" | "STOCK";
+type PoolPair = "SOL" | "STOCK";
 type Form = {
   name: string; symbol: string; description: string; xUrl: string; websiteUrl: string;
-  telegramUrl: string; launchCurrency: LaunchCurrency; launchAmount: string;
+  telegramUrl: string; poolPair: PoolPair; launchAmount: string;
 };
 type ChainStage = "mint" | "pool" | "liquidity" | "lock" | "devBuy";
 type ProgressKey = "approval" | ChainStage;
 type ProgressState = "waiting" | "active" | "done" | "error";
 type PendingAction = { launchId: string; stage: ChainStage; envelope?: TransactionEnvelope; signature?: string };
 
-const empty: Form = { name: "", symbol: "", description: "", xUrl: "", websiteUrl: "", telegramUrl: "", launchCurrency: "SOL", launchAmount: "" };
+const empty: Form = { name: "", symbol: "", description: "", xUrl: "", websiteUrl: "", telegramUrl: "", poolPair: "SOL", launchAmount: "" };
 const wizardSteps = [
   { label: "Coin", short: "Name and artwork" },
-  { label: "Reward stock", short: "Choose the permanent pair" },
-  { label: "Launch", short: "Choose how to enter" },
+  { label: "Reward stock", short: "Choose what holders earn" },
+  { label: "Market", short: "Choose SOL or stock" },
 ] as const;
 const chainSteps: Array<{ key: ProgressKey; label: string; detail: string }> = [
   { key: "approval", label: "Prepare launch", detail: "Store artwork and immutable metadata" },
@@ -110,8 +110,8 @@ export function Create() {
   const hasInitialBuy = Number.isFinite(amount) && amount > 0;
   const amountValid = !form.launchAmount.trim() || hasInitialBuy;
   const validForStep = [form.name.trim().length >= 2 && form.symbol.trim().length >= 2 && Boolean(file), Boolean(stock) && acknowledged, amountValid];
-  const currencySymbol = form.launchCurrency === "STOCK" ? stock?.symbol ?? "STOCK" : form.launchCurrency;
-  const currencyDecimals = form.launchCurrency === "SOL" ? 9 : form.launchCurrency === "USDC" ? 6 : stock?.decimals ?? 6;
+  const currencySymbol = form.poolPair === "STOCK" ? stock?.symbol ?? "STOCK" : "SOL";
+  const currencyDecimals = form.poolPair === "SOL" ? 9 : stock?.decimals ?? 6;
 
   function chooseArtwork(next: File | null) {
     if (next && next.size > 3 * 1024 * 1024) { toast.error("Artwork must be 3 MB or smaller."); return; }
@@ -289,9 +289,6 @@ export function Create() {
   async function beginLaunch() {
     if (!wallet.address) { wallet.setModalOpen(true); return; }
     if (!stock || !file || !acknowledged || !amountValid || !form.name.trim() || !form.symbol.trim()) { toast.error("Complete every required launch step first."); return; }
-    if (hasInitialBuy && form.launchCurrency !== "STOCK") {
-      toast.error(`${form.launchCurrency} routing is not enabled by the current backend yet. Choose ${stock.symbol} or leave the initial buy empty.`); return;
-    }
     if (!config.transactionsEnabled) { toast.error(config.transactionsDisabledReason ?? "On-chain launching is not enabled by the backend."); return; }
 
     setExecutionOpen(true); setExecutionState("running"); setExecutionError(""); setProgress(initialProgress()); setPending(null);
@@ -304,9 +301,9 @@ export function Create() {
       const intent = await api.createLaunch({
         creatorWallet: wallet.address, clientRequestId, symbol, stockSymbol: stock.symbol,
         name: form.name.trim(), description: form.description.trim(), imageId,
-        stockMint: stock.mint, launchCurrency: form.launchCurrency, launchAmountRaw: initialBuyRaw,
-        devBuyStockRaw: form.launchCurrency === "STOCK" ? initialBuyRaw : "0",
-        devBuyLamports: form.launchCurrency === "SOL" ? initialBuyRaw : "0",
+        stockMint: stock.mint, poolPair: form.poolPair,
+        devBuyStockRaw: form.poolPair === "STOCK" ? initialBuyRaw : "0",
+        devBuyLamports: form.poolPair === "SOL" ? initialBuyRaw : "0",
         sniperDefense: false, xUrl: normaliseUrl(form.xUrl), websiteUrl: normaliseUrl(form.websiteUrl), telegramUrl: normaliseTelegram(form.telegramUrl),
       });
       setLaunchId(intent.launchId); setStage("approval", "done");
@@ -353,7 +350,7 @@ export function Create() {
           </div></section>
         </WizardSection>}
 
-        {step === 1 && <WizardSection title="Choose a reward stock" description="The coin launches against this stock and holders earn the same asset.">
+        {step === 1 && <WizardSection title="Choose a reward stock" description="Holders earn this stock. The reward asset cannot be changed after launch.">
           <div className="stock-search"><Search size={17}/><input value={stockQuery} placeholder="Search stocks or tickers" onChange={(event) => { setStockQuery(event.target.value); setVisibleStocks(10); }}/><span>{stocks.length} stocks</span></div>
           {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Loading stocks</span></div> : stockError ? <div className="stock-error"><Info/><span>{stockError}</span><button onClick={() => void loadStocks()}><RefreshCw size={14}/> Retry</button></div> : <>
             <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { setStock(item); setAcknowledged(false); }}>
@@ -362,19 +359,17 @@ export function Create() {
             {filteredStocks.length === 0 && <div className="no-stock-results">No stocks match “{stockQuery}”.</div>}
             {filteredStocks.length < stockResultsCount && <button className="stock-more" onClick={() => setVisibleStocks((value) => value + 20)}>Show more</button>}
           </>}
-          {stock && <div className="selected-stock-strip"><StockLogo stock={stock}/><div><small>Permanent stock pair</small><b>${form.symbol || "TOKEN"} / {stock.symbol}</b></div><span>Holder rewards in {stock.symbol}</span></div>}
+          {stock && <div className="selected-stock-strip"><StockLogo stock={stock}/><div><small>Permanent reward asset</small><b>{stock.symbol}</b></div><span>Holder rewards in {stock.symbol}</span></div>}
           <label className="stock-ack"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)}/><span>I understand tokenized stocks may be restricted or unavailable in my jurisdiction.</span></label>
         </WizardSection>}
 
-        {step === 2 && <WizardSection title="Launch your coin" description="Choose the currency for your optional first buy, or leave the amount empty.">
-          <div className="launch-currency-grid" role="radiogroup" aria-label="Launch currency">
-            <CurrencyButton code="SOL" name="Solana" active={form.launchCurrency === "SOL"} onClick={() => { update("launchCurrency", "SOL"); update("launchAmount", ""); }} icon={<NetworkSolana className="currency-brand-icon" variant="branded"/>}/>
-            <CurrencyButton code="USDC" name="USD Coin" active={form.launchCurrency === "USDC"} onClick={() => { update("launchCurrency", "USDC"); update("launchAmount", ""); }} icon={<TokenUSDC className="currency-brand-icon" variant="branded"/>}/>
-            <CurrencyButton code={stock?.symbol ?? "STOCK"} name="Selected stock" active={form.launchCurrency === "STOCK"} onClick={() => { update("launchCurrency", "STOCK"); update("launchAmount", ""); }} icon={stock ? <StockLogo stock={stock}/> : <Coins/>}/>
+        {step === 2 && <WizardSection title="Choose the Orca market" description="Trade against SOL for broader discovery, or trade directly against the selected stock.">
+          <div className="launch-currency-grid pair-choice-grid" role="radiogroup" aria-label="Orca trading pair">
+            <CurrencyButton code="SOL" name="Best for discovery" active={form.poolPair === "SOL"} onClick={() => { update("poolPair", "SOL"); update("launchAmount", ""); }} icon={<NetworkSolana className="currency-brand-icon" variant="branded"/>}/>
+            <CurrencyButton code={stock?.symbol ?? "STOCK"} name="Direct stock pair" active={form.poolPair === "STOCK"} onClick={() => { update("poolPair", "STOCK"); update("launchAmount", ""); }} icon={stock ? <StockLogo stock={stock}/> : <Coins/>}/>
           </div>
-          <Field label="Initial buy" wide><div className="unit-input launch-amount-input"><input inputMode="decimal" value={form.launchAmount} placeholder="Optional" onChange={(event) => update("launchAmount", event.target.value.replace(/[^0-9.]/g, ""))}/><span>{currencySymbol}</span></div></Field>
-          {hasInitialBuy && form.launchCurrency !== "STOCK" && <div className="currency-route-note"><Info/><span>{form.launchCurrency} first-buy routing must be enabled on the backend before this option can submit. You can still launch without an initial buy.</span></div>}
-          <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} paired with {stock?.symbol ?? "stock"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
+          <Field label={`Optional first buy in ${currencySymbol}`} wide><div className="unit-input launch-amount-input"><input inputMode="decimal" value={form.launchAmount} placeholder="0" onChange={(event) => update("launchAmount", event.target.value.replace(/[^0-9.]/g, ""))}/><span>{currencySymbol}</span></div></Field>
+          <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {currencySymbol} on Orca · {stock?.symbol ?? "stock"} holder rewards</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
           <button className="wizard-launch-button" onClick={() => void beginLaunch()} disabled={!validForStep[2]}><span className="button-current"/><span>{wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
         </WizardSection>}
 

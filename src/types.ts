@@ -8,7 +8,7 @@ export type RuntimeConfig = {
   programInitialized?: boolean;
   transactionsEnabled: boolean;
   transactionsDisabledReason?: string | null;
-  whirlpools: { programId: string; config: string; tickSpacing: number; pair: string; liquidityLock: "permanent" };
+  whirlpools: { programId: string; config: string; tickSpacing: number; pair: string; supportedPairs?: Array<"SOL" | "STOCK">; liquidityLock: "permanent" };
   stockEligibility?: { minOrcaTvlUsd: number; minOrcaVolume24hUsd: number; requiresLivePool: boolean };
   fees: { transferFeeBps: number; platformBps: number; stockRewardsBps: number; universal: boolean };
   creatorLocks: { minimumSeconds: number; maximumSeconds: number; maximumFeeShareBps: number };
@@ -56,6 +56,10 @@ export type Launch = {
   stockSymbol: string;
   stockName: string;
   stockMint: string;
+  pairType: "sol" | "stock";
+  pairSymbol: string;
+  pairMint: string;
+  tradingPair: { type: "sol" | "stock"; symbol: string; mint: string };
   pairVerified?: boolean;
   pairVerifiedAt?: number | null;
   status: LaunchStatus;
@@ -70,6 +74,7 @@ export type Launch = {
   rewardVaultStockRaw: string;
   rewardDistributedUsd: number;
   devBuyStockRaw: string;
+  devBuySol: number;
   txCount: number;
   xUrl?: string | null;
   websiteUrl?: string | null;

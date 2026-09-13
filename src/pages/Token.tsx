@@ -54,6 +54,7 @@ export function Token() {
   const canTrade = launch.status === "live" && config.transactionsEnabled;
   const activeLaunch = launch;
   const stockDecimals = stock?.decimals ?? 6;
+  const pairDecimals = launch.pairType === "sol" ? 9 : stockDecimals;
   const explorerUrl = `https://explorer.solana.com/address/${launch.whirlpoolAddress || launch.mint}${config.network === "devnet" ? "?cluster=devnet" : ""}`;
 
   async function trade() {
@@ -64,7 +65,7 @@ export function Token() {
     if (!canTrade) return;
     setBusy(true);
     try {
-      const amountRaw = decimalToRaw(amount, side === "buy" ? stockDecimals : activeLaunch.tokenDecimals);
+      const amountRaw = decimalToRaw(amount, side === "buy" ? pairDecimals : activeLaunch.tokenDecimals);
       if (BigInt(amountRaw) <= 0n) throw new Error("Enter an amount greater than zero.");
       const transaction = await api.tradeTransaction(activeLaunch.id, { trader: wallet.address, side, amountRaw, slippageBps: 150 });
       const signature = await wallet.sendTransaction(transaction);
@@ -80,7 +81,7 @@ export function Token() {
     <Link className="back" to="/"><ArrowLeft/>Explore markets</Link>
     <section className="token-hero">
       <div className="token-identity"><TokenMark launch={launch} large/><div><div><h1>{launch.name}</h1><span>${launch.symbol}</span><em className={launch.status}>{launch.status === "live" ? "ORCA WHIRLPOOL" : "LAUNCHING"}</em></div><p>{launch.description}</p><footer>{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2/> Website</a>}<a href={explorerUrl} target="_blank" rel="noreferrer">Explorer <ExternalLink/></a><button onClick={() => { void navigator.clipboard.writeText(launch.mint); toast.success("Mint copied"); }}><Copy/> {launch.mint.slice(0, 5)}…{launch.mint.slice(-4)}</button></footer></div></div>
-      <div className="hero-metrics"><Metric label="Stock reward" value={launch.stockSymbol}/><Metric label="TVL" value={launch.aquaIndexed ? `$${compact.format(launch.tvlUsd)}` : "Indexing"}/><Metric label="Holders" value={launch.aquaIndexed ? compact.format(launch.holderCount) : "Indexing"}/><Metric label="Market cap" value={launch.aquaIndexed ? `$${compact.format(launch.marketCapUsd)}` : "Indexing"}/></div>
+      <div className="hero-metrics"><Metric label="Orca pair" value={`${launch.symbol} / ${launch.pairSymbol}`}/><Metric label="Stock reward" value={launch.stockSymbol}/><Metric label="TVL" value={launch.aquaIndexed ? `$${compact.format(launch.tvlUsd)}` : "Indexing"}/><Metric label="Market cap" value={launch.aquaIndexed ? `$${compact.format(launch.marketCapUsd)}` : "Indexing"}/></div>
     </section>
 
     <div className="token-layout"><section className="token-main">
@@ -88,19 +89,19 @@ export function Token() {
 
       <div className="info-grid">
         <div className="info-panel reward"><Gift/><b>Earn {launch.stockSymbol}</b><div><Metric label="Distributed" value={`$${compact.format(launch.rewardDistributedUsd)}`}/><Metric label="Reward reserve" value={BigInt(launch.rewardVaultStockRaw || "0") > 0n ? `${formatRaw(launch.rewardVaultStockRaw, stockDecimals)} ${launch.stockSymbol}` : "Accumulating"}/></div><p>Reward weight combines eligible balance and holding time.</p></div>
-        <div className="info-panel"><small>ORCA MARKET</small><h2>{launch.status === "live" ? "Live" : "Launching"}</h2><p>{launch.status === "live" ? launch.indexingStatus === "pending_indexing" ? "The Whirlpool is live. AQUA, Orca, and external market indexes are still discovering it." : "The stock-paired Whirlpool is open and its initial position is permanently locked." : "The creator is completing the signed launch transactions."}</p>{launch.liquidityLockedPermanently && <span className="pool-lock-status"><LockKeyhole/> Permanent liquidity lock</span>}</div>
+        <div className="info-panel"><small>ORCA MARKET · {launch.symbol} / {launch.pairSymbol}</small><h2>{launch.status === "live" ? "Live" : "Launching"}</h2><p>{launch.status === "live" ? launch.indexingStatus === "pending_indexing" ? "The Whirlpool is live. AQUA, Orca, and external market indexes are still discovering it." : `The ${launch.pairSymbol}-paired Whirlpool is open and its initial position is permanently locked.` : "The creator is completing the signed launch transactions."}</p>{launch.liquidityLockedPermanently && <span className="pool-lock-status"><LockKeyhole/> Permanent liquidity lock</span>}</div>
       </div>
 
-      <div className="activity"><header><div><b>Market activity</b><span>Indexed transactions</span></div><strong>{launch.txCount.toLocaleString()} total</strong></header><div className="activity-scroll"><table><thead><tr><th>Type</th><th>Wallet</th><th>{launch.stockSymbol}</th><th>Tokens</th></tr></thead><tbody>{trades.length ? trades.map((item) => <tr key={item.id}><td className={item.side}>{item.side.toUpperCase()}</td><td>{item.wallet}</td><td>{formatRaw(item.gross_quote_raw, stockDecimals)}</td><td>{formatRaw(item.token_amount_raw, launch.tokenDecimals)}</td></tr>) : <tr><td colSpan={4} className="no-activity">No indexed trades yet.</td></tr>}</tbody></table></div></div>
+      <div className="activity"><header><div><b>Market activity</b><span>Indexed transactions</span></div><strong>{launch.txCount.toLocaleString()} total</strong></header><div className="activity-scroll"><table><thead><tr><th>Type</th><th>Wallet</th><th>{launch.pairSymbol}</th><th>Tokens</th></tr></thead><tbody>{trades.length ? trades.map((item) => <tr key={item.id}><td className={item.side}>{item.side.toUpperCase()}</td><td>{item.wallet}</td><td>{formatRaw(item.gross_quote_raw, pairDecimals)}</td><td>{formatRaw(item.token_amount_raw, launch.tokenDecimals)}</td></tr>) : <tr><td colSpan={4} className="no-activity">No indexed trades yet.</td></tr>}</tbody></table></div></div>
     </section>
 
     <aside className="trade-card">
       <div className="trade-tabs"><button className={side === "buy" ? "active" : ""} onClick={() => setSide("buy")}>Buy</button><button className={side === "sell" ? "active" : ""} onClick={() => setSide("sell")}>Sell</button></div>
-      <label>You pay</label><div className="trade-input"><input value={amount} inputMode="decimal" onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))}/><b>{side === "buy" ? launch.stockSymbol : launch.symbol}</b></div>
+      <label>You pay</label><div className="trade-input"><input value={amount} inputMode="decimal" onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))}/><b>{side === "buy" ? launch.pairSymbol : launch.symbol}</b></div>
       <TradeRow label="Execution" value="Orca Whirlpool" strong/><TradeRow label="Transfer fee" value={`${(launch.transferFeeBps / 100).toFixed(2)}%`}/><TradeRow label="Holder reward" value={`${(config.fees.stockRewardsBps / 100).toFixed(2)}% to ${launch.stockSymbol}`} accent/><TradeRow label="Slippage" value="1.50%"/>
       <button className="primary full" disabled={!Number(amount) || busy || (!canTrade && Boolean(wallet.address))} onClick={() => void trade()}>{busy ? <><Loader2 className="spin"/>Confirming</> : !wallet.address ? "Connect wallet" : !canTrade ? "Trading unavailable" : side === "buy" ? `Buy ${launch.symbol}` : `Sell ${launch.symbol}`}</button>
       {!canTrade && <div className="locked"><ShieldAlert/><span><b>{launch.status !== "live" ? "Market is launching" : "Transactions disabled"}</b>{launch.status !== "live" ? "Trading opens after every launch transaction confirms." : "The backend is not currently issuing transactions."}</span></div>}
-      <div className="creator"><span>Creator</span><b>{launch.creatorWallet}</b><span>Developer buy</span><b>{BigInt(launch.devBuyStockRaw || "0") > 0n ? `${formatRaw(launch.devBuyStockRaw, stockDecimals)} ${launch.stockSymbol}` : "None"}</b><span>Holders</span><b><Users/> {compact.format(launch.holderCount)}</b></div>
+      <div className="creator"><span>Creator</span><b>{launch.creatorWallet}</b><span>Developer buy</span><b>{launch.pairType === "sol" ? launch.devBuySol > 0 ? `${launch.devBuySol} SOL` : "None" : BigInt(launch.devBuyStockRaw || "0") > 0n ? `${formatRaw(launch.devBuyStockRaw, stockDecimals)} ${launch.stockSymbol}` : "None"}</b><span>Holders</span><b><Users/> {compact.format(launch.holderCount)}</b></div>
     </aside></div>
   </main>;
 }

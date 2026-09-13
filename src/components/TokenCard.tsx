@@ -20,7 +20,7 @@ export function TokenCard({ launch, featured = false }: { launch: Launch; sample
   return <Link className={`token-card ${featured ? "featured" : ""}`} to={`/token/${launch.id}`}>
     <div className="token-head">
       <TokenMark launch={launch}/>
-      <div><div className="token-title"><b>{launch.name}</b><span>${launch.symbol}</span></div><div className="token-pair"><Gift size={12}/>{launch.stockSymbol} rewards</div></div>
+      <div><div className="token-title"><b>{launch.name}</b><span>${launch.symbol} / {launch.pairSymbol}</span></div><div className="token-pair"><Gift size={12}/>{launch.stockSymbol} rewards</div></div>
       <ArrowUpRight className="card-arrow" size={17}/>
     </div>
     <div className="reward-card-focus"><span><Gift/>HOLDER REWARD</span><strong>Earn {launch.stockSymbol}</strong><small>${compact.format(launch.rewardDistributedUsd)} distributed to holders</small></div>

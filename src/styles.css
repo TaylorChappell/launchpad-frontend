@@ -3164,6 +3164,7 @@ body::before {
   gap: 10px;
   margin-bottom: 24px;
 }
+.launch-currency-grid.pair-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .launch-currency-grid > button {
   position: relative;
   isolation: isolate;

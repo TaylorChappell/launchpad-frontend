@@ -51,3 +51,5 @@ The frontend reads its network from `/api/config`. Set `USE_TESTNET=true` on Rai
 Phantom connects through its browser provider. MetaMask connects through MetaMask Solana account support. A standard launch uses two wallet approvals. The first creates the Token-2022 mint. The second signs the ordered Orca pool, active-liquidity, and permanent-lock batch. AQUA validates and submits those signed transactions one at a time so the lock cannot land before active liquidity is proven. An optional first buy is a separate post-launch transaction.
 
 New markets display `Pending indexing` until the built-in backend indexer records on-chain metrics. Market charts use stored backend snapshots and never generate sample price movement.
+
+The launch wizard supports two real Orca market modes: `launch token / SOL` and `launch token / selected xStock`. The selected xStock is always recorded separately as the immutable holder-reward asset. A two-token Whirlpool cannot contain SOL and an xStock at the same time.
