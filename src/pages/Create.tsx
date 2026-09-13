@@ -319,7 +319,7 @@ export function Create() {
 
   return <main className="page launch-wizard-page launch-wizard-only">
     <PageBubbles count={22}/>
-    {recoverableLaunch && <section className="launch-resume-banner"><span className="resume-coin-bubble"><TokenMark launch={recoverableLaunch}/></span><div><b>Continue ${recoverableLaunch.symbol}</b><small>A previous launch has a confirmed on-chain step waiting to continue.</small></div><button onClick={() => void resumeExistingLaunch()}>Resume launch <ArrowRight/></button></section>}
+    {recoverableLaunch && <section className="launch-resume-banner"><span className="resume-coin-bubble"><TokenMark launch={recoverableLaunch}/></span><div><b>Continue ${recoverableLaunch.symbol}</b><small>A previous launch has a confirmed on-chain step waiting to continue.</small></div><button onClick={() => void resumeExistingLaunch()}><span className="resume-button-current" aria-hidden="true"/><span>Resume launch</span><ArrowRight/></button></section>}
     <section className="wizard-shell">
       <div className="wizard-caustics" aria-hidden="true"/>
       <aside className="wizard-rail" aria-label="Launch steps">
@@ -374,7 +374,7 @@ export function Create() {
           <Field label="Initial buy" wide><div className="unit-input launch-amount-input"><input inputMode="decimal" value={form.launchAmount} placeholder="Optional" onChange={(event) => update("launchAmount", event.target.value.replace(/[^0-9.]/g, ""))}/><span>{currencySymbol}</span></div></Field>
           {hasInitialBuy && form.launchCurrency !== "STOCK" && <div className="currency-route-note"><Info/><span>{form.launchCurrency} first-buy routing must be enabled on the backend before this option can submit. You can still launch without an initial buy.</span></div>}
           <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} paired with {stock?.symbol ?? "stock"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
-          <button className="wizard-launch-button" onClick={() => void beginLaunch()} disabled={!validForStep[2]}><span className="button-current"/><span>{wallet.address ? `Launch $${form.symbol || "coin"}` : "Connect wallet to launch"}</span></button>
+          <button className="wizard-launch-button" onClick={() => void beginLaunch()} disabled={!validForStep[2]}><span className="button-current"/><span>{wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
         </WizardSection>}
 
         <footer className="wizard-actions"><button className="wizard-back" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ArrowLeft/> Back</button>{step < wizardSteps.length - 1 && <button className="wizard-next" onClick={nextStep} disabled={!validForStep[step]}>Continue <ArrowRight/></button>}</footer>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AquaGlyph, type AquaGlyphKind } from "../components/AquaIcons";
+import { HolderRewardFlow } from "../components/HolderRewardFlow";
 import { OrcaMark } from "../components/OrcaMark";
 import { PageBubbles } from "../components/PageBubbles";
 import { api } from "../api";
@@ -29,7 +30,7 @@ export function HowItWorks() {
 
   return <main className="how-story-page">
     <PageBubbles count={20}/>
-    <section className="product-hero how-story-hero orca-story-hero">
+    <section className="product-hero how-story-hero">
       <div className="hero-copy">
         <h1>Built on Orca.<br/><span>Designed for holders.</span></h1>
         <p>AQUA launches coins directly into Orca Whirlpools, each paired with one tokenized stock. Trading happens on Orca while AQUA turns the reward share into stock claims weighted by balance and time held.</p>
@@ -38,12 +39,12 @@ export function HowItWorks() {
           <a className="secondary-button orca-visit-button" href="https://www.orca.so/" target="_blank" rel="noreferrer"><OrcaMark/>Visit Orca <ExternalLink size={14}/></a>
         </div>
         <div className="platform-metrics">
-          <PlatformMetric icon="revenue" label="24h platform revenue" value={compactMoney.format(platform.revenue)} note="From live market volume"/>
-          <PlatformMetric icon="buyback" label="AQUA buyback allocation" value={compactMoney.format(platform.buybacks)} note="50% of platform revenue"/>
-          <PlatformMetric icon="rewards" label="Stocks airdropped" value={compactMoney.format(platform.stocks)} note="Across live AQUA markets"/>
+          <PlatformMetric label="24h platform revenue" value={compactMoney.format(platform.revenue)} note="From live market volume"/>
+          <PlatformMetric label="AQUA buyback allocation" value={compactMoney.format(platform.buybacks)} note="50% of platform revenue"/>
+          <PlatformMetric label="Stocks airdropped" value={compactMoney.format(platform.stocks)} note="Across live AQUA markets"/>
         </div>
       </div>
-      <OrcaLaunchGraphic/>
+      <HolderRewardFlow/>
     </section>
 
     <section className="aqua-flywheel how-flywheel">
@@ -76,23 +77,10 @@ export function HowItWorks() {
   </main>;
 }
 
-function PlatformMetric({ icon, label, value, note }: { icon: AquaGlyphKind; label: string; value: string; note: string }) {
-  return <div className="platform-metric"><span><AquaGlyph kind={icon}/></span><small>{label}</small><strong>{value}</strong><em>{note}</em></div>;
+function PlatformMetric({ label, value, note }: { label: string; value: string; note: string }) {
+  return <div className="platform-metric"><small>{label}</small><strong>{value}</strong><em>{note}</em></div>;
 }
 
 function FlywheelStep({ icon, title, text }: { icon: AquaGlyphKind; title: string; text: string }) {
   return <article className="flywheel-step"><span><AquaGlyph kind={icon}/></span><b>{title}</b><p>{text}</p></article>;
-}
-
-function OrcaLaunchGraphic() {
-  return <div className="orca-launch-graphic" role="img" aria-label="AQUA coins launch into Orca Whirlpools">
-    <div className="orca-current" aria-hidden="true"><i/><i/><i/></div>
-    <div className="orca-hero-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/></div>
-    <div className="orca-hero-mark" aria-hidden="true"><span/><OrcaMark/></div>
-    <div className="orca-pair-orbit" aria-hidden="true">
-      <span className="orca-aqua-node"><img src={`${import.meta.env.BASE_URL}aqua-logo.png`} alt=""/></span>
-      <span className="orca-stock-node"><i/><i/><i/></span>
-    </div>
-    <div className="orca-surface" aria-hidden="true"><i/><i/><i/></div>
-  </div>;
 }

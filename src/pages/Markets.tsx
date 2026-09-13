@@ -31,8 +31,8 @@ export function Markets() {
       <span className="explore-aqua-logo"><AquaMark/><i/><i/></span>
       <div className="explore-intro-copy"><h1>Coins that reward the people who hold.</h1><p><strong>AQUA is a token launchpad built directly on <a href="https://www.orca.so/" target="_blank" rel="noreferrer">Orca</a>.</strong> Every market pairs a coin with a tokenized stock, so holding over time can earn claimable stock rewards.</p></div>
       <div className="explore-intro-actions">
-        <Link to="/how-it-works">How it works <ArrowRight size={16}/></Link>
-        <a href="https://www.orca.so/" target="_blank" rel="noreferrer"><OrcaMark/>Visit Orca</a>
+        <Link to="/how-it-works"><span>How it works</span><ArrowRight size={16}/></Link>
+        <a href="https://www.orca.so/" target="_blank" rel="noreferrer"><OrcaMark/><span>Visit Orca</span></a>
       </div>
     </section>
 
