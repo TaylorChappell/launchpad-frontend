@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  ArrowLeft, ArrowRight, Check, ChevronDown, CircleDollarSign, Coins, Droplets,
-  ExternalLink, ImagePlus, Info, Loader2, LockKeyhole, RefreshCw, Search,
-  Sparkles, Waves, X,
+  ArrowLeft, ArrowRight, Check, Coins, Droplets, ExternalLink, ImagePlus, Info,
+  Loader2, RefreshCw, Search, Waves, X,
 } from "lucide-react";
+import { NetworkSolana, TokenUSDC } from "@web3icons/react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
+import { PageBubbles } from "../components/PageBubbles";
 import type { Launch, LaunchBatchEnvelope, LaunchConfirmation, StockOption, TransactionEnvelope } from "../types";
 
 type LaunchCurrency = "SOL" | "USDC" | "STOCK";
@@ -107,9 +108,6 @@ export function Create() {
   const hasInitialBuy = Number.isFinite(amount) && amount > 0;
   const amountValid = !form.launchAmount.trim() || hasInitialBuy;
   const validForStep = [form.name.trim().length >= 2 && form.symbol.trim().length >= 2 && Boolean(file), Boolean(stock) && acknowledged, amountValid];
-  const transferFee = config.fees.transferFeeBps / 100;
-  const platformFee = config.fees.platformBps / 100;
-  const rewardFee = config.fees.stockRewardsBps / 100;
   const currencySymbol = form.launchCurrency === "STOCK" ? stock?.symbol ?? "STOCK" : form.launchCurrency;
   const currencyDecimals = form.launchCurrency === "SOL" ? 9 : form.launchCurrency === "USDC" ? 6 : stock?.decimals ?? 6;
 
@@ -307,6 +305,7 @@ export function Create() {
   const shownChainSteps = chainSteps.filter((item) => item.key !== "devBuy" || hasInitialBuy);
 
   return <main className="page launch-wizard-page launch-wizard-only">
+    <PageBubbles count={13}/>
     {recoverableLaunch && <section className="launch-resume-banner"><span><RefreshCw/></span><div><b>Continue ${recoverableLaunch.symbol}</b><small>A previous launch has a confirmed on-chain step waiting to continue.</small></div><button onClick={() => void resumeExistingLaunch()}>Resume launch <ArrowRight/></button></section>}
     <section className="wizard-shell">
       <div className="wizard-caustics" aria-hidden="true"/>
@@ -333,11 +332,11 @@ export function Create() {
               <Field label="Description" wide><textarea value={form.description} rows={4} maxLength={360} placeholder="What is this coin about?" onChange={(event) => update("description", event.target.value)}/><small className="field-count">{form.description.length}/360</small></Field>
             </div>
           </div>
-          <details className="wizard-optional"><summary><span>Socials</span><small>Optional</small><ChevronDown size={16}/></summary><div className="wizard-field-grid three">
+          <section className="wizard-socials"><header><span>Socials</span><small>Optional</small></header><div className="wizard-field-grid three">
             <Field label="X"><input value={form.xUrl} placeholder="x.com/account or post" onChange={(event) => update("xUrl", event.target.value)}/></Field>
             <Field label="Website"><input value={form.websiteUrl} placeholder="project.com" onChange={(event) => update("websiteUrl", event.target.value)}/></Field>
             <Field label="Telegram"><input value={form.telegramUrl} placeholder="t.me/community" onChange={(event) => update("telegramUrl", event.target.value)}/></Field>
-          </div></details>
+          </div></section>
         </WizardSection>}
 
         {step === 1 && <WizardSection title="Choose a reward stock" description="The coin launches against this stock and holders earn the same asset.">
@@ -355,18 +354,12 @@ export function Create() {
 
         {step === 2 && <WizardSection title="Launch your coin" description="Choose the currency for your optional first buy, or leave the amount empty.">
           <div className="launch-currency-grid" role="radiogroup" aria-label="Launch currency">
-            <CurrencyButton code="SOL" name="Solana" active={form.launchCurrency === "SOL"} onClick={() => { update("launchCurrency", "SOL"); update("launchAmount", ""); }} icon={<span className="solana-glyph">S</span>}/>
-            <CurrencyButton code="USDC" name="USD Coin" active={form.launchCurrency === "USDC"} onClick={() => { update("launchCurrency", "USDC"); update("launchAmount", ""); }} icon={<CircleDollarSign/>}/>
+            <CurrencyButton code="SOL" name="Solana" active={form.launchCurrency === "SOL"} onClick={() => { update("launchCurrency", "SOL"); update("launchAmount", ""); }} icon={<NetworkSolana className="currency-brand-icon" variant="branded"/>}/>
+            <CurrencyButton code="USDC" name="USD Coin" active={form.launchCurrency === "USDC"} onClick={() => { update("launchCurrency", "USDC"); update("launchAmount", ""); }} icon={<TokenUSDC className="currency-brand-icon" variant="branded"/>}/>
             <CurrencyButton code={stock?.symbol ?? "STOCK"} name="Selected stock" active={form.launchCurrency === "STOCK"} onClick={() => { update("launchCurrency", "STOCK"); update("launchAmount", ""); }} icon={stock ? <StockLogo stock={stock}/> : <Coins/>}/>
           </div>
           <Field label="Initial buy" wide><div className="unit-input launch-amount-input"><input inputMode="decimal" value={form.launchAmount} placeholder="Optional" onChange={(event) => update("launchAmount", event.target.value.replace(/[^0-9.]/g, ""))}/><span>{currencySymbol}</span></div></Field>
           {hasInitialBuy && form.launchCurrency !== "STOCK" && <div className="currency-route-note"><Info/><span>{form.launchCurrency} first-buy routing must be enabled on the backend before this option can submit. You can still launch without an initial buy.</span></div>}
-          <div className="launch-rules-grid launch-rules-simple">
-            <div><Droplets/><span><small>Total transfer fee</small><b>{transferFee}%</b></span></div>
-            <div><Coins/><span><small>Stock rewards</small><b>{rewardFee}%</b></span></div>
-            <div><Sparkles/><span><small>Platform route</small><b>{platformFee}%</b></span></div>
-            <div><LockKeyhole/><span><small>Liquidity</small><b>Locked</b></span></div>
-          </div>
           <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} paired with {stock?.symbol ?? "stock"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
           <button className="wizard-launch-button" onClick={() => void beginLaunch()} disabled={!validForStep[2]}><span className="button-current"/>{wallet.address ? <><Waves/> Launch ${form.symbol || "coin"}</> : <><Waves/> Connect wallet to launch</>}</button>
         </WizardSection>}

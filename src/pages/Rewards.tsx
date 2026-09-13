@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Check, CircleCheck, Clock3, Coins, Gift, Loader2, ShieldAlert, Sparkles, TimerReset, WalletCards } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Check, Clock3, Coins, Gift, Loader2, RefreshCw, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../api";
+import { PageBubbles } from "../components/PageBubbles";
+import { TokenMark } from "../components/TokenCard";
 import { useWallet } from "../context";
 import type { Launch, WalletReward } from "../types";
 
@@ -14,7 +15,21 @@ function formatRaw(raw: string, decimals: number) {
   const fraction = padded.slice(-decimals).replace(/0+$/, "").slice(0, 6);
   return fraction ? `${whole}.${fraction}` : whole;
 }
-const rewardDate = (value: number) => new Date(value < 1_000_000_000_000 ? value * 1000 : value).toLocaleDateString();
+
+function timestampMs(value: number) {
+  return value < 1_000_000_000_000 ? value * 1000 : value;
+}
+
+function countdown(until: number, now: number) {
+  const remaining = Math.max(0, timestampMs(until) - now);
+  if (!remaining) return "Finalizing";
+  const days = Math.floor(remaining / 86_400_000);
+  const hours = Math.floor((remaining % 86_400_000) / 3_600_000);
+  const minutes = Math.floor((remaining % 3_600_000) / 60_000);
+  const seconds = Math.floor((remaining % 60_000) / 1000);
+  if (days) return `${days}d ${hours}h ${minutes}m`;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
 
 export function Rewards() {
   const wallet = useWallet();
@@ -22,6 +37,12 @@ export function Rewards() {
   const [markets, setMarkets] = useState<Launch[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "offline">("loading");
   const [claiming, setClaiming] = useState("");
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -36,11 +57,12 @@ export function Rewards() {
     return () => { active = false; };
   }, [wallet.address]);
 
-  const totals = useMemo(() => ({
-    claimable: rewards.filter((item) => item.status === "claimable" && !item.claimedSignature).length,
-    claimed: rewards.filter((item) => Boolean(item.claimedSignature)).length,
-    assets: new Set(rewards.map((item) => item.stockMint)).size,
+  const marketById = useMemo(() => new Map(markets.map((market) => [market.id, market])), [markets]);
+  const sortedRewards = useMemo(() => [...rewards].sort((a, b) => {
+    const rank = (item: WalletReward) => item.claimedSignature ? 2 : item.status === "claimable" ? 0 : 1;
+    return rank(a) - rank(b) || b.endsAt - a.endsAt;
   }), [rewards]);
+  const readyCount = rewards.filter((reward) => reward.status === "claimable" && !reward.claimedSignature).length;
 
   async function claim(reward: WalletReward) {
     if (!wallet.address) return wallet.setModalOpen(true);
@@ -58,47 +80,48 @@ export function Rewards() {
     }
   }
 
-  return <main className="page rewards-page">
-    <header className="rewards-heading"><div><h1>Your holding time has value.</h1><p>Track the tokenized stocks earned by your AQUA positions and claim published rewards.</p></div><div className={`data-badge ${state}`}><Clock3/><span><b>{state === "ready" ? "REWARD INDEX" : state === "loading" ? "LOADING" : "UNAVAILABLE"}</b><small>{state === "ready" ? "Connected to reward proofs" : state === "offline" ? "Backend connection failed" : "Fetching reward records"}</small></span></div></header>
+  return <main className="page rewards-page rewards-vault-page">
+    <PageBubbles count={14}/>
+    <header className="rewards-vault-heading">
+      <div><span><Gift/>Holder rewards</span><h1>Your stock rewards.</h1></div>
+      {wallet.address && <div className="rewards-wallet"><i/>{wallet.address.slice(0, 5)}…{wallet.address.slice(-5)}</div>}
+    </header>
 
-    <section className="reward-overview">
-      <Stat label="Claimable" value={totals.claimable.toString()} detail="Published allocations"/>
-      <Stat label="Claimed" value={totals.claimed.toString()} detail="Completed claims"/>
-      <Stat label="Stock assets" value={totals.assets.toString()} detail="In this wallet"/>
-      <Stat label="Reward markets" value={markets.length.toString()} detail="Live and launching"/>
-    </section>
-
-    {!wallet.address ? <section className="wallet-card"><div className="wallet-card-icon"><WalletCards/></div><div><h2>Connect to see your rewards</h2><p>AQUA will look up your published allocation proofs. Connecting does not claim anything.</p></div><button className="primary" onClick={() => wallet.setModalOpen(true)}>Connect wallet</button></section> : <section className="wallet-card connected"><div className="wallet-card-icon"><CircleCheck/></div><div><h2>{totals.claimable ? `${totals.claimable} reward${totals.claimable === 1 ? "" : "s"} ready` : "Wallet connected"}</h2><p>{wallet.address.slice(0, 7)}…{wallet.address.slice(-7)} · {rewards.length ? "Your reward history is shown below." : "No published allocations yet."}</p></div></section>}
-
-    <section className="aqua-score-card">
-      <div><span className="score-icon"><Sparkles/></span><h2>AQUA Score</h2><p>Your eligible balance builds weight for every second it is held.</p></div>
-      <div className="score-equation"><span><b>Eligible balance</b><small>How much you hold</small></span><strong>×</strong><span><b>Holding time</b><small>How long you hold</small></span><strong>=</strong><span className="score-result"><b>Reward weight</b><small>Your share of the epoch</small></span></div>
-    </section>
-
-    <div className="reward-layout">
-      <section className="reward-ledger">
-        <header><div><h2>Your reward ledger</h2><p>Published stock allocations and proof status.</p></div><span>{rewards.length} records</span></header>
-        {state === "loading" ? <div className="ledger-loading"><i/><i/><i/></div> : rewards.length ? <div className="ledger-table">
-          <div className="ledger-row ledger-head"><span>Asset</span><span>Status</span><span>Amount</span><span>Period</span><span>Action</span></div>
-          {rewards.map((reward) => {
-            const claimed = Boolean(reward.claimedSignature);
-            const canClaim = reward.status === "claimable" && !claimed;
-            return <div className="ledger-row" key={reward.epochId}>
-              <span><b>{reward.stockSymbol}</b><small>{reward.launchId}</small></span>
-              <span><em className={claimed ? "completed" : reward.status.toLowerCase()}>{claimed ? "Claimed" : reward.status}</em></span>
-              <span><b>{formatRaw(reward.amountRaw, reward.stockDecimals)} {reward.stockSymbol}</b><small>Token-2022 stock</small></span>
-              <span><b>{rewardDate(reward.endsAt)}</b><small>{rewardDate(reward.startsAt)}</small></span>
-              <span>{claimed ? <Check size={15}/> : <button className="ledger-claim" disabled={!canClaim || claiming === reward.epochId} onClick={() => void claim(reward)}>{claiming === reward.epochId ? <Loader2 className="spin"/> : "Claim"}</button>}</span>
-            </div>;
-          })}
-        </div> : <div className="ledger-empty"><Coins/><h3>No published rewards yet</h3><p>Your allocations will appear here after a market completes its next reward epoch.</p></div>}
+    {!wallet.address ? <section className="rewards-connect-card">
+      <span><WalletCards/></span>
+      <div><h2>Connect your wallet</h2><p>See the stock rewards attached to the AQUA coins you hold.</p></div>
+      <button className="primary" onClick={() => wallet.setModalOpen(true)}>Connect wallet</button>
+    </section> : <>
+      <section className="rewards-summary-line">
+        <div><small>Ready to claim</small><strong>{readyCount}</strong></div>
+        <span>{sortedRewards.length} reward period{sortedRewards.length === 1 ? "" : "s"}</span>
       </section>
 
-      <aside className="reward-explainer"><Gift/><h2>Trade to portfolio</h2><ol><li><i><Coins/></i><span><b>Trade</b>Activity funds stock rewards.</span></li><li><i><Gift/></i><span><b>Purchase</b>The reserve buys the paired stock.</span></li><li><i><TimerReset/></i><span><b>Measure</b>Balance and time set each share.</span></li><li><i><CircleCheck/></i><span><b>Claim</b>Published proofs unlock rewards.</span></li></ol><div className="legal"><ShieldAlert/>Tokenized stocks can be restricted by jurisdiction or provider rules.</div><Link to="/how-it-works">How rewards work <ArrowUpRight size={14}/></Link></aside>
-    </div>
+      {state === "loading" ? <div className="reward-card-skeletons"><i/><i/><i/></div> : state === "offline" ? <section className="rewards-empty"><RefreshCw/><h2>Rewards are temporarily unavailable</h2><p>Reconnect in a moment to refresh your balances.</p></section> : sortedRewards.length ? <section className="holder-reward-list">
+        {sortedRewards.map((reward) => {
+          const market = marketById.get(reward.launchId);
+          const claimed = Boolean(reward.claimedSignature);
+          const canClaim = reward.status === "claimable" && !claimed;
+          const pending = !claimed && !canClaim;
+          return <article className={`holder-reward-card ${canClaim ? "claimable" : pending ? "accruing" : "claimed"}`} key={reward.epochId}>
+            <div className="reward-market-identity">
+              {market ? <TokenMark launch={market}/> : <span className="reward-market-fallback"><Coins/></span>}
+              <div><b>{market?.name ?? reward.launchId}</b><small>{market ? `$${market.symbol}` : "AQUA market"} · earns {reward.stockSymbol}</small></div>
+            </div>
+            <div className="reward-amount">
+              <small>{pending ? "Accumulated so far" : claimed ? "Claimed reward" : "Available now"}</small>
+              <strong>{pending ? "≈ " : ""}{formatRaw(reward.amountRaw, reward.stockDecimals)} <span>{reward.stockSymbol}</span></strong>
+            </div>
+            <div className="reward-timing">
+              {canClaim ? <><span className="reward-ready-dot"/><small>Ready to claim</small></> : claimed ? <><Check/><small>Claimed</small></> : <><Clock3/><span><small>Next claim in</small><b>{countdown(reward.endsAt, now)}</b></span></>}
+            </div>
+            <div className="reward-action">
+              {canClaim ? <button onClick={() => void claim(reward)} disabled={claiming === reward.epochId}>{claiming === reward.epochId ? <Loader2 className="spin"/> : <>Claim {reward.stockSymbol}</>}</button> : <span>{claimed ? "Complete" : "Accruing"}</span>}
+            </div>
+            {pending && <div className="reward-water-progress"><i style={{ width: `${Math.max(8, Math.min(92, ((now - timestampMs(reward.startsAt)) / Math.max(1, timestampMs(reward.endsAt) - timestampMs(reward.startsAt))) * 100))}%` }}/><span/><span/></div>}
+          </article>;
+        })}
+      </section> : <section className="rewards-empty"><Gift/><h2>No rewards detected yet</h2><p>Rewards from eligible AQUA holdings will appear here as they begin accumulating.</p></section>}
+    </>}
   </main>;
-}
-
-function Stat({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return <div><small>{label}</small><b>{value}</b><span>{detail}</span></div>;
 }

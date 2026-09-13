@@ -121,6 +121,5 @@ function LegalPage({ title, intro, sections }: { title: string; intro: string; s
         {section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
       </section>)}
     </div>
-    <p className="legal-review-note">These pages are a product-ready baseline and should be reviewed by qualified legal counsel before AQUA accepts live transactions.</p>
   </main>;
 }
