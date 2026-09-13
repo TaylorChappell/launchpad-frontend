@@ -3108,6 +3108,9 @@ body::before {
 .stock-picker > button b { font: 700 .77rem/1.2 "Manrope", sans-serif; }
 .stock-picker > button small { margin-top: 5px; color: #607f86; font-size: .65rem; }
 .stock-picker > button > span { color: #5a7a81; font-size: .63rem; }
+.stock-picker > button > .stock-market-depth { min-width: 68px; text-align: right; }
+.stock-picker > button > .stock-market-depth b { color: #91dfe2; font-size: .62rem; font-weight: 700; }
+.stock-picker > button > .stock-market-depth small { margin-top: 4px; color: #55767d; font-size: .58rem; }
 .stock-picker > button > i { width: 19px; height: 19px; display: grid; place-items: center; border: 1px solid rgba(116, 202, 212, .16); border-radius: 50%; color: #032027; font-style: normal; }
 .stock-picker > button.selected > i { border-color: #72e7eb; background: #72e7eb; }
 .stock-loading,

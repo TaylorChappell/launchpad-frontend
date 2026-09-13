@@ -9,6 +9,7 @@ export type RuntimeConfig = {
   transactionsEnabled: boolean;
   transactionsDisabledReason?: string | null;
   whirlpools: { programId: string; config: string; tickSpacing: number; pair: string; liquidityLock: "permanent" };
+  stockEligibility?: { minOrcaTvlUsd: number; minOrcaVolume24hUsd: number; requiresLivePool: boolean };
   fees: { transferFeeBps: number; platformBps: number; stockRewardsBps: number; universal: boolean };
   creatorLocks: { minimumSeconds: number; maximumSeconds: number; maximumFeeShareBps: number };
   sniperDefense: { supported: false; reason: string };
@@ -31,6 +32,10 @@ export type StockOption = {
   orcaSupported: true;
   tokenBadge: string;
   whirlpoolsConfig: string;
+  referencePoolAddress: string | null;
+  referencePairSymbol: string | null;
+  orcaTvlUsd: number;
+  orcaVolume24hUsd: number;
   verifiedAt: number;
 };
 
@@ -47,10 +52,12 @@ export type Launch = {
   description: string;
   imageUrl: string;
   metadataUri: string;
-  stock: { symbol: string; name: string; mint: string; logoUrl: string | null; poolAddress: string | null };
+  stock: { symbol: string; name: string; mint: string; logoUrl: string | null; poolAddress: string | null; referenceTvlUsd?: number; referenceVolume24hUsd?: number };
   stockSymbol: string;
   stockName: string;
   stockMint: string;
+  pairVerified?: boolean;
+  pairVerifiedAt?: number | null;
   status: LaunchStatus;
   progress: number;
   marketCapUsd: number;

@@ -39,6 +39,7 @@ const chainSteps: Array<{ key: ProgressKey; label: string; detail: string }> = [
 ];
 const initialProgress = (): Record<ProgressKey, ProgressState> => ({ approval: "waiting", mint: "waiting", pool: "waiting", liquidity: "waiting", lock: "waiting", devBuy: "waiting" });
 const normaliseUrl = (value: string, prefix = "https://") => value.trim() ? (/^https?:\/\//i.test(value.trim()) ? value.trim() : `${prefix}${value.trim()}`) : null;
+const compactNumber = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
 const normaliseTelegram = (value: string) => {
   const clean = value.trim().replace(/^@/, "");
   if (!clean) return null;
@@ -356,7 +357,7 @@ export function Create() {
           <div className="stock-search"><Search size={17}/><input value={stockQuery} placeholder="Search stocks or tickers" onChange={(event) => { setStockQuery(event.target.value); setVisibleStocks(10); }}/><span>{stocks.length} stocks</span></div>
           {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Loading stocks</span></div> : stockError ? <div className="stock-error"><Info/><span>{stockError}</span><button onClick={() => void loadStocks()}><RefreshCw size={14}/> Retry</button></div> : <>
             <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { setStock(item); setAcknowledged(false); }}>
-              <StockLogo stock={item}/><div><b>{item.symbol}</b><small>{item.name}</small></div><span>{item.marketOpen === false ? "Market closed" : "Available"}</span><i>{stock?.mint === item.mint && <Check size={14}/>}</i>
+              <StockLogo stock={item}/><div><b>{item.symbol}</b><small>{item.name}</small></div><span className="stock-market-depth"><b>${compactNumber.format(item.orcaTvlUsd)} TVL</b><small>${compactNumber.format(item.orcaVolume24hUsd)} 24h</small></span><i>{stock?.mint === item.mint && <Check size={14}/>}</i>
             </button>)}</div>
             {filteredStocks.length === 0 && <div className="no-stock-results">No stocks match “{stockQuery}”.</div>}
             {filteredStocks.length < stockResultsCount && <button className="stock-more" onClick={() => setVisibleStocks((value) => value + 20)}>Show more</button>}
