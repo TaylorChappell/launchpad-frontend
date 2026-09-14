@@ -1,90 +1,408 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BadgeDollarSign, Clock3, ExternalLink, LockKeyhole } from "lucide-react";
+import type { ReactNode } from "react";
+import {
+  ArrowRight,
+  BadgeDollarSign,
+  CheckCircle2,
+  Clock3,
+  Coins,
+  ExternalLink,
+  Gift,
+  Landmark,
+  Layers3,
+  LockKeyhole,
+  RefreshCw,
+  ShieldCheck,
+  Waves,
+} from "lucide-react";
 import { Link } from "react-router-dom";
-import { AquaGlyph, type AquaGlyphKind } from "../components/AquaIcons";
-import { HolderRewardFlow } from "../components/HolderRewardFlow";
-import { OrcaMark } from "../components/OrcaMark";
 import { PageBubbles } from "../components/PageBubbles";
-import { api } from "../api";
 import { useRuntime } from "../context";
-import type { Launch } from "../types";
 
-const compactMoney = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
+const navigation = [
+  {
+    label: "The protocol",
+    items: [
+      ["what-is-aqua", "What AQUA is"],
+      ["onchain", "What is on chain"],
+    ],
+  },
+  {
+    label: "Launching",
+    items: [
+      ["launch-flow", "What a launch creates"],
+      ["liquidity", "How liquidity works"],
+      ["launch-cost", "What launching costs"],
+      ["pair-choice", "Pairs and first buys"],
+    ],
+  },
+  {
+    label: "Fees and rewards",
+    items: [
+      ["trading-fees", "The 2% trading fee"],
+      ["settlement", "How fees are settled"],
+      ["holder-rewards", "How rewards are calculated"],
+      ["claiming", "Claiming rewards"],
+    ],
+  },
+  {
+    label: "Creators",
+    items: [
+      ["creator-locks", "Creator locks"],
+      ["creator-share", "Fee-share formula"],
+    ],
+  },
+  {
+    label: "Reference",
+    items: [
+      ["numbers", "The fixed numbers"],
+      ["accounts", "Programs and accounts"],
+      ["risks", "Limits and risks"],
+    ],
+  },
+] as const;
+
+const formatBps = (bps: number) => (bps / 100).toLocaleString("en-GB", { maximumFractionDigits: 2 }) + "%";
+const durationLabel = (seconds: number) => {
+  const hours = Math.round(seconds / 3_600);
+  if (hours < 48) return hours + " hours";
+  return Math.round(hours / 24) + " days";
+};
+const solscanAccount = (address: string, useTestnet: boolean) =>
+  "https://solscan.io/account/" + address + (useTestnet ? "?cluster=devnet" : "");
 
 export function HowItWorks() {
   const { config } = useRuntime();
-  const [launches, setLaunches] = useState<Launch[]>([]);
+  const launch = config.launchEconomics;
+  const reward = config.rewardDistribution;
+  const maximumAllocation = config.fees.platformAllocationAtMaximumCreatorScore ?? {
+    treasuryBps: 5_000,
+    buybackBps: 2_500,
+    creatorBps: 2_500,
+  };
+  const totalSupply = Number(launch?.tokenSupply ?? 1_000_000_000).toLocaleString("en-GB");
+  const tokenDecimals = launch?.tokenDecimals ?? 6;
+  const liquiditySupplyBps = launch?.liquiditySupplyBps ?? 10_000;
+  const startMarketCap = launch?.startMarketCapUsd ?? 2_000;
+  const endMarketCap = launch?.endMarketCapUsd ?? 2_000_000;
+  const targetSupplyBps = config.creatorLocks.targetSupplyBps ?? 500;
+  const maximumCreatorShareBps = config.creatorLocks.maximumFeeShareBps;
+  const minimumLock = durationLabel(config.creatorLocks.minimumSeconds);
+  const maximumLock = durationLabel(config.creatorLocks.maximumSeconds);
+  const epochLength = durationLabel(reward?.epochSeconds ?? 86_400);
+  const minimumReward = ((reward?.minimumRewardUsdCents ?? 2_000) / 100).toLocaleString("en-GB", {
+    style: "currency",
+    currency: "USD",
+  });
+  const launchFeeEnabled = Boolean(config.launchCost && config.launchCost.platformFeeLamports !== "0");
 
-  useEffect(() => {
-    api.launches().then((data) => setLaunches(data.launches.filter((launch) => launch.status === "live"))).catch(() => setLaunches([]));
-  }, []);
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
-  const platform = useMemo(() => {
-    const revenue = launches.reduce((sum, item) => sum + Number(item.volume24hUsd || 0), 0) * config.fees.platformBps / 10_000;
-    const maximumScoreBuybackBps = config.fees.platformAllocationAtMaximumCreatorScore?.buybackBps ?? 2_500;
-    return {
-      revenue,
-      buybacks: revenue * maximumScoreBuybackBps / 10_000,
-      stocks: launches.reduce((sum, item) => sum + Number(item.rewardDistributedUsd || 0), 0),
-    };
-  }, [launches, config.fees.platformBps, config.fees.platformAllocationAtMaximumCreatorScore]);
+  return <main className="how-story-page aqua-docs-page">
+    <PageBubbles count={24}/>
 
-  return <main className="how-story-page">
-    <PageBubbles count={20}/>
-    <section className="product-hero how-story-hero">
-      <div className="hero-copy">
-        <h1>Built on Orca.<br/><span>Designed for holders.</span></h1>
-        <p>AQUA launches coins directly into Orca Whirlpools. Creators choose a SOL or xStock trading pair, plus one permanent tokenized-stock reward asset. AQUA turns the reward share into claims weighted by balance and time held.</p>
-        <div className="hero-actions">
-          <Link className="primary" to="/">Explore markets <ArrowRight size={17}/></Link>
-          <a className="secondary-button orca-visit-button" href="https://www.orca.so/" target="_blank" rel="noreferrer"><OrcaMark/>Visit Orca <ExternalLink size={14}/></a>
-        </div>
-        <div className="platform-metrics">
-          <PlatformMetric label="24h platform revenue" value={compactMoney.format(platform.revenue)} note="From live market volume"/>
-          <PlatformMetric label="AQUA buyback allocation" value={compactMoney.format(platform.buybacks)} note="At maximum creator score"/>
-          <PlatformMetric label="Stocks airdropped" value={compactMoney.format(platform.stocks)} note="Across live AQUA markets"/>
-        </div>
+    <section className="aqua-docs-hero">
+      <div className="aqua-docs-kicker"><Waves size={16}/> AQUA PROTOCOL GUIDE</div>
+      <h1>How AQUA<br/><span>actually works.</span></h1>
+      <p>A detailed guide to launching, liquidity, trading fees, holder rewards and creator incentives. AQUA creates markets directly on Orca without a bonding curve or a separate token reserve.</p>
+      <div className="aqua-docs-actions">
+        <Link className="primary" to="/create">Launch a coin <ArrowRight size={17}/></Link>
+        <button className="secondary-button" onClick={() => scrollTo("launch-flow")}>Read the launch flow</button>
       </div>
-      <HolderRewardFlow/>
-    </section>
-
-    <section className="aqua-flywheel how-flywheel unframed-flywheel">
-      <div className="flywheel-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
-      <header><h2>Every launch can strengthen AQUA.</h2><p>Half of platform revenue is committed to buying the main AQUA token from the market. Holder stock rewards remain in a separate route.</p></header>
-      <div className="flywheel-track">
-        <FlywheelStep icon="markets" title="Markets trade" text="Activity grows across AQUA coins."/>
-        <ArrowRight className="flywheel-arrow"/>
-        <FlywheelStep icon="earn" title="AQUA earns" text="The platform fee creates revenue."/>
-        <ArrowRight className="flywheel-arrow"/>
-        <FlywheelStep icon="aquaBuy" title="Buyback allocation" text="The fixed buyback wallet receives its onchain share."/>
-        <ArrowRight className="flywheel-arrow"/>
-        <FlywheelStep icon="growth" title="Value returns" text="Growth flows back into the ecosystem."/>
+      <div className="aqua-docs-summary" aria-label="AQUA protocol summary">
+        <SummaryStat value={totalSupply} label="Fixed token supply"/>
+        <SummaryStat value={formatBps(liquiditySupplyBps)} label="Committed to liquidity"/>
+        <SummaryStat value={formatBps(config.fees.transferFeeBps)} label="Token transfer fee"/>
+        <SummaryStat value="None" label="AQUA supply reserve"/>
       </div>
     </section>
 
-    <section className="creator-locking how-creator-locking">
-      <div className="creator-locking-copy">
-        <h2>Lock supply.<br/><span>Earn a larger fee share.</span></h2>
-        <p>Creators can lock tokens they buy after launch in AQUA’s verified vault. Five percent of supply locked for one year reaches the 25% cap; smaller or shorter locks earn proportionally less while active.</p>
-      </div>
-      <div className="creator-locking-model creator-locking-current" aria-label="More supply locked for longer can earn a larger creator fee share">
-        <div className="locking-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/></div>
-        <div className="locking-input-row">
-          <div className="locking-factor-bubble"><span><LockKeyhole/></span><small>Supply locked</small><strong>Lock more</strong><em>Verified onchain</em></div>
-          <div className="locking-flow" aria-hidden="true"><i/><i/><i/></div>
-          <div className="locking-factor-bubble"><span><Clock3/></span><small>Lock duration</small><strong>Commit longer</strong><em>Time verified</em></div>
+    <div className="aqua-docs-shell">
+      <aside className="aqua-docs-sidebar">
+        <div className="aqua-docs-sidebar-inner">
+          <span className="aqua-docs-sidebar-title">How it works</span>
+          <nav aria-label="How AQUA works sections">
+            {navigation.map((group) => <div className="aqua-docs-nav-group" key={group.label}>
+              <small>{group.label}</small>
+              {group.items.map(([id, label]) => <button key={id} onClick={() => scrollTo(id)}>{label}</button>)}
+            </div>)}
+          </nav>
+          <div className="aqua-docs-network">
+            <span className={config.transactionsEnabled ? "online" : "paused"}/>
+            <div><b>{config.network}</b><small>{config.transactionsEnabled ? "Transactions enabled" : "Transactions paused"}</small></div>
+          </div>
         </div>
-        <div className="locking-merge" aria-hidden="true"><i/><i/><i/></div>
-        <div className="locking-fee-pool"><span><BadgeDollarSign/></span><div><small>Creator fee share</small><strong>Up to 25% of the platform stream</strong><em>Earned only while the lock stays active</em></div><div className="locking-pool-water" aria-hidden="true"><i/><i/><i/></div></div>
-      </div>
-    </section>
+      </aside>
+
+      <article className="aqua-docs-content">
+        <DocSection id="what-is-aqua" eyebrow="THE PROTOCOL" title="What AQUA is">
+          <p className="lead">AQUA is a holder-first token launchpad built around direct Orca Whirlpool markets. A creator launches a fixed-supply Token-2022 coin, chooses SOL or an approved tokenized stock as its pair, and that same pair asset becomes the holder reward.</p>
+          <p>There is no AQUA bonding curve, virtual reserve or off-chain sale inventory. Trading starts in a real Orca pool. The AQUA program validates the launch settings, records the market and controls fee allocation, while Orca executes swaps and holds the pool vaults.</p>
+          <div className="aqua-docs-principles">
+            <Principle icon={<Waves/>} title="Direct market" text="The coin launches into an Orca Whirlpool instead of moving through a separate AQUA curve."/>
+            <Principle icon={<ShieldCheck/>} title="No reserve wallet" text="AQUA does not retain a percentage of the fixed token supply for later sale."/>
+            <Principle icon={<Gift/>} title="Holder utility" text="Half of the collected transfer-fee stream is reserved for holders of the launched coin."/>
+          </div>
+          <Callout title="What holder-first means">
+            Trading activity funds rewards in the selected pair asset. It does not mean returns are guaranteed. Rewards depend on actual volume, collected fees, conversion conditions and eligible holder weight.
+          </Callout>
+        </DocSection>
+
+        <DocSection id="onchain" eyebrow="THE PROTOCOL" title="What is on chain">
+          <p>The launch mint, metadata reference, Orca pool, pool vaults, permanent position lock, AQUA market account, fee vault, creator lock and published reward epochs are all represented by Solana accounts or transactions.</p>
+          <p>The backend prepares transactions and runs the settlement keeper, but your wallet signs launch, trade, lock and claim transactions. The backend cannot spend from a connected wallet without a wallet signature.</p>
+          <div className="aqua-docs-checklist">
+            <CheckItem>Token supply and mint authority are verifiable.</CheckItem>
+            <CheckItem>The Whirlpool address and permanent lock are public.</CheckItem>
+            <CheckItem>Fee harvests, allocation withdrawals and reward funding produce transactions.</CheckItem>
+            <CheckItem>Every reward epoch publishes its Merkle root and funded amount on chain.</CheckItem>
+          </div>
+        </DocSection>
+
+        <DocSection id="launch-flow" eyebrow="LAUNCHING" title="What a launch creates">
+          <p>A launch is completed in two wallet approvals. The first transaction creates the mint, installs the fixed Token-2022 transfer fee, writes metadata, creates the AQUA market accounts and mints the fixed supply. The second approval creates and funds the Orca position, then permanently locks it.</p>
+          <div className="aqua-docs-timeline">
+            <TimelineStep number="01" title="Create the asset" text={"A " + totalSupply + " token supply with " + tokenDecimals + " decimals is created. The mint authority is removed after minting."}/>
+            <TimelineStep number="02" title="Register the market" text="The AQUA program validates the pair, fee settings and Orca configuration, then creates the market and fee vault PDAs."/>
+            <TimelineStep number="03" title="Fund Orca" text="The full launch allocation is transferred into the one-sided concentrated-liquidity position."/>
+            <TimelineStep number="04" title="Lock the position" text="The Orca position is permanently locked. AQUA marks the coin live only after the lock is verified."/>
+          </div>
+          <Callout title="Why the creator wallet may briefly show the supply">
+            The launch uses multiple signed transactions. The newly minted inventory can temporarily sit in the creator’s token account between approvals before it is moved into Orca. That temporary hand-off is not a creator allocation. If the flow is interrupted, AQUA keeps the launch pending instead of presenting it as live.
+          </Callout>
+        </DocSection>
+
+        <DocSection id="liquidity" eyebrow="LAUNCHING" title="How the 100% liquidity model works">
+          <p><strong>{formatBps(liquiditySupplyBps)} liquidity</strong> means the full fixed launch supply is committed to the permanent Orca position. It does not mean a block explorer will always show the pool owning 100% after trading begins.</p>
+          <div className="aqua-docs-flow">
+            <FlowCard icon={<Coins/>} label="At launch" title="The position starts one-sided" text={"Near the $" + startMarketCap.toLocaleString("en-GB") + " lower boundary, the position begins in the launch token side of the pair."}/>
+            <ArrowRight className="aqua-docs-flow-arrow"/>
+            <FlowCard icon={<RefreshCw/>} label="When buyers trade" title="Tokens leave the pool" text="Buyers receive launch tokens and the pool receives SOL or the selected xStock. The pool’s token percentage falls naturally."/>
+            <ArrowRight className="aqua-docs-flow-arrow"/>
+            <FlowCard icon={<Waves/>} label="When sellers trade" title="Tokens return" text="Sellers send launch tokens back into the pool and receive the pair asset. The balance moves in the opposite direction."/>
+          </div>
+          <p>The permanent position covers a configured range from approximately <strong>{"$" + startMarketCap.toLocaleString("en-GB")}</strong> to <strong>{"$" + endMarketCap.toLocaleString("en-GB")}</strong> market cap. If price moves outside that concentrated range, the position becomes one-sided and may stop providing useful two-way liquidity until price returns.</p>
+          <div className="aqua-docs-definition">
+            <div><b>No AQUA escrow</b><span>There is no separate wallet holding an unsold launch allocation.</span></div>
+            <div><b>No removable LP</b><span>The creator cannot withdraw the permanently locked Orca position.</span></div>
+            <div><b>Normal AMM movement</b><span>The vault balances change whenever people buy and sell.</span></div>
+          </div>
+        </DocSection>
+
+        <DocSection id="launch-cost" eyebrow="LAUNCHING" title="What launching costs">
+          {launchFeeEnabled ? <>
+            <p>AQUA charges a fixed <strong>{config.launchCost!.platformFeeSol.toFixed(2)} SOL launch fee</strong>. It funds keeper operations that harvest fees, route allocations, purchase reward assets and publish claimable reward rounds.</p>
+            <div className="aqua-docs-cost-card">
+              <CostRow label="AQUA launch fee" value={config.launchCost!.platformFeeSol.toFixed(2) + " SOL"} note="Fixed protocol charge"/>
+              <CostRow label="Estimated network and account costs" value={config.launchCost!.estimatedNetworkAndRentSol.minimum.toFixed(2) + "–" + config.launchCost!.estimatedNetworkAndRentSol.maximum.toFixed(2) + " SOL"} note="Solana and Orca accounts"/>
+              <CostRow label="Estimated total before first buy" value={config.launchCost!.estimatedTotalSol.minimum.toFixed(2) + "–" + config.launchCost!.estimatedTotalSol.maximum.toFixed(2) + " SOL"} note="The wallet simulation is authoritative"/>
+            </div>
+          </> : <>
+            <p>The program launch fee is currently disabled for the deployed program version. The creator still pays Solana transaction fees and the rent required to create the mint, token accounts, AQUA accounts, Whirlpool and position accounts.</p>
+            <Callout title="The wallet is the final quote">
+              Account rent and network conditions vary. AQUA simulates each transaction before asking for approval, and the connected wallet shows the authoritative SOL change.
+            </Callout>
+          </>}
+          <p>An optional first buy is separate from the launch cost. Whatever amount the creator chooses for that buy is added on top. Some account rent can be reclaimed if an account is later closed, but permanently locked liquidity infrastructure is not withdrawable by the creator.</p>
+        </DocSection>
+
+        <DocSection id="pair-choice" eyebrow="LAUNCHING" title="Pairs, rewards and first buys">
+          <p>The creator chooses either SOL or a supported xStock. That selection has two permanent jobs: it is the asset the coin trades against in Orca, and it is the asset holder rewards are funded in.</p>
+          <table className="aqua-docs-table">
+            <thead><tr><th>Choice</th><th>What the market trades against</th><th>What holders earn</th></tr></thead>
+            <tbody>
+              <tr><td>SOL</td><td>The launch token trades against wrapped SOL inside Orca.</td><td>The SOL pair asset.</td></tr>
+              <tr><td>Supported xStock</td><td>The launch token trades directly against that approved tokenized stock.</td><td>The same selected xStock.</td></tr>
+            </tbody>
+          </table>
+          <p>xStocks must have a live, supported Orca market and the required Orca TokenBadge. The eligibility checks reduce broken launches, but they do not remove market, issuer, liquidity or transfer restrictions.</p>
+          <Callout title="Optional creator first buy">
+            A first buy is a normal market purchase after the pool exists. It is not a free allocation. The creator provides SOL or USDC, receives the quoted launch tokens and accepts the same price impact and transfer-fee rules as other buyers.
+          </Callout>
+        </DocSection>
+
+        <DocSection id="trading-fees" eyebrow="FEES AND REWARDS" title={"The " + formatBps(config.fees.transferFeeBps) + " token transfer fee"}>
+          <p>Every transfer of the launched Token-2022 asset applies the configured fee. This includes Orca swaps and can also include direct wallet-to-wallet transfers. The fee is taken in the launch token, not in SOL or the paired xStock.</p>
+          <p>The total stream is divided evenly between holder rewards and platform revenue:</p>
+          <table className="aqua-docs-table fee-table">
+            <thead><tr><th>Stream</th><th>Of trade value</th><th>Of collected fees</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><span className="fee-dot reward"/>Holder rewards</td><td>{formatBps(config.fees.stockRewardsBps)}</td><td>50%</td><td>Converted into the selected pair asset for eligible holders.</td></tr>
+              <tr><td><span className="fee-dot platform"/>Platform</td><td>{formatBps(config.fees.platformBps)}</td><td>50%</td><td>Funds treasury, buybacks and any earned creator share.</td></tr>
+            </tbody>
+          </table>
+          <h3>Inside the platform half</h3>
+          <p>The creator can earn between 0% and {formatBps(maximumCreatorShareBps)} of the platform stream through an active token lock. Whatever remains is split two parts treasury to one part buyback. At the maximum creator score, the platform stream is divided like this:</p>
+          <div className="aqua-docs-allocation">
+            <Allocation value={formatBps(maximumAllocation.treasuryBps)} label="Treasury" className="treasury"/>
+            <Allocation value={formatBps(maximumAllocation.buybackBps)} label="Buyback" className="buyback"/>
+            <Allocation value={formatBps(maximumAllocation.creatorBps)} label="Creator" className="creator-share"/>
+          </div>
+          <p className="fine-print">These percentages describe the 1% platform stream, not the full trade. At maximum score that equals 0.50% of trade value to treasury, 0.25% to buyback and 0.25% to the creator.</p>
+        </DocSection>
+
+        <DocSection id="settlement" eyebrow="FEES AND REWARDS" title="How fees are harvested and settled">
+          <p>Token-2022 withholds transfer fees inside token accounts as transfers happen. The AQUA keeper periodically finds withheld balances, moves them into the market’s program-controlled fee vault, records the allocation, and sends each allocation only to its configured destination.</p>
+          <div className="aqua-docs-timeline compact">
+            <TimelineStep number="01" title="Fees accrue" text="Trades and transfers withhold launch tokens at the Token-2022 level."/>
+            <TimelineStep number="02" title="Keeper harvests" text="The authorized reward-buyer signer collects eligible withheld balances in controlled batches."/>
+            <TimelineStep number="03" title="Program allocates" text="The on-chain market records reward, treasury, buyback and creator amounts."/>
+            <TimelineStep number="04" title="Destinations receive" text="Withdrawals are constrained to the creator and the wallet addresses stored in AQUA’s config."/>
+          </div>
+          <Callout title="Settlement is not every trade">
+            Fees accrue continuously, but harvesting is a scheduled operation. The normal keeper checks roughly every minute. Failed work is logged and retried on a later cycle; a fee remaining unharvested does not mean it disappeared.
+          </Callout>
+        </DocSection>
+
+        <DocSection id="holder-rewards" eyebrow="FEES AND REWARDS" title="How holder rewards are calculated">
+          <p>Reward rounds use <strong>balance multiplied by time held</strong>. Holding twice as many tokens for the same period creates twice the weight. Holding the same balance for twice as long also creates twice the weight. Buying immediately before a round does not earn the same share as holding throughout it.</p>
+          <div className="aqua-docs-formula">
+            <span>Wallet balance</span><b>×</b><span>Seconds held</span><b>=</b><strong>Reward weight</strong>
+          </div>
+          <p>When at least {minimumReward} of reward value has accumulated and the {epochLength} epoch window has elapsed, the keeper can convert the reward allocation through the launch’s immutable Whirlpool pair. AQUA then builds a Merkle tree from eligible wallet weights, funds an on-chain reward vault and publishes the root.</p>
+          <h3>Who is excluded</h3>
+          <p>The creator wallet, the Whirlpool and position accounts, AQUA PDAs, the fee vault, permanent lock accounts, treasury, reward-buyer and buyback wallets are excluded. Those accounts hold tokens for infrastructure or protocol operations rather than as ordinary holders. Excluding them prevents rewards from being sent back into inactive vaults.</p>
+          <div className="aqua-docs-benefits">
+            <Principle icon={<Clock3/>} title="Time matters" text="The calculation rewards sustained ownership instead of a last-second snapshot."/>
+            <Principle icon={<Layers3/>} title="Proportional" text="Each eligible wallet receives its weight as a fraction of total eligible weight."/>
+            <Principle icon={<ShieldCheck/>} title="Reconciled" text="Purchased reward assets must match the funded epoch before claims become available."/>
+          </div>
+        </DocSection>
+
+        <DocSection id="claiming" eyebrow="FEES AND REWARDS" title="Claiming rewards">
+          <p>Connect the eligible wallet on the Rewards page. AQUA returns the wallet’s amount and Merkle proof for each claimable epoch. Your wallet submits that proof to the AQUA program, which verifies it and transfers the reward asset from the epoch vault.</p>
+          <div className="aqua-docs-checklist">
+            <CheckItem>One claim record is created per wallet, per epoch.</CheckItem>
+            <CheckItem>The program rejects an amount or proof that does not match the published root.</CheckItem>
+            <CheckItem>Unclaimed funds stay in the program-controlled epoch vault.</CheckItem>
+            <CheckItem>The claimant pays the claim transaction, claim-account rent and any missing reward token-account rent.</CheckItem>
+          </div>
+          <Link className="aqua-docs-inline-link" to="/rewards">Open holder rewards <ArrowRight size={15}/></Link>
+        </DocSection>
+
+        <DocSection id="creator-locks" eyebrow="CREATORS" title="Creator locks">
+          <p>Creators do not receive a free reserved allocation. They can buy their own coin through the live market, then voluntarily lock purchased tokens in an AQUA creator-lock PDA. A verified active lock can earn a share of the platform fee stream.</p>
+          <p>The minimum lock is {minimumLock} and the maximum scoring duration is {maximumLock}. Tokens cannot be released before the recorded unlock time. Once a lock expires, its fee-share benefit stops and the creator can submit a release transaction.</p>
+          <Callout title="A creator lock is separate from liquidity">
+            Permanently locked Orca liquidity belongs to the market position. A creator lock contains tokens the creator bought and voluntarily committed. Locking creator tokens does not remove or replace the pool lock.
+          </Callout>
+        </DocSection>
+
+        <DocSection id="creator-share" eyebrow="CREATORS" title="How the creator fee share is scored">
+          <p>The score multiplies two factors: the percentage of total supply locked and the selected duration. Locking {formatBps(targetSupplyBps)} of supply for {maximumLock} reaches the {formatBps(maximumCreatorShareBps)} cap. Smaller or shorter locks scale down proportionally.</p>
+          <div className="aqua-docs-score-grid">
+            <ScoreCard supply={formatBps(targetSupplyBps)} duration={maximumLock} result={formatBps(maximumCreatorShareBps)}/>
+            <ScoreCard supply={formatBps(targetSupplyBps / 2)} duration={maximumLock} result={formatBps(maximumCreatorShareBps / 2)}/>
+            <ScoreCard supply={formatBps(targetSupplyBps)} duration="About 6 months" result={formatBps(maximumCreatorShareBps / 2)}/>
+            <ScoreCard supply={formatBps(targetSupplyBps / 2)} duration="About 6 months" result={formatBps(maximumCreatorShareBps / 4)}/>
+          </div>
+          <div className="aqua-docs-formula creator-formula">
+            <span>Supply score</span><b>×</b><span>Duration score</span><b>×</b><strong>{formatBps(maximumCreatorShareBps)} cap</strong>
+          </div>
+          <p className="fine-print">The fee share applies only while the lock is active. Values shown are simplified examples; the program calculates integer basis points from the exact token amount and duration.</p>
+        </DocSection>
+
+        <DocSection id="numbers" eyebrow="REFERENCE" title="The fixed numbers">
+          <table className="aqua-docs-table reference-table">
+            <tbody>
+              <ReferenceRow label="Token supply" value={totalSupply}/>
+              <ReferenceRow label="Token decimals" value={String(tokenDecimals)}/>
+              <ReferenceRow label="Supply committed to liquidity" value={formatBps(liquiditySupplyBps)}/>
+              <ReferenceRow label="Separate AQUA supply reserve" value="None"/>
+              <ReferenceRow label="Starting market cap target" value={"$" + startMarketCap.toLocaleString("en-GB")}/>
+              <ReferenceRow label="Position range end target" value={"$" + endMarketCap.toLocaleString("en-GB")}/>
+              <ReferenceRow label="Token transfer fee" value={formatBps(config.fees.transferFeeBps)}/>
+              <ReferenceRow label="Holder reward stream" value={formatBps(config.fees.stockRewardsBps) + " of transfer value"}/>
+              <ReferenceRow label="Platform stream" value={formatBps(config.fees.platformBps) + " of transfer value"}/>
+              <ReferenceRow label="Maximum creator share" value={formatBps(maximumCreatorShareBps) + " of platform stream"}/>
+              <ReferenceRow label="Permanent liquidity lock" value="Required"/>
+              <ReferenceRow label="Reward epoch target" value={epochLength}/>
+              <ReferenceRow label="Minimum reward conversion value" value={minimumReward}/>
+              <ReferenceRow label="Launch fee" value={launchFeeEnabled ? config.launchCost!.platformFeeSol.toFixed(2) + " SOL" : "Not enabled on current program"}/>
+            </tbody>
+          </table>
+        </DocSection>
+
+        <DocSection id="accounts" eyebrow="REFERENCE" title="Programs and accounts">
+          <p>These are the network-level addresses returned by the live AQUA backend. Individual markets also have their own mint, market PDA, fee vault, Whirlpool, position and lock addresses on each coin page.</p>
+          <div className="aqua-docs-accounts">
+            <AccountRow label="AQUA program" address={config.aquaProgramId} useTestnet={config.useTestnet}/>
+            <AccountRow label="Orca Whirlpools program" address={config.whirlpools.programId} useTestnet={config.useTestnet}/>
+            <AccountRow label="Orca configuration" address={config.whirlpools.config} useTestnet={config.useTestnet}/>
+          </div>
+        </DocSection>
+
+        <DocSection id="risks" eyebrow="REFERENCE" title="Limits and risks">
+          <div className="aqua-docs-risk-grid">
+            <Risk title="No guaranteed return">Fees and rewards require trading activity. A quiet market may generate little or nothing.</Risk>
+            <Risk title="Automation can pause">Harvesting and reward publication depend on the keeper, RPC access and successful on-chain transactions. Failed cycles can be retried.</Risk>
+            <Risk title="Market risk remains">Permanent liquidity does not guarantee price, volume, solvency, value or an available buyer.</Risk>
+            <Risk title="Range liquidity has boundaries">The concentrated position can become one-sided outside its configured price range.</Risk>
+            <Risk title="Transfer fees are broad">The Token-2022 fee can apply to ordinary token transfers, not only trades shown in AQUA.</Risk>
+            <Risk title="No five-second tax">AQUA does not advertise a short-lived anti-sniper tax because Token-2022 fee changes do not activate instantly and cannot safely enforce that promise.</Risk>
+          </div>
+          <p className="aqua-docs-disclaimer">AQUA provides launch and reward infrastructure. Tokenized stocks, crypto assets and newly launched coins can lose value and may be subject to jurisdictional or issuer restrictions. Nothing on this page is a promise of profit.</p>
+        </DocSection>
+      </article>
+    </div>
   </main>;
 }
 
-function PlatformMetric({ label, value, note }: { label: string; value: string; note: string }) {
-  return <div className="platform-metric"><small>{label}</small><strong>{value}</strong><em>{note}</em></div>;
+function SummaryStat({ value, label }: { value: string; label: string }) {
+  return <div><strong>{value}</strong><span>{label}</span></div>;
 }
 
-function FlywheelStep({ icon, title, text }: { icon: AquaGlyphKind; title: string; text: string }) {
-  return <article className="flywheel-step"><span><AquaGlyph kind={icon}/></span><b>{title}</b><p>{text}</p></article>;
+function DocSection({ id, eyebrow, title, children }: { id: string; eyebrow: string; title: string; children: ReactNode }) {
+  return <section className="aqua-docs-section" id={id}>
+    <div className="aqua-docs-section-heading"><small>{eyebrow}</small><h2>{title}</h2></div>
+    {children}
+  </section>;
+}
+
+function Principle({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
+  return <div className="aqua-docs-principle"><span>{icon}</span><div><h3>{title}</h3><p>{text}</p></div></div>;
+}
+
+function Callout({ title, children }: { title: string; children: ReactNode }) {
+  return <aside className="aqua-docs-callout"><ShieldCheck/><div><b>{title}</b><p>{children}</p></div></aside>;
+}
+
+function CheckItem({ children }: { children: ReactNode }) {
+  return <div><CheckCircle2/><span>{children}</span></div>;
+}
+
+function TimelineStep({ number, title, text }: { number: string; title: string; text: string }) {
+  return <div className="aqua-docs-timeline-step"><span>{number}</span><div><h3>{title}</h3><p>{text}</p></div></div>;
+}
+
+function FlowCard({ icon, label, title, text }: { icon: ReactNode; label: string; title: string; text: string }) {
+  return <div className="aqua-docs-flow-card"><span>{icon}</span><small>{label}</small><h3>{title}</h3><p>{text}</p></div>;
+}
+
+function CostRow({ label, value, note }: { label: string; value: string; note: string }) {
+  return <div><span><b>{label}</b><small>{note}</small></span><strong>{value}</strong></div>;
+}
+
+function Allocation({ value, label, className }: { value: string; label: string; className: string }) {
+  return <div className={className}><strong>{value}</strong><span>{label}</span></div>;
+}
+
+function ScoreCard({ supply, duration, result }: { supply: string; duration: string; result: string }) {
+  return <div><span><LockKeyhole/><small>Supply locked</small><b>{supply}</b></span><span><Clock3/><small>Duration</small><b>{duration}</b></span><strong>{result}<small>platform share</small></strong></div>;
+}
+
+function ReferenceRow({ label, value }: { label: string; value: string }) {
+  return <tr><th>{label}</th><td>{value}</td></tr>;
+}
+
+function AccountRow({ label, address, useTestnet }: { label: string; address: string | null; useTestnet: boolean }) {
+  if (!address) return <div><span><Landmark/><b>{label}</b></span><em>Not configured</em></div>;
+  return <a href={solscanAccount(address, useTestnet)} target="_blank" rel="noreferrer">
+    <span><Landmark/><b>{label}</b></span><code>{address.slice(0, 8)}…{address.slice(-8)}</code><ExternalLink/>
+  </a>;
+}
+
+function Risk({ title, children }: { title: string; children: ReactNode }) {
+  return <div><BadgeDollarSign/><h3>{title}</h3><p>{children}</p></div>;
 }
