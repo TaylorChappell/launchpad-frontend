@@ -91,19 +91,19 @@ export function Token() {
   }
 
   async function creatorAction(action: "lock" | "release" | "claim") {
-    if (!wallet.address || wallet.address !== launch.creatorWallet) return;
+    if (!wallet.address || wallet.address !== activeLaunch.creatorWallet) return;
     setCreatorBusy(action);
     try {
       const envelope = action === "lock"
         ? await api.creatorLockTransaction(
-            launch.id,
+            activeLaunch.id,
             wallet.address,
-            decimalToRaw(lockAmount, launch.tokenDecimals),
+            decimalToRaw(lockAmount, activeLaunch.tokenDecimals),
             Math.round(Number(lockDays) * 86_400),
           )
         : action === "release"
-          ? await api.creatorLockReleaseTransaction(launch.id, wallet.address)
-          : await api.creatorFeesClaimTransaction(launch.id, wallet.address);
+          ? await api.creatorLockReleaseTransaction(activeLaunch.id, wallet.address)
+          : await api.creatorFeesClaimTransaction(activeLaunch.id, wallet.address);
       const signature = await wallet.sendTransaction(envelope);
       toast.success(`${action === "lock" ? "Creator tokens locked" : action === "release" ? "Creator tokens released" : "Creator fees claimed"} · ${signature.slice(0, 7)}…${signature.slice(-6)}`);
       await refreshCreatorState();
