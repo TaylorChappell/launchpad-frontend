@@ -338,8 +338,16 @@ export function Create() {
   return <main className="page launch-wizard-page launch-wizard-only">
     <PageBubbles count={22}/>
     {recoverableLaunch && <section className="launch-resume-banner"><span className="resume-coin-bubble"><TokenMark launch={recoverableLaunch}/></span><div><b>Continue ${recoverableLaunch.symbol}</b><small>A previous launch has a confirmed on-chain step waiting to continue.</small></div><button onClick={() => void resumeExistingLaunch()}><span className="resume-button-current" aria-hidden="true"/><span>Resume launch</span><ArrowRight/></button></section>}
-    <section className="wizard-shell">
+    <section className={`wizard-shell ${launching ? "is-launching" : ""}`}>
       <div className="wizard-caustics" aria-hidden="true"/>
+      {launching && <div className="wizard-launching-screen" role="status" aria-live="polite" aria-label={`Launching ${form.symbol}`}>
+        <div className="launching-water" aria-hidden="true"><i/><i/><i/><i/><i/><i/></div>
+        <section className="launch-simple-status">
+          <span className="launching-orb"><Loader2 className="spin"/></span>
+          <h2>Launching</h2>
+          <span className="sr-only">{activeProgress}</span>
+        </section>
+      </div>}
       <aside className="wizard-rail" aria-label="Launch steps">
         <div className="wizard-rail-head"><span>Create coin</span><b>{step + 1} of {wizardSteps.length}</b></div>
         <div className="wizard-rail-track"><i style={{ height: `${(step / (wizardSteps.length - 1)) * 100}%` }}/></div>
@@ -397,14 +405,6 @@ export function Create() {
       </div>
     </section>
 
-    {launching && <div className="launch-execution-overlay launch-simple-overlay" role="status" aria-live="polite" aria-label={`Launching ${form.symbol}`}>
-      <div className="launching-water" aria-hidden="true"><i/><i/><i/><i/><i/><i/></div>
-      <section className="launch-simple-status">
-        <span className="launching-orb"><Loader2 className="spin"/></span>
-        <h2>Launching</h2>
-        <span className="sr-only">{activeProgress}</span>
-      </section>
-    </div>}
   </main>;
 }
 
