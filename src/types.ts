@@ -10,6 +10,15 @@ export type RuntimeConfig = {
   transactionsDisabledReason?: string | null;
   whirlpools: { programId: string; config: string; tickSpacing: number; pair: string; supportedPairs?: Array<"SOL" | "STOCK">; liquidityLock: "permanent" };
   stockEligibility?: { minOrcaTvlUsd: number; minOrcaVolume24hUsd: number; requiresLivePool: boolean };
+  launchEconomics?: {
+    tokenSupply: string;
+    tokenDecimals: number;
+    liquiditySupplyBps: number;
+    reserveSupplyBps: number;
+    reserveCustody: string | null;
+    startMarketCapUsd: number;
+    endMarketCapUsd: number;
+  };
   launchCost?: {
     platformFeeLamports: string;
     platformFeeSol: number;
