@@ -383,7 +383,7 @@ export function Create() {
         <span className="launch-complete-orb"><Rocket/></span>
         <small>Orca market live</small>
         <h1>${form.symbol} launched</h1>
-        <p>Your pool is active, 45% of supply is committed to locked liquidity, and holder rewards follow the selected pair.</p>
+        <p>Your pool is active, the full supply is committed to locked liquidity, and holder rewards follow the selected pair.</p>
         <div className="launch-complete-actions">
           <a className="complete-primary" href={`#/token/${completedLaunch.id}`}><span className="button-current"/>Go to coin <ArrowRight/></a>
           <button className="complete-secondary" onClick={launchAnother}>Launch another coin</button>
