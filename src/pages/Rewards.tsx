@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { api } from "../api";
 import { PageBubbles } from "../components/PageBubbles";
 import { TokenMark } from "../components/TokenCard";
-import { useWallet } from "../context";
+import { useRuntime, useWallet } from "../context";
 import type { Launch, WalletReward } from "../types";
 
 function formatRaw(raw: string, decimals: number) {
@@ -33,6 +33,7 @@ function countdown(until: number, now: number) {
 
 export function Rewards() {
   const wallet = useWallet();
+  const { config } = useRuntime();
   const [rewards, setRewards] = useState<WalletReward[]>([]);
   const [markets, setMarkets] = useState<Launch[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "offline">("loading");
@@ -86,6 +87,11 @@ export function Rewards() {
       <div><span><Gift/>Holder rewards</span><h1>Your stock rewards.</h1></div>
       {wallet.address && <div className="rewards-wallet"><i/>{wallet.address.slice(0, 5)}…{wallet.address.slice(-5)}</div>}
     </header>
+
+    {config.rewardDistribution && <div className={`reward-automation-status ${config.rewardDistribution.enabled ? "online" : "paused"}`}>
+      <span>{config.rewardDistribution.enabled ? "Automatic reward epochs are online" : "Automatic reward epochs are paused"}</span>
+      <small>{config.rewardDistribution.enabled ? `Allocations settle about every ${Math.round(config.rewardDistribution.epochSeconds / 3_600)} hours once the minimum value is reached.` : "Existing funded epochs remain claimable; new allocations wait until the keeper rollout is enabled."}</small>
+    </div>}
 
     {!wallet.address ? <section className="rewards-connect-card">
       <span><WalletCards/></span>

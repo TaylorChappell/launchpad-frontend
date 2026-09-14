@@ -10,8 +10,23 @@ export type RuntimeConfig = {
   transactionsDisabledReason?: string | null;
   whirlpools: { programId: string; config: string; tickSpacing: number; pair: string; supportedPairs?: Array<"SOL" | "STOCK">; liquidityLock: "permanent" };
   stockEligibility?: { minOrcaTvlUsd: number; minOrcaVolume24hUsd: number; requiresLivePool: boolean };
-  fees: { transferFeeBps: number; platformBps: number; stockRewardsBps: number; universal: boolean };
-  creatorLocks: { minimumSeconds: number; maximumSeconds: number; maximumFeeShareBps: number };
+  launchCost?: {
+    platformFeeLamports: string;
+    platformFeeSol: number;
+    operationalDestination: string;
+    estimatedNetworkAndRentSol: { minimum: number; maximum: number };
+    estimatedTotalSol: { minimum: number; maximum: number };
+    excludesOptionalInitialBuy: boolean;
+  };
+  fees: {
+    transferFeeBps: number;
+    platformBps: number;
+    stockRewardsBps: number;
+    universal: boolean;
+    platformAllocationAtMaximumCreatorScore?: { treasuryBps: number; buybackBps: number; creatorBps: number };
+  };
+  rewardDistribution?: { enabled: boolean; epochSeconds: number; minimumRewardUsdCents: number; swapSlippageBps: number; claimableOnchain: boolean };
+  creatorLocks: { minimumSeconds: number; maximumSeconds: number; maximumFeeShareBps: number; targetSupplyBps?: number; initialLiquidityExcluded?: boolean };
   sniperDefense: { supported: false; reason: string };
 };
 
@@ -200,3 +215,21 @@ export type LaunchConfirmation = Partial<TransactionEnvelope> & {
   indexingStatus?: IndexingStatus;
   lockReady?: boolean;
 };
+
+export type CreatorLock = {
+  launchId: string;
+  lockPda: string;
+  vaultTokenAccount: string;
+  creatorWallet: string;
+  amountRaw: string;
+  totalSupplyRaw: string;
+  lockedAt: number;
+  unlockAt: number;
+  feeShareBps: number;
+  status: "active" | "released";
+  lockSignature: string;
+  releaseSignature: string | null;
+  updatedAt: number;
+};
+
+export type CreatorLockTransactionEnvelope = TransactionEnvelope & { feeShareBps: number };

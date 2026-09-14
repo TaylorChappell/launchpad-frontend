@@ -21,12 +21,13 @@ export function HowItWorks() {
 
   const platform = useMemo(() => {
     const revenue = launches.reduce((sum, item) => sum + Number(item.volume24hUsd || 0), 0) * config.fees.platformBps / 10_000;
+    const maximumScoreBuybackBps = config.fees.platformAllocationAtMaximumCreatorScore?.buybackBps ?? 2_500;
     return {
       revenue,
-      buybacks: revenue * .5,
+      buybacks: revenue * maximumScoreBuybackBps / 10_000,
       stocks: launches.reduce((sum, item) => sum + Number(item.rewardDistributedUsd || 0), 0),
     };
-  }, [launches, config.fees.platformBps]);
+  }, [launches, config.fees.platformBps, config.fees.platformAllocationAtMaximumCreatorScore]);
 
   return <main className="how-story-page">
     <PageBubbles count={20}/>
@@ -40,7 +41,7 @@ export function HowItWorks() {
         </div>
         <div className="platform-metrics">
           <PlatformMetric label="24h platform revenue" value={compactMoney.format(platform.revenue)} note="From live market volume"/>
-          <PlatformMetric label="AQUA buyback allocation" value={compactMoney.format(platform.buybacks)} note="50% of platform revenue"/>
+          <PlatformMetric label="AQUA buyback allocation" value={compactMoney.format(platform.buybacks)} note="At maximum creator score"/>
           <PlatformMetric label="Stocks airdropped" value={compactMoney.format(platform.stocks)} note="Across live AQUA markets"/>
         </div>
       </div>
@@ -55,7 +56,7 @@ export function HowItWorks() {
         <ArrowRight className="flywheel-arrow"/>
         <FlywheelStep icon="earn" title="AQUA earns" text="The platform fee creates revenue."/>
         <ArrowRight className="flywheel-arrow"/>
-        <FlywheelStep icon="aquaBuy" title="50% buys AQUA" text="Half of revenue buys the core token."/>
+        <FlywheelStep icon="aquaBuy" title="Buyback allocation" text="The fixed buyback wallet receives its onchain share."/>
         <ArrowRight className="flywheel-arrow"/>
         <FlywheelStep icon="growth" title="Value returns" text="Growth flows back into the ecosystem."/>
       </div>
@@ -64,7 +65,7 @@ export function HowItWorks() {
     <section className="creator-locking how-creator-locking">
       <div className="creator-locking-copy">
         <h2>Lock supply.<br/><span>Earn a larger fee share.</span></h2>
-        <p>Creators can lock part of their coin in AQUA’s verified vault. More supply and a longer commitment can unlock a larger share of that coin’s platform fee.</p>
+        <p>Creators can lock tokens they buy after launch in AQUA’s verified vault. Five percent of supply locked for one year reaches the 25% cap; smaller or shorter locks earn proportionally less while active.</p>
       </div>
       <div className="creator-locking-model creator-locking-current" aria-label="More supply locked for longer can earn a larger creator fee share">
         <div className="locking-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/></div>
@@ -74,7 +75,7 @@ export function HowItWorks() {
           <div className="locking-factor-bubble"><span><Clock3/></span><small>Lock duration</small><strong>Commit longer</strong><em>Time verified</em></div>
         </div>
         <div className="locking-merge" aria-hidden="true"><i/><i/><i/></div>
-        <div className="locking-fee-pool"><span><BadgeDollarSign/></span><div><small>Creator fee share</small><strong>More commitment, more fees</strong><em>Earned while the lock stays active</em></div><div className="locking-pool-water" aria-hidden="true"><i/><i/><i/></div></div>
+        <div className="locking-fee-pool"><span><BadgeDollarSign/></span><div><small>Creator fee share</small><strong>Up to 25% of the platform stream</strong><em>Earned only while the lock stays active</em></div><div className="locking-pool-water" aria-hidden="true"><i/><i/><i/></div></div>
       </div>
     </section>
   </main>;
