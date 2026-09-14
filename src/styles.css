@@ -3442,6 +3442,112 @@ body::before {
   .execution-complete > span { animation: none !important; }
 }
 
+/* Launch completion and unified reward asset selection */
+.usdc-mark {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(220, 249, 255, .9);
+  border-radius: 50%;
+  color: #f4ffff;
+  background: linear-gradient(145deg, #38a4e8, #2071c8);
+  font: 800 .92rem/1 "Manrope", sans-serif;
+  box-shadow: inset 0 0 0 3px rgba(4, 46, 90, .15);
+}
+
+.launch-complete-screen {
+  position: relative;
+  grid-column: 1 / -1;
+  min-height: 620px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 72px 28px;
+  overflow: hidden;
+  text-align: center;
+  isolation: isolate;
+}
+
+.launch-complete-screen::before {
+  content: "";
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  background: radial-gradient(circle at 50% 44%, rgba(83, 235, 238, .14), transparent 29%), linear-gradient(145deg, rgba(5, 31, 42, .97), rgba(2, 15, 24, .99));
+}
+
+.launch-complete-water {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+}
+
+.launch-complete-water::before {
+  content: "";
+  position: absolute;
+  left: -7%;
+  right: -7%;
+  bottom: -5%;
+  height: 42%;
+  background: linear-gradient(165deg, rgba(45, 216, 218, .13), rgba(24, 95, 174, .16));
+  -webkit-mask-image: var(--liquid-wave-mask);
+  mask-image: var(--liquid-wave-mask);
+  -webkit-mask-size: 112% 100%;
+  mask-size: 112% 100%;
+  animation: launching-water-drift 7s ease-in-out infinite;
+}
+
+.launch-complete-water i {
+  position: absolute;
+  bottom: -20px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid rgba(181, 249, 250, .42);
+  border-radius: 50%;
+  animation: launching-bubble-rise 7s linear infinite;
+}
+
+.launch-complete-water i:nth-child(1) { left: 16%; animation-delay: -2s; }
+.launch-complete-water i:nth-child(2) { left: 34%; width: 13px; height: 13px; animation-delay: -5s; }
+.launch-complete-water i:nth-child(3) { left: 55%; width: 5px; height: 5px; animation-delay: -1s; }
+.launch-complete-water i:nth-child(4) { left: 73%; width: 10px; height: 10px; animation-delay: -6s; }
+.launch-complete-water i:nth-child(5) { left: 88%; width: 6px; height: 6px; animation-delay: -3.4s; }
+
+.launch-complete-orb {
+  width: 82px;
+  height: 82px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(171, 250, 251, .58);
+  border-radius: 48% 52% 46% 54% / 54% 45% 55% 46%;
+  color: #05232b;
+  background: linear-gradient(145deg, #b0fbfb, #58e1e6 58%, #43a7eb);
+  box-shadow: 0 0 0 13px rgba(77, 222, 228, .055), 0 22px 55px rgba(22, 170, 192, .2);
+  animation: launching-orb-float 4s ease-in-out infinite;
+}
+
+.launch-complete-orb svg { width: 31px; height: 31px; }
+.launch-complete-screen > small { margin-top: 29px; color: #6ee7e9; font: 750 .68rem/1 "Manrope", sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+.launch-complete-screen h1 { margin: 13px 0 0; color: #efffff; font: 760 clamp(2rem, 5vw, 3.3rem)/1.02 "Manrope", sans-serif; letter-spacing: -.055em; }
+.launch-complete-screen p { max-width: 590px; margin: 18px auto 0; color: #82a7ad; font-size: .86rem; line-height: 1.65; }
+.launch-complete-actions { display: flex; align-items: center; gap: 12px; margin-top: 32px; }
+.launch-complete-actions a,
+.launch-complete-actions button { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 21px; border-radius: 14px 17px 13px 18px / 17px 13px 18px 14px; font: 750 .76rem/1 "Manrope", sans-serif; text-decoration: none; }
+.complete-primary { position: relative; overflow: hidden; border: 1px solid #79e9ed; color: #061b21; background: linear-gradient(110deg, #a8f7f8, #5ee1e6); }
+.complete-primary svg { width: 16px; }
+.complete-secondary { border: 1px solid rgba(116, 213, 220, .2); color: #b9dadd; background: rgba(7, 34, 43, .68); }
+.complete-secondary:hover { border-color: rgba(115, 231, 235, .45); color: #edffff; transform: translateY(-2px); }
+
+@media (max-width: 620px) {
+  .launch-complete-screen { min-height: 540px; padding-inline: 20px; }
+  .launch-complete-actions { width: 100%; flex-direction: column; }
+  .launch-complete-actions a,
+  .launch-complete-actions button { width: 100%; }
+}
+
 .markets-list-top { margin-top: 27px; }
 .pool-lock-status { display: inline-flex; align-items: center; gap: 7px; margin-top: 16px; color: #65d8dc; font: 700 .68rem/1 "Manrope", sans-serif; }
 .pool-lock-status svg { width: 15px; }

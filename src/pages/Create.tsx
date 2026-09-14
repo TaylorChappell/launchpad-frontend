@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  ArrowLeft, ArrowRight, Check, Coins, Droplets, ImagePlus, Info,
+  ArrowLeft, ArrowRight, Check, Droplets, ImagePlus, Info, Rocket,
   Loader2, RefreshCw, Search, X,
 } from "lucide-react";
 import { NetworkSolana } from "@web3icons/react";
@@ -12,21 +12,21 @@ import { PageBubbles } from "../components/PageBubbles";
 import { TokenMark } from "../components/TokenCard";
 import type { Launch, LaunchBatchEnvelope, LaunchConfirmation, StockOption, TransactionEnvelope } from "../types";
 
-type PoolPair = "SOL" | "STOCK";
+type DevBuyCurrency = "SOL" | "USDC";
 type Form = {
   name: string; symbol: string; description: string; xUrl: string; websiteUrl: string;
-  telegramUrl: string; poolPair: PoolPair; launchAmount: string;
+  telegramUrl: string; devBuyCurrency: DevBuyCurrency; launchAmount: string;
 };
 type ChainStage = "mint" | "pool" | "liquidity" | "lock" | "devBuy";
 type ProgressKey = "approval" | ChainStage;
 type ProgressState = "waiting" | "active" | "done" | "error";
 type PendingAction = { launchId: string; stage: ChainStage; envelope?: TransactionEnvelope; signature?: string };
 
-const empty: Form = { name: "", symbol: "", description: "", xUrl: "", websiteUrl: "", telegramUrl: "", poolPair: "SOL", launchAmount: "" };
+const empty: Form = { name: "", symbol: "", description: "", xUrl: "", websiteUrl: "", telegramUrl: "", devBuyCurrency: "SOL", launchAmount: "" };
 const wizardSteps = [
   { label: "Coin", short: "Name and artwork" },
-  { label: "Reward stock", short: "Choose what holders earn" },
-  { label: "Market", short: "Choose SOL or stock" },
+  { label: "Pair & rewards", short: "Choose SOL or an xStock" },
+  { label: "Dev buy", short: "Optional first buy" },
 ] as const;
 const chainSteps: Array<{ key: ProgressKey; label: string; detail: string }> = [
   { key: "approval", label: "Prepare launch", detail: "Store artwork and immutable metadata" },
@@ -69,6 +69,7 @@ export function Create() {
   const [progress, setProgress] = useState(initialProgress);
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [recoverableLaunch, setRecoverableLaunch] = useState<Launch | null>(null);
+  const [completedLaunch, setCompletedLaunch] = useState<{ id: string; mint?: string } | null>(null);
 
   const update = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -109,9 +110,9 @@ export function Create() {
   const amount = Number(amountInput || "0");
   const amountValid = !amountInput || (amountPattern.test(amountInput) && Number.isFinite(amount) && amount >= 0);
   const hasInitialBuy = amountValid && amount > 0;
-  const validForStep = [form.name.trim().length >= 2 && form.symbol.trim().length >= 2 && Boolean(file), Boolean(stock) && acknowledged, amountValid];
-  const currencySymbol = form.poolPair === "STOCK" ? stock?.symbol ?? "STOCK" : "SOL";
-  const currencyDecimals = form.poolPair === "SOL" ? 9 : stock?.decimals ?? 6;
+  const validForStep = [form.name.trim().length >= 2 && form.symbol.trim().length >= 2 && Boolean(file), Boolean(stock) && (!stock?.restricted || acknowledged), amountValid];
+  const currencySymbol = form.devBuyCurrency;
+  const currencyDecimals = form.devBuyCurrency === "SOL" ? 9 : 6;
   const launching = executionOpen && executionState === "running";
   const activeProgress = chainSteps.find((item) => progress[item.key] === "active")?.label ?? "Preparing launch";
 
@@ -123,7 +124,7 @@ export function Create() {
 
   function nextStep() {
     if (!validForStep[step]) {
-      toast.error(step === 0 ? "Add a coin name, ticker, and artwork." : step === 1 ? "Choose a stock and confirm the restriction notice." : "Enter a valid amount.");
+      toast.error(step === 0 ? "Add a coin name, ticker, and artwork." : step === 1 ? "Choose SOL or a supported stock." : "Enter a valid amount.");
       return;
     }
     setStep((current) => Math.min(wizardSteps.length - 1, current + 1));
@@ -143,9 +144,33 @@ export function Create() {
     toast.loading(title, { id: launchToastId, description });
   }
 
-  function finishLaunch() {
+  function finishLaunch(launchId: string, mint?: string) {
     setPending(null); setExecutionState("complete"); setExecutionOpen(false); setRecoverableLaunch(null);
+    setCompletedLaunch({ id: launchId, mint });
     toast.success("AQUA market launched", { id: launchToastId, description: `$${form.symbol || "Your coin"} is live on Orca.` });
+  }
+
+  function launchAnother() {
+    if (preview) URL.revokeObjectURL(preview);
+    setForm(empty); setFile(null); setPreview(""); setStep(0); setStock(null); setAcknowledged(false);
+    setProgress(initialProgress()); setPending(null); setCompletedLaunch(null); setExecutionState("running");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function executeDevBuyPlan(confirmation: LaunchConfirmation) {
+    const transactions = confirmation.devBuyPlan?.transactions ?? [];
+    if (!transactions.length) return;
+    setStage("devBuy", "active");
+    for (const [index, transaction] of transactions.entries()) {
+      showLaunchStatus(transaction.label, `Approve transaction ${index + 1} of ${transactions.length} for the optional first buy.`);
+      await wallet.sendTransaction(transaction);
+    }
+    if (confirmation.devBuyPlan?.buyAmountRaw) {
+      showLaunchStatus(`Buy $${form.symbol}`, "Preparing a fresh Orca transaction after the conversion confirmed.");
+      const buy = await api.devBuyTransaction(confirmation.launchId, { trader: wallet.address!, amountRaw: confirmation.devBuyPlan.buyAmountRaw, slippageBps: 300 });
+      await wallet.sendTransaction(buy);
+    }
+    setStage("devBuy", "done");
   }
 
   async function executeLaunchBatch(id: string, batch: LaunchBatchEnvelope[], repairAttempted = false) {
@@ -178,17 +203,18 @@ export function Create() {
         const recovered = await api.retryLaunchTransaction(id, wallet.address!);
         if (recovered.status !== "live") throw new Error("The launch steps confirmed, but the backend did not mark the market live.");
       }
-      if (finalConfirmation?.devBuy && hasInitialBuy) {
-        await continueLaunch({ envelope: finalConfirmation.devBuy, stage: "devBuy", launchId: id });
-        return;
+      if (finalConfirmation?.devBuyPlan && hasInitialBuy) {
+        try { await executeDevBuyPlan(finalConfirmation); }
+        catch (error) { setStage("devBuy", "error"); toast.warning("Coin launched without the optional first buy", { description: error instanceof Error ? error.message : "The initial buy was not completed.", duration: 10_000 }); }
       }
-      finishLaunch();
+      if (finalConfirmation?.devBuyError) toast.warning("Coin launched without the optional first buy", { description: finalConfirmation.devBuyError, duration: 10_000 });
+      finishLaunch(id, finalConfirmation?.mint);
     } catch (error) {
       let failure: unknown = error;
       if (!repairAttempted && error instanceof ApiError && error.rebuildRequired && wallet.address) {
         try {
           const fresh = await api.retryLaunchTransaction(id, wallet.address);
-          if (fresh.status === "live") { finishLaunch(); return; }
+          if (fresh.status === "live") { finishLaunch(id); return; }
           if (!fresh.batch?.length) throw new Error("The backend could not rebuild the remaining Orca launch transactions.");
           await executeLaunchBatch(id, fresh.batch, true);
           return;
@@ -217,7 +243,7 @@ export function Create() {
       }
       showLaunchStatus("Waiting for confirmation", "Solana is confirming your transaction.");
       if (action.stage === "devBuy") {
-        setStage("devBuy", "done"); finishLaunch(); return;
+        setStage("devBuy", "done"); finishLaunch(action.launchId); return;
       }
       const confirmation = await api.confirmLaunch(action.launchId, signature);
       setStage(action.stage, "done");
@@ -227,8 +253,12 @@ export function Create() {
         return;
       }
       if (confirmation.status === "live") {
-        if (confirmation.devBuy && hasInitialBuy) await continueLaunch({ envelope: confirmation.devBuy, stage: "devBuy", launchId: action.launchId });
-        else finishLaunch();
+        if (confirmation.devBuyPlan && hasInitialBuy) {
+          try { await executeDevBuyPlan(confirmation); }
+          catch (error) { setStage("devBuy", "error"); toast.warning("Coin launched without the optional first buy", { description: error instanceof Error ? error.message : "The initial buy was not completed.", duration: 10_000 }); }
+        }
+        if (confirmation.devBuyError) toast.warning("Coin launched without the optional first buy", { description: confirmation.devBuyError, duration: 10_000 });
+        finishLaunch(action.launchId, confirmation.mint);
         return;
       }
       if (!confirmation.nextStep || !isEnvelope(confirmation)) throw new Error("The backend returned an incomplete launch step.");
@@ -263,7 +293,7 @@ export function Create() {
       }
       const fresh = await api.retryLaunchTransaction(pending.launchId, wallet.address);
       if (fresh.status === "live") {
-        setStage("lock", "done"); finishLaunch(); return;
+        setStage("lock", "done"); finishLaunch(pending.launchId); return;
       }
       if (fresh.batch?.length) { await executeLaunchBatch(pending.launchId, fresh.batch); return; }
       if (!fresh.step || !isEnvelope(fresh)) throw new Error("The backend returned an incomplete recovery step.");
@@ -284,7 +314,7 @@ export function Create() {
       const restored = initialProgress();
       restored.approval = "done"; restored.mint = "done";
       if (fresh.status === "live") {
-        restored.pool = "done"; restored.liquidity = "done"; restored.lock = "done"; setProgress(restored); finishLaunch(); return;
+        restored.pool = "done"; restored.liquidity = "done"; restored.lock = "done"; setProgress(restored); finishLaunch(recoverableLaunch.id, recoverableLaunch.mint); return;
       }
       if (fresh.batch?.length) {
         const first = fresh.batch[0]?.step;
@@ -308,7 +338,7 @@ export function Create() {
   async function beginLaunch() {
     if (launching) return;
     if (!wallet.address) { wallet.setModalOpen(true); return; }
-    if (!stock || !file || !acknowledged || !amountValid || !form.name.trim() || !form.symbol.trim()) { toast.error("Complete every required launch step first."); return; }
+    if (!stock || !file || (stock.restricted && !acknowledged) || !amountValid || !form.name.trim() || !form.symbol.trim()) { toast.error("Complete every required launch step first."); return; }
     if (!config.transactionsEnabled) { toast.error(config.transactionsDisabledReason ?? "On-chain launching is not enabled by the backend."); return; }
 
     setExecutionOpen(true); setExecutionState("running"); setProgress(initialProgress()); setPending(null);
@@ -322,9 +352,9 @@ export function Create() {
       const intent = await api.createLaunch({
         creatorWallet: wallet.address, clientRequestId, symbol, stockSymbol: stock.symbol,
         name: form.name.trim(), description: form.description.trim(), imageId,
-        stockMint: stock.mint, poolPair: form.poolPair,
-        devBuyStockRaw: form.poolPair === "STOCK" ? initialBuyRaw : "0",
-        devBuyLamports: form.poolPair === "SOL" ? initialBuyRaw : "0",
+        stockMint: stock.mint, poolPair: stock.symbol === "SOL" ? "SOL" : "STOCK",
+        devBuyStockRaw: "0", devBuyLamports: "0",
+        devBuyCurrency: form.devBuyCurrency, devBuyAmountRaw: initialBuyRaw,
         sniperDefense: false, xUrl: normaliseUrl(form.xUrl), websiteUrl: normaliseUrl(form.websiteUrl), telegramUrl: normaliseTelegram(form.telegramUrl),
       });
       setStage("approval", "done");
@@ -348,6 +378,17 @@ export function Create() {
           <span className="sr-only">{activeProgress}</span>
         </section>
       </div>}
+      {completedLaunch ? <section className="launch-complete-screen" aria-live="polite">
+        <div className="launch-complete-water" aria-hidden="true"><i/><i/><i/><i/><i/></div>
+        <span className="launch-complete-orb"><Rocket/></span>
+        <small>Orca market live</small>
+        <h1>${form.symbol} launched</h1>
+        <p>Your pool is active, 45% of supply is committed to locked liquidity, and holder rewards follow the selected pair.</p>
+        <div className="launch-complete-actions">
+          <a className="complete-primary" href={`#/token/${completedLaunch.id}`}><span className="button-current"/>Go to coin <ArrowRight/></a>
+          <button className="complete-secondary" onClick={launchAnother}>Launch another coin</button>
+        </div>
+      </section> : <>
       <aside className="wizard-rail" aria-label="Launch steps">
         <div className="wizard-rail-head"><span>Create coin</span><b>{step + 1} of {wizardSteps.length}</b></div>
         <div className="wizard-rail-track"><i style={{ height: `${(step / (wizardSteps.length - 1)) * 100}%` }}/></div>
@@ -378,31 +419,32 @@ export function Create() {
           </div></section>
         </WizardSection>}
 
-        {step === 1 && <WizardSection title="Choose a reward stock" description="Holders earn this stock. The reward asset cannot be changed after launch.">
-          <div className="stock-search"><Search size={17}/><input value={stockQuery} placeholder="Search stocks or tickers" onChange={(event) => { setStockQuery(event.target.value); setVisibleStocks(10); }}/><span>{stocks.length} stocks</span></div>
+        {step === 1 && <WizardSection title="Choose the pair and reward" description="Launch against SOL or one supported xStock. Holders earn the same asset you choose.">
+          <div className="stock-search"><Search size={17}/><input value={stockQuery} placeholder="Search SOL or stocks" onChange={(event) => { setStockQuery(event.target.value); setVisibleStocks(10); }}/><span>{stocks.length} assets</span></div>
           {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Loading stocks</span></div> : stockError ? <div className="stock-error"><Info/><span>{stockError}</span><button onClick={() => void loadStocks()}><RefreshCw size={14}/> Retry</button></div> : <>
             <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { setStock(item); setAcknowledged(false); }}>
-              <StockLogo stock={item}/><div><b>{item.symbol}</b><small>{item.name}</small></div><span className="stock-market-depth"><b>${compactNumber.format(item.orcaTvlUsd)} TVL</b><small>${compactNumber.format(item.orcaVolume24hUsd)} 24h</small></span><i>{stock?.mint === item.mint && <Check size={14}/>}</i>
+              <StockLogo stock={item}/><div><b>{item.symbol}</b><small>{item.name}</small></div><span className="stock-market-depth">{item.symbol === "SOL" ? <><b>Native pair</b><small>SOL rewards</small></> : <><b>${compactNumber.format(item.orcaTvlUsd)} TVL</b><small>${compactNumber.format(item.orcaVolume24hUsd)} 24h</small></>}</span><i>{stock?.mint === item.mint && <Check size={14}/>}</i>
             </button>)}</div>
             {filteredStocks.length === 0 && <div className="no-stock-results">No stocks match “{stockQuery}”.</div>}
             {filteredStocks.length < stockResultsCount && <button className="stock-more" onClick={() => setVisibleStocks((value) => value + 20)}>Show more</button>}
           </>}
-          {stock && <div className="selected-stock-strip"><StockLogo stock={stock}/><div><small>Permanent reward asset</small><b>{stock.symbol}</b></div><span>Holder rewards in {stock.symbol}</span></div>}
-          <label className="stock-ack"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)}/><span>I understand tokenized stocks may be restricted or unavailable in my jurisdiction.</span></label>
+          {stock && <div className="selected-stock-strip"><StockLogo stock={stock}/><div><small>Permanent pair and reward</small><b>${form.symbol || "COIN"} / {stock.symbol}</b></div><span>Holder rewards in {stock.symbol}</span></div>}
+          {stock?.restricted && <label className="stock-ack"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)}/><span>I understand tokenized stocks may be restricted or unavailable in my jurisdiction.</span></label>}
         </WizardSection>}
 
-        {step === 2 && <WizardSection title="Choose the Orca market" description="Trade against SOL for broader discovery, or trade directly against the selected stock.">
-          <div className="launch-currency-grid pair-choice-grid" role="radiogroup" aria-label="Orca trading pair">
-            <CurrencyButton code="SOL" name="Best for discovery" active={form.poolPair === "SOL"} onClick={() => { update("poolPair", "SOL"); update("launchAmount", ""); }} icon={<NetworkSolana className="currency-brand-icon" variant="branded"/>}/>
-            <CurrencyButton code={stock?.symbol ?? "STOCK"} name="Direct stock pair" active={form.poolPair === "STOCK"} onClick={() => { update("poolPair", "STOCK"); update("launchAmount", ""); }} icon={stock ? <StockLogo stock={stock}/> : <Coins/>}/>
+        {step === 2 && <WizardSection title="Optional dev buy" description="Choose SOL or USDC to make the first buy. Leave the amount at zero to skip it.">
+          <div className="launch-currency-grid pair-choice-grid" role="radiogroup" aria-label="Initial buy currency">
+            <CurrencyButton code="SOL" name="Pay with Solana" active={form.devBuyCurrency === "SOL"} onClick={() => { update("devBuyCurrency", "SOL"); update("launchAmount", ""); }} icon={<NetworkSolana className="currency-brand-icon" variant="branded"/>}/>
+            <CurrencyButton code="USDC" name="Pay with USD Coin" active={form.devBuyCurrency === "USDC"} onClick={() => { update("devBuyCurrency", "USDC"); update("launchAmount", ""); }} icon={<span className="usdc-mark">$</span>}/>
           </div>
           <Field label={`Optional first buy in ${currencySymbol}`} wide><div className="unit-input launch-amount-input"><input inputMode="decimal" value={form.launchAmount} placeholder="0" onChange={(event) => update("launchAmount", event.target.value.replace(",", ".").replace(/[^0-9.]/g, ""))}/><span>{currencySymbol}</span></div></Field>
-          <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {currencySymbol} on Orca · {stock?.symbol ?? "stock"} holder rewards</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
+          <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} on Orca · rewards in {stock?.symbol ?? "the pair"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
           <button className="wizard-launch-button" onClick={() => void (pending ? retryLaunch() : beginLaunch())} disabled={!validForStep[2] || launching} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
         </WizardSection>}
 
         <footer className="wizard-actions"><button className="wizard-back" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ArrowLeft/> Back</button>{step < wizardSteps.length - 1 && <button className="wizard-next" onClick={nextStep} disabled={!validForStep[step]}>Continue <ArrowRight/></button>}</footer>
       </div>
+      </>}
     </section>
 
   </main>;
@@ -411,4 +453,4 @@ export function Create() {
 function WizardSection({ title, description, children }: { title: string; description: string; children: ReactNode }) { return <section className="wizard-section"><header><h2>{title}</h2><p>{description}</p></header><div className="wizard-section-body">{children}</div></section>; }
 function Field({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) { return <label className={`wizard-field ${wide ? "wide" : ""}`}><span>{label}</span>{children}</label>; }
 function CurrencyButton({ code, name, active, icon, onClick }: { code: string; name: string; active: boolean; icon: ReactNode; onClick: () => void }) { return <button type="button" role="radio" aria-checked={active} className={active ? "selected" : ""} onClick={onClick}><i>{icon}</i><span><b>{code}</b><small>{name}</small></span><em>{active && <Check/>}</em></button>; }
-function StockLogo({ stock }: { stock: StockOption }) { const [failed, setFailed] = useState(false); return <span className="stock-logo">{stock.logoUrl && !failed ? <img src={stock.logoUrl} alt="" onError={() => setFailed(true)}/> : stock.underlyingSymbol.slice(0, 2)}</span>; }
+function StockLogo({ stock }: { stock: StockOption }) { const [failed, setFailed] = useState(false); return <span className="stock-logo">{stock.symbol === "SOL" ? <NetworkSolana className="currency-brand-icon" variant="branded"/> : stock.logoUrl && !failed ? <img src={stock.logoUrl} alt="" onError={() => setFailed(true)}/> : stock.underlyingSymbol.slice(0, 2)}</span>; }

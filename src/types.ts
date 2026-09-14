@@ -24,7 +24,7 @@ export type StockOption = {
   logoUrl: string | null;
   isin: string | null;
   accent: string;
-  restricted: true;
+  restricted: boolean;
   halted: false;
   marketOpen: boolean | null;
   supportsAtomicSwaps: boolean;
@@ -90,6 +90,10 @@ export type Launch = {
   tokenDecimals: number;
   totalSupplyRaw: string;
   liquiditySupplyRaw: string;
+  reserveSupplyRaw?: string;
+  supplyReserveAddress?: string | null;
+  devBuyCurrency?: "SOL" | "USDC";
+  devBuyAmountRaw?: string;
   positionMint?: string | null;
   positionAddress?: string | null;
   lockConfig?: string | null;
@@ -186,6 +190,11 @@ export type LaunchConfirmation = Partial<TransactionEnvelope> & {
   liquidityLockedPermanently?: boolean;
   devBuyStockRaw?: string;
   devBuy?: (TransactionEnvelope & { quote?: Record<string, unknown> }) | null;
+  mint?: string;
+  devBuyCurrency?: "SOL" | "USDC";
+  devBuyAmountRaw?: string;
+  devBuyPlan?: { currency: "SOL" | "USDC"; transactions: Array<TransactionEnvelope & { kind: "conversion" | "buy"; label: string }>; buyAmountRaw?: string | null } | null;
+  devBuyError?: string | null;
   creatorLockWizard?: string;
   batch?: LaunchBatchEnvelope[];
   indexingStatus?: IndexingStatus;
