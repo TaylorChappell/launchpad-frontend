@@ -112,12 +112,7 @@ export function Create() {
   const hasInitialBuy = amountValid && amount > 0;
   const validForStep = [form.name.trim().length >= 2 && form.symbol.trim().length >= 2 && Boolean(file), Boolean(stock) && (!stock?.restricted || acknowledged), amountValid];
   const currencySymbol = form.devBuyCurrency;
-  const launchCost = config.launchCost ?? {
-    platformFeeSol: 0.02,
-    estimatedNetworkAndRentSol: { minimum: 0.03, maximum: 0.10 },
-    estimatedTotalSol: { minimum: 0.05, maximum: 0.12 },
-    excludesOptionalInitialBuy: true,
-  };
+  const launchCost = config.launchCost;
   const currencyDecimals = form.devBuyCurrency === "SOL" ? 9 : 6;
   const launching = executionOpen && executionState === "running";
   const activeProgress = chainSteps.find((item) => progress[item.key] === "active")?.label ?? "Preparing launch";
@@ -444,10 +439,10 @@ export function Create() {
             <CurrencyButton code="USDC" name="Pay with USD Coin" active={form.devBuyCurrency === "USDC"} onClick={() => { update("devBuyCurrency", "USDC"); update("launchAmount", ""); }} icon={<span className="usdc-mark">$</span>}/>
           </div>
           <Field label={`Optional first buy in ${currencySymbol}`} wide><div className="unit-input launch-amount-input"><input inputMode="decimal" value={form.launchAmount} placeholder="0" onChange={(event) => update("launchAmount", event.target.value.replace(",", ".").replace(/[^0-9.]/g, ""))}/><span>{currencySymbol}</span></div></Field>
-          <div className="launch-cost-card">
+          {launchCost && <div className="launch-cost-card">
             <div><span><b>Estimated launch cost</b><small>before any optional first buy</small></span><strong>{launchCost.estimatedTotalSol.minimum.toFixed(2)}–{launchCost.estimatedTotalSol.maximum.toFixed(2)} SOL</strong></div>
             <p><b>{launchCost.platformFeeSol.toFixed(2)} SOL AQUA fee</b> funds keeper operations. The rest is estimated Solana/Orca account rent and network fees; your wallet approval shows the authoritative amount.</p>
-          </div>
+          </div>}
           <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} on Orca · rewards in {stock?.symbol ?? "the pair"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
           <button className="wizard-launch-button" onClick={() => void (pending ? retryLaunch() : beginLaunch())} disabled={!validForStep[2] || launching} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
         </WizardSection>}
