@@ -1,15 +1,45 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#010a12" />
-    <meta name="description" content="AQUA is the holder-first launchpad where coin activity builds time-weighted tokenized stock rewards." />
+    <meta name="application-name" content="AQUA" />
+    <meta name="description" content="AQUA is a Solana token launchpad with direct Orca markets, permanently locked liquidity and time-weighted holder rewards." />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+    <link rel="canonical" href="https://taylorchappell.github.io/launchpad-frontend/docs/" />
+    <link rel="alternate" type="text/plain" href="./llms.txt" title="AQUA AI-readable overview" />
     <link rel="icon" type="image/png" href="./aqua-logo.png" />
-    <title>AQUA | Markets that reward holders</title>
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AQUA" />
+    <meta property="og:title" content="AQUA | Solana markets that reward holders" />
+    <meta property="og:description" content="Launch directly into a permanently locked Orca market and give holders time-weighted tokenized-stock rewards." />
+    <meta property="og:url" content="https://taylorchappell.github.io/launchpad-frontend/docs/" />
+    <meta property="og:image" content="https://taylorchappell.github.io/launchpad-frontend/docs/aqua-logo.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="AQUA | Solana markets that reward holders" />
+    <meta name="twitter:description" content="Direct Orca markets, permanently locked liquidity and time-weighted holder rewards." />
+    <meta name="twitter:image" content="https://taylorchappell.github.io/launchpad-frontend/docs/aqua-logo.png" />
+    <title>AQUA | Solana markets that reward holders</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "AQUA",
+        "url": "https://taylorchappell.github.io/launchpad-frontend/docs/",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web",
+        "description": "A Solana token launchpad using direct Orca Whirlpools, permanently locked liquidity and time-weighted holder rewards.",
+        "sameAs": [
+          "https://github.com/TaylorChappell/launchpad-frontend",
+          "https://github.com/TaylorChappell/launchpad-backend"
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>AQUA is a Solana launchpad for direct Orca markets with permanently locked liquidity and holder rewards. Read the static <a href="./how-aqua-works.html">AQUA protocol guide</a>.</noscript>
     <script>
       if ("__AQUA_BUILD_MODE__" !== "built" && location.hostname.endsWith("github.io")) {
         location.replace("./docs/");

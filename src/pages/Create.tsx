@@ -4,6 +4,7 @@ import {
   Loader2, RefreshCw, Search, X,
 } from "lucide-react";
 import { NetworkSolana } from "@web3icons/react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { ApiError, api } from "../api";
 import { useRuntime, useWallet } from "../context";
@@ -62,6 +63,7 @@ export function Create() {
   const [visibleStocks, setVisibleStocks] = useState(10);
   const [stock, setStock] = useState<StockOption | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [executionOpen, setExecutionOpen] = useState(false);
@@ -153,7 +155,7 @@ export function Create() {
 
   function launchAnother() {
     if (preview) URL.revokeObjectURL(preview);
-    setForm(empty); setFile(null); setPreview(""); setStep(0); setStock(null); setAcknowledged(false);
+    setForm(empty); setFile(null); setPreview(""); setStep(0); setStock(null); setAcknowledged(false); setAcceptedTerms(false);
     setProgress(initialProgress()); setPending(null); setCompletedLaunch(null); setExecutionState("running");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -339,7 +341,7 @@ export function Create() {
   async function beginLaunch() {
     if (launching) return;
     if (!wallet.address) { wallet.setModalOpen(true); return; }
-    if (!stock || !file || (stock.restricted && !acknowledged) || !amountValid || !form.name.trim() || !form.symbol.trim()) { toast.error("Complete every required launch step first."); return; }
+    if (!stock || !file || (stock.restricted && !acknowledged) || !amountValid || !form.name.trim() || !form.symbol.trim() || !acceptedTerms) { toast.error("Complete every required launch step and accept the Terms of Service first."); return; }
     if (!config.transactionsEnabled) { toast.error(config.transactionsDisabledReason ?? "On-chain launching is not enabled by the backend."); return; }
 
     setExecutionOpen(true); setExecutionState("running"); setProgress(initialProgress()); setPending(null);
@@ -444,7 +446,8 @@ export function Create() {
             <p><b>{launchCost.platformFeeSol.toFixed(2)} SOL AQUA fee</b> funds keeper operations. The rest is estimated Solana/Orca account rent and network fees; your wallet approval shows the authoritative amount.</p>
           </div>}
           <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} on Orca · rewards in {stock?.symbol ?? "the pair"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
-          <button className="wizard-launch-button" onClick={() => void (pending ? retryLaunch() : beginLaunch())} disabled={!validForStep[2] || launching} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
+          <label className="terms-acceptance"><input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)}/><span>I have read and agree to the <Link to="/terms" target="_blank">Terms of Service</Link>, including the cryptoasset, permanent-liquidity and third-party risks.</span></label>
+          <button className="wizard-launch-button" onClick={() => void (pending ? retryLaunch() : beginLaunch())} disabled={!validForStep[2] || launching || !acceptedTerms} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
         </WizardSection>}
 
         <footer className="wizard-actions"><button className="wizard-back" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ArrowLeft/> Back</button>{step < wizardSteps.length - 1 && <button className="wizard-next" onClick={nextStep} disabled={!validForStep[step]}>Continue <ArrowRight/></button>}</footer>

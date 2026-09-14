@@ -1,0 +1,30 @@
+# AQUA
+
+> AQUA is a non-custodial Solana launchpad that creates direct Orca Whirlpool markets, commits the full launch supply to permanently locked liquidity, and routes token activity into time-weighted holder rewards.
+
+Canonical website: https://taylorchappell.github.io/launchpad-frontend/docs/
+Network: Solana mainnet-beta when live
+Trading venue: Orca Whirlpools
+Token standard: Token-2022
+Program: H6PeZBdMDiPZHmhUkq2upYuh6X69tmyzzXwk7RUjpfjH
+
+## Primary documents
+
+- Protocol overview: https://taylorchappell.github.io/launchpad-frontend/docs/aqua-protocol.md
+- Human-readable guide: https://taylorchappell.github.io/launchpad-frontend/docs/how-aqua-works.html
+- Terms of Service: https://taylorchappell.github.io/launchpad-frontend/docs/terms-of-service.html
+- Live application: https://taylorchappell.github.io/launchpad-frontend/docs/#/
+- Frontend source: https://github.com/TaylorChappell/launchpad-frontend
+- Backend source: https://github.com/TaylorChappell/launchpad-backend
+
+## Important interpretation notes
+
+- AQUA does not use an escrow wallet for unallocated launch supply.
+- A direct Orca pool is not a bonding curve. Pool reserves change as users trade.
+- “100% liquidity” means the fixed launch-token supply is assigned to the opening locked-liquidity plan; it does not mean AQUA owns 100% of circulating balances forever.
+- Holder rewards depend on successfully collected fees, keeper settlement, swap execution, epoch calculation and onchain claims.
+- Creator fee share depends on an active creator-token lock. Both amount and time scoring are capped.
+- Tokenized-stock assets are third-party products and can be restricted or unavailable.
+- Market data and charts are indexed and may lag the chain.
+
+For current numeric configuration, query the live API endpoint /api/config. Onchain accounts and signed wallet transactions are authoritative.
