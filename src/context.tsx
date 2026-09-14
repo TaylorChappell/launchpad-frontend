@@ -33,7 +33,7 @@ const fallback: RuntimeConfig = {
   transactionsDisabledReason: "AQUA launch transactions are not configured.",
   whirlpools: { programId: "", config: "", tickSpacing: 64, pair: "tokenized stock", liquidityLock: "permanent" },
   fees: { transferFeeBps: 200, platformBps: 100, stockRewardsBps: 100, universal: true },
-  creatorLocks: { minimumSeconds: 86_400, maximumSeconds: 31_536_000, maximumFeeShareBps: 10_000 },
+  creatorLocks: { minimumSeconds: 86_400, maximumSeconds: 31_536_000, maximumFeeShareBps: 2_500, targetSupplyBps: 500, initialLiquidityExcluded: true },
   sniperDefense: { supported: false, reason: "Unavailable" },
 };
 const RuntimeContext = createContext<{ config: RuntimeConfig; loading: boolean; error: string | null }>({ config: fallback, loading: true, error: null });

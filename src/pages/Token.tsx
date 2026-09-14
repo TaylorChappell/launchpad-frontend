@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Copy, ExternalLink, Gift, Globe2, Loader2, LockKeyhole, ShieldAlert, Users } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, YAxis } from "recharts";
 import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
 import type { CreatorLock, Launch, MarketSnapshot, StockOption, Trade } from "../types";
 import { Metric, TokenMark } from "../components/TokenCard";
+import { MarketCapCandles } from "../components/MarketCapCandles";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 4 });
@@ -51,9 +51,6 @@ export function Token() {
     }).catch(() => undefined).finally(() => { if (active) setLoaded(true); });
     return () => { active = false; };
   }, [id]);
-
-  const chart = useMemo(() => snapshots.map((item) => ({ time: item.sampledAt, price: item.priceUsd })), [snapshots]);
-
 
   useEffect(() => {
     if (!launch || wallet.address !== launch.creatorWallet || !lockAmount || !Number(lockDays)) {
@@ -142,7 +139,7 @@ export function Token() {
     </section>
 
     <div className="token-layout"><section className="token-main">
-      <div className="chart-panel"><header><div><small>ORCA WHIRLPOOL PRICE</small><b>{launch.aquaIndexed ? money.format(launch.priceUsd) : "Pending"}</b></div><span>{launch.indexingStatus === "indexed" ? "INDEXED" : launch.indexingStatus === "orca_indexed" ? "ORCA INDEXED" : "PENDING INDEXING"}</span></header><div className="chart">{chart.length ? <ResponsiveContainer><AreaChart data={chart}><defs><linearGradient id="tokenFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#73edf2" stopOpacity=".25"/><stop offset="1" stopColor="#73edf2" stopOpacity="0"/></linearGradient></defs><CartesianGrid vertical={false} stroke="rgba(137,214,223,.07)"/><YAxis orientation="right" axisLine={false} tickLine={false} tick={{ fill: "#648087", fontSize: 10 }}/><Tooltip contentStyle={{ background: "#061820", border: "1px solid rgba(137,214,223,.18)", borderRadius: 8 }}/><Area type="monotone" dataKey="price" stroke="#73edf2" fill="url(#tokenFill)" strokeWidth={2}/></AreaChart></ResponsiveContainer> : <div className="page-loading">Market data will appear after the first index pass.</div>}</div></div>
+      <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP · OHLC</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div><span>{launch.indexingStatus === "indexed" ? "INDEXED" : launch.indexingStatus === "orca_indexed" ? "ORCA INDEXED" : "PENDING INDEXING"}</span></header><div className="chart candle-chart-shell"><MarketCapCandles snapshots={snapshots}/></div></div>
 
       <div className="info-grid">
         <div className="info-panel reward"><Gift/><b>Earn {launch.stockSymbol}</b><div><Metric label="Distributed" value={`${compact.format(launch.rewardDistributedUsd)}`}/><Metric label="Reward reserve" value={BigInt(launch.rewardVaultStockRaw || "0") > 0n ? `${formatRaw(launch.rewardVaultStockRaw, stockDecimals)} ${launch.stockSymbol}` : "Accumulating"}/></div><p>Reward weight combines eligible balance and holding time.</p></div>
@@ -151,7 +148,7 @@ export function Token() {
 
 
       {wallet.address === launch.creatorWallet && <section className="creator-fee-panel">
-        <header><div><small>CREATOR ALIGNMENT</small><h2>Lock purchased tokens to earn fees</h2></div><span>Up to {(config.creatorLocks.maximumFeeShareBps / 100).toFixed(0)}% of the platform stream</span></header>
+        <header><div><small>CREATOR ALIGNMENT</small><h2>Lock purchased tokens to earn fees</h2></div><div><span>Up to {(config.creatorLocks.maximumFeeShareBps / 100).toFixed(0)}% of the platform stream</span><Link className="creator-manager-link" to={"/manage/" + launch.id}>Open guided manager</Link></div></header>
         <p>The full original supply remains permanently in Orca liquidity. Only {launch.symbol} held in your creator wallet after launch can be locked; more supply and more time increase your active creator share.</p>
         {creatorLock?.status === "active" ? <div className="creator-lock-active">
           <div><Metric label="Tokens locked" value={formatRaw(creatorLock.amountRaw, launch.tokenDecimals)}/><Metric label="Creator share" value={`${(creatorLock.feeShareBps / 100).toFixed(2)}%`}/><Metric label="Unlocks" value={new Date(creatorLock.unlockAt * 1_000).toLocaleDateString()}/></div>

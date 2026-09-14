@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Gift } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Launch } from "../types";
 
@@ -10,21 +10,39 @@ export function TokenMark({ launch, large=false }: { launch: Launch; large?: boo
   const hue = [...launch.symbol].reduce((a,c) => a + c.charCodeAt(0), 0) % 55 + 175;
   useEffect(() => setImageFailed(false), [launch.imageUrl]);
   const showImage = Boolean(launch.imageUrl && !imageFailed);
-  return <span className={`token-mark ${large ? "large" : ""}`} style={!showImage ? { backgroundImage: `linear-gradient(145deg,hsl(${hue} 72% 47%),hsl(${hue + 38} 76% 18%))` } : undefined}>
+  return <span className={"token-mark " + (large ? "large" : "")} style={!showImage ? { backgroundImage: "linear-gradient(145deg,hsl(" + hue + " 72% 47%),hsl(" + (hue + 38) + " 76% 18%))" } : undefined}>
     {showImage ? <img src={launch.imageUrl} alt="" onError={() => setImageFailed(true)}/> : launch.symbol.slice(0,2)}
   </span>;
 }
 
+export function AssetMark({ launch, reward = false }: { launch: Launch; reward?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const useSol = !reward && launch.pairType === "sol";
+  const logoUrl = launch.stock.logoUrl;
+  useEffect(() => setFailed(false), [logoUrl, reward, launch.pairType]);
+  return <span className={"asset-mark " + (useSol ? "solana" : "stock")} aria-hidden="true">
+    {useSol ? <svg viewBox="0 0 32 32"><defs><linearGradient id={"solana-" + launch.id} x1="0" y1="1" x2="1" y2="0"><stop stopColor="#9945ff"/><stop offset=".52" stopColor="#19fb9b"/><stop offset="1" stopColor="#00d1ff"/></linearGradient></defs><path fill={"url(#solana-" + launch.id + ")"} d="M8 6h19l-3 4H5l3-4Zm-3 9h19l3 4H8l-3-4Zm3 9h19l-3 4H5l3-4Z"/></svg> : logoUrl && !failed ? <img src={logoUrl} alt="" onError={() => setFailed(true)}/> : <b>{launch.stockSymbol.slice(0, 2)}</b>}
+  </span>;
+}
+
+function marketCapTone(value: number) {
+  if (value >= 10_000_000) return "cap-mega";
+  if (value >= 1_000_000) return "cap-large";
+  if (value >= 100_000) return "cap-growing";
+  if (value >= 10_000) return "cap-early";
+  return "cap-new";
+}
+
 export function TokenCard({ launch, featured = false }: { launch: Launch; sample?: boolean; featured?: boolean }) {
   const indexed = launch.aquaIndexed;
-  return <Link className={`token-card ${featured ? "featured" : ""}`} to={`/token/${launch.id}`}>
+  return <Link className={"token-card " + (featured ? "featured" : "")} to={"/token/" + launch.id}>
     <div className="token-head">
       <TokenMark launch={launch}/>
-      <div><div className="token-title"><b>{launch.name}</b><span>${launch.symbol} / {launch.pairSymbol}</span></div><div className="token-pair"><Gift size={12}/>{launch.stockSymbol} rewards</div></div>
+      <div><div className="token-title"><b>{launch.name}</b><span>{"$" + launch.symbol} / {launch.pairSymbol}</span></div><div className="token-pair"><AssetMark launch={launch}/>{launch.pairSymbol} market</div></div>
       <ArrowUpRight className="card-arrow" size={17}/>
     </div>
-    <div className="reward-card-focus"><span><Gift/>HOLDER REWARD</span><strong>Earn {launch.stockSymbol}</strong><small>${compact.format(launch.rewardDistributedUsd)} distributed to holders</small></div>
-    <div className="token-stats"><Metric label="Market cap" value={indexed ? `$${compact.format(launch.marketCapUsd)}` : "Indexing"}/><Metric label="24h volume" value={indexed ? `$${compact.format(launch.volume24hUsd)}` : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
+    <div className="reward-card-focus"><span><AssetMark launch={launch} reward/>HOLDER REWARD</span><strong>Earn {launch.stockSymbol}</strong><small>{"$" + compact.format(launch.rewardDistributedUsd)} distributed to holders</small></div>
+    <div className="token-stats"><Metric label="Market cap" value={indexed ? "$" + compact.format(launch.marketCapUsd) : "Indexing"} tone={indexed ? marketCapTone(launch.marketCapUsd) : ""}/><Metric label="24h volume" value={indexed ? "$" + compact.format(launch.volume24hUsd) : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
   </Link>;
 }
 

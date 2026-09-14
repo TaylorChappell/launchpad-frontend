@@ -150,6 +150,7 @@ export type Trade = {
 
 export type MarketSnapshot = {
   sampledAt: number;
+  marketCapUsd?: number;
   priceUsd: number;
   fdvUsd: number;
   tvlUsd: number;

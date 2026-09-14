@@ -6,6 +6,7 @@ import { WalletModal } from "./WalletModal";
 import { AquaMark } from "./AquaMark";
 import { SearchModal } from "./SearchModal";
 import { OrcaMark } from "./OrcaMark";
+import { WalletMenu } from "./WalletMenu";
 
 const links = [
   { to: "/", label: "Explore", icon: Compass },
@@ -20,7 +21,6 @@ export function Layout({ children }: { children: ReactNode }) {
   const [mobile, setMobile] = useState(false);
   const [opening, setOpening] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
-  const short = wallet.address ? `${wallet.address.slice(0, 4)}…${wallet.address.slice(-4)}` : "";
   const isPreview = config.useTestnet || !config.transactionsEnabled;
   const xUrl = window.AQUA_CONFIG?.X_URL?.trim() || "https://x.com";
 
@@ -56,7 +56,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <nav aria-label="Primary navigation">{links.map((link) => <NavLink key={link.to} to={link.to} end={link.to === "/"}>{link.label}</NavLink>)}</nav>
         <div className="header-actions">
           <button className="header-search" onClick={() => { setMobile(false); setSearchOpen(true); }} aria-label="Search AQUA markets"><Search size={17}/><span>Search coins, stocks...</span><kbd>/</kbd></button>
-          {wallet.address ? <button className="wallet-button connected" onClick={() => void wallet.disconnect()}><span>{short}</span></button> : <button className="wallet-button" onClick={() => wallet.setModalOpen(true)}><span>Connect wallet</span></button>}
+          <WalletMenu/>
           <button className="mobile-menu" onClick={() => setMobile(!mobile)} aria-label="Toggle navigation" aria-expanded={mobile}>{mobile ? <X /> : <Menu />}</button>
         </div>
       </div>
