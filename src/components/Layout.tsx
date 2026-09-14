@@ -66,7 +66,7 @@ export function Layout({ children }: { children: ReactNode }) {
     {children}
     <footer className="site-footer">
       <small>© {new Date().getFullYear()} AQUA. All rights reserved.</small>
-      <nav aria-label="Legal navigation"><NavLink to="/terms">Terms of Service</NavLink><NavLink to="/privacy">Privacy Policy</NavLink></nav>
+      <nav aria-label="Footer navigation"><NavLink to="/how-it-works">How it works</NavLink><NavLink to="/terms">Terms of Service</NavLink><NavLink to="/privacy">Privacy Policy</NavLink></nav>
       <div className="footer-socials">
         <a href={xUrl} target="_blank" rel="noreferrer" aria-label="AQUA on X" title="AQUA on X"><XBrandIcon/></a>
         <a href="https://www.orca.so/" target="_blank" rel="noreferrer" aria-label="Visit Orca" title="Orca"><OrcaMark/></a>
