@@ -15,12 +15,12 @@ The launch sequence is:
 1. Upload artwork and create permanent metadata.
 2. Create and initialise the Token-2022 mint.
 3. Create the Orca Whirlpool.
-4. add the full planned token liquidity in the configured range.
+4. Add the full planned token liquidity to the opening Orca position.
 5. Verify that the position is active.
 6. Permanently lock the liquidity position.
 7. Optionally perform a first buy.
 
-A permanent position lock prevents the position NFT from being used to withdraw the opening liquidity through the normal owner path. It does not prevent trading, eliminate volatility or guarantee that price remains inside the concentrated-liquidity range.
+A permanent position lock prevents the position NFT from being used to withdraw the opening liquidity through the normal owner path. It does not prevent trading, eliminate volatility or guarantee market depth.
 
 ## Trading and market cap
 
@@ -28,7 +28,7 @@ Trades execute in the market's Orca Whirlpool. Pool balances change when people 
 
 ## Transfer fees and settlement
 
-The current default Token-2022 transfer fee is 2%: 1% for the platform stream and 1% for the holder-reward stream. Fees are withheld in Token-2022 accounts and require the keeper to discover accounts, harvest withheld tokens, route platform allocations and convert the reward allocation into the market's selected reward asset.
+The current default fee is 2%: 1% for the platform stream and 1% for the holder-reward stream. AQUA settles the collected value in SOL before routing treasury, buyback and creator allocations. The holder allocation is then converted from SOL into the market's selected reward asset when required.
 
 Keeper settlement is operational and is not guaranteed to run at a precise time. A failed or delayed keeper cycle can delay treasury, buyback, creator and holder-reward accounting without changing the signed trade.
 
@@ -53,7 +53,7 @@ When a lock is active, accrued creator fees can be claimed through a creator-wal
 
 ## Risks
 
-Cryptoassets can lose all value. Direct Orca markets can have low liquidity, high slippage, sharp price changes and out-of-range concentrated liquidity. Smart contracts, Solana, Orca, wallets, RPC services, indexers, metadata storage and tokenized-asset providers can fail or change.
+Cryptoassets can lose all value. Direct Orca markets can have low liquidity, high slippage and sharp price changes. Smart contracts, Solana, Orca, wallets, RPC services, indexers, metadata storage and tokenized-asset providers can fail or change.
 
 Tokenized stocks are third-party blockchain assets. Availability, transferability and redemption can depend on jurisdiction and provider rules. A ticker or logo does not mean the issuer or AQUA endorses a launched token.
 

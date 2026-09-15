@@ -17,20 +17,20 @@ export function TokenMark({ launch, large=false }: { launch: Launch; large?: boo
 
 export function AssetMark({ launch, reward = false }: { launch: Launch; reward?: boolean }) {
   const [failed, setFailed] = useState(false);
-  const useSol = !reward && launch.pairType === "sol";
+  const useSol = reward
+    ? launch.stockSymbol.toUpperCase() === "SOL" || launch.stockMint === "So11111111111111111111111111111111111111112"
+    : launch.pairType === "sol";
   const logoUrl = launch.stock.logoUrl;
   useEffect(() => setFailed(false), [logoUrl, reward, launch.pairType]);
   return <span className={"asset-mark " + (useSol ? "solana" : "stock")} aria-hidden="true">
-    {useSol ? <svg viewBox="0 0 32 32"><defs><linearGradient id={"solana-" + launch.id} x1="0" y1="1" x2="1" y2="0"><stop stopColor="#9945ff"/><stop offset=".52" stopColor="#19fb9b"/><stop offset="1" stopColor="#00d1ff"/></linearGradient></defs><path fill={"url(#solana-" + launch.id + ")"} d="M8 6h19l-3 4H5l3-4Zm-3 9h19l3 4H8l-3-4Zm3 9h19l-3 4H5l3-4Z"/></svg> : logoUrl && !failed ? <img src={logoUrl} alt="" onError={() => setFailed(true)}/> : <b>{launch.stockSymbol.slice(0, 2)}</b>}
+    {useSol ? <svg viewBox="0 0 32 32"><defs><linearGradient id={"solana-" + launch.id + (reward ? "-reward" : "-pair")} x1="0" y1="1" x2="1" y2="0"><stop stopColor="#9945ff"/><stop offset=".52" stopColor="#19fb9b"/><stop offset="1" stopColor="#00d1ff"/></linearGradient></defs><path fill={"url(#solana-" + launch.id + (reward ? "-reward" : "-pair") + ")"} d="M8 6h19l-3 4H5l3-4Zm-3 9h19l3 4H8l-3-4Zm3 9h19l-3 4H5l3-4Z"/></svg> : logoUrl && !failed ? <img src={logoUrl} alt="" onError={() => setFailed(true)}/> : <svg viewBox="0 0 32 32" className="generic-stock-mark"><path d="M6 25V14h5v11H6Zm8 0V7h5v18h-5Zm8 0V11h5v14h-5Z"/><path d="M4 27h24"/></svg>}
   </span>;
 }
 
 function marketCapTone(value: number) {
-  if (value >= 10_000_000) return "cap-mega";
-  if (value >= 1_000_000) return "cap-large";
-  if (value >= 100_000) return "cap-growing";
-  if (value >= 10_000) return "cap-early";
-  return "cap-new";
+  if (value >= 1_000_000) return "cap-high";
+  if (value >= 100_000) return "cap-warm";
+  return "cap-normal";
 }
 
 export function TokenCard({ launch, featured = false }: { launch: Launch; sample?: boolean; featured?: boolean }) {

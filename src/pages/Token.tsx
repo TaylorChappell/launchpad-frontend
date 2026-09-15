@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft, Copy, ExternalLink, Gift, Globe2, Loader2, LockKeyhole, ShieldAlert, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Copy, ExternalLink, Globe2, Loader2, Settings2, ShieldAlert, Users } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
-import type { CreatorLock, Launch, MarketSnapshot, StockOption, Trade } from "../types";
+import type { Launch, MarketSnapshot, StockOption, Trade } from "../types";
 import { AssetMark, Metric, TokenMark } from "../components/TokenCard";
-import { MarketCapCandles } from "../components/MarketCapCandles";
+import { MarketCapLine } from "../components/MarketCapCandles";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 4 });
@@ -28,16 +28,13 @@ export function Token() {
   const [launch, setLaunch] = useState<Launch | null>(null);
   const [stock, setStock] = useState<StockOption | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [tradesHaveMore, setTradesHaveMore] = useState(false);
+  const [loadingTrades, setLoadingTrades] = useState(false);
   const [snapshots, setSnapshots] = useState<MarketSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("1");
   const [busy, setBusy] = useState(false);
-  const [creatorLock, setCreatorLock] = useState<CreatorLock | null>(null);
-  const [lockAmount, setLockAmount] = useState("");
-  const [lockDays, setLockDays] = useState("365");
-  const [creatorBusy, setCreatorBusy] = useState<"lock" | "release" | "claim" | null>(null);
-  const [feeQuoteBps, setFeeQuoteBps] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -45,32 +42,14 @@ export function Token() {
       if (!active) return;
       setLaunch(launchData.launch);
       setTrades(launchData.trades);
+      setTradesHaveMore(Boolean(launchData.tradesHasMore));
       setSnapshots(marketData.snapshots);
-      setCreatorLock(launchData.creatorLock);
       setStock(stockData.stocks.find((item) => item.mint === launchData.launch.stockMint) ?? null);
     }).catch(() => undefined).finally(() => { if (active) setLoaded(true); });
     return () => { active = false; };
   }, [id]);
 
-  useEffect(() => {
-    if (!launch || wallet.address !== launch.creatorWallet || !lockAmount || !Number(lockDays)) {
-      setFeeQuoteBps(0);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      try {
-        const amountRaw = decimalToRaw(lockAmount, launch.tokenDecimals);
-        const durationSeconds = Math.round(Number(lockDays) * 86_400);
-        if (BigInt(amountRaw) <= 0n) return setFeeQuoteBps(0);
-        api.creatorFeeQuote(amountRaw, launch.totalSupplyRaw, durationSeconds)
-          .then((quote) => setFeeQuoteBps(quote.feeShareBps))
-          .catch(() => setFeeQuoteBps(0));
-      } catch {
-        setFeeQuoteBps(0);
-      }
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [launch, wallet.address, lockAmount, lockDays]);
+  const sortedTrades = useMemo(() => [...trades].sort((a, b) => Number(b.created_at ?? 0) - Number(a.created_at ?? 0)), [trades]);
 
   if (!launch && loaded) return <main className="page empty-state"><h2>Market not found</h2><p>This market is not present in the AQUA index.</p><Link className="primary" to="/">Return to Explore</Link></main>;
   if (!launch) return <main className="page"><div className="page-loading">Loading market…</div></main>;
@@ -80,36 +59,6 @@ export function Token() {
   const stockDecimals = stock?.decimals ?? 6;
   const pairDecimals = launch.pairType === "sol" ? 9 : stockDecimals;
   const explorerUrl = `https://explorer.solana.com/address/${launch.whirlpoolAddress || launch.mint}${config.network === "devnet" ? "?cluster=devnet" : ""}`;
-
-  async function refreshCreatorState() {
-    const refreshed = await api.launch(id);
-    setLaunch(refreshed.launch);
-    setCreatorLock(refreshed.creatorLock);
-  }
-
-  async function creatorAction(action: "lock" | "release" | "claim") {
-    if (!wallet.address || wallet.address !== activeLaunch.creatorWallet) return;
-    setCreatorBusy(action);
-    try {
-      const envelope = action === "lock"
-        ? await api.creatorLockTransaction(
-            activeLaunch.id,
-            wallet.address,
-            decimalToRaw(lockAmount, activeLaunch.tokenDecimals),
-            Math.round(Number(lockDays) * 86_400),
-          )
-        : action === "release"
-          ? await api.creatorLockReleaseTransaction(activeLaunch.id, wallet.address)
-          : await api.creatorFeesClaimTransaction(activeLaunch.id, wallet.address);
-      const signature = await wallet.sendTransaction(envelope);
-      toast.success(`${action === "lock" ? "Creator tokens locked" : action === "release" ? "Creator tokens released" : "Creator fees claimed"} · ${signature.slice(0, 7)}…${signature.slice(-6)}`);
-      await refreshCreatorState();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : `Creator ${action} failed.`);
-    } finally {
-      setCreatorBusy(null);
-    }
-  }
 
   async function trade() {
     if (!wallet.address) {
@@ -131,6 +80,20 @@ export function Token() {
     }
   }
 
+  async function loadMoreTrades() {
+    if (loadingTrades || !tradesHaveMore) return;
+    setLoadingTrades(true);
+    try {
+      const result = await api.trades(activeLaunch.id, trades.length, 10);
+      setTrades((current) => [...current, ...result.trades]);
+      setTradesHaveMore(result.hasMore);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not load older activity.");
+    } finally {
+      setLoadingTrades(false);
+    }
+  }
+
   return <main className="page token-page">
     <Link className="back" to="/"><ArrowLeft/>Explore markets</Link>
     <section className="token-hero">
@@ -139,30 +102,15 @@ export function Token() {
     </section>
 
     <div className="token-layout"><section className="token-main">
-      <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP · OHLC</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div><span>{launch.indexingStatus === "indexed" ? "INDEXED" : launch.indexingStatus === "orca_indexed" ? "ORCA INDEXED" : "PENDING INDEXING"}</span></header><div className="chart candle-chart-shell"><MarketCapCandles snapshots={snapshots}/></div></div>
+      <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div><span>{launch.indexingStatus === "indexed" ? "INDEXED" : launch.indexingStatus === "orca_indexed" ? "ORCA INDEXED" : "PENDING INDEXING"}</span></header><div className="chart market-line-shell"><MarketCapLine snapshots={snapshots}/></div></div>
 
-      <div className="info-grid">
-        <div className="info-panel reward"><Gift/><b><AssetMark launch={launch} reward/>Earn {launch.stockSymbol}</b><div><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Redeemable by holders" value={money.format(launch.rewardRedeemableUsd)}/></div><p>Shown in dollars. Allocations use eligible balance and time held; claimed rewards reduce the redeemable total.</p></div>
-        <div className="info-panel"><small>ORCA MARKET · {launch.symbol} / {launch.pairSymbol}</small><h2>{launch.status === "live" ? "Live" : "Launching"}</h2><p>{launch.status === "live" ? launch.indexingStatus === "pending_indexing" ? "The Whirlpool is live. AQUA, Orca, and external market indexes are still discovering it." : `The ${launch.pairSymbol}-paired Whirlpool is open and its initial position is permanently locked.` : "The creator is completing the signed launch transactions."}</p>{launch.liquidityLockedPermanently && <span className="pool-lock-status"><LockKeyhole/> Permanent liquidity lock</span>}</div>
+      <div className="info-grid single">
+        <div className="info-panel reward"><AssetMark launch={launch} reward/><b>Earn {launch.stockSymbol}</b><div><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Redeemable by holders" value={money.format(launch.rewardRedeemableUsd)}/></div><p>Shown in dollars. Allocations use eligible balance and time held; claimed rewards reduce the redeemable total.</p></div>
       </div>
 
+      {wallet.address === launch.creatorWallet && <Link className="creator-manage-button" to={"/manage/" + launch.id}><Settings2/>Manage coin</Link>}
 
-      {wallet.address === launch.creatorWallet && <section className="creator-fee-panel">
-        <header><div><small>CREATOR ALIGNMENT</small><h2>Lock purchased tokens to earn fees</h2></div><div><span>Up to {(config.creatorLocks.maximumFeeShareBps / 100).toFixed(0)}% of the platform stream</span><Link className="creator-manager-link" to={"/manage/" + launch.id}>Open guided manager</Link></div></header>
-        <p>The full original supply remains permanently in Orca liquidity. Only {launch.symbol} held in your creator wallet after launch can be locked; more supply and more time increase your active creator share.</p>
-        {creatorLock?.status === "active" ? <div className="creator-lock-active">
-          <div><Metric label="Tokens locked" value={formatRaw(creatorLock.amountRaw, launch.tokenDecimals)}/><Metric label="Creator share" value={`${(creatorLock.feeShareBps / 100).toFixed(2)}%`}/><Metric label="Unlocks" value={new Date(creatorLock.unlockAt * 1_000).toLocaleDateString()}/></div>
-          <button className="secondary-button" disabled={creatorBusy !== null || Math.floor(Date.now() / 1_000) < creatorLock.unlockAt} onClick={() => void creatorAction("release")}>{creatorBusy === "release" && <Loader2 className="spin"/>}Release matured lock</button>
-        </div> : <div className="creator-lock-form">
-          <label><span>Amount to lock</span><div className="trade-input"><input value={lockAmount} inputMode="decimal" placeholder="0" onChange={(event) => setLockAmount(event.target.value.replace(/[^0-9.]/g, ""))}/><b>{launch.symbol}</b></div></label>
-          <label><span>Lock duration</span><div className="trade-input"><input value={lockDays} inputMode="numeric" min="1" max="365" onChange={(event) => setLockDays(event.target.value.replace(/[^0-9]/g, ""))}/><b>days</b></div></label>
-          <div className="creator-lock-quote"><span>Estimated active creator share</span><strong>{(feeQuoteBps / 100).toFixed(2)}%</strong><small>of the 1% platform fee stream</small></div>
-          <button className="primary" disabled={creatorBusy !== null || !Number(lockAmount) || Number(lockDays) < 1 || Number(lockDays) > 365} onClick={() => void creatorAction("lock")}>{creatorBusy === "lock" && <Loader2 className="spin"/>}Lock creator tokens</button>
-        </div>}
-        <footer><span><b>Unpaid creator fees</b><small>{formatRaw(launch.creatorFeesAccruedRaw, launch.tokenDecimals)} {launch.symbol}</small></span><button className="secondary-button" disabled={creatorBusy !== null || BigInt(launch.creatorFeesAccruedRaw || "0") === 0n} onClick={() => void creatorAction("claim")}>{creatorBusy === "claim" && <Loader2 className="spin"/>}Claim now</button></footer>
-      </section>}
-
-      <div className="activity"><header><div><b>Market activity</b><span>Indexed transactions</span></div><strong>{launch.txCount.toLocaleString()} total</strong></header><div className="activity-scroll"><table><thead><tr><th>Type</th><th>Wallet</th><th>{launch.pairSymbol}</th><th>Tokens</th></tr></thead><tbody>{trades.length ? trades.map((item) => <tr key={item.id}><td className={item.side}>{item.side.toUpperCase()}</td><td>{item.wallet}</td><td>{formatRaw(item.gross_quote_raw, pairDecimals)}</td><td>{formatRaw(item.token_amount_raw, launch.tokenDecimals)}</td></tr>) : <tr><td colSpan={4} className="no-activity">No indexed trades yet.</td></tr>}</tbody></table></div></div>
+      <div className="activity"><header><div><b>Market activity</b><span>Newest transactions first</span></div><strong>{launch.txCount.toLocaleString()} total</strong></header><div className="activity-scroll"><table><thead><tr><th>Type</th><th>Wallet</th><th>{launch.pairSymbol}</th><th>Tokens</th></tr></thead><tbody>{sortedTrades.length ? sortedTrades.map((item) => <tr key={item.id}><td className={item.side}>{item.side.toUpperCase()}</td><td>{item.wallet}</td><td>{formatRaw(item.gross_quote_raw, pairDecimals)}</td><td>{formatRaw(item.token_amount_raw, launch.tokenDecimals)}</td></tr>) : <tr><td colSpan={4} className="no-activity">No indexed trades yet.</td></tr>}</tbody></table></div>{tradesHaveMore && <button className="activity-load-more" disabled={loadingTrades} onClick={() => void loadMoreTrades()}>{loadingTrades ? <><Loader2 className="spin"/>Loading</> : "Load more"}</button>}</div>
     </section>
 
     <aside className="trade-card">

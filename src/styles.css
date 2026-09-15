@@ -444,6 +444,10 @@ img { max-width: 100%; }
 .activity td.buy { color: var(--teal); }
 .activity td.sell { color: var(--red); }
 .activity td.no-activity { padding: 36px 18px; color: #68858c; text-align: center; }
+.activity-load-more { display: block; width: calc(100% - 36px); margin: 12px 18px 16px; padding: 10px; border: 1px solid rgba(112, 205, 215, .14); border-radius: 9px; color: #8edfe2; background: rgba(10, 48, 58, .42); font: 650 .7rem "Manrope", sans-serif; }
+.activity-load-more:hover { border-color: rgba(112, 225, 230, .32); background: rgba(16, 67, 77, .5); }
+.creator-manage-button { display: inline-flex; width: max-content; align-items: center; gap: 8px; padding: 11px 15px; border: 1px solid rgba(101, 218, 223, .2); border-radius: 10px; color: #9be8ea; background: rgba(13, 62, 71, .38); font: 700 .72rem "Manrope", sans-serif; }
+.creator-manage-button svg { width: 15px; }
 .trade-card { position: sticky; top: 90px; padding: 18px; }
 .trade-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 19px; border: 1px solid var(--line); border-radius: 8px; }
 .trade-tabs button { height: 34px; border: 0; border-radius: 6px; color: #78949a; background: transparent; font-size: .75rem; }
@@ -4009,7 +4013,8 @@ body::before {
 .rewards-vault-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding-bottom: 27px; border-bottom: 1px solid rgba(120, 207, 216, .11); }
 .rewards-vault-heading > div:first-child > span { display: inline-flex; align-items: center; gap: 8px; color: #77dfe3; font: 700 .69rem/1 "Manrope", sans-serif; letter-spacing: .1em; text-transform: uppercase; }
 .rewards-vault-heading > div:first-child > span svg { width: 16px; }
-.rewards-vault-heading h1 { margin: 15px 0 0; font: 770 clamp(2.65rem, 5vw, 4.5rem)/1 "Manrope", sans-serif; letter-spacing: -.06em; }
+.rewards-vault-heading h1 { margin: 0; font: 770 clamp(2.65rem, 5vw, 4.5rem)/1 "Manrope", sans-serif; letter-spacing: -.06em; }
+.rewards-list-spaced { margin-top: 22px; }
 .rewards-wallet { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid rgba(119, 209, 218, .13); border-radius: 999px; color: #74949b; background: rgba(6, 27, 37, .66); font: 600 .7rem/1 monospace; }
 .rewards-wallet i { width: 6px; height: 6px; border-radius: 50%; background: #43d9c7; box-shadow: 0 0 8px rgba(67, 217, 199, .35); }
 .rewards-connect-card { min-height: 154px; display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 19px; margin-top: 24px; padding: 25px; overflow: hidden; border: 1px solid rgba(117, 215, 224, .17); border-radius: 20px 23px 19px 24px / 23px 19px 24px 20px; background: linear-gradient(120deg, rgba(8, 39, 50, .87), rgba(4, 21, 31, .88)); }
