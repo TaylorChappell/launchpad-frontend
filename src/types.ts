@@ -58,9 +58,10 @@ export type AdminDiagnostics = {
     available: boolean;
     reason?: string;
     operator?: string;
+    rewardOperator?: string;
     programId?: string;
-    destinations?: { treasury: string; rewardBuyer: string; buybackBuyer: string };
-    balances?: { nativeLamports: string; wrappedSolLamports: string; reservedRewardLamports: string };
+    destinations?: { treasury: string; rewardBuyer: string; buybackBuyer: string; feeKeeper: string };
+    balances?: { nativeLamports: string; rewardNativeLamports: string; wrappedSolLamports: string; reservedRewardLamports: string };
     markets?: Array<Record<string, unknown>>;
   };
   launches: Array<Record<string, unknown>>;
