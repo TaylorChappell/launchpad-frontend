@@ -246,9 +246,9 @@ export function HowItWorks() {
           <p>Token-2022 necessarily withholds transfer fees in the launch token as transfers happen. The AQUA keeper periodically finds those balances, moves them into the market’s program-controlled fee vault, records the allocation, swaps through the launch’s own Orca pool first, and settles the proceeds in SOL. New launch tokens therefore do not need to be indexed by Jupiter before SOL conversion can begin.</p>
           <div className="aqua-docs-timeline compact">
             <TimelineStep number="01" title="Fees accrue" text="Trades and transfers withhold launch tokens at the Token-2022 level."/>
-            <TimelineStep number="02" title="Keeper harvests" text="The authorized reward-buyer signer collects eligible withheld balances in controlled batches."/>
+            <TimelineStep number="02" title="Keeper harvests" text="The dedicated fee-keeper signer collects eligible withheld balances in controlled batches, converts them to SOL and divides the proceeds."/>
             <TimelineStep number="03" title="Program allocates" text="The on-chain market records reward, treasury, buyback and creator amounts."/>
-            <TimelineStep number="04" title="SOL is routed" text="Creator, buyback and treasury proceeds are sent as SOL; the holder share stays reserved for the next reward epoch."/>
+            <TimelineStep number="04" title="SOL is routed" text="Creator, buyback and treasury proceeds are sent to their fixed wallets. The holder share is sent only to the separate reward wallet for conversion and epoch funding."/>
           </div>
           <Callout title="Settlement is not every trade">
             Fees accrue continuously, but harvesting is a scheduled operation. The normal keeper checks roughly every minute. Failed work is logged and retried on a later cycle; a fee remaining unharvested does not mean it disappeared.
@@ -260,9 +260,9 @@ export function HowItWorks() {
           <div className="aqua-docs-formula">
             <span>Wallet balance</span><b>×</b><span>Seconds held</span><b>=</b><strong>Reward weight</strong>
           </div>
-          <p>When at least {minimumReward} of reward value has accumulated and the {epochLength} epoch window has elapsed, the keeper converts reserved reward SOL into the market’s selected tokenized stock. SOL-paired markets keep SOL as the reward asset. AQUA then builds a Merkle tree from eligible wallet weights, funds an on-chain reward vault and publishes the root.</p>
+          <p>When at least {minimumReward} of reward value has accumulated and the {epochLength} epoch window has elapsed, the dedicated reward wallet converts its reserved reward SOL into the market’s selected tokenized stock. SOL-paired markets keep SOL as the reward asset. AQUA then builds a Merkle tree from eligible wallet weights, funds an on-chain reward vault and publishes the root.</p>
           <h3>Who is excluded</h3>
-          <p>The creator wallet, the Whirlpool and position accounts, AQUA PDAs, the fee vault, permanent lock accounts, treasury, reward-buyer and buyback wallets are excluded. Those accounts hold tokens for infrastructure or protocol operations rather than as ordinary holders. Excluding them prevents rewards from being sent back into inactive vaults.</p>
+          <p>The creator wallet, the Whirlpool and position accounts, AQUA PDAs, the fee vault, permanent lock accounts, fee keeper, treasury, reward wallet and buyback wallet are excluded. Those accounts hold tokens for infrastructure or protocol operations rather than as ordinary holders. Excluding them prevents rewards from being sent back into inactive vaults.</p>
           <div className="aqua-docs-benefits">
             <Principle icon={<Clock3/>} title="Time matters" text="The calculation rewards sustained ownership instead of a last-second snapshot."/>
             <Principle icon={<Layers3/>} title="Proportional" text="Each eligible wallet receives its weight as a fraction of total eligible weight."/>
