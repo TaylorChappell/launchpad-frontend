@@ -29,7 +29,7 @@ export function CreatorManage() {
   const minimumDays = Math.max(1, Math.ceil(config.creatorLocks.minimumSeconds / 86_400));
   const [days, setDays] = useState(String(maximumDays));
   const [quoteBps, setQuoteBps] = useState(0);
-  const [busy, setBusy] = useState<"lock" | "release" | "claim" | null>(null);
+  const [busy, setBusy] = useState<"lock" | "release" | null>(null);
 
   async function refresh() {
     const result = await api.launch(id);
@@ -62,15 +62,15 @@ export function CreatorManage() {
     return () => window.clearTimeout(timer);
   }, [amountRaw, effectiveDays, isOwner, launch]);
 
-  async function act(action: "lock" | "release" | "claim") {
+  async function act(action: "lock" | "release") {
     if (!launch || !wallet.address || !isOwner) return;
     setBusy(action);
     try {
       const envelope = action === "lock"
         ? await api.creatorLockTransaction(launch.id, wallet.address, amountRaw, effectiveDays * 86_400)
-        : action === "release" ? await api.creatorLockReleaseTransaction(launch.id, wallet.address) : await api.creatorFeesClaimTransaction(launch.id, wallet.address);
+        : await api.creatorLockReleaseTransaction(launch.id, wallet.address);
       const signature = await wallet.sendTransaction(envelope);
-      toast.success((action === "lock" ? "Creator lock confirmed" : action === "release" ? "Creator tokens released" : "Creator fees claimed") + " · " + signature.slice(0, 7) + "…" + signature.slice(-6));
+      toast.success((action === "lock" ? "Creator lock confirmed" : "Creator tokens released") + " · " + signature.slice(0, 7) + "…" + signature.slice(-6));
       await refresh();
     } catch (error) { toast.error(error instanceof Error ? error.message : "Creator action failed."); }
     finally { setBusy(null); }
@@ -86,12 +86,12 @@ export function CreatorManage() {
     <Link className="back" to={"/token/" + launch.id}><ArrowLeft/>Back to market</Link>
     <section className="manage-hero"><div><TokenMark launch={launch} large/><span><small>CREATOR MANAGER</small><h1>Manage {"$" + launch.symbol}</h1><p>Set up a transparent creator lock, preview the fee share, and claim accrued creator fees.</p></span></div><div className="manage-status"><i/><span><b>{launch.status === "live" ? "Market live" : "Launch in progress"}</b><small>{launch.pairSymbol} pair · {launch.stockSymbol} rewards</small></span></div></section>
 
-    <div className="manage-steps"><span className={lock?.status === "active" ? "done" : "active"}><i>{lock?.status === "active" ? <Check/> : "1"}</i><b>1. Configure lock</b></span><span className={lock?.status === "active" ? "active" : ""}><i>2</i><b>2. Earn & claim</b></span></div>
+    <div className="manage-steps"><span className={lock?.status === "active" ? "done" : "active"}><i>{lock?.status === "active" ? <Check/> : "1"}</i><b>1. Configure lock</b></span><span className={lock?.status === "active" ? "active" : ""}><i>2</i><b>2. Earn fees</b></span></div>
 
     {lock?.status === "active" ? <section className="manage-active-lock">
       <header><span><LockKeyhole/><small>ACTIVE CREATOR LOCK</small></span><strong>{activeTradeShare.toFixed(3)}% per eligible transfer</strong></header>
-      <div><span><small>Tokens locked</small><b>{formatRaw(lock.amountRaw, launch.tokenDecimals)} {launch.symbol}</b></span><span><small>Unlock date</small><b>{new Date(lock.unlockAt * 1_000).toLocaleDateString()}</b></span><span><small>Current creator fees</small><b>{formatRaw(launch.creatorFeesAccruedRaw, 9)} SOL</b></span></div>
-      <footer><button className="secondary-button" disabled={busy !== null || Math.floor(Date.now()/1_000) < lock.unlockAt} onClick={() => void act("release")}>{busy === "release" && <Loader2 className="spin"/>}Release after maturity</button><button className="primary" disabled={busy !== null || BigInt(launch.creatorFeesAccruedRaw || "0") === 0n} onClick={() => void act("claim")}>{busy === "claim" && <Loader2 className="spin"/>}Claim creator fees</button></footer>
+      <div><span><small>Tokens locked</small><b>{formatRaw(lock.amountRaw, launch.tokenDecimals)} {launch.symbol}</b></span><span><small>Unlock date</small><b>{new Date(lock.unlockAt * 1_000).toLocaleDateString()}</b></span><span><small>Fee settlement</small><b>Paid automatically in SOL</b></span></div>
+      <footer><button className="secondary-button" disabled={busy !== null || Math.floor(Date.now()/1_000) < lock.unlockAt} onClick={() => void act("release")}>{busy === "release" && <Loader2 className="spin"/>}Release after maturity</button></footer>
     </section> : <div className="manage-grid">
       <section className="manage-builder">
         <header><small>STEP 1</small><h2>Build your creator lock</h2><p>Choose the token amount and lock duration.</p></header>
