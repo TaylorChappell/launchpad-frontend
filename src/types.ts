@@ -18,7 +18,7 @@ export type RuntimeConfig = {
     reserveSupplyBps: number;
     reserveCustody: string | null;
     startMarketCapUsd: number;
-    endMarketCapUsd: number;
+    liquidityUpperBound: string;
   };
   launchCost?: {
     platformFeeLamports: string;
