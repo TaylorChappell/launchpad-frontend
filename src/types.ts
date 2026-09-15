@@ -36,7 +36,16 @@ export type RuntimeConfig = {
     allocationWithoutCreatorLockBps?: { rewardsBps: number; buybackBps: number; treasuryBps: number; creatorBps: number };
     platformAllocationAtMaximumCreatorScore?: { treasuryBps: number; buybackBps: number; creatorBps: number };
   };
-  rewardDistribution?: { enabled: boolean; epochSeconds: number; minimumRewardUsdCents: number; swapSlippageBps: number; claimableOnchain: boolean };
+  rewardDistribution?: {
+    enabled: boolean;
+    epochSeconds: number;
+    minimumRewardUsdCents: number;
+    minimumClaimUsdCents: number;
+    claimFeeBaseLamports: number;
+    claimFeePerEpochLamports: number;
+    swapSlippageBps: number;
+    claimableOnchain: boolean;
+  };
   creatorLocks: { minimumSeconds: number; maximumSeconds: number; maximumFeeShareBps: number; targetSupplyBps?: number; initialLiquidityExcluded?: boolean };
   sniperDefense: { supported: false; reason: string };
 };
@@ -131,6 +140,8 @@ export type Launch = {
   holderCount: number;
   rewardVaultStockRaw: string;
   rewardDistributedUsd: number;
+  rewardAccumulatedUsd: number;
+  rewardRedeemableUsd: number;
   devBuyStockRaw: string;
   devBuySol: number;
   txCount: number;
@@ -204,9 +215,36 @@ export type WalletReward = {
   endsAt: number;
   merkleRootHex: string;
   amountRaw: string;
+  amountUsdCents: number;
   weightRawSeconds: string;
   proofHex: string[];
   claimedSignature: string | null;
+};
+
+export type WalletRewardHolding = {
+  launchId: string;
+  balanceRaw: string;
+};
+
+export type WalletRewardMarket = {
+  launchId: string;
+  balanceRaw: string;
+  claimableEpochIds: string[];
+  grossRedeemableUsdCents: number;
+  pendingUsdCents: number;
+  estimatedClaimFeeLamports: string;
+  estimatedClaimFeeUsdCents: number;
+  netClaimableUsdCents: number;
+  minimumClaimUsdCents: number;
+  canClaim: boolean;
+  claimableUsdCents: number;
+  accumulatingUsdCents: number;
+};
+
+export type WalletRewardsResponse = {
+  rewards: WalletReward[];
+  holdings: WalletRewardHolding[];
+  markets: WalletRewardMarket[];
 };
 
 export type TransactionEnvelope = {
