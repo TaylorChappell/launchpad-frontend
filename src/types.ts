@@ -5,6 +5,7 @@ export type RuntimeConfig = {
   publicRpcUrl: string;
   aquaProgramId: string | null;
   programId: string | null;
+  adminWallet?: string;
   programInitialized?: boolean;
   transactionsEnabled: boolean;
   transactionsDisabledReason?: string | null;
@@ -32,11 +33,43 @@ export type RuntimeConfig = {
     platformBps: number;
     stockRewardsBps: number;
     universal: boolean;
+    allocationWithoutCreatorLockBps?: { rewardsBps: number; buybackBps: number; treasuryBps: number; creatorBps: number };
     platformAllocationAtMaximumCreatorScore?: { treasuryBps: number; buybackBps: number; creatorBps: number };
   };
   rewardDistribution?: { enabled: boolean; epochSeconds: number; minimumRewardUsdCents: number; swapSlippageBps: number; claimableOnchain: boolean };
   creatorLocks: { minimumSeconds: number; maximumSeconds: number; maximumFeeShareBps: number; targetSupplyBps?: number; initialLiquidityExcluded?: boolean };
   sniperDefense: { supported: false; reason: string };
+};
+
+export type AdminDiagnostics = {
+  generatedAt: number;
+  flags: {
+    feeKeeperEnabled: boolean;
+    solFeeConversionEnabled: boolean;
+    rewardDistributionEnabled: boolean;
+    conversionMinimumUsdCents: number;
+    conversionSlippageBps: number;
+    rewardEpochSeconds: number;
+    rewardMinimumUsdCents: number;
+    keeperIntervalMs: number;
+  };
+  counts: Record<string, number>;
+  runtime: {
+    available: boolean;
+    reason?: string;
+    operator?: string;
+    programId?: string;
+    destinations?: { treasury: string; rewardBuyer: string; buybackBuyer: string };
+    balances?: { nativeLamports: string; wrappedSolLamports: string; reservedRewardLamports: string };
+    markets?: Array<Record<string, unknown>>;
+  };
+  launches: Array<Record<string, unknown>>;
+  diagnostics: Array<Record<string, unknown>>;
+  conversions: Array<Record<string, unknown>>;
+  settlements: Array<Record<string, unknown>>;
+  rewardPurchases: Array<Record<string, unknown>>;
+  rewardEpochs: Array<Record<string, unknown>>;
+  creatorLocks: Array<Record<string, unknown>>;
 };
 
 export type StockOption = {

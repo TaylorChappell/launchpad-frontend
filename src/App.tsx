@@ -11,7 +11,8 @@ const HowItWorks = lazy(() => import("./pages/HowItWorks").then(module => ({ def
 const Terms = lazy(() => import("./pages/Legal").then(module => ({ default: module.Terms })));
 const Privacy = lazy(() => import("./pages/Legal").then(module => ({ default: module.Privacy })));
 const CreatorManage = lazy(() => import("./pages/CreatorManage").then(module => ({ default: module.CreatorManage })));
+const Admin = lazy(() => import("./pages/Admin").then(module => ({ default: module.Admin })));
 
 export function App() {
-  return <HashRouter><Layout><Suspense fallback={<main className="page"><div className="page-loading">Loading AQUA…</div></main>}><Routes><Route path="/" element={<Markets/>}/><Route path="/create" element={<Create/>}/><Route path="/token/:id" element={<Token/>}/><Route path="/manage/:id" element={<CreatorManage/>}/><Route path="/portfolio" element={<Portfolio/>}/><Route path="/rewards" element={<Rewards/>}/><Route path="/how-it-works" element={<HowItWorks/>}/><Route path="/terms" element={<Terms/>}/><Route path="/privacy" element={<Privacy/>}/></Routes></Suspense></Layout></HashRouter>;
+  return <HashRouter><Layout><Suspense fallback={<main className="page"><div className="page-loading">Loading AQUA…</div></main>}><Routes><Route path="/" element={<Markets/>}/><Route path="/create" element={<Create/>}/><Route path="/token/:id" element={<Token/>}/><Route path="/manage/:id" element={<CreatorManage/>}/><Route path="/portfolio" element={<Portfolio/>}/><Route path="/rewards" element={<Rewards/>}/><Route path="/how-it-works" element={<HowItWorks/>}/><Route path="/terms" element={<Terms/>}/><Route path="/privacy" element={<Privacy/>}/><Route path="/admin" element={<Admin/>}/></Routes></Suspense></Layout></HashRouter>;
 }

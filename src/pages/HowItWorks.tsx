@@ -75,9 +75,9 @@ export function HowItWorks() {
   const launch = config.launchEconomics;
   const reward = config.rewardDistribution;
   const maximumAllocation = config.fees.platformAllocationAtMaximumCreatorScore ?? {
-    treasuryBps: 5_000,
-    buybackBps: 2_500,
-    creatorBps: 2_500,
+    treasuryBps: 0,
+    buybackBps: 5_000,
+    creatorBps: 5_000,
   };
   const totalSupply = Number(launch?.tokenSupply ?? 1_000_000_000).toLocaleString("en-GB");
   const tokenDecimals = launch?.tokenDecimals ?? 6;
@@ -228,27 +228,27 @@ export function HowItWorks() {
           <table className="aqua-docs-table fee-table">
             <thead><tr><th>Stream</th><th>Of trade value</th><th>Of collected fees</th><th>Purpose</th></tr></thead>
             <tbody>
-              <tr><td><span className="fee-dot reward"/>Holder rewards</td><td>{formatBps(config.fees.stockRewardsBps)}</td><td>50%</td><td>Converted into the selected pair asset for eligible holders.</td></tr>
+              <tr><td><span className="fee-dot reward"/>Holder rewards</td><td>{formatBps(config.fees.stockRewardsBps)}</td><td>50%</td><td>Settled through SOL, then converted into the selected tokenized stock at epoch close. SOL-paired markets reward SOL.</td></tr>
               <tr><td><span className="fee-dot platform"/>Platform</td><td>{formatBps(config.fees.platformBps)}</td><td>50%</td><td>Funds treasury, buybacks and any earned creator share.</td></tr>
             </tbody>
           </table>
           <h3>Inside the platform half</h3>
-          <p>The creator can earn between 0% and {formatBps(maximumCreatorShareBps)} of the platform stream through an active token lock. Whatever remains is split two parts treasury to one part buyback. At the maximum creator score, the platform stream is divided like this:</p>
+          <p>Half of the platform stream always funds the buyback wallet. The other half belongs to the treasury/creator stream. An active token lock can redirect between 0% and {formatBps(maximumCreatorShareBps)} of the platform stream from treasury to the creator; it never reduces holder rewards or buyback funding.</p>
           <div className="aqua-docs-allocation">
             <Allocation value={formatBps(maximumAllocation.treasuryBps)} label="Treasury" className="treasury"/>
             <Allocation value={formatBps(maximumAllocation.buybackBps)} label="Buyback" className="buyback"/>
             <Allocation value={formatBps(maximumAllocation.creatorBps)} label="Creator" className="creator-share"/>
           </div>
-          <p className="fine-print">These percentages describe the 1% platform stream, not the full trade. At maximum score that equals 0.50% of trade value to treasury, 0.25% to buyback and 0.25% to the creator.</p>
+          <p className="fine-print">These percentages describe the 1% platform stream. With no creator lock, the full trade routes 1% to rewards, 0.5% to buyback and 0.5% to treasury. At maximum score, that treasury 0.5% moves to the creator.</p>
         </DocSection>
 
         <DocSection id="settlement" eyebrow="FEES AND REWARDS" title="How fees are harvested and settled">
-          <p>Token-2022 withholds transfer fees inside token accounts as transfers happen. The AQUA keeper periodically finds withheld balances, moves them into the market’s program-controlled fee vault, records the allocation, and sends each allocation only to its configured destination.</p>
+          <p>Token-2022 necessarily withholds transfer fees in the launch token as transfers happen. The AQUA keeper periodically finds those balances, moves them into the market’s program-controlled fee vault, records the allocation, swaps through the launch’s own Orca pool first, and settles the proceeds in SOL. New launch tokens therefore do not need to be indexed by Jupiter before SOL conversion can begin.</p>
           <div className="aqua-docs-timeline compact">
             <TimelineStep number="01" title="Fees accrue" text="Trades and transfers withhold launch tokens at the Token-2022 level."/>
             <TimelineStep number="02" title="Keeper harvests" text="The authorized reward-buyer signer collects eligible withheld balances in controlled batches."/>
             <TimelineStep number="03" title="Program allocates" text="The on-chain market records reward, treasury, buyback and creator amounts."/>
-            <TimelineStep number="04" title="Destinations receive" text="Withdrawals are constrained to the creator and the wallet addresses stored in AQUA’s config."/>
+            <TimelineStep number="04" title="SOL is routed" text="Creator, buyback and treasury proceeds are sent as SOL; the holder share stays reserved for the next reward epoch."/>
           </div>
           <Callout title="Settlement is not every trade">
             Fees accrue continuously, but harvesting is a scheduled operation. The normal keeper checks roughly every minute. Failed work is logged and retried on a later cycle; a fee remaining unharvested does not mean it disappeared.
@@ -260,7 +260,7 @@ export function HowItWorks() {
           <div className="aqua-docs-formula">
             <span>Wallet balance</span><b>×</b><span>Seconds held</span><b>=</b><strong>Reward weight</strong>
           </div>
-          <p>When at least {minimumReward} of reward value has accumulated and the {epochLength} epoch window has elapsed, the keeper can convert the reward allocation through the launch’s immutable Whirlpool pair. AQUA then builds a Merkle tree from eligible wallet weights, funds an on-chain reward vault and publishes the root.</p>
+          <p>When at least {minimumReward} of reward value has accumulated and the {epochLength} epoch window has elapsed, the keeper converts reserved reward SOL into the market’s selected tokenized stock. SOL-paired markets keep SOL as the reward asset. AQUA then builds a Merkle tree from eligible wallet weights, funds an on-chain reward vault and publishes the root.</p>
           <h3>Who is excluded</h3>
           <p>The creator wallet, the Whirlpool and position accounts, AQUA PDAs, the fee vault, permanent lock accounts, treasury, reward-buyer and buyback wallets are excluded. Those accounts hold tokens for infrastructure or protocol operations rather than as ordinary holders. Excluding them prevents rewards from being sent back into inactive vaults.</p>
           <div className="aqua-docs-benefits">

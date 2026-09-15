@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Copy, LogOut, Plus, Settings2, WalletCards } from "lucide-react";
+import { ChevronDown, Copy, LogOut, Plus, Settings2, ShieldCheck, WalletCards } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
-import { useWallet } from "../context";
+import { useRuntime, useWallet } from "../context";
 import type { Launch } from "../types";
 import { TokenMark } from "./TokenCard";
 
 export function WalletMenu() {
   const wallet = useWallet();
+  const { config } = useRuntime();
   const location = useLocation();
   const root = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -49,6 +50,7 @@ export function WalletMenu() {
         </div>
       </section>
       <Link className="wallet-launch-link" to="/create" role="menuitem"><Plus size={15}/>Launch a coin</Link>
+      {address === config.adminWallet && <Link className="wallet-launch-link wallet-admin-link" to="/admin" role="menuitem"><ShieldCheck size={15}/>Admin diagnostics</Link>}
       <button className="wallet-disconnect" role="menuitem" onClick={() => void wallet.disconnect()}><LogOut size={15}/>Disconnect</button>
     </div>}
   </div>;
