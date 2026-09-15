@@ -63,6 +63,7 @@ const navigation = [
 
 const formatBps = (bps: number) => (bps / 100).toLocaleString("en-GB", { maximumFractionDigits: 2 }) + "%";
 const durationLabel = (seconds: number) => {
+  if (seconds < 3_600) return Math.round(seconds / 60) + " minutes";
   const hours = Math.round(seconds / 3_600);
   if (hours < 48) return hours + " hours";
   return Math.round(hours / 24) + " days";
@@ -88,8 +89,8 @@ export function HowItWorks() {
   const maximumCreatorShareBps = config.creatorLocks.maximumFeeShareBps;
   const minimumLock = durationLabel(config.creatorLocks.minimumSeconds);
   const maximumLock = durationLabel(config.creatorLocks.maximumSeconds);
-  const epochLength = durationLabel(reward?.epochSeconds ?? 86_400);
-  const minimumReward = ((reward?.minimumRewardUsdCents ?? 2_000) / 100).toLocaleString("en-GB", {
+  const epochLength = durationLabel(reward?.epochSeconds ?? 1_200);
+  const minimumClaim = ((reward?.minimumClaimUsdCents ?? 500) / 100).toLocaleString("en-GB", {
     style: "currency",
     currency: "USD",
   });
@@ -260,7 +261,7 @@ export function HowItWorks() {
           <div className="aqua-docs-formula">
             <span>Wallet balance</span><b>×</b><span>Seconds held</span><b>=</b><strong>Reward weight</strong>
           </div>
-          <p>When at least {minimumReward} of reward value has accumulated and the {epochLength} epoch window has elapsed, the dedicated reward wallet converts its reserved reward SOL into the market’s selected tokenized stock. SOL-paired markets keep SOL as the reward asset. AQUA then builds a Merkle tree from eligible wallet weights, funds an on-chain reward vault and publishes the root.</p>
+          <p>Every {epochLength}, AQUA attempts to allocate whatever holder-reward value has been collected; there is no application-level minimum funding amount. The dedicated reward wallet converts reserved reward SOL into the market’s selected tokenized stock. SOL-paired markets keep SOL as the reward asset. AQUA then builds a Merkle tree from eligible wallet weights, funds an on-chain reward vault and publishes the root. If an amount is too small for a swap or on-chain precision, it remains available for a later cycle.</p>
           <h3>Who is excluded</h3>
           <p>The creator wallet, the Whirlpool and position accounts, AQUA PDAs, the fee vault, permanent lock accounts, fee keeper, treasury, reward wallet and buyback wallet are excluded. Those accounts hold tokens for infrastructure or protocol operations rather than as ordinary holders. Excluding them prevents rewards from being sent back into inactive vaults.</p>
           <div className="aqua-docs-benefits">
@@ -271,12 +272,13 @@ export function HowItWorks() {
         </DocSection>
 
         <DocSection id="claiming" eyebrow="FEES AND REWARDS" title="Claiming rewards">
-          <p>Connect the eligible wallet on the Rewards page. AQUA returns the wallet’s amount and Merkle proof for each claimable epoch. Your wallet submits that proof to the AQUA program, which verifies it and transfers the reward asset from the epoch vault.</p>
+          <p>Connect the eligible wallet on the Rewards page. AQUA combines that wallet’s unclaimed epochs by market and estimates the Solana transaction and account-creation costs. Claiming unlocks only when the reward remaining after those estimated costs is worth more than {minimumClaim}. The displayed values stay in dollars; the successful claim delivers the market’s stock reward asset.</p>
           <div className="aqua-docs-checklist">
             <CheckItem>One claim record is created per wallet, per epoch.</CheckItem>
             <CheckItem>The program rejects an amount or proof that does not match the published root.</CheckItem>
             <CheckItem>Unclaimed funds stay in the program-controlled epoch vault.</CheckItem>
             <CheckItem>The claimant pays the claim transaction, claim-account rent and any missing reward token-account rent.</CheckItem>
+            <CheckItem>A multi-epoch claim can require more than one wallet approval because each epoch has its own on-chain proof.</CheckItem>
           </div>
           <Link className="aqua-docs-inline-link" to="/rewards">Open holder rewards <ArrowRight size={15}/></Link>
         </DocSection>
@@ -318,7 +320,8 @@ export function HowItWorks() {
               <ReferenceRow label="Maximum creator share" value={formatBps(maximumCreatorShareBps) + " of platform stream"}/>
               <ReferenceRow label="Permanent liquidity lock" value="Required"/>
               <ReferenceRow label="Reward epoch target" value={epochLength}/>
-              <ReferenceRow label="Minimum reward conversion value" value={minimumReward}/>
+              <ReferenceRow label="Minimum reward conversion value" value="None at application level"/>
+              <ReferenceRow label="Minimum claim value" value={`More than ${minimumClaim} after estimated Solana costs`}/>
               <ReferenceRow label="Launch fee" value={launchFeeEnabled ? config.launchCost!.platformFeeSol.toFixed(2) + " SOL" : "Not enabled on current program"}/>
             </tbody>
           </table>

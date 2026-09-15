@@ -4033,6 +4033,7 @@ body::before {
 .reward-market-fallback { display: grid; place-items: center; color: #7de7e8; background: rgba(32, 139, 150, .12); }
 .reward-market-fallback svg { width: 19px; }
 .reward-market-identity > div { min-width: 0; }
+.reward-market-identity > .asset-mark { width: 27px; height: 27px; margin-left: auto; }
 .reward-market-identity b,
 .reward-market-identity small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .reward-market-identity b { font: 700 .84rem/1.2 "Manrope", sans-serif; }
@@ -4052,6 +4053,7 @@ body::before {
 .reward-action button:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(48, 201, 207, .15); }
 .reward-action button:disabled { opacity: .55; transform: none; }
 .reward-action > span { color: #58777e; font-size: .67rem; }
+.reward-action > small { display: block; max-width: 180px; margin-top: 7px; color: #597980; font-size: .57rem; line-height: 1.35; text-align: center; }
 .reward-water-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; overflow: hidden; background: rgba(81, 154, 166, .08); }
 .reward-water-progress i { position: absolute; z-index: 1; inset: 0 auto 0 0; border-radius: 0 99px 99px 0; background: linear-gradient(90deg, #1a999f, #41d9d3 58%, #55b8e7); transition: width .5s ease; }
 .reward-water-progress i::after { content: ""; position: absolute; left: -8px; right: -8px; top: -3px; height: 5px; border-radius: 50%; background: rgba(173, 251, 250, .32); animation: reward-progress-wave 2.8s ease-in-out infinite; }

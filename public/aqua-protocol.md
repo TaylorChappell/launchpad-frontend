@@ -1,6 +1,6 @@
 # AQUA protocol overview
 
-Last updated: 14 September 2026
+Last updated: 15 September 2026
 
 AQUA is a non-custodial Solana token launchpad. It prepares wallet-approved transactions that create a Token-2022 mint, an Orca Whirlpool, opening concentrated liquidity and a permanent lock over the liquidity position. AQUA has no bonding curve and no separate escrow or reserve wallet holding launch supply.
 
@@ -34,9 +34,11 @@ Keeper settlement is operational and is not guaranteed to run at a precise time.
 
 ## Holder rewards
 
-Holder rewards are time-weighted. During an epoch, an eligible wallet's balance contributes weight for the time it remains held. A simplified expression is token balance multiplied by seconds held. AQUA builds an epoch distribution, publishes its Merkle root, and eligible wallets submit a proof to claim onchain.
+Holder rewards are time-weighted. During each 20-minute target epoch, an eligible wallet's balance contributes weight for the time it remains held. A simplified expression is token balance multiplied by seconds held. There is no application-level minimum amount before AQUA attempts an allocation; dust that cannot be swapped or represented at the reward asset's precision remains available for a later cycle. AQUA builds an epoch distribution and publishes its Merkle root.
 
-Opening liquidity and excluded protocol accounts are not ordinary holder positions. Rewards only become claimable after fees are collected, converted, the epoch is finalised, the root is published, and a valid proof exists.
+The Rewards page groups a wallet's unclaimed epochs by AQUA market. A claim unlocks only when the combined reward is worth more than $5 after estimated Solana transaction and account-creation costs. Each epoch remains independently verified onchain, so a grouped claim can require multiple wallet approvals. Interface reward amounts are displayed in US dollars, while a successful claim transfers the selected tokenized stock or SOL reward asset.
+
+Opening liquidity and excluded protocol accounts are not ordinary holder positions. Rewards only become redeemable after fees are collected, converted, the epoch is finalised, the root is published, and a valid proof exists. Market and coin pages show both lifetime accumulated reward value and the amount currently redeemable by holders.
 
 ## Creator fees and locks
 

@@ -22,6 +22,8 @@ Program: H6PeZBdMDiPZHmhUkq2upYuh6X69tmyzzXwk7RUjpfjH
 - AQUA does not use an escrow wallet for unallocated launch supply.
 - A direct Orca pool is not a bonding curve. Pool reserves change as users trade.
 - “100% liquidity” means the fixed launch-token supply is assigned to the opening locked-liquidity plan; it does not mean AQUA owns 100% of circulating balances forever.
+- Holder rewards target 20-minute allocations with no application-level funding minimum; technically unusable dust carries forward.
+- Holder claims unlock only when the wallet's combined market reward exceeds $5 after estimated Solana costs. UI totals are shown in USD, while claims deliver the selected reward asset.
 - Holder rewards depend on successfully collected fees, keeper settlement, swap execution, epoch calculation and onchain claims.
 - Creator fee share depends on an active creator-token lock. Both amount and time scoring are capped.
 - Tokenized-stock assets are third-party products and can be restricted or unavailable.

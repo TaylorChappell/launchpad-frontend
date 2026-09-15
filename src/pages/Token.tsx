@@ -6,7 +6,7 @@ import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
 import type { CreatorLock, Launch, MarketSnapshot, StockOption, Trade } from "../types";
-import { Metric, TokenMark } from "../components/TokenCard";
+import { AssetMark, Metric, TokenMark } from "../components/TokenCard";
 import { MarketCapCandles } from "../components/MarketCapCandles";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
@@ -142,7 +142,7 @@ export function Token() {
       <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP · OHLC</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div><span>{launch.indexingStatus === "indexed" ? "INDEXED" : launch.indexingStatus === "orca_indexed" ? "ORCA INDEXED" : "PENDING INDEXING"}</span></header><div className="chart candle-chart-shell"><MarketCapCandles snapshots={snapshots}/></div></div>
 
       <div className="info-grid">
-        <div className="info-panel reward"><Gift/><b>Earn {launch.stockSymbol}</b><div><Metric label="Distributed" value={`${compact.format(launch.rewardDistributedUsd)}`}/><Metric label="Reward reserve" value={BigInt(launch.rewardVaultStockRaw || "0") > 0n ? `${formatRaw(launch.rewardVaultStockRaw, stockDecimals)} ${launch.stockSymbol}` : "Accumulating"}/></div><p>Reward weight combines eligible balance and holding time.</p></div>
+        <div className="info-panel reward"><Gift/><b><AssetMark launch={launch} reward/>Earn {launch.stockSymbol}</b><div><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Redeemable by holders" value={money.format(launch.rewardRedeemableUsd)}/></div><p>Shown in dollars. Allocations use eligible balance and time held; claimed rewards reduce the redeemable total.</p></div>
         <div className="info-panel"><small>ORCA MARKET · {launch.symbol} / {launch.pairSymbol}</small><h2>{launch.status === "live" ? "Live" : "Launching"}</h2><p>{launch.status === "live" ? launch.indexingStatus === "pending_indexing" ? "The Whirlpool is live. AQUA, Orca, and external market indexes are still discovering it." : `The ${launch.pairSymbol}-paired Whirlpool is open and its initial position is permanently locked.` : "The creator is completing the signed launch transactions."}</p>{launch.liquidityLockedPermanently && <span className="pool-lock-status"><LockKeyhole/> Permanent liquidity lock</span>}</div>
       </div>
 
