@@ -25,6 +25,7 @@ export function CreatorManage() {
   const [lock, setLock] = useState<CreatorLock | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [amount, setAmount] = useState("");
+  const [availableRaw, setAvailableRaw] = useState<string | null>(null);
   const maximumDays = Math.max(1, Math.floor(config.creatorLocks.maximumSeconds / 86_400));
   const minimumDays = Math.max(1, Math.ceil(config.creatorLocks.minimumSeconds / 86_400));
   const [days, setDays] = useState(String(maximumDays));
@@ -49,6 +50,7 @@ export function CreatorManage() {
   const isCapped = enteredDays > maximumDays;
   const isOwner = Boolean(launch && wallet.address === launch.creatorWallet);
   const amountRaw = useMemo(() => { try { return launch && amount ? decimalToRaw(amount, launch.tokenDecimals) : "0"; } catch { return "0"; } }, [amount, launch]);
+  const exceedsAvailable = availableRaw !== null && BigInt(amountRaw || "0") > BigInt(availableRaw);
   const amountPercent = launch && Number(launch.totalSupplyRaw) > 0 ? Number(amountRaw) / Number(launch.totalSupplyRaw) * 100 : 0;
   const targetPercent = (config.creatorLocks.targetSupplyBps ?? 500) / 100;
   const amountProgress = Math.min(100, amountPercent / targetPercent * 100);
@@ -57,13 +59,27 @@ export function CreatorManage() {
   const activeTradeShare = config.fees.platformBps / 100 * (lock?.feeShareBps ?? 0) / 10_000;
 
   useEffect(() => {
-    if (!launch || !isOwner || BigInt(amountRaw || "0") <= 0n) { setQuoteBps(0); return; }
+    let active = true;
+    if (!launch || !isOwner || lock?.status === "active") { setAvailableRaw(null); return () => { active = false; }; }
+    setAvailableRaw(null);
+    api.creatorLockBalance(launch.id, launch.creatorWallet)
+      .then((balance) => { if (active) setAvailableRaw(balance.availableRaw); })
+      .catch((error) => { if (active) toast.error(error instanceof Error ? error.message : "Could not read the creator token balance."); });
+    return () => { active = false; };
+  }, [isOwner, launch, lock?.status]);
+
+  useEffect(() => {
+    if (!launch || !isOwner || BigInt(amountRaw || "0") <= 0n || exceedsAvailable) { setQuoteBps(0); return; }
     const timer = window.setTimeout(() => { api.creatorFeeQuote(amountRaw, launch.totalSupplyRaw, effectiveDays * 86_400).then((quote) => setQuoteBps(quote.feeShareBps)).catch(() => setQuoteBps(0)); }, 220);
     return () => window.clearTimeout(timer);
-  }, [amountRaw, effectiveDays, isOwner, launch]);
+  }, [amountRaw, effectiveDays, exceedsAvailable, isOwner, launch]);
 
   async function act(action: "lock" | "release") {
     if (!launch || !wallet.address || !isOwner) return;
+    if (action === "lock" && availableRaw !== null && BigInt(amountRaw || "0") > BigInt(availableRaw)) {
+      toast.error(`You only have ${formatRaw(availableRaw, launch.tokenDecimals)} ${launch.symbol} available to lock.`);
+      return;
+    }
     setBusy(action);
     try {
       const envelope = action === "lock"
@@ -95,14 +111,14 @@ export function CreatorManage() {
     </section> : <div className="manage-grid">
       <section className="manage-builder">
         <header><small>STEP 1</small><h2>Build your creator lock</h2><p>Choose the token amount and lock duration.</p></header>
-        <label><span>Creator tokens to lock</span><div className="manage-input"><input value={amount} inputMode="decimal" placeholder="0" onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))}/><b>{launch.symbol}</b></div><small>{amountPercent.toFixed(amountPercent < .01 ? 4 : 2)}% of total supply</small></label>
+        <label><span>Creator tokens to lock</span><div className={`manage-input ${exceedsAvailable ? "invalid" : ""}`}><input value={amount} inputMode="decimal" placeholder="0" onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))}/><b>{launch.symbol}</b></div><small className={`creator-lock-balance ${exceedsAvailable ? "cap-warning" : ""}`}><span>{availableRaw === null ? "Reading wallet balance…" : `${formatRaw(availableRaw, launch.tokenDecimals)} ${launch.symbol} available · ${amountPercent.toFixed(amountPercent < .01 ? 4 : 2)}% of supply`}</span>{availableRaw !== null && BigInt(availableRaw) > 0n && <button type="button" onClick={() => setAmount(formatRaw(availableRaw, launch.tokenDecimals))}>Max</button>}</small></label>
         <label><span>Lock duration</span><div className="manage-input"><input value={days} inputMode="numeric" onChange={(event) => setDays(event.target.value.replace(/[^0-9]/g, ""))}/><b>days</b></div><small className={isCapped ? "cap-warning" : ""}>{isCapped ? `Using the maximum ${maximumDays}-day score` : `${minimumDays} to ${maximumDays} days`}</small></label>
         <div className="duration-presets">{[30,90,180,maximumDays].filter((value,index,array) => value >= minimumDays && array.indexOf(value) === index).map((value) => <button key={value} className={effectiveDays === value ? "active" : ""} onClick={() => setDays(String(value))}>{value === maximumDays ? "Max · " + value + "d" : value + " days"}</button>)}</div>
         <div className="score-bars"><div><span><b>Amount score</b></span><i><b style={{width: amountProgress + "%"}}/></i></div><div><span><b>Time score</b></span><i><b style={{width: timeProgress + "%"}}/></i></div></div>
       </section>
       <aside className="manage-quote">
         <small>ESTIMATED FEE PER TRANSFER</small><strong>{effectiveTradeShare.toFixed(3)}%</strong><p>of each eligible transfer while the lock is active.</p>
-        <button className="primary full" disabled={busy !== null || BigInt(amountRaw || "0") <= 0n} onClick={() => void act("lock")}>{busy === "lock" && <Loader2 className="spin"/>}Review lock in wallet</button>
+        <button className="primary full" disabled={busy !== null || availableRaw === null || BigInt(amountRaw || "0") <= 0n || exceedsAvailable} onClick={() => void act("lock")}>{busy === "lock" && <Loader2 className="spin"/>}Review lock in wallet</button>
       </aside>
     </div>}
   </main>;
