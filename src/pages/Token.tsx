@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Copy, ExternalLink, Globe2, Loader2, Settings2, ShieldAlert, Users } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink, Globe2, Loader2, LockKeyhole, Settings2, ShieldAlert, Users } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
-import type { Launch, MarketSnapshot, StockOption, Trade } from "../types";
+import type { CreatorLock, Launch, MarketSnapshot, StockOption, Trade } from "../types";
 import { AssetMark, Metric, TokenMark } from "../components/TokenCard";
 import { MarketCapLine } from "../components/MarketCapCandles";
 
@@ -26,6 +26,7 @@ export function Token() {
   const wallet = useWallet();
   const { config } = useRuntime();
   const [launch, setLaunch] = useState<Launch | null>(null);
+  const [creatorLock, setCreatorLock] = useState<CreatorLock | null>(null);
   const [stock, setStock] = useState<StockOption | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [tradesHaveMore, setTradesHaveMore] = useState(false);
@@ -41,6 +42,7 @@ export function Token() {
     Promise.all([api.launch(id), api.stocks().catch(() => ({ stocks: [] })), api.marketData(id).catch(() => ({ snapshots: [] }))]).then(([launchData, stockData, marketData]) => {
       if (!active) return;
       setLaunch(launchData.launch);
+      setCreatorLock(launchData.creatorLock);
       setTrades(launchData.trades);
       setTradesHaveMore(Boolean(launchData.tradesHasMore));
       setSnapshots(marketData.snapshots);
@@ -59,6 +61,10 @@ export function Token() {
   const stockDecimals = stock?.decimals ?? 6;
   const pairDecimals = launch.pairType === "sol" ? 9 : stockDecimals;
   const explorerUrl = `https://explorer.solana.com/address/${launch.whirlpoolAddress || launch.mint}${config.network === "devnet" ? "?cluster=devnet" : ""}`;
+  const lockedPercent = creatorLock?.status === "active" && BigInt(creatorLock.totalSupplyRaw || "0") > 0n
+    ? Number(BigInt(creatorLock.amountRaw) * 1_000_000n / BigInt(creatorLock.totalSupplyRaw)) / 10_000
+    : 0;
+  const lockedPercentLabel = lockedPercent === 0 ? "0%" : `${lockedPercent.toFixed(lockedPercent < 0.01 ? 4 : 2)}%`;
 
   async function trade() {
     if (!wallet.address) {
@@ -97,7 +103,7 @@ export function Token() {
   return <main className="page token-page">
     <Link className="back" to="/"><ArrowLeft/>Explore markets</Link>
     <section className="token-hero">
-      <div className="token-identity"><TokenMark launch={launch} large/><div><div><h1>{launch.name}</h1><span>${launch.symbol}</span><em className={launch.status}>{launch.status === "live" ? "ORCA WHIRLPOOL" : "LAUNCHING"}</em></div><p>{launch.description}</p><footer>{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2/> Website</a>}<a href={explorerUrl} target="_blank" rel="noreferrer">Explorer <ExternalLink/></a><button onClick={() => { void navigator.clipboard.writeText(launch.mint); toast.success("Mint copied"); }}><Copy/> {launch.mint.slice(0, 5)}…{launch.mint.slice(-4)}</button></footer></div></div>
+      <div className="token-identity"><TokenMark launch={launch} large/><div><div><h1>{launch.name}</h1><span>${launch.symbol}</span><em className={launch.status}>{launch.status === "live" ? "ORCA WHIRLPOOL" : "LAUNCHING"}</em><span className="creator-lock-market"><LockKeyhole/>{lockedPercentLabel} creator locked</span></div><p>{launch.description}</p><footer>{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2/> Website</a>}<a href={explorerUrl} target="_blank" rel="noreferrer">Explorer <ExternalLink/></a><button onClick={() => { void navigator.clipboard.writeText(launch.mint); toast.success("Mint copied"); }}><Copy/> {launch.mint.slice(0, 5)}…{launch.mint.slice(-4)}</button></footer></div></div>
       <div className="hero-metrics"><Metric label="Orca pair" value={`${launch.symbol} / ${launch.pairSymbol}`}/><Metric label="Stock reward" value={launch.stockSymbol}/><Metric label="TVL" value={launch.aquaIndexed ? `$${compact.format(launch.tvlUsd)}` : "Indexing"}/><Metric label="Market cap" value={launch.aquaIndexed ? `$${compact.format(launch.marketCapUsd)}` : "Indexing"}/></div>
     </section>
 
