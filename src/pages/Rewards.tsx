@@ -47,8 +47,6 @@ export function Rewards() {
 
   const launchById = useMemo(() => new Map(launches.map((launch) => [launch.id, launch])), [launches]);
   const markets = useMemo(() => [...portfolio.markets].sort((a, b) => Number(b.canClaim) - Number(a.canClaim) || b.accumulatingUsdCents - a.accumulatingUsdCents), [portfolio.markets]);
-  const readyCount = markets.filter((market) => market.canClaim).length;
-  const totalClaimable = markets.reduce((sum, market) => sum + market.claimableUsdCents, 0);
   const epochMinutes = Math.max(1, Math.round((config.rewardDistribution?.epochSeconds ?? 1_200) / 60));
 
   async function claim(market: WalletRewardMarket, launch?: Launch) {
@@ -73,26 +71,15 @@ export function Rewards() {
   return <main className="page rewards-page rewards-vault-page">
     <PageBubbles count={14}/>
     <header className="rewards-vault-heading">
-      <div><span><Gift/>Holder rewards</span><h1>Your stock rewards.</h1></div>
-      {wallet.address && <div className="rewards-wallet"><i/>{wallet.address.slice(0, 5)}…{wallet.address.slice(-5)}</div>}
+      <div><h1>Your stock rewards.</h1></div>
     </header>
-
-    {config.rewardDistribution && <div className={`reward-automation-status ${config.rewardDistribution.enabled ? "online" : "paused"}`}>
-      <span>{config.rewardDistribution.enabled ? `${epochMinutes}-minute reward allocations are online` : "Automatic reward allocations are paused"}</span>
-      <small>{config.rewardDistribution.enabled ? `Every collected amount can enter the next allocation. Claims unlock only when your combined reward is worth more than ${dollars(config.rewardDistribution.minimumClaimUsdCents)} after estimated Solana costs.` : "Existing funded rewards remain visible; new allocations wait until the keeper is enabled."}</small>
-    </div>}
 
     {!wallet.address ? <section className="rewards-connect-card">
       <span><WalletCards/></span>
       <div><h2>Connect your wallet</h2><p>See every AQUA coin you hold and the stock rewards accumulating for it.</p></div>
       <button className="primary" onClick={() => wallet.setModalOpen(true)}>Connect wallet</button>
     </section> : <>
-      <section className="rewards-summary-line">
-        <div><small>Ready across {readyCount} market{readyCount === 1 ? "" : "s"}</small><strong>{dollars(totalClaimable)}</strong></div>
-        <span>{markets.length} AQUA coin{markets.length === 1 ? "" : "s"} held</span>
-      </section>
-
-      {state === "loading" ? <div className="reward-card-skeletons"><i/><i/><i/></div> : state === "offline" ? <section className="rewards-empty"><RefreshCw/><h2>Rewards are temporarily unavailable</h2><p>Reconnect in a moment to refresh your balances.</p></section> : markets.length ? <section className="holder-reward-list">
+      {state === "loading" ? <div className="reward-card-skeletons rewards-list-spaced"><i/><i/><i/></div> : state === "offline" ? <section className="rewards-empty rewards-list-spaced"><RefreshCw/><h2>Rewards are temporarily unavailable</h2><p>Reconnect in a moment to refresh your balances.</p></section> : markets.length ? <section className="holder-reward-list rewards-list-spaced">
         {markets.map((market) => {
           const launch = launchById.get(market.launchId);
           const displayCents = market.canClaim ? market.claimableUsdCents : market.accumulatingUsdCents;

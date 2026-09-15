@@ -30,7 +30,8 @@ const json = (body: unknown): RequestInit => ({ method: "POST", headers: { "Cont
 export const api = {
   config: () => request<RuntimeConfig>("/api/config"),
   launches: () => request<{ launches: Launch[] }>("/api/launches"),
-  launch: (id: string) => request<{ launch: Launch; trades: Trade[]; creatorLock: CreatorLock | null }>(`/api/launches/${encodeURIComponent(id)}`),
+  launch: (id: string) => request<{ launch: Launch; trades: Trade[]; tradesHasMore?: boolean; creatorLock: CreatorLock | null }>(`/api/launches/${encodeURIComponent(id)}`),
+  trades: (id: string, offset: number, limit = 10) => request<{ trades: Trade[]; hasMore: boolean }>(`/api/launches/${encodeURIComponent(id)}/trades?offset=${offset}&limit=${limit}`),
   marketData: (id: string) => request<{ snapshots: MarketSnapshot[] }>(`/api/launches/${encodeURIComponent(id)}/market-data`),
   search: (query: string) => request<{ launches: Launch[] }>(`/api/search?q=${encodeURIComponent(query)}`),
   stocks: () => request<{ stocks: StockOption[] }>("/api/stocks"),

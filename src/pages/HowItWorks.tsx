@@ -84,7 +84,6 @@ export function HowItWorks() {
   const tokenDecimals = launch?.tokenDecimals ?? 6;
   const liquiditySupplyBps = launch?.liquiditySupplyBps ?? 10_000;
   const startMarketCap = launch?.startMarketCapUsd ?? 2_000;
-  const endMarketCap = launch?.endMarketCapUsd ?? 2_000_000;
   const targetSupplyBps = config.creatorLocks.targetSupplyBps ?? 500;
   const maximumCreatorShareBps = config.creatorLocks.maximumFeeShareBps;
   const minimumLock = durationLabel(config.creatorLocks.minimumSeconds);
@@ -177,13 +176,12 @@ export function HowItWorks() {
         <DocSection id="liquidity" eyebrow="LAUNCHING" title="How the 100% liquidity model works">
           <p><strong>{formatBps(liquiditySupplyBps)} liquidity</strong> means the full fixed launch supply is committed to the permanent Orca position. It does not mean a block explorer will always show the pool owning 100% after trading begins.</p>
           <div className="aqua-docs-flow">
-            <FlowCard icon={<Coins/>} label="At launch" title="The position starts one-sided" text={"Near the $" + startMarketCap.toLocaleString("en-GB") + " lower boundary, the position begins in the launch token side of the pair."}/>
+            <FlowCard icon={<Coins/>} label="At launch" title="The pool starts with launch tokens" text={"The opening market targets roughly a $" + startMarketCap.toLocaleString("en-GB") + " market cap and begins on the launch-token side of the pair."}/>
             <ArrowRight className="aqua-docs-flow-arrow"/>
             <FlowCard icon={<RefreshCw/>} label="When buyers trade" title="Tokens leave the pool" text="Buyers receive launch tokens and the pool receives SOL or the selected xStock. The pool’s token percentage falls naturally."/>
             <ArrowRight className="aqua-docs-flow-arrow"/>
             <FlowCard icon={<Waves/>} label="When sellers trade" title="Tokens return" text="Sellers send launch tokens back into the pool and receive the pair asset. The balance moves in the opposite direction."/>
           </div>
-          <p>The permanent position covers a configured range from approximately <strong>{"$" + startMarketCap.toLocaleString("en-GB")}</strong> to <strong>{"$" + endMarketCap.toLocaleString("en-GB")}</strong> market cap. If price moves outside that concentrated range, the position becomes one-sided and may stop providing useful two-way liquidity until price returns.</p>
           <div className="aqua-docs-definition">
             <div><b>No AQUA escrow</b><span>There is no separate wallet holding an unsold launch allocation.</span></div>
             <div><b>No removable LP</b><span>The creator cannot withdraw the permanently locked Orca position.</span></div>
@@ -223,8 +221,8 @@ export function HowItWorks() {
           </Callout>
         </DocSection>
 
-        <DocSection id="trading-fees" eyebrow="FEES AND REWARDS" title={"The " + formatBps(config.fees.transferFeeBps) + " token transfer fee"}>
-          <p>Every transfer of the launched Token-2022 asset applies the configured fee. This includes Orca swaps and can also include direct wallet-to-wallet transfers. The fee is taken in the launch token, not in SOL or the paired xStock.</p>
+        <DocSection id="trading-fees" eyebrow="FEES AND REWARDS" title={"The " + formatBps(config.fees.transferFeeBps) + " SOL-settled fee"}>
+          <p>Eligible trades and transfers produce the configured fee. AQUA settles the collected value in SOL before dividing it between holder rewards, buybacks, treasury and any earned creator allocation.</p>
           <p>The total stream is divided evenly between holder rewards and platform revenue:</p>
           <table className="aqua-docs-table fee-table">
             <thead><tr><th>Stream</th><th>Of trade value</th><th>Of collected fees</th><th>Purpose</th></tr></thead>
@@ -244,7 +242,7 @@ export function HowItWorks() {
         </DocSection>
 
         <DocSection id="settlement" eyebrow="FEES AND REWARDS" title="How fees are harvested and settled">
-          <p>Token-2022 necessarily withholds transfer fees in the launch token as transfers happen. The AQUA keeper periodically finds those balances, moves them into the market’s program-controlled fee vault, records the allocation, swaps through the launch’s own Orca pool first, and settles the proceeds in SOL. New launch tokens therefore do not need to be indexed by Jupiter before SOL conversion can begin.</p>
+          <p>The Token-2022 program initially records withheld value during transfers. The AQUA keeper periodically finds those balances, moves them into the market’s program-controlled fee vault, swaps through the launch’s own Orca pool and settles the proceeds in SOL before any split is paid. New launch tokens therefore do not need to be indexed by Jupiter before SOL settlement can begin.</p>
           <div className="aqua-docs-timeline compact">
             <TimelineStep number="01" title="Fees accrue" text="Trades and transfers withhold launch tokens at the Token-2022 level."/>
             <TimelineStep number="02" title="Keeper harvests" text="The dedicated fee-keeper signer collects eligible withheld balances in controlled batches, converts them to SOL and divides the proceeds."/>
@@ -313,7 +311,6 @@ export function HowItWorks() {
               <ReferenceRow label="Supply committed to liquidity" value={formatBps(liquiditySupplyBps)}/>
               <ReferenceRow label="Separate AQUA supply reserve" value="None"/>
               <ReferenceRow label="Starting market cap target" value={"$" + startMarketCap.toLocaleString("en-GB")}/>
-              <ReferenceRow label="Position range end target" value={"$" + endMarketCap.toLocaleString("en-GB")}/>
               <ReferenceRow label="Token transfer fee" value={formatBps(config.fees.transferFeeBps)}/>
               <ReferenceRow label="Holder reward stream" value={formatBps(config.fees.stockRewardsBps) + " of transfer value"}/>
               <ReferenceRow label="Platform stream" value={formatBps(config.fees.platformBps) + " of transfer value"}/>
@@ -341,7 +338,6 @@ export function HowItWorks() {
             <Risk title="No guaranteed return">Fees and rewards require trading activity. A quiet market may generate little or nothing.</Risk>
             <Risk title="Automation can pause">Harvesting and reward publication depend on the keeper, RPC access and successful on-chain transactions. Failed cycles can be retried.</Risk>
             <Risk title="Market risk remains">Permanent liquidity does not guarantee price, volume, solvency, value or an available buyer.</Risk>
-            <Risk title="Range liquidity has boundaries">The concentrated position can become one-sided outside its configured price range.</Risk>
             <Risk title="Transfer fees are broad">The Token-2022 fee can apply to ordinary token transfers, not only trades shown in AQUA.</Risk>
             <Risk title="No five-second tax">AQUA does not advertise a short-lived anti-sniper tax because Token-2022 fee changes do not activate instantly and cannot safely enforce that promise.</Risk>
           </div>

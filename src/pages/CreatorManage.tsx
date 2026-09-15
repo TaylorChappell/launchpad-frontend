@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Clock3, Loader2, LockKeyhole, ShieldCheck, WalletCards } from "lucide-react";
+import { ArrowLeft, Check, Loader2, LockKeyhole, ShieldCheck, WalletCards } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
@@ -54,6 +54,7 @@ export function CreatorManage() {
   const amountProgress = Math.min(100, amountPercent / targetPercent * 100);
   const timeProgress = Math.min(100, effectiveDays / maximumDays * 100);
   const effectiveTradeShare = config.fees.platformBps / 100 * quoteBps / 10_000;
+  const activeTradeShare = config.fees.platformBps / 100 * (lock?.feeShareBps ?? 0) / 10_000;
 
   useEffect(() => {
     if (!launch || !isOwner || BigInt(amountRaw || "0") <= 0n) { setQuoteBps(0); return; }
@@ -85,28 +86,24 @@ export function CreatorManage() {
     <Link className="back" to={"/token/" + launch.id}><ArrowLeft/>Back to market</Link>
     <section className="manage-hero"><div><TokenMark launch={launch} large/><span><small>CREATOR MANAGER</small><h1>Manage {"$" + launch.symbol}</h1><p>Set up a transparent creator lock, preview the fee share, and claim accrued creator fees.</p></span></div><div className="manage-status"><i/><span><b>{launch.status === "live" ? "Market live" : "Launch in progress"}</b><small>{launch.pairSymbol} pair · {launch.stockSymbol} rewards</small></span></div></section>
 
-    <div className="manage-steps"><span className="done"><i><Check/></i><b>1. Verify coin</b></span><span className={lock?.status === "active" ? "done" : "active"}><i>{lock?.status === "active" ? <Check/> : "2"}</i><b>2. Configure lock</b></span><span><i>3</i><b>3. Earn & claim</b></span></div>
+    <div className="manage-steps"><span className={lock?.status === "active" ? "done" : "active"}><i>{lock?.status === "active" ? <Check/> : "1"}</i><b>1. Configure lock</b></span><span className={lock?.status === "active" ? "active" : ""}><i>2</i><b>2. Earn & claim</b></span></div>
 
     {lock?.status === "active" ? <section className="manage-active-lock">
-      <header><span><LockKeyhole/><small>ACTIVE CREATOR LOCK</small></span><strong>{(lock.feeShareBps / 100).toFixed(2)}% fee share</strong></header>
-      <div><span><small>Tokens locked</small><b>{formatRaw(lock.amountRaw, launch.tokenDecimals)} {launch.symbol}</b></span><span><small>Unlock date</small><b>{new Date(lock.unlockAt * 1_000).toLocaleDateString()}</b></span><span><small>Current creator fees</small><b>{formatRaw(launch.creatorFeesAccruedRaw, launch.tokenDecimals)} {launch.symbol}</b></span></div>
+      <header><span><LockKeyhole/><small>ACTIVE CREATOR LOCK</small></span><strong>{activeTradeShare.toFixed(3)}% per eligible transfer</strong></header>
+      <div><span><small>Tokens locked</small><b>{formatRaw(lock.amountRaw, launch.tokenDecimals)} {launch.symbol}</b></span><span><small>Unlock date</small><b>{new Date(lock.unlockAt * 1_000).toLocaleDateString()}</b></span><span><small>Current creator fees</small><b>{formatRaw(launch.creatorFeesAccruedRaw, 9)} SOL</b></span></div>
       <footer><button className="secondary-button" disabled={busy !== null || Math.floor(Date.now()/1_000) < lock.unlockAt} onClick={() => void act("release")}>{busy === "release" && <Loader2 className="spin"/>}Release after maturity</button><button className="primary" disabled={busy !== null || BigInt(launch.creatorFeesAccruedRaw || "0") === 0n} onClick={() => void act("claim")}>{busy === "claim" && <Loader2 className="spin"/>}Claim creator fees</button></footer>
     </section> : <div className="manage-grid">
       <section className="manage-builder">
-        <header><small>STEP 2</small><h2>Build your creator lock</h2><p>Your score combines how much you lock with how long you lock it. Both components are capped.</p></header>
-        <label><span>Creator tokens to lock</span><div className="manage-input"><input value={amount} inputMode="decimal" placeholder="0" onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))}/><b>{launch.symbol}</b></div><small>{amountPercent.toFixed(amountPercent < .01 ? 4 : 2)}% of total supply entered · amount score maxes at {targetPercent.toFixed(0)}%</small></label>
-        <label><span>Lock duration</span><div className="manage-input"><input value={days} inputMode="numeric" onChange={(event) => setDays(event.target.value.replace(/[^0-9]/g, ""))}/><b>days</b></div><small className={isCapped ? "cap-warning" : ""}>{isCapped ? "Duration score capped at " + maximumDays + " days; extra years add nothing." : "Minimum " + minimumDays + " day · maximum scoring duration " + maximumDays + " days"}</small></label>
+        <header><small>STEP 1</small><h2>Build your creator lock</h2><p>Choose the token amount and lock duration.</p></header>
+        <label><span>Creator tokens to lock</span><div className="manage-input"><input value={amount} inputMode="decimal" placeholder="0" onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))}/><b>{launch.symbol}</b></div><small>{amountPercent.toFixed(amountPercent < .01 ? 4 : 2)}% of total supply</small></label>
+        <label><span>Lock duration</span><div className="manage-input"><input value={days} inputMode="numeric" onChange={(event) => setDays(event.target.value.replace(/[^0-9]/g, ""))}/><b>days</b></div><small className={isCapped ? "cap-warning" : ""}>{isCapped ? `Using the maximum ${maximumDays}-day score` : `${minimumDays} to ${maximumDays} days`}</small></label>
         <div className="duration-presets">{[30,90,180,maximumDays].filter((value,index,array) => value >= minimumDays && array.indexOf(value) === index).map((value) => <button key={value} className={effectiveDays === value ? "active" : ""} onClick={() => setDays(String(value))}>{value === maximumDays ? "Max · " + value + "d" : value + " days"}</button>)}</div>
-        <div className="score-bars"><div><span><b>Amount score</b><em>{Math.min(amountPercent, targetPercent).toFixed(2)} / {targetPercent.toFixed(0)}%</em></span><i><b style={{width: amountProgress + "%"}}/></i></div><div><span><b>Time score</b><em>{effectiveDays} / {maximumDays} days</em></span><i><b style={{width: timeProgress + "%"}}/></i></div></div>
+        <div className="score-bars"><div><span><b>Amount score</b></span><i><b style={{width: amountProgress + "%"}}/></i></div><div><span><b>Time score</b></span><i><b style={{width: timeProgress + "%"}}/></i></div></div>
       </section>
       <aside className="manage-quote">
-        <span className="quote-icon"><Clock3/></span><small>ESTIMATED ACTIVE SHARE</small><strong>{(quoteBps / 100).toFixed(2)}%</strong><p>of AQUA’s {(config.fees.platformBps / 100).toFixed(2)}% platform fee stream while the lock is active.</p>
-        <div><span><small>Effective share of each eligible transfer</small><b>{effectiveTradeShare.toFixed(3)}%</b></span><span><small>Maximum creator share</small><b>{(config.creatorLocks.maximumFeeShareBps / 100).toFixed(0)}%</b></span><span><small>Scored duration used</small><b>{effectiveDays} days</b></span></div>
+        <small>ESTIMATED FEE PER TRANSFER</small><strong>{effectiveTradeShare.toFixed(3)}%</strong><p>of each eligible transfer while the lock is active.</p>
         <button className="primary full" disabled={busy !== null || BigInt(amountRaw || "0") <= 0n} onClick={() => void act("lock")}>{busy === "lock" && <Loader2 className="spin"/>}Review lock in wallet</button>
-        <small className="quote-note">The backend’s live quote is authoritative. A tiny amount stays a tiny score even if an extreme duration is entered.</small>
       </aside>
     </div>}
-
-    <section className="manage-explainer"><div><b>Amount is capped</b><p>Locking up to {targetPercent.toFixed(0)}% of total supply increases the amount component. Locking more does not multiply the fee share forever.</p></div><div><b>Time is capped</b><p>The duration component stops at {maximumDays} days. A 1,000-year entry receives the same duration score as {maximumDays} days.</p></div><div><b>No ownership change</b><p>The creator lock uses tokens bought after launch. AQUA’s permanently locked Orca liquidity stays separate.</p></div></section>
   </main>;
 }

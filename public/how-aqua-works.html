@@ -17,13 +17,13 @@
   <h2>Direct Orca launch, no bonding curve</h2>
   <p>AQUA does not sell tokens from a bonding curve and does not keep an escrow wallet containing unsold supply. The launch flow creates the mint, metadata, Whirlpool and active concentrated-liquidity position directly. The full configured launch-token allocation is committed to that opening liquidity plan.</p>
   <h2>What 100% liquidity means</h2>
-  <p>It means the fixed launch-token allocation goes into the opening Orca liquidity position rather than a separate AQUA reserve. It does not mean the pool forever owns every circulating token. As users trade, token and pair-asset reserves move between the Whirlpool and trader wallets. Market price follows the pool state and available liquidity range.</p>
+  <p>It means the fixed launch-token allocation goes into the opening Orca liquidity position rather than a separate AQUA reserve. It does not mean the pool forever owns every circulating token. As users trade, token and pair-asset reserves move between the Whirlpool and trader wallets. Market price follows the pool state.</p>
   <h2>Permanent liquidity lock</h2>
-  <p>AQUA verifies that the opening position is active before permanently locking its position authority. This is intended to prevent the launcher from withdrawing that position. A lock does not guarantee price, volume, depth, uninterrupted trading or that concentrated liquidity remains in range.</p>
+  <p>AQUA verifies that the opening position is active before permanently locking its position authority. This is intended to prevent the launcher from withdrawing that position. A lock does not guarantee price, volume, depth or uninterrupted trading.</p>
   <h2>Pairs and rewards</h2>
   <p>The trading pair can be SOL or a supported tokenized-stock asset. Each market records one immutable reward asset. AQUA market cards display the actual paired-asset logo and identify the separate holder reward.</p>
   <h2>Fees and keeper settlement</h2>
-  <p>The current default Token-2022 transfer fee is 2%: 1% feeds platform allocation and 1% feeds holder rewards. Withheld tokens are not ordinary wallet transfers. The AQUA keeper discovers fee-bearing accounts, harvests withheld tokens and routes or converts the proceeds. Settlement can be delayed or fail and therefore is not promised at an exact frequency.</p>
+  <p>The current default fee is 2%: 1% feeds platform allocation and 1% feeds holder rewards. AQUA settles collected fee value in SOL before routing treasury, buyback and creator allocations. The holder allocation is converted from SOL into the selected reward asset when required. Settlement can be delayed or fail and therefore is not promised at an exact frequency.</p>
   <h2>Time-weighted holder rewards</h2>
   <p>An eligible balance earns weight for the time it remains held during each 20-minute target epoch. AQUA attempts to allocate every collected amount without an application-level funding minimum; unusable dust carries forward. The interface groups unclaimed epochs by market and displays values in US dollars. A claim unlocks only when the combined reward is worth more than $5 after estimated Solana costs, then wallet-signed proofs deliver the selected reward asset. Opening liquidity and designated protocol accounts are excluded from ordinary holder weighting.</p>
   <h2>Capped creator alignment</h2>
