@@ -100,7 +100,7 @@ export function CreatorManage() {
 
   return <main className="page manage-page">
     <Link className="back" to={"/token/" + launch.id}><ArrowLeft/>Back to market</Link>
-    <section className="manage-hero"><div><TokenMark launch={launch} large/><span><small>CREATOR MANAGER</small><h1>Manage {"$" + launch.symbol}</h1><p>Set up a transparent creator lock, preview the fee share, and claim accrued creator fees.</p></span></div><div className="manage-status"><i/><span><b>{launch.status === "live" ? "Market live" : "Launch in progress"}</b><small>{launch.pairSymbol} pair · {launch.stockSymbol} rewards</small></span></div></section>
+    <section className="manage-hero"><div><TokenMark launch={launch} large/><span><small>CREATOR MANAGER</small><h1>Manage {"$" + launch.symbol}</h1><p>Set up a transparent creator lock, preview the fee share, and claim accrued creator fees.</p></span></div></section>
 
     <div className="manage-steps"><span className={lock?.status === "active" ? "done" : "active"}><i>{lock?.status === "active" ? <Check/> : "1"}</i><b>1. Configure lock</b></span><span className={lock?.status === "active" ? "active" : ""}><i>2</i><b>2. Earn fees</b></span></div>
 

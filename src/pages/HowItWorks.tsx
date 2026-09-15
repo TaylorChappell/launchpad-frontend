@@ -103,7 +103,6 @@ export function HowItWorks() {
     <PageBubbles count={24}/>
 
     <section className="aqua-docs-hero">
-      <div className="aqua-docs-kicker"><Waves size={16}/> AQUA PROTOCOL GUIDE</div>
       <h1>How AQUA<br/><span>actually works.</span></h1>
       <p>A detailed guide to launching, liquidity, trading fees, holder rewards and creator incentives. AQUA creates markets directly on Orca without a bonding curve or a separate token reserve.</p>
       <div className="aqua-docs-actions">
@@ -128,10 +127,6 @@ export function HowItWorks() {
               {group.items.map(([id, label]) => <button key={id} onClick={() => scrollTo(id)}>{label}</button>)}
             </div>)}
           </nav>
-          <div className="aqua-docs-network">
-            <span className={config.transactionsEnabled ? "online" : "paused"}/>
-            <div><b>{config.network}</b><small>{config.transactionsEnabled ? "Transactions enabled" : "Transactions paused"}</small></div>
-          </div>
         </div>
       </aside>
 
