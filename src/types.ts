@@ -314,4 +314,16 @@ export type CreatorLock = {
   updatedAt: number;
 };
 
-export type CreatorLockTransactionEnvelope = TransactionEnvelope & { feeShareBps: number };
+export type CreatorLockBalance = {
+  availableRaw: string;
+  decimals: number;
+  tokenAccount: string;
+};
+
+export type CreatorLockTransactionEnvelope = TransactionEnvelope & {
+  feeShareBps: number;
+  availableRaw: string;
+  requestedRaw: string;
+  estimatedLockedRaw: string;
+  estimatedTransferFeeRaw: string;
+};
