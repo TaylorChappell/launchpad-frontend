@@ -62,10 +62,10 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
     }
   }
 
-  if (!data) return <section className={`governance-vote ${compact ? "compact" : "full"}`}><div className="governance-loading"><Loader2 className="spin"/> Loading weekly vote…</div></section>;
-  if (!data.enabled) return compact ? null : <section className="governance-vote full unavailable"><Vote/><div><b>Weekly AQUA vote</b><p>{data.reason}</p></div></section>;
+  if (!data) return <section data-governance="weekly-market-vote" className={`governance-vote ${compact ? "compact" : "full"}`}><div className="governance-loading"><Loader2 className="spin"/> Loading weekly vote…</div></section>;
+  if (!data.enabled) return compact ? null : <section data-governance="weekly-market-vote" className="governance-vote full unavailable"><Vote/><div><b>Weekly AQUA vote</b><p>{data.reason}</p></div></section>;
 
-  return <section className={`governance-vote ${compact ? "compact" : "full"}`}>
+  return <section data-governance="weekly-market-vote" className={`governance-vote ${compact ? "compact" : "full"}`}>
     <header>
       <span className="governance-mark"><Droplets/></span>
       <div><small>WEEKLY AQUA COMMUNITY VOTE</small><h2>{compact ? "Vote for this market" : "Choose the next featured market"}</h2></div>
