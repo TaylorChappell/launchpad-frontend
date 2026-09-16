@@ -40,7 +40,13 @@ export function Token() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([api.launch(id), api.stocks().catch(() => ({ stocks: [] })), api.marketData(id).catch(() => ({ snapshots: [] }))]).then(([launchData, stockData, marketData]) => {
+
+    const refresh = async () => {
+      const [launchData, stockData, marketData] = await Promise.all([
+        api.launch(id),
+        api.stocks().catch(() => ({ stocks: [] })),
+        api.marketData(id).catch(() => ({ snapshots: [] })),
+      ]);
       if (!active) return;
       setLaunch(launchData.launch);
       setCreatorLock(launchData.creatorLock);
@@ -48,8 +54,17 @@ export function Token() {
       setTradesHaveMore(Boolean(launchData.tradesHasMore));
       setSnapshots(marketData.snapshots);
       setStock(stockData.stocks.find((item) => item.mint === launchData.launch.stockMint) ?? null);
-    }).catch(() => undefined).finally(() => { if (active) setLoaded(true); });
-    return () => { active = false; };
+    };
+
+    void refresh().catch(() => undefined).finally(() => { if (active) setLoaded(true); });
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refresh().catch(() => undefined);
+    }, 15_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, [id]);
 
   const sortedTrades = useMemo(() => [...trades].sort((a, b) => Number(b.created_at ?? 0) - Number(a.created_at ?? 0)), [trades]);
