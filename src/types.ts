@@ -195,19 +195,29 @@ export type Launch = {
 };
 
 export type RewardModeState = {
-  jackpot: null | {
+  jackpot: {
+    nextDrawAt: number;
+    drawSeconds: number;
+    currentPotRaw: string;
+    currentPotUsd: number;
+    rewardSymbol: string;
+    rewardDecimals: number;
+    eligibleWallets: number;
+    previousDraws: Array<{
     id: string;
     startsAt: number;
     endsAt: number;
-    status: "committed" | "drawn" | "published" | "cancelled";
     totalRewardRaw: string;
+    totalUsd: number;
     rewardSymbol: string;
     rewardDecimals: number;
     eligibleWallets: number;
     snapshotHash: string;
     entropySlot: number | null;
     entropyBlockhash: string | null;
+    transactionSignature: string | null;
     winners: Array<{ place: number; wallet: string; prizeBps: number; amountRaw: string }>;
+    }>;
   };
   buybackBurn: { totalSol: number; totalTokenRaw: string; lastBurnAt: number | null };
 };
