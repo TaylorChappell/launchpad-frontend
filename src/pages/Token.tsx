@@ -82,7 +82,16 @@ export function Token() {
       const amountRaw = decimalToRaw(amount, side === "buy" ? buyInputDecimals : activeLaunch.tokenDecimals);
       if (BigInt(amountRaw) <= 0n) throw new Error("Enter an amount greater than zero.");
       const transaction = await api.tradeTransaction(activeLaunch.id, { trader: wallet.address, side, buyCurrency: routedSolBuy ? "SOL" : "PAIR", amountRaw, slippageBps: 150 });
-      const signature = await wallet.sendTransaction(transaction);
+      let signature = await wallet.sendTransaction(transaction);
+      if (transaction.followUp) {
+        try {
+          const buy = await api.tradeTransaction(activeLaunch.id, { trader: wallet.address, side: "buy", buyCurrency: "PAIR", amountRaw: transaction.followUp.amountRaw, slippageBps: 150 });
+          signature = await wallet.sendTransaction(buy);
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : "The Orca purchase was not completed.";
+          throw new Error(`SOL was converted to ${activeLaunch.pairSymbol}, but the final buy did not complete. Your ${activeLaunch.pairSymbol} remains in your wallet. ${detail}`);
+        }
+      }
       toast.success(`Trade confirmed · ${signature.slice(0, 7)}…${signature.slice(-6)}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Trade failed.");
