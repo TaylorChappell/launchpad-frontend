@@ -1032,3 +1032,26 @@ body::before {
 .modes-update-flash > footer a { color: #176fae; }
 .modes-update-flash > footer a:hover { color: #0d639f; }
 .modes-update-flash > footer button { color: white; border-color: rgba(30,143,232,.5); background: linear-gradient(135deg,#45b9ee,#1e8fe8); box-shadow: 0 10px 24px rgba(30,143,232,.18); }
+
+/* Weekly AQUA market governance */
+.governance-vote { color: var(--aqua-ink); border-color: rgba(30,143,232,.18); background: radial-gradient(circle at 92% 0,rgba(69,185,238,.2),transparent 34%),linear-gradient(145deg,rgba(255,255,255,.89),rgba(229,245,253,.9)); box-shadow: 0 15px 42px rgba(38,107,150,.07); }
+.governance-mark { color: #176fae; border-color: rgba(30,143,232,.2); background: rgba(163,216,245,.3); }
+.governance-vote header small,.governance-wallet-row small { color: #176fae; }
+.governance-time { color: #527991; border-color: rgba(30,143,232,.17); background: rgba(255,255,255,.55); }
+.governance-explainer,.governance-leaders small,.governance-action label span,.governance-aqua-exclusion,.governance-loading,.governance-vote.unavailable { color: #587d94; }
+.governance-leaders article { border-color: rgba(30,143,232,.13); background: rgba(255,255,255,.58); }
+.governance-leaders article > i { color: #176fae; background: rgba(30,143,232,.11); }
+.governance-leaders article.first { border-color: rgba(204,151,17,.22); background: rgba(255,238,184,.43); }
+.governance-leaders article.first > i { color: #865f00; background: rgba(204,151,17,.14); }
+.governance-leaders strong { color: #176fae; }
+.governance-wallet-row { border-color: rgba(30,143,232,.12); }
+.governance-wallet-row span { color: #087f7d; }
+.governance-wallet-row p { color: #956225; }
+.governance-action input { color: var(--aqua-ink); border-color: rgba(30,143,232,.2); background: rgba(255,255,255,.74); }
+.governance-action input::placeholder { color: #7b9aab; }
+.governance-action input:focus { border-color: rgba(30,143,232,.42); box-shadow: 0 0 0 3px rgba(30,143,232,.09); }
+.governance-aqua-exclusion { border-color: rgba(30,143,232,.12); background: rgba(255,255,255,.52); }
+.governance-vote > footer { border-color: rgba(204,151,17,.2); color: #745d25; }
+.governance-vote > footer svg { color: #a77600; }
+.governance-vote.unavailable > svg { color: #176fae; }
+.governance-vote.unavailable b { color: var(--aqua-ink); }
