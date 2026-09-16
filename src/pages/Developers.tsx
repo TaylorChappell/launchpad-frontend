@@ -90,7 +90,7 @@ export function Developers() {
       <article className="dev-docs">
         <section id="overview" className="dev-section">
           <span className="dev-kicker"><Code2/>QUICKSTART</span><h2>A stable, indexed API</h2>
-          <p>The AQUA API serves normalized data from AQUA’s indexers. Responses use JSON, timestamps are Unix milliseconds, raw token quantities are strings, and monetary values are returned in human-readable units.</p>
+          <p>The AQUA API serves normalized data from AQUA’s indexers. Responses use JSON, event <code>created</code> timestamps are Unix milliseconds, scheduled round boundaries are Unix seconds, raw token quantities are strings, and monetary values are returned in human-readable units.</p>
           <div className="dev-code"><header><span>Request</span><CopyButton value={curlExample}/></header><pre><code>{curlExample}</code></pre></div>
           <div className="dev-callout"><ShieldCheck/><div><b>Read-only by design</b><span>Public keys cannot access keeper, admin or transaction-signing routes. Never expose a secret API key in client-side production code.</span></div></div>
         </section>
