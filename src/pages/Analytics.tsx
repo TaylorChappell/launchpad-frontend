@@ -82,7 +82,6 @@ export function Analytics() {
     <PageBubbles count={12}/>
     <header className="analytics-heading">
       <div>
-        <span>PROTOCOL ANALYTICS</span>
         <h1>AQUA in numbers.</h1>
         <p>A simple view of completed AQUA buybacks, holder rewards and live markets.</p>
       </div>
