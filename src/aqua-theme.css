@@ -1,0 +1,270 @@
+/* AQUA daylight palette --------------------------------------------------- */
+:root {
+  color-scheme: light;
+  color: #123e5a;
+  background: #d4edfc;
+  --bg: #d4edfc;
+  --bg-raised: #e8f6fe;
+  --panel: rgba(255, 255, 255, .76);
+  --panel-soft: rgba(255, 255, 255, .62);
+  --line: rgba(30, 143, 232, .17);
+  --line-strong: rgba(30, 143, 232, .36);
+  --text: #123e5a;
+  --muted: #547a94;
+  --quiet: #7596aa;
+  --aqua: #1e8fe8;
+  --teal: #45b9ee;
+  --blue: #1e8fe8;
+  --red: #c94f67;
+  --amber: #a86f12;
+  --shadow: 0 24px 70px rgba(29, 102, 151, .14);
+  --aqua-surface: #d4edfc;
+  --aqua-shallow: #a3d8f5;
+  --aqua-blue: #1e8fe8;
+  --aqua-ink: #123e5a;
+}
+
+html,
+body {
+  color: var(--text);
+  background: var(--aqua-surface);
+}
+
+body {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(255, 255, 255, .95), transparent 30rem),
+    radial-gradient(circle at 92% 24%, rgba(163, 216, 245, .72), transparent 34rem),
+    linear-gradient(180deg, #eef9ff 0%, var(--aqua-surface) 45%, #c7e7f9 100%);
+}
+
+body::before {
+  opacity: .34;
+  background-image:
+    radial-gradient(circle at center, rgba(30, 143, 232, .14) 0 1px, transparent 1.5px),
+    linear-gradient(rgba(30, 143, 232, .045) 1px, transparent 1px);
+}
+
+.app-shell::before,
+.app-shell::after { border-color: rgba(30, 143, 232, .12); }
+
+::selection { color: white; background: var(--aqua-blue); }
+
+/* Navigation and brand */
+.site-header {
+  border-color: rgba(30, 143, 232, .16);
+  background: rgba(238, 249, 255, .84);
+  box-shadow: 0 8px 34px rgba(42, 109, 150, .09);
+}
+
+.brand b,
+.header-inner > nav a:hover,
+.header-inner > nav a.active { color: var(--aqua-ink); }
+.header-inner > nav a { color: #5d8198; }
+.header-inner > nav a::after { background: var(--aqua-blue); }
+.aqua-mark img { filter: drop-shadow(0 6px 12px rgba(30, 143, 232, .2)); }
+
+.header-search,
+.network-pill,
+.secondary-button,
+.wallet-button.connected,
+.mobile-nav,
+.bottom-nav {
+  color: #315d78;
+  border-color: var(--line);
+  background: rgba(255, 255, 255, .62);
+}
+
+.wallet-button,
+.primary {
+  color: white;
+  border-color: transparent;
+  background: linear-gradient(120deg, var(--aqua-blue), #55b8ef);
+  box-shadow: 0 10px 24px rgba(30, 143, 232, .2);
+}
+
+.wallet-button:hover,
+.primary:hover { color: white; background: linear-gradient(120deg, #147fd1, var(--aqua-blue)); }
+.environment-bar { color: #4b7088; background: rgba(255, 255, 255, .64); border-color: var(--line); }
+.environment-bar p { color: #66899e; }
+.system-banner { color: #805912; background: #fff7df; }
+
+/* Shared surfaces */
+:where(
+  .token-card, .form-panel, .launch-summary, .chart-panel, .info-panel,
+  .activity, .trade-card, .wallet-card, .reward-ledger, .reward-explainer,
+  .system-map, .detail-panel, .mode-card, .empty-card, .simple-stats > div,
+  .liquidity-flow, .data-badge, .search-modal, .wallet-dropdown,
+  .rewards-connect-card, .rewards-empty, .holder-reward-card,
+  .manage-hero, .manage-builder, .manage-quote, .manage-active-lock,
+  .manage-gate, .admin-access, .admin-hero, .admin-panel,
+  .admin-stat-grid article, .aqua-docs-callout, .aqua-docs-cost-card,
+  .aqua-docs-definition, .aqua-docs-flow-card, .aqua-docs-formula,
+  .aqua-docs-principle, .aqua-docs-summary, .aqua-docs-timeline-step,
+  .launch-cost-card, .launch-final-summary, .launch-resume-banner
+) {
+  color: var(--aqua-ink);
+  border-color: var(--line);
+  background: rgba(255, 255, 255, .68);
+  box-shadow: 0 18px 50px rgba(38, 107, 150, .08);
+}
+
+:where(
+  .token-card, .form-panel, .chart-panel, .trade-card, .holder-reward-card,
+  .manage-builder, .manage-quote, .manage-active-lock, .admin-panel
+):hover { border-color: var(--line-strong); }
+
+.token-card.featured,
+.token-card:hover,
+.manage-builder,
+.manage-quote,
+.manage-active-lock,
+.admin-stat-grid article {
+  background: linear-gradient(145deg, rgba(255, 255, 255, .88), rgba(212, 237, 252, .72));
+}
+
+:where(h1, h2, h3, h4, b, strong) { color: var(--aqua-ink); }
+:where(p, small) { border-color: var(--line); }
+.eyebrow,
+.hero-copy h1 span,
+.mechanism-heading > a,
+.creator-manage-button { color: var(--aqua-blue); }
+.hero-copy h1 span { background: none; -webkit-text-fill-color: currentColor; }
+.hero-copy > p,
+.workspace-heading p,
+.mechanism-heading p,
+.create-heading > p,
+.simple-page > p,
+.how-hero > p { color: var(--muted); }
+
+/* Forms, controls and menus */
+:where(input, textarea, select),
+.field input,
+.field textarea,
+.field select,
+.trade-input,
+.manage-input,
+.unit-input,
+.ticker-input,
+.stock-search,
+.search-modal-input,
+.pair-choice,
+.launch-currency-grid button {
+  color: var(--aqua-ink);
+  border-color: var(--line);
+  background: rgba(255, 255, 255, .74);
+}
+
+:where(input, textarea)::placeholder { color: #7597ac; }
+:where(input, textarea, select):focus,
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  border-color: var(--aqua-blue);
+  box-shadow: 0 0 0 3px rgba(30, 143, 232, .1);
+}
+
+.pair-choice.selected,
+.trade-tabs button.active,
+.tabs button.active,
+.duration-presets button.active {
+  color: #0c65a8;
+  border-color: rgba(30, 143, 232, .42);
+  background: rgba(163, 216, 245, .5);
+}
+
+.wallet-dropdown,
+.search-modal { backdrop-filter: blur(24px); }
+.wallet-coins > a { color: #315d78; }
+.wallet-coins > a:hover,
+.search-result:hover { border-color: var(--line); background: rgba(163, 216, 245, .28); }
+
+/* Market and reward cards */
+.token-mark { border-color: rgba(30, 143, 232, .2); }
+.token-title span,
+.token-pair,
+.metric small,
+.reward-card-focus small,
+.reward-timing small,
+.reward-market-identity small { color: #64899f; }
+.metric b,
+.metric b.cap-normal { color: var(--aqua-ink); }
+.metric b.cap-warm { color: #bd8517; }
+.metric b.cap-high { color: var(--aqua-blue); }
+
+.reward-card-focus {
+  border-color: rgba(30, 143, 232, .18);
+  background: linear-gradient(120deg, rgba(163, 216, 245, .38), rgba(255, 255, 255, .58));
+}
+.reward-card-focus strong,
+.reward-amount strong { color: var(--aqua-blue); }
+.asset-mark.orca img {
+  border-radius: 50%;
+  clip-path: circle(49% at 50% 50%);
+}
+.orca-mark {
+  border-radius: 50%;
+  clip-path: circle(49% at 50% 50%);
+}
+
+.market-line-grid { stroke: rgba(30, 143, 232, .12); }
+.market-line-axis,
+.market-line-time,
+.market-line-caption { fill: #64899f; color: #64899f; }
+.market-line-stroke { stroke: var(--aqua-blue); filter: drop-shadow(0 0 7px rgba(30, 143, 232, .2)); }
+.market-line-point { fill: white; stroke: var(--aqua-blue); }
+.activity table th,
+.fee-table th,
+.reference-table th,
+.aqua-docs-table th,
+.admin-table-wrap th { color: #527991; background: rgba(163, 216, 245, .28); }
+.activity table td,
+.fee-table td,
+.reference-table td,
+.aqua-docs-table td,
+.admin-table-wrap td { color: #476e86; border-color: var(--line); }
+
+/* Page-specific light surfaces */
+.market-controls,
+.flow-readout,
+.score-bars,
+.manage-steps,
+.terms-acceptance,
+.admin-flag,
+.admin-custody,
+.admin-custody > div {
+  color: #456d86;
+  border-color: var(--line);
+  background: rgba(255, 255, 255, .5);
+}
+
+.artwork,
+.wizard-artwork { color: var(--muted); border-color: var(--line-strong); background: rgba(255, 255, 255, .55); }
+.score-bars > div > i,
+.progress,
+.reward-water-progress { background: rgba(30, 143, 232, .1); }
+.score-bars > div > i > b,
+.progress i,
+.reward-water-progress i { background: linear-gradient(90deg, var(--aqua-shallow), var(--aqua-blue)); }
+
+.aqua-docs-sidebar-inner { border-color: var(--line); background: rgba(255, 255, 255, .62); }
+.aqua-docs-nav-group a { color: #5b8097; }
+.aqua-docs-nav-group a:hover,
+.aqua-docs-nav-group a.active { color: var(--aqua-blue); background: rgba(163, 216, 245, .28); }
+.aqua-docs-section { border-color: var(--line); }
+
+.site-footer {
+  color: #5c8097;
+  border-color: var(--line);
+  background: rgba(223, 242, 253, .72);
+}
+.site-footer a:hover { color: var(--aqua-blue); }
+
+/* Opening animation follows the new logo palette. */
+.opening-reveal { background: var(--aqua-surface); }
+.opening-reveal-water { background: linear-gradient(180deg, #effaff, var(--aqua-shallow)); }
+.opening-mark .aqua-mark { filter: drop-shadow(0 20px 35px rgba(30, 143, 232, .22)); }
+
+@media (max-width: 760px) {
+  .mobile-nav,
+  .bottom-nav { background: rgba(238, 249, 255, .96); }
+}
