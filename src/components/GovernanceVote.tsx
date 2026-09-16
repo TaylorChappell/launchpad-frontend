@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronRight, Clock3, Loader2, Search, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../api";
@@ -145,7 +146,7 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
       {data.activeBonus && <div className="governance-active-boost"><Trophy/><span><b>${data.activeBonus.symbol}</b> is receiving this week’s 24-hour boost.</span></div>}
     </section>
 
-    {selectorOpen && <div className="governance-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelectorOpen(false); }}>
+    {selectorOpen && createPortal(<div className="governance-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelectorOpen(false); }}>
       <section className="governance-dialog vote-picker" role="dialog" aria-modal="true" aria-labelledby="vote-picker-title">
         <button className="governance-dialog-close" onClick={() => setSelectorOpen(false)} aria-label="Close"><X/></button>
         <header><AquaVoteArt/><div><small>WEEKLY AQUA BOOST</small><h2 id="vote-picker-title">Choose a market</h2><p>Search by coin, ticker, reward stock, or contract address.</p></div></header>
@@ -161,9 +162,9 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
           {Boolean(launches.length) && !candidates.length && <div className="governance-candidates-empty"><Search/> No matching AQUA market.</div>}
         </div>
       </section>
-    </div>}
+    </div>, document.body)}
 
-    {leaderboardOpen && <div className="governance-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setLeaderboardOpen(false); }}>
+    {leaderboardOpen && createPortal(<div className="governance-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setLeaderboardOpen(false); }}>
       <section className="governance-dialog leaderboard" role="dialog" aria-modal="true" aria-labelledby="leaderboard-title">
         <button className="governance-dialog-close" onClick={() => setLeaderboardOpen(false)} aria-label="Close"><X/></button>
         <header><span className="leaderboard-trophy"><Trophy/></span><div><small>LIVE WEEKLY RANKING</small><h2 id="leaderboard-title">Boost leaderboard</h2><p>Rankings update as eligible AQUA holders change their vote.</p></div></header>
@@ -174,6 +175,6 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
         </div>
         <footer><Clock3/> Round closes in {timeLeft(data.round.endsAt, now)}.</footer>
       </section>
-    </div>}
+    </div>, document.body)}
   </>;
 }
