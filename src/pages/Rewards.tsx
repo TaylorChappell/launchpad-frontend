@@ -7,6 +7,7 @@ import { AssetMark, TokenMark } from "../components/TokenCard";
 import { useRuntime, useWallet } from "../context";
 import type { Launch, WalletRewardMarket, WalletRewardsResponse } from "../types";
 import { openXComposer, rewardClaimShareText } from "../share";
+import { GovernanceVote } from "../components/GovernanceVote";
 
 const EMPTY_REWARDS: WalletRewardsResponse = { rewards: [], holdings: [], markets: [] };
 
@@ -153,6 +154,8 @@ export function Rewards() {
     <header className="rewards-vault-heading">
       <div><h1>Your stock rewards.</h1></div>
     </header>
+
+    <GovernanceVote/>
 
     {!wallet.address ? <section className="rewards-connect-card">
       <span><WalletCards/></span>
