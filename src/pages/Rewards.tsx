@@ -114,6 +114,7 @@ export function Rewards() {
     } catch (error) {
       setClaimExperience(null);
       toast.error(error instanceof Error ? error.message : "Claim failed.");
+      if (wallet.address) await refresh(wallet.address).catch(() => undefined);
     } finally {
       setClaiming("");
     }
@@ -176,8 +177,8 @@ export function Rewards() {
               {market.canClaim ? <><span className="reward-ready-dot"/><span><small>Estimated after costs</small><b>{dollars(market.netClaimableUsdCents)}</b></span></> : <span><small>Claim unlock</small><b>&gt; {dollars(market.minimumClaimUsdCents)} net</b></span>}
             </div>
             <div className="reward-action">
-              {market.canClaim ? <button onClick={() => void claim(market, launch)} disabled={claiming === market.launchId || (market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1)}>{claiming === market.launchId ? <Loader2 className="spin"/> : market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1 ? <>Preparing one claim</> : <>Claim {dollars(market.claimableUsdCents)}</>}</button> : <span>Allocates every {epochMinutes} min</span>}
-              {market.canClaim && <small>{market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1 ? "Consolidation in progress" : `1 wallet approval · est. ${dollars(market.estimatedClaimFeeUsdCents)} costs`}</small>}
+              {market.canClaim ? <button onClick={() => void claim(market, launch)} disabled={claiming === market.launchId || (market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1)}>{claiming === market.launchId ? <Loader2 className="spin"/> : market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1 ? <>Program upgrade pending</> : <>Claim {dollars(market.claimableUsdCents)}</>}</button> : <span>Allocates every {epochMinutes} min</span>}
+              {market.canClaim && <small>{market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1 ? "One-transaction claims require the Solana program upgrade" : `1 wallet approval · est. ${dollars(market.estimatedClaimFeeUsdCents)} costs`}</small>}
             </div>
             {!market.canClaim && <div className="reward-water-progress"><i style={{ width: `${Math.max(6, Math.min(94, market.minimumClaimUsdCents ? market.accumulatingUsdCents / market.minimumClaimUsdCents * 100 : 6))}%` }}/><span/><span/></div>}
           </article>;
