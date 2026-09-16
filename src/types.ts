@@ -209,6 +209,7 @@ export type AnalyticsResponse = {
   generatedAt: number;
   totals: {
     buybackSol: number;
+    buybackFundedSol: number;
     rewardsAccumulatedUsd: number;
     rewardsRedeemableUsd: number;
     liveMarkets: number;
@@ -229,6 +230,7 @@ export type AnalyticsResponse = {
     name: string;
     symbol: string;
     amountSol: number;
+    amountTokens: number;
     signature: string | null;
     createdAt: number;
   }>;

@@ -28,6 +28,11 @@ const sol = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 4,
 });
 
+const tokens = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 2,
+});
+
 function timeAgo(value: number) {
   const seconds = Math.max(0, Math.floor((Date.now() - value) / 1000));
   if (seconds < 60) return `${seconds}s ago`;
@@ -74,14 +79,14 @@ export function Analytics() {
       <div>
         <span>PROTOCOL ANALYTICS</span>
         <h1>AQUA in numbers.</h1>
-        <p>A simple view of buyback funding, holder rewards and live AQUA markets.</p>
+        <p>A simple view of completed AQUA buybacks, holder rewards and live markets.</p>
       </div>
       <div className={`analytics-live ${offline ? "offline" : ""}`}><i/>{offline ? "Update delayed" : data ? `Updated ${timeAgo(data.generatedAt)}` : "Loading live data"}</div>
     </header>
 
     {!data ? <div className="analytics-skeletons"><i/><i/><i/><i/></div> : <>
       <section className="analytics-metrics">
-        <article><small>BUYBACKS FUNDED</small><strong>{sol.format(data.totals.buybackSol)} SOL</strong><span>Routed to the AQUA buyback wallet</span></article>
+        <article><small>AQUA BUYBACKS</small><strong>{sol.format(data.totals.buybackSol)} SOL</strong><span>Spent buying AQUA on-chain</span></article>
         <article><small>REWARDS ACCUMULATED</small><strong>{preciseUsd.format(data.totals.rewardsAccumulatedUsd)}</strong><span>Lifetime holder reward value</span></article>
         <article><small>REWARDS REDEEMABLE</small><strong>{preciseUsd.format(data.totals.rewardsRedeemableUsd)}</strong><span>Currently available to holders</span></article>
         <article><small>LIVE MARKETS</small><strong>{data.totals.liveMarkets.toLocaleString()}</strong><span>{compactUsd.format(data.totals.totalMarketCapUsd)} combined market cap</span></article>
@@ -104,12 +109,12 @@ export function Analytics() {
       </section>
 
       <section className="analytics-panel analytics-buybacks">
-        <header><div><h2>Latest buybacks</h2><p>Most recent completed SOL allocations to the buyback wallet.</p></div></header>
+        <header><div><h2>Latest buybacks</h2><p>Verified AQUA purchases made by the protocol buyback wallet.</p></div></header>
         {data.recentBuybacks.length ? <div className="buyback-list">{data.recentBuybacks.map((buyback) => <article key={`${buyback.launchId}-${buyback.signature ?? buyback.createdAt}`}>
-          <div><b>${buyback.symbol}</b><span>{buyback.name}</span></div>
+          <div><b>${buyback.symbol}</b><span>{tokens.format(buyback.amountTokens)} AQUA bought</span></div>
           <strong>{sol.format(buyback.amountSol)} SOL</strong>
           <time>{timeAgo(buyback.createdAt)}</time>
-        </article>)}</div> : <div className="analytics-empty">Completed buybacks will appear here.</div>}
+        </article>)}</div> : <div className="analytics-empty">Verified on-chain buybacks will appear here.</div>}
       </section>
     </>}
   </main>;
