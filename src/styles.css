@@ -3110,7 +3110,21 @@ body::before {
 .jackpot-winners code { color: #8eb4b9; font-size: .72rem; }
 .jackpot-winners strong { color: #75dce1; font-size: .72rem; }
 .jackpot-proof { display: block; margin-top: 14px; color: #72969c; line-height: 1.5; }
+.jackpot-live-metrics { grid-template-columns: repeat(4,minmax(0,1fr)) !important; }
+.jackpot-draw-history { display: grid; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+.jackpot-draw-history > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.jackpot-draw-history > header > b { font-size: .78rem; }
+.jackpot-draw-history > header > span { color: #74979d; font-size: .64rem; }
+.jackpot-draw-history article { padding: 14px; border: 1px solid var(--line); border-radius: 13px; background: rgba(5,25,33,.42); }
+.jackpot-draw-history article > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.jackpot-draw-history article > header small,.jackpot-draw-history article > header strong { display: block; }
+.jackpot-draw-history article > header small { color: #718f96; font-size: .62rem; }
+.jackpot-draw-history article > header strong { margin-top: 5px; color: #ffd675; font: 700 .75rem/1 monospace; }
+.jackpot-draw-history article > header a { display: inline-flex; align-items: center; gap: 6px; color: #ffd675; font-size: .66rem; text-decoration: none; }
+.jackpot-draw-history article > header a svg { width: 13px; height: 13px; }
+.jackpot-empty-history { margin-top: 17px; padding: 14px; border: 1px dashed var(--line); border-radius: 12px; color: #72969c; font-size: .7rem; line-height: 1.5; }
 @media (max-width: 880px) { .reward-mode-docs { grid-template-columns: 1fr; } .reward-mode-option { grid-template-columns: 42px minmax(0,1fr); } .reward-mode-option > em { grid-column: 2; min-width: 0; text-align: left; } }
+@media (max-width: 720px) { .jackpot-live-metrics { grid-template-columns: repeat(2,minmax(0,1fr)) !important; } .market-mode-filters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); } .market-mode-filters button { justify-content: center; } }
 
 .coin-identity-grid { display: grid; grid-template-columns: 156px minmax(0, 1fr); gap: 20px; }
 .wizard-artwork {
@@ -3653,6 +3667,13 @@ body::before {
 }
 
 .markets-list-top { margin-top: 27px; }
+.market-mode-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 25px; }
+.market-mode-filters button { min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; color: #78969d; background: rgba(6,24,32,.7); font: 700 .68rem/1 "Manrope",sans-serif; transition: .2s ease; }
+.market-mode-filters button svg { width: 18px; height: 18px; }
+.market-mode-filters button small { min-width: 22px; padding: 4px 6px; border-radius: 999px; color: inherit; background: rgba(255,255,255,.06); font-size: .59rem; text-align: center; }
+.market-mode-filters button:hover,.market-mode-filters button.active { color: #eaffff; border-color: rgba(93,220,226,.35); background: #0e303b; }
+.markets-load-more { min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 12px; margin: 24px auto 0; padding: 0 20px; border: 1px solid var(--line); border-radius: 999px; color: #bfe0e3; background: rgba(6,24,32,.72); font: 750 .73rem/1 "Manrope",sans-serif; }
+.markets-load-more span { color: #6f9298; font-size: .63rem; }
 .pool-lock-status { display: inline-flex; align-items: center; gap: 7px; margin-top: 16px; color: #65d8dc; font: 700 .68rem/1 "Manrope", sans-serif; }
 .pool-lock-status svg { width: 15px; }
 .ledger-claim { min-height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 0 11px; border: 1px solid rgba(98, 226, 232, .32); border-radius: 8px 10px 7px 11px; color: #05191d; background: #71e4e8; font: 700 .66rem/1 "Manrope", sans-serif; }
