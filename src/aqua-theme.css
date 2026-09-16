@@ -513,11 +513,10 @@ body::before {
 .reward-mode-option.selected { border-color: rgba(30,143,232,.58); background: linear-gradient(135deg,rgba(220,244,255,.92),rgba(255,255,255,.86)); box-shadow: 0 14px 34px rgba(40,139,195,.13); }
 .reward-mode-option > i { color: var(--aqua-blue); background: rgba(30,143,232,.1); }
 .reward-mode-option > div > small,.reward-mode-option p { color: #587d94; }
-.reward-mode-option p span { color: #356f8f; }
 .reward-mode-option > em { color: #64899f; }
 .reward-mode-option > em svg { color: var(--aqua-blue); }
-.mode-lock-note,.reward-mode-notice { color: #4f7891; border: 1px solid rgba(30,143,232,.12); background: rgba(217,242,255,.5); }
-.mode-lock-note svg,.reward-mode-notice svg { color: var(--aqua-blue); }
+.reward-mode-notice { color: #4f7891; border: 1px solid rgba(30,143,232,.12); background: rgba(217,242,255,.5); }
+.reward-mode-notice svg { color: var(--aqua-blue); }
 .mode-lock-note b { color: #245d7e; }
 .mode-lock-note small { color: #5d8197; }
 .reward-mode-docs article { border-color: var(--line); background: rgba(255,255,255,.62); }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  ArrowLeft, ArrowRight, Check, Droplets, Flame, Gift, ImagePlus, Info, Rocket,
-  Loader2, RefreshCw, Search, ShieldCheck, Trophy, X,
+  ArrowLeft, ArrowRight, Check, Droplets, ImagePlus, Info, Rocket,
+  Loader2, RefreshCw, Search, X,
 } from "lucide-react";
 import { NetworkSolana } from "@web3icons/react";
 import { Link } from "react-router-dom";
@@ -11,6 +11,7 @@ import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
 import { PageBubbles } from "../components/PageBubbles";
 import { TokenMark } from "../components/TokenCard";
+import { RewardModeIcon } from "../components/RewardModeIcon";
 import type { Launch, LaunchBatchEnvelope, LaunchConfirmation, StockOption, TransactionEnvelope } from "../types";
 
 type DevBuyCurrency = "SOL" | "USDC";
@@ -439,21 +440,17 @@ export function Create() {
 
         {step === 2 && <WizardSection title="Choose the reward mode" description="This policy is permanent after launch, so holders always know how the reward share will be used.">
           <div className="reward-mode-grid" role="radiogroup" aria-label="Reward mode">
-            <ModeButton active={form.rewardMode === "holder_rewards"} onClick={() => update("rewardMode", "holder_rewards")} icon={<Gift/>} title="Holder Rewards" eyebrow="Steady rewards">
+            <ModeButton active={form.rewardMode === "holder_rewards"} onClick={() => update("rewardMode", "holder_rewards")} icon={<RewardModeIcon mode="holder_rewards"/>} title="Holder Rewards" eyebrow="Steady rewards">
               The holder share is converted into the selected pair asset and distributed by balance × time held. Rewards accumulate into one claim per market.
-              <span><ShieldCheck/> Fairness: continuous holding counts, not a last-second snapshot.</span>
             </ModeButton>
-            <ModeButton active={form.rewardMode === "buyback_burn"} disabled={!config.rewardModes?.enabled} onClick={() => update("rewardMode", "buyback_burn")} icon={<Flame/>} title="Buyback & Burn" eyebrow="Reduce supply">
+            <ModeButton active={form.rewardMode === "buyback_burn"} disabled={!config.rewardModes?.enabled} onClick={() => update("rewardMode", "buyback_burn")} icon={<RewardModeIcon mode="buyback_burn"/>} title="Buyback & Burn" eyebrow="Reduce supply">
               The holder share becomes SOL, buys this coin through the live market, then permanently burns every token purchased.
-              <span><ShieldCheck/> Verifiable buy and burn signatures are recorded publicly.</span>
             </ModeButton>
-            <ModeButton active={form.rewardMode === "jackpot"} disabled={!config.rewardModes?.enabled || !config.rewardModes.jackpot.enabled} onClick={() => update("rewardMode", "jackpot")} icon={<Trophy/>} title="Hourly Jackpot" eyebrow="5 winners · every hour">
+            <ModeButton active={form.rewardMode === "jackpot"} disabled={!config.rewardModes?.enabled || !config.rewardModes.jackpot.enabled} onClick={() => update("rewardMode", "jackpot")} icon={<RewardModeIcon mode="jackpot"/>} title="Hourly Jackpot" eyebrow="5 winners · every hour">
               Five distinct holders split each pot 50% / 20% / 20% / 5% / 5%. Holding and buying earlier increases your score; selling cuts accrued score.
-              <span><ShieldCheck/> Snapshot commitments and a future finalized Solana block make each draw auditable.</span>
             </ModeButton>
           </div>
           {!config.rewardModes?.enabled && <div className="reward-mode-notice"><Info/> Alternative modes will unlock after the staged program upgrade is enabled. Holder Rewards remains available.</div>}
-          <div className="mode-lock-note"><ShieldCheck/><span><b>Immutable at launch</b><small>The selected mode is written to an on-chain policy account and cannot be quietly switched later.</small></span></div>
         </WizardSection>}
 
         {step === 3 && <WizardSection title="Optional dev buy" description="Choose SOL or USDC to make the first buy. Leave the amount at zero to skip it.">

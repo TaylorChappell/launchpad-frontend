@@ -6,18 +6,17 @@ import {
   Clock3,
   Coins,
   ExternalLink,
-  Flame,
   Gift,
   Landmark,
   Layers3,
   LockKeyhole,
   RefreshCw,
   ShieldCheck,
-  Trophy,
   Waves,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageBubbles } from "../components/PageBubbles";
+import { RewardModeIcon } from "../components/RewardModeIcon";
 import { useRuntime } from "../context";
 
 const navigation = [
@@ -255,9 +254,9 @@ export function HowItWorks() {
         <DocSection id="reward-modes" eyebrow="FEES AND REWARDS" title="Three permanent ways to use the reward share">
           <p>Every creator chooses one reward mode in the launch wizard. The choice is written to a separate on-chain market-policy account and is immutable, so the creator or AQUA operator cannot quietly redirect a successful coin later.</p>
           <div className="reward-mode-docs">
-            <article><span><Gift/></span><small>MODE 01</small><h3>Holder Rewards</h3><p>The full reward share buys the selected pair asset and allocates it proportionally by balance × time held. Cumulative Merkle checkpoints let each wallet collect its outstanding market rewards in one claim.</p><b>Fairness</b><p>Continuous balance history replaces a single snapshot. Infrastructure accounts and the creator wallet are excluded.</p></article>
-            <article><span><Flame/></span><small>MODE 02</small><h3>Buyback &amp; Burn</h3><p>The reward share is settled into SOL, swapped back through the live market for that launch token, and the purchased tokens are permanently burned.</p><b>Fairness</b><p>The buy and burn use public Solana transactions. AQUA records the SOL spent, token amount bought, buy signature and burn signature.</p></article>
-            <article><span><Trophy/></span><small>MODE 03</small><h3>Hourly Jackpot</h3><p>Each eligible pot goes to five distinct holders: 50%, 20%, 20%, 5% and 5%. Winnings accumulate through the same one-claim reward distributor.</p><b>Fairness</b><p>Scores are committed before randomness is known. A future finalized Solana block supplies draw entropy, and the snapshot hash, blockhash, scores and winners remain auditable.</p></article>
+            <article><span><RewardModeIcon mode="holder_rewards"/></span><small>MODE 01</small><h3>Holder Rewards</h3><p>The full reward share buys the selected pair asset and allocates it proportionally by balance × time held. Cumulative Merkle checkpoints let each wallet collect its outstanding market rewards in one claim.</p><b>Fairness</b><p>Continuous balance history replaces a single snapshot. Infrastructure accounts and the creator wallet are excluded.</p></article>
+            <article><span><RewardModeIcon mode="buyback_burn"/></span><small>MODE 02</small><h3>Buyback &amp; Burn</h3><p>The reward share is settled into SOL, swapped back through the live market for that launch token, and the purchased tokens are permanently burned.</p><b>Fairness</b><p>The buy and burn use public Solana transactions. AQUA records the SOL spent, token amount bought, buy signature and burn signature.</p></article>
+            <article><span><RewardModeIcon mode="jackpot"/></span><small>MODE 03</small><h3>Hourly Jackpot</h3><p>Each eligible pot goes to five distinct holders: 50%, 20%, 20%, 5% and 5%. Winnings accumulate through the same one-claim reward distributor.</p><b>Fairness</b><p>Scores are committed before randomness is known. A future finalized Solana block supplies draw entropy, and the snapshot hash, blockhash, scores and winners remain auditable.</p></article>
           </div>
           <Callout title="Jackpot scoring rewards behaviour across the whole hour">
             Balance earns score over time. New purchases mature into full scoring weight over 15 minutes, so buying immediately before the close has little effect. Any outbound transfer is treated like a sale and removes the same proportion of score already earned. Wallets with no outbound movement receive a modest 10% consistency multiplier. Winners are drawn without replacement, so one wallet cannot take two places in the same hour.
