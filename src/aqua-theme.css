@@ -773,6 +773,34 @@ body::before {
 .creator-lock-card > a svg { width: 10px; height: 10px; }
 .manage-active-lock > footer { align-items: center; justify-content: space-between; }
 
+.analytics-load-more,
+.activity-load-more {
+  color: #176fae;
+  border-color: rgba(30, 143, 232, .24);
+  background: rgba(212, 237, 252, .64);
+}
+.analytics-load-more:hover,
+.activity-load-more:hover {
+  color: #0d639f;
+  border-color: rgba(30, 143, 232, .44);
+  background: rgba(163, 216, 245, .55);
+}
+
+.legal-page > header p { color: #3f657d; }
+.legal-page > header small { color: #587a90; }
+.legal-content h2 { color: #123e5a; }
+.legal-content p { color: #3f647a; }
+.legal-content section { border-bottom-color: rgba(30, 143, 232, .2); }
+.legal-risk-warning {
+  border-color: rgba(168, 111, 18, .3);
+  border-left-color: #a86f12;
+  background: rgba(255, 243, 207, .72);
+}
+.legal-risk-warning b { color: #754d0b; }
+.legal-risk-warning span { color: #654f2c; }
+.terms-acceptance { color: #3f647a; }
+.terms-acceptance a { color: #126fae; }
+
 @media (max-width: 760px) {
   .creator-lock-market { grid-template-columns: 34px 1fr; width: 100%; margin-top: 4px; }
   .creator-lock-market > a { grid-column: 1 / -1; }

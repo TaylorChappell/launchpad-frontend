@@ -3,6 +3,9 @@ import { api } from "../api";
 import { PageBubbles } from "../components/PageBubbles";
 import type { AnalyticsResponse } from "../types";
 
+const MARKET_PAGE_SIZE = 8;
+const BUYBACK_PAGE_SIZE = 6;
+
 const usd = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -46,6 +49,8 @@ function timeAgo(value: number) {
 export function Analytics() {
   const [data, setData] = useState<AnalyticsResponse | null>(null);
   const [offline, setOffline] = useState(false);
+  const [visibleMarkets, setVisibleMarkets] = useState(MARKET_PAGE_SIZE);
+  const [visibleBuybacks, setVisibleBuybacks] = useState(BUYBACK_PAGE_SIZE);
 
   const refresh = useCallback(async () => {
     try {
@@ -97,7 +102,7 @@ export function Analytics() {
         <div className="analytics-table-wrap">
           <table>
             <thead><tr><th>Market</th><th>Market cap</th><th>Buybacks</th><th>Rewards accumulated</th><th>Redeemable</th></tr></thead>
-            <tbody>{data.markets.length ? data.markets.map((market) => <tr key={market.id}>
+            <tbody>{data.markets.length ? data.markets.slice(0, visibleMarkets).map((market) => <tr key={market.id}>
               <td><b>{market.name}</b><span>${market.symbol}</span></td>
               <td>{usd.format(market.marketCapUsd)}</td>
               <td>{sol.format(market.buybackSol)} SOL</td>
@@ -106,15 +111,17 @@ export function Analytics() {
             </tr>) : <tr><td colSpan={5} className="analytics-empty">No live market data yet.</td></tr>}</tbody>
           </table>
         </div>
+        {visibleMarkets < data.markets.length && <button className="activity-load-more analytics-load-more" onClick={() => setVisibleMarkets((current) => current + MARKET_PAGE_SIZE)}>Load more markets</button>}
       </section>
 
       <section className="analytics-panel analytics-buybacks">
         <header><div><h2>Latest buybacks</h2><p>Verified AQUA purchases made by the protocol buyback wallet.</p></div></header>
-        {data.recentBuybacks.length ? <div className="buyback-list">{data.recentBuybacks.map((buyback) => <article key={`${buyback.launchId}-${buyback.signature ?? buyback.createdAt}`}>
+        {data.recentBuybacks.length ? <div className="buyback-list">{data.recentBuybacks.slice(0, visibleBuybacks).map((buyback) => <article key={`${buyback.launchId}-${buyback.signature ?? buyback.createdAt}`}>
           <div><b>${buyback.symbol}</b><span>{tokens.format(buyback.amountTokens)} AQUA bought</span></div>
           <strong>{sol.format(buyback.amountSol)} SOL</strong>
           <time>{timeAgo(buyback.createdAt)}</time>
         </article>)}</div> : <div className="analytics-empty">Verified on-chain buybacks will appear here.</div>}
+        {visibleBuybacks < data.recentBuybacks.length && <button className="activity-load-more analytics-load-more" onClick={() => setVisibleBuybacks((current) => current + BUYBACK_PAGE_SIZE)}>Load more buybacks</button>}
       </section>
     </>}
   </main>;

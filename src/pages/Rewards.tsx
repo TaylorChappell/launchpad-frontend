@@ -6,6 +6,7 @@ import { PageBubbles } from "../components/PageBubbles";
 import { AssetMark, TokenMark } from "../components/TokenCard";
 import { useRuntime, useWallet } from "../context";
 import type { Launch, WalletRewardMarket, WalletRewardsResponse } from "../types";
+import { openXComposer, rewardClaimShareText } from "../share";
 
 const EMPTY_REWARDS: WalletRewardsResponse = { rewards: [], holdings: [], markets: [] };
 
@@ -59,7 +60,12 @@ export function Rewards() {
         const signature = await wallet.sendTransaction(envelopes[index]);
         await api.confirmRewardClaim(market.claimableEpochIds[index], wallet.address, signature);
       }
-      toast.success(`${launch?.stockSymbol ?? "Holder"} rewards claimed in ${envelopes.length} transaction${envelopes.length === 1 ? "" : "s"}`);
+      const claimedAmount = dollars(market.claimableUsdCents);
+      toast.success(`${launch?.stockSymbol ?? "Holder"} rewards claimed in ${envelopes.length} transaction${envelopes.length === 1 ? "" : "s"}`, {
+        description: `Share your ${claimedAmount} reward claim on X.`,
+        duration: 12_000,
+        action: { label: "Post on X", onClick: () => openXComposer(rewardClaimShareText(claimedAmount)) },
+      });
       await refresh(wallet.address);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Claim failed.");

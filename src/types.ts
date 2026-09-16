@@ -355,6 +355,8 @@ export type CreatorLockBalance = {
 
 export type CreatorLockTransactionEnvelope = TransactionEnvelope & {
   feeShareBps: number;
+  lockPda: string;
+  vaultTokenAccount: string;
   availableRaw: string;
   requestedRaw: string;
   estimatedLockedRaw: string;

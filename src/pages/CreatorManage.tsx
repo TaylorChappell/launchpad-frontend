@@ -6,8 +6,9 @@ import { api } from "../api";
 import { TokenMark } from "../components/TokenCard";
 import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
-import type { CreatorLock, Launch } from "../types";
+import type { CreatorLock, CreatorLockTransactionEnvelope, Launch } from "../types";
 import { solscanAccountUrl } from "../creator-lock";
+import { creatorLockShareText, openXComposer } from "../share";
 
 function formatRaw(raw: string | undefined, decimals: number) {
   const value = String(raw ?? "0").replace(/^0+/, "") || "0";
@@ -86,16 +87,34 @@ export function CreatorManage() {
       const envelope = action === "lock"
         ? await api.creatorLockTransaction(launch.id, wallet.address, amountRaw, effectiveDays * 86_400)
         : await api.creatorLockReleaseTransaction(launch.id, wallet.address);
+      const lockEnvelope = action === "lock" ? envelope as CreatorLockTransactionEnvelope : null;
+      const estimatedLockedRaw = lockEnvelope?.estimatedLockedRaw ?? null;
+      const issuedVaultTokenAccount = lockEnvelope?.vaultTokenAccount ?? null;
       const signature = await wallet.sendTransaction(envelope);
       let indexed = false;
+      let confirmedLock: CreatorLock | null = null;
       try {
         const confirmation = await api.confirmCreatorLock(launch.id, wallet.address, signature);
         setLock(confirmation.creatorLock);
+        confirmedLock = confirmation.creatorLock;
         indexed = true;
       } catch {
         // The background on-chain scanner will recover a confirmed transaction if RPC indexing lags.
       }
-      toast.success((action === "lock" ? "Creator lock confirmed" : "Creator tokens released") + " · " + signature.slice(0, 7) + "…" + signature.slice(-6));
+      const successMessage = (action === "lock" ? "Creator lock confirmed" : "Creator tokens released") + " · " + signature.slice(0, 7) + "…" + signature.slice(-6);
+      const vaultTokenAccount = confirmedLock?.vaultTokenAccount ?? issuedVaultTokenAccount;
+      if (action === "lock" && vaultTokenAccount) {
+        const lockUrl = solscanAccountUrl(vaultTokenAccount, config.network);
+        const lockedRaw = confirmedLock?.amountRaw ?? estimatedLockedRaw ?? amountRaw;
+        const shareText = creatorLockShareText({ amount: formatRaw(lockedRaw, launch.tokenDecimals), symbol: launch.symbol, lockUrl });
+        toast.success(successMessage, {
+          description: "Share your verified creator lock on X.",
+          duration: 12_000,
+          action: { label: "Post on X", onClick: () => openXComposer(shareText) },
+        });
+      } else {
+        toast.success(successMessage);
+      }
       if (!indexed) {
         toast.info("The on-chain lock is confirmed and will appear after the next index pass.");
         await refresh();
