@@ -28,7 +28,7 @@ export function Markets() {
     void refresh().catch(() => { if (active) setState("offline"); });
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void refresh().catch(() => undefined);
-    }, 15_000);
+    }, 5_000);
 
     return () => {
       active = false;

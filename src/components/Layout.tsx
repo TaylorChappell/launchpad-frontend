@@ -1,4 +1,4 @@
-import { CircleHelp, Compass, Gift, Menu, Plus, Search, X } from "lucide-react";
+import { BarChart3, CircleHelp, Compass, Gift, Menu, Plus, Search, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRuntime, useWallet } from "../context";
@@ -12,8 +12,10 @@ const links = [
   { to: "/", label: "Explore", icon: Compass },
   { to: "/create", label: "Launch", icon: Plus },
   { to: "/rewards", label: "Rewards", icon: Gift },
+  { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/how-it-works", label: "How it works", icon: CircleHelp },
 ];
+const bottomLinks = links.filter((link) => link.to !== "/how-it-works");
 
 export function Layout({ children }: { children: ReactNode }) {
   const wallet = useWallet();
@@ -74,7 +76,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <a href="https://www.orca.so/" target="_blank" rel="noreferrer" aria-label="Visit Orca" title="Orca"><OrcaMark/></a>
       </div>
     </footer>
-    <nav className="bottom-nav" aria-label="Mobile navigation">{links.map((link) => { const Icon = link.icon; return <NavLink key={link.to} to={link.to} end={link.to === "/"}><Icon size={18} />{link.label}</NavLink>; })}</nav>
+    <nav className="bottom-nav" aria-label="Mobile navigation">{bottomLinks.map((link) => { const Icon = link.icon; return <NavLink key={link.to} to={link.to} end={link.to === "/"}><Icon size={18} />{link.label}</NavLink>; })}</nav>
     <WalletModal />
     <SearchModal open={searchOpen} onClose={closeSearch}/>
   </div>;

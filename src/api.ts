@@ -1,4 +1,4 @@
-import type { AdminDiagnostics, BatchStepValidation, CreatorLock, CreatorLockBalance, CreatorLockTransactionEnvelope, Launch, LaunchConfirmation, LaunchIntentResponse, LaunchRetryResponse, MarketSnapshot, RuntimeConfig, StockOption, Trade, TransactionEnvelope, WalletRewardsResponse } from "./types";
+import type { AdminDiagnostics, AnalyticsResponse, BatchStepValidation, CreatorLock, CreatorLockBalance, CreatorLockTransactionEnvelope, Launch, LaunchConfirmation, LaunchIntentResponse, LaunchRetryResponse, MarketSnapshot, RuntimeConfig, StockOption, Trade, TransactionEnvelope, WalletRewardsResponse } from "./types";
 
 const DEFAULT_API_URL = "https://launchpad-backend-production-63dc.up.railway.app";
 const cleanUrl = (value: unknown) => typeof value === "string" && /^https?:\/\//i.test(value.trim()) ? value.trim().replace(/\/$/, "") : null;
@@ -19,7 +19,7 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, init);
+  const response = await fetch(`${API_URL}${path}`, { cache: "no-store", ...init });
   const body = await response.json().catch(() => ({})) as T & { error?: string; code?: string; rebuildRequired?: boolean };
   if (!response.ok) throw new ApiError(body.error ?? `Request failed (${response.status})`, response.status, body);
   return body;
@@ -29,6 +29,7 @@ const json = (body: unknown): RequestInit => ({ method: "POST", headers: { "Cont
 
 export const api = {
   config: () => request<RuntimeConfig>("/api/config"),
+  analytics: () => request<AnalyticsResponse>("/api/analytics"),
   launches: () => request<{ launches: Launch[] }>("/api/launches"),
   launch: (id: string) => request<{ launch: Launch; trades: Trade[]; tradesHasMore?: boolean; creatorLock: CreatorLock | null }>(`/api/launches/${encodeURIComponent(id)}`),
   trades: (id: string, offset: number, limit = 10) => request<{ trades: Trade[]; hasMore: boolean }>(`/api/launches/${encodeURIComponent(id)}/trades?offset=${offset}&limit=${limit}`),

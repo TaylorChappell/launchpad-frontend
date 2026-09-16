@@ -205,6 +205,35 @@ export type MarketSnapshot = {
   txCount: number;
 };
 
+export type AnalyticsResponse = {
+  generatedAt: number;
+  totals: {
+    buybackSol: number;
+    rewardsAccumulatedUsd: number;
+    rewardsRedeemableUsd: number;
+    liveMarkets: number;
+    totalMarketCapUsd: number;
+    volume24hUsd: number;
+  };
+  markets: Array<{
+    id: string;
+    name: string;
+    symbol: string;
+    marketCapUsd: number;
+    buybackSol: number;
+    rewardsAccumulatedUsd: number;
+    rewardsRedeemableUsd: number;
+  }>;
+  recentBuybacks: Array<{
+    launchId: string;
+    name: string;
+    symbol: string;
+    amountSol: number;
+    signature: string | null;
+    createdAt: number;
+  }>;
+};
+
 export type WalletReward = {
   epochId: string;
   launchId: string;
