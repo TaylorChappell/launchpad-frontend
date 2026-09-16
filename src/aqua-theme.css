@@ -1055,3 +1055,198 @@ body::before {
 .governance-vote > footer svg { color: #a77600; }
 .governance-vote.unavailable > svg { color: #176fae; }
 .governance-vote.unavailable b { color: var(--aqua-ink); }
+
+/* Compact community boost UI */
+.community-reward-banner {
+  position: relative;
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: 94px minmax(260px,1fr) auto auto;
+  align-items: center;
+  gap: 22px;
+  overflow: hidden;
+  padding: 5px max(24px,calc((100vw - 1220px)/2));
+  color: #fff;
+  background: #075f9e;
+  text-decoration: none;
+  isolation: isolate;
+}
+.community-reward-banner::before { content: ""; position: absolute; z-index: -1; inset: 0; background: linear-gradient(90deg,#075f9e 0%,#0a78bc 56%,#0b92d2 100%); }
+.community-reward-banner::after { content: ""; position: absolute; z-index: -1; width: 360px; height: 150px; right: 7%; top: -115px; border: 24px solid rgba(255,255,255,.08); border-radius: 50%; transform: rotate(-8deg); }
+.campaign-banner-art { width: 94px; height: 58px; display: block; }
+.community-reward-banner-copy { min-width: 0; display: grid; gap: 2px; }
+.community-reward-banner-copy small { color: #bfe9ff; font: 800 .57rem/1.2 "Manrope",sans-serif; letter-spacing: .13em; }
+.community-reward-banner-copy strong { color: #fff; font: 800 1.08rem/1.15 "Manrope",sans-serif; letter-spacing: -.025em; }
+.community-reward-banner-copy strong em { color: #ffe28a; font-style: normal; }
+.community-reward-banner-copy > span { color: rgba(255,255,255,.78); font-size: .67rem; }
+.community-reward-prizes { display: flex; align-items: center; gap: 11px; color: #fff; font: 770 .72rem/1 "Manrope",sans-serif; white-space: nowrap; }
+.community-reward-prizes i { width: 3px; height: 3px; border-radius: 50%; background: #7cc9ec; }
+.community-reward-link { min-height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 13px; border: 1px solid rgba(255,255,255,.3); border-radius: 8px; color: #fff; background: rgba(0,35,66,.16); font: 800 .62rem/1 "Manrope",sans-serif; letter-spacing: .06em; white-space: nowrap; transition: background .2s ease,border-color .2s ease; }
+.community-reward-link svg { width: 13px; }
+.community-reward-banner:hover .community-reward-link { border-color: rgba(255,255,255,.58); background: rgba(255,255,255,.12); }
+
+.governance-hub { margin-top: 18px; overflow: hidden; border: 1px solid rgba(24,126,190,.2); border-radius: 14px; color: #123e5a; background: rgba(255,255,255,.75); box-shadow: 0 9px 26px rgba(32,104,148,.06); }
+.governance-hub.loading { min-height: 78px; display: flex; align-items: center; gap: 9px; padding: 20px; color: #537c95; font-size: .72rem; }
+.governance-compact-callout { min-height: 84px; display: grid; grid-template-columns: 50px minmax(250px,1fr) auto auto auto; align-items: center; gap: 14px; padding: 13px 15px; }
+.aqua-vote-art { width: 48px; height: 48px; display: block; filter: drop-shadow(0 6px 8px rgba(21,117,180,.13)); }
+.aqua-vote-art.small { width: 35px; height: 35px; }
+.governance-compact-copy { min-width: 0; }
+.governance-compact-copy small,.governance-dialog header small { display: block; color: #1775ae; font: 800 .56rem/1.1 "Manrope",sans-serif; letter-spacing: .12em; }
+.governance-compact-copy h2 { margin: 4px 0 0; color: #123e5a; font: 800 .94rem/1.15 "Manrope",sans-serif; letter-spacing: -.015em; }
+.governance-compact-copy p { margin: 4px 0 0; color: #5e8298; font-size: .67rem; }
+.governance-compact-time { display: inline-flex; align-items: center; gap: 5px; color: #5c8096; font: 700 .66rem/1 "Manrope",sans-serif; white-space: nowrap; }
+.governance-compact-time svg { width: 14px; }
+.governance-current-vote { min-height: 29px; display: inline-flex; align-items: center; gap: 5px; padding: 0 9px; border: 1px solid rgba(7,128,126,.18); border-radius: 7px; color: #087f7d; background: rgba(68,188,184,.08); font: 800 .63rem/1 "Manrope",sans-serif; white-space: nowrap; }
+.governance-current-vote svg { width: 13px; }
+.governance-open-vote { min-height: 38px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; border: 1px solid #168bd3; border-radius: 8px; color: #fff; background: #168bd3; font: 800 .66rem/1 "Manrope",sans-serif; letter-spacing: .04em; transition: transform .2s ease,background .2s ease; }
+.governance-open-vote svg { width: 14px; }
+.governance-open-vote:hover { transform: translateY(-1px); background: #0879c2; }
+.governance-top-preview { min-height: 59px; display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 14px; padding: 9px 15px; border-top: 1px solid rgba(24,126,190,.13); background: rgba(223,243,253,.43); }
+.governance-top-label { color: #537b93; font: 800 .54rem/1 "Manrope",sans-serif; letter-spacing: .11em; white-space: nowrap; }
+.governance-top-three { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.governance-top-three > div { min-width: 0; display: grid; grid-template-columns: 22px 29px minmax(0,1fr); align-items: center; gap: 7px; padding: 4px 7px; border-left: 2px solid rgba(24,126,190,.12); }
+.governance-top-three > div.your-pick { border-left-color: #1593dc; background: rgba(255,255,255,.4); }
+.governance-top-three > div > b { color: #3f708f; font: 800 .62rem "Manrope",sans-serif; }
+.governance-top-three .token-mark,.governance-market-fallback { width: 29px; height: 29px; font-size: .53rem; }
+.governance-top-three > div > span { min-width: 0; }
+.governance-top-three strong,.governance-top-three small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.governance-top-three strong { color: #163f59; font: 750 .67rem "Manrope",sans-serif; }
+.governance-top-three small { margin-top: 1px; color: #66899d; font-size: .56rem; }
+.governance-top-three > p { grid-column: 1 / -1; margin: 0; color: #6a899b; font-size: .65rem; }
+.governance-view-more { display: inline-flex; align-items: center; gap: 4px; padding: 7px 0; border: 0; color: #157cb9; background: transparent; font: 800 .58rem/1 "Manrope",sans-serif; letter-spacing: .05em; white-space: nowrap; }
+.governance-view-more svg { width: 13px; }
+.governance-active-boost { display: flex; align-items: center; gap: 7px; padding: 7px 15px; border-top: 1px solid rgba(194,144,13,.14); color: #705a20; background: #fff7dd; font-size: .63rem; }
+.governance-active-boost svg { width: 14px; color: #a47600; }
+
+.market-boost-strip { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0 0 16px; padding: 8px 10px 8px 12px; border: 1px solid rgba(24,126,190,.18); border-radius: 12px; color: #123e5a; background: rgba(255,255,255,.66); }
+.market-boost-copy { min-width: 0; display: flex; align-items: center; gap: 10px; }
+.market-boost-copy > span { display: grid; gap: 2px; }
+.market-boost-copy small { color: #1775ae; font: 800 .52rem/1 "Manrope",sans-serif; letter-spacing: .1em; }
+.market-boost-copy b { color: #163f59; font: 760 .72rem/1.2 "Manrope",sans-serif; }
+.market-boost-copy em { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; color: #66889c; font: 650 .62rem/1 "Manrope",sans-serif; font-style: normal; white-space: nowrap; }
+.market-boost-copy em svg { width: 13px; }
+.market-boost-strip > button { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 13px; border: 1px solid #198ed3; border-radius: 7px; color: #fff; background: #198ed3; font: 800 .59rem/1 "Manrope",sans-serif; letter-spacing: .04em; white-space: nowrap; }
+.market-boost-strip > button svg { width: 13px; }
+.market-boost-strip > button.active { color: #087f7d; border-color: rgba(7,128,126,.2); background: rgba(67,187,181,.09); }
+.market-boost-strip > button:disabled { cursor: default; opacity: .78; }
+
+.governance-modal-overlay { position: fixed; z-index: 240; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(36,86,118,.28); backdrop-filter: blur(12px); animation: modes-update-in .2s ease both; }
+.governance-dialog { position: relative; width: min(600px,100%); max-height: min(760px,calc(100vh - 40px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(23,122,181,.22); border-radius: 18px; color: #123e5a; background: #f5fbff; box-shadow: 0 28px 90px rgba(21,83,122,.25); }
+.governance-dialog-close { position: absolute; z-index: 2; top: 14px; right: 14px; width: 33px; height: 33px; display: grid; place-items: center; border: 1px solid rgba(30,143,232,.16); border-radius: 8px; color: #315d78; background: rgba(255,255,255,.8); }
+.governance-dialog-close svg { width: 16px; }
+.governance-dialog > header { display: flex; align-items: center; gap: 13px; padding: 20px 58px 15px 20px; border-bottom: 1px solid rgba(23,122,181,.11); background: #fff; }
+.governance-dialog > header h2 { margin: 4px 0 0; color: #123e5a; font: 790 1.2rem/1.1 "Manrope",sans-serif; letter-spacing: -.025em; }
+.governance-dialog > header p { margin: 5px 0 0; color: #638499; font-size: .69rem; }
+.governance-search { min-height: 46px; display: flex; align-items: center; gap: 9px; margin: 15px 16px 10px; padding: 0 12px; border: 1px solid rgba(23,122,181,.21); border-radius: 10px; color: #4f7c98; background: #fff; }
+.governance-search:focus-within { border-color: #2999dc; box-shadow: 0 0 0 3px rgba(41,153,220,.1); }
+.governance-search svg { width: 17px; }
+.governance-search input { min-width: 0; flex: 1; border: 0; outline: 0; color: #123e5a; background: transparent; font: 650 .78rem "Manrope",sans-serif; }
+.governance-search input::placeholder { color: #7a9bae; }
+.governance-eligibility-note { margin: 0 16px 9px; padding: 9px 11px; border-left: 3px solid #d09a22; color: #795d1d; background: #fff5d8; font-size: .66rem; }
+.governance-suggestions-title { display: flex; align-items: center; justify-content: space-between; padding: 4px 18px 8px; color: #4f7891; font: 800 .55rem/1 "Manrope",sans-serif; letter-spacing: .09em; }
+.governance-suggestions-title span { color: #7896a7; font-weight: 650; letter-spacing: 0; }
+.governance-candidates { min-height: 180px; overflow-y: auto; padding: 0 10px 13px; }
+.governance-candidates > button { width: 100%; min-height: 58px; display: grid; grid-template-columns: 38px minmax(0,1fr) auto; align-items: center; gap: 11px; padding: 8px 9px; border: 0; border-top: 1px solid rgba(23,122,181,.09); color: #123e5a; background: transparent; text-align: left; }
+.governance-candidates > button:first-child { border-top: 0; }
+.governance-candidates > button:hover { background: #e9f6fd; }
+.governance-candidates > button:disabled { cursor: default; opacity: .6; }
+.governance-candidates .token-mark { width: 38px; height: 38px; font-size: .62rem; }
+.governance-candidates > button > span { min-width: 0; }
+.governance-candidates > button b,.governance-candidates > button small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.governance-candidates > button b { font: 750 .76rem "Manrope",sans-serif; }
+.governance-candidates > button small { margin-top: 3px; color: #69899d; font-size: .62rem; }
+.governance-candidates > button em { display: inline-flex; align-items: center; gap: 5px; color: #117eba; font: 800 .58rem/1 "Manrope",sans-serif; font-style: normal; letter-spacing: .04em; }
+.governance-candidates > button em svg { width: 13px; }
+.governance-candidates-empty { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #67889b; font-size: .7rem; }
+.governance-candidates-empty svg { width: 18px; }
+.governance-market-fallback { position: relative; display: grid; place-items: center; flex: 0 0 auto; overflow: hidden; border: 1px solid rgba(26,139,205,.18); border-radius: 50%; color: #126da6; background: #d9f2ff; font: 800 .56rem "Manrope",sans-serif; }
+.governance-market-fallback i { position: absolute; width: 18px; height: 18px; right: -8px; bottom: -7px; border: 3px solid rgba(255,255,255,.72); border-radius: 50%; }
+.governance-market-fallback i + i { width: 10px; height: 10px; right: 0; bottom: 0; }
+.leaderboard-trophy { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(196,145,15,.21); border-radius: 14px; color: #9b6d00; background: #fff2c8; }
+.leaderboard-trophy svg { width: 23px; }
+.governance-leaderboard-head { display: grid; grid-template-columns: minmax(0,1fr) 70px 94px; gap: 12px; padding: 11px 18px 8px 83px; color: #67889b; font: 800 .53rem/1 "Manrope",sans-serif; letter-spacing: .08em; }
+.governance-leaderboard-head span:nth-child(n+2) { text-align: right; }
+.governance-leaderboard-list { overflow-y: auto; padding: 0 10px 8px; }
+.governance-leaderboard-list > div:not(.governance-empty-leaderboard) { min-height: 58px; display: grid; grid-template-columns: 26px 37px minmax(0,1fr) 70px 94px; align-items: center; gap: 9px; padding: 7px 9px; border-top: 1px solid rgba(23,122,181,.09); }
+.governance-leaderboard-list > div.winner { border: 1px solid rgba(198,148,25,.2); border-radius: 9px; background: #fff9e7; }
+.governance-leaderboard-list > div.your-pick { box-shadow: inset 3px 0 #1697dc; }
+.governance-rank { color: #557d95; font: 800 .68rem "Manrope",sans-serif; text-align: center; }
+.governance-leaderboard-list .token-mark,.governance-leaderboard-list .governance-market-fallback { width: 37px; height: 37px; font-size: .59rem; }
+.governance-leaderboard-list > div > span { min-width: 0; }
+.governance-leaderboard-list strong,.governance-leaderboard-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.governance-leaderboard-list strong { color: #173f58; font: 750 .74rem "Manrope",sans-serif; }
+.governance-leaderboard-list small { margin-top: 3px; color: #6c8b9e; font-size: .59rem; }
+.governance-leaderboard-list em { color: #4b7690; font: 700 .68rem "Manrope",sans-serif; font-style: normal; text-align: right; }
+.governance-leader-score { color: #126fa8; font: 800 .69rem "Manrope",sans-serif; text-align: right; }
+.governance-empty-leaderboard { min-height: 210px; display: grid; place-content: center; justify-items: center; color: #6b8c9f; text-align: center; }
+.governance-empty-leaderboard svg { width: 25px; color: #b78919; }
+.governance-empty-leaderboard b { margin-top: 10px; color: #254c64; font: 750 .78rem "Manrope",sans-serif; }
+.governance-empty-leaderboard span { margin-top: 5px; font-size: .65rem; }
+.governance-dialog.leaderboard > footer { display: flex; align-items: center; gap: 6px; padding: 11px 16px; border-top: 1px solid rgba(23,122,181,.11); color: #64869a; background: #fff; font-size: .62rem; }
+.governance-dialog.leaderboard > footer svg { width: 13px; }
+
+.community-update-overlay { position: fixed; z-index: 260; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(35,86,118,.3); backdrop-filter: blur(13px); animation: modes-update-in .24s ease both; }
+.community-update-flash { position: relative; width: min(560px,100%); max-height: calc(100vh - 40px); overflow-y: auto; border: 1px solid rgba(23,122,181,.2); border-radius: 20px; color: #123e5a; background: #f7fcff; box-shadow: 0 30px 100px rgba(23,80,115,.26); }
+.community-update-art { width: 100%; height: auto; display: block; }
+.community-update-close { position: absolute; z-index: 2; top: 14px; right: 14px; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba(24,126,190,.2); border-radius: 9px; color: #275a79; background: rgba(255,255,255,.82); }
+.community-update-close svg { width: 16px; }
+.community-update-copy { padding: 22px 24px 0; }
+.community-update-copy small { color: #1675ad; font: 800 .58rem/1 "Manrope",sans-serif; letter-spacing: .13em; }
+.community-update-copy h2 { margin: 7px 0 0; color: #123e5a; font: 800 clamp(1.55rem,5vw,2.15rem)/1.05 "Manrope",sans-serif; letter-spacing: -.045em; }
+.community-update-copy p { max-width: 470px; margin: 10px 0 0; color: #587e95; font-size: .76rem; line-height: 1.55; }
+.community-update-points { display: grid; gap: 8px; padding: 18px 24px 0; }
+.community-update-points span { display: flex; align-items: center; gap: 9px; color: #315d77; font-size: .7rem; }
+.community-update-points svg { width: 18px; height: 18px; padding: 3px; border-radius: 50%; color: #fff; background: #168fd3; }
+.community-update-points b { font-weight: 700; }
+.community-update-flash > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; padding: 15px 24px 20px; border-top: 1px solid rgba(23,122,181,.11); }
+.community-update-flash > footer a { min-height: 39px; display: inline-flex; align-items: center; gap: 6px; color: #1675ad; font: 760 .65rem/1 "Manrope",sans-serif; text-decoration: none; }
+.community-update-flash > footer a svg { width: 14px; }
+.community-update-flash > footer a:last-child { padding: 0 14px; border-radius: 8px; color: #fff; background: #168fd3; font-weight: 800; letter-spacing: .04em; }
+
+@media (max-width: 900px) {
+  .community-reward-banner { grid-template-columns: 74px minmax(0,1fr) auto; gap: 13px; padding-inline: 18px; }
+  .campaign-banner-art { width: 74px; }
+  .community-reward-prizes { display: none; }
+  .governance-compact-callout { grid-template-columns: 46px minmax(0,1fr) auto; }
+  .governance-compact-time { grid-column: 2; }
+  .governance-current-vote { grid-column: 3; grid-row: 1; }
+  .governance-open-vote { grid-column: 3; grid-row: 2; }
+  .governance-top-preview { grid-template-columns: 1fr auto; }
+  .governance-top-label { grid-column: 1; }
+  .governance-top-three { grid-column: 1 / -1; grid-row: 2; }
+  .governance-view-more { grid-column: 2; grid-row: 1; }
+}
+
+@media (max-width: 640px) {
+  .community-reward-banner { min-height: 62px; grid-template-columns: 52px minmax(0,1fr) auto; gap: 9px; padding-inline: 11px; }
+  .campaign-banner-art { width: 52px; height: 48px; }
+  .community-reward-banner-copy small { font-size: .48rem; }
+  .community-reward-banner-copy strong { font-size: .82rem; }
+  .community-reward-banner-copy > span { display: none; }
+  .community-reward-link { width: 33px; min-height: 33px; justify-content: center; padding: 0; font-size: 0; }
+  .community-reward-link svg { width: 14px; }
+  .governance-compact-callout { grid-template-columns: 42px minmax(0,1fr) auto; gap: 9px; padding: 11px; }
+  .governance-compact-callout > .aqua-vote-art { width: 40px; }
+  .governance-compact-copy h2 { font-size: .76rem; }
+  .governance-compact-copy p { display: none; }
+  .governance-compact-time { grid-column: 2; font-size: .58rem; }
+  .governance-current-vote { display: none; }
+  .governance-open-vote { grid-column: 3; grid-row: 1 / span 2; min-height: 34px; padding: 0 10px; }
+  .governance-top-three { grid-template-columns: 1fr; }
+  .governance-top-three > div:nth-child(n+3) { display: none; }
+  .market-boost-copy em { display: none; }
+  .market-boost-strip > button { padding-inline: 10px; }
+  .governance-modal-overlay { padding: 10px; }
+  .governance-dialog { max-height: calc(100vh - 20px); border-radius: 14px; }
+  .governance-dialog > header { padding: 16px 50px 13px 15px; }
+  .governance-dialog > header .aqua-vote-art,.leaderboard-trophy { width: 40px; height: 40px; }
+  .governance-leaderboard-head { grid-template-columns: minmax(0,1fr) 72px; padding-left: 62px; }
+  .governance-leaderboard-head span:nth-child(2),.governance-leaderboard-list > div > em { display: none; }
+  .governance-leaderboard-list > div:not(.governance-empty-leaderboard) { grid-template-columns: 22px 34px minmax(0,1fr) 72px; gap: 7px; }
+  .governance-leaderboard-list .token-mark,.governance-leaderboard-list .governance-market-fallback { width: 34px; height: 34px; }
+  .community-update-flash { border-radius: 15px; }
+  .community-update-copy { padding: 18px 17px 0; }
+  .community-update-points { padding: 16px 17px 0; }
+  .community-update-flash > footer { align-items: stretch; flex-direction: column-reverse; padding: 14px 17px 17px; }
+  .community-update-flash > footer a { width: 100%; justify-content: center; }
+}
