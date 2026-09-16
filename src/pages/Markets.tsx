@@ -15,11 +15,25 @@ export function Markets() {
   const [state, setState] = useState<DataState>("loading");
 
   useEffect(() => {
-    api.launches().then((data) => {
+    let active = true;
+
+    const refresh = async () => {
+      const data = await api.launches();
+      if (!active) return;
       const liveLaunches = data.launches.filter((launch) => launch.status === "live");
       setLaunches(liveLaunches);
       setState(liveLaunches.length ? "live" : "empty");
-    }).catch(() => setState("offline"));
+    };
+
+    void refresh().catch(() => { if (active) setState("offline"); });
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refresh().catch(() => undefined);
+    }, 15_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, []);
 
   const filtered = useMemo(() => [...launches]
