@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ExternalLink, LockKeyhole } from "lucide-react";
 import { Link } from "react-router-dom";
+import { activeCreatorLock, creatorLockPercentLabel, solscanAccountUrl } from "../creator-lock";
+import { useRuntime } from "../context";
 import type { Launch } from "../types";
 
 const compact = new Intl.NumberFormat("en-US", { notation:"compact", maximumFractionDigits:1 });
@@ -36,8 +38,12 @@ function marketCapTone(value: number) {
 }
 
 export function TokenCard({ launch, featured = false }: { launch: Launch; sample?: boolean; featured?: boolean }) {
+  const { config } = useRuntime();
   const indexed = launch.aquaIndexed;
-  return <Link className={"token-card " + (featured ? "featured" : "")} to={"/token/" + launch.id}>
+  const creatorLock = activeCreatorLock(launch.creatorLock);
+  const creatorLockUrl = creatorLock ? solscanAccountUrl(creatorLock.vaultTokenAccount, config.network) : null;
+  return <article className={"token-card " + (featured ? "featured" : "")}>
+    <Link className="token-card-link" to={"/token/" + launch.id}>
     <div className="token-head">
       <TokenMark launch={launch}/>
       <div><div className="token-title"><b>{launch.name}</b><span>{"$" + launch.symbol} / {launch.pairSymbol}</span></div><div className="token-pair"><AssetMark launch={launch}/>{launch.pairSymbol} market</div></div>
@@ -45,7 +51,9 @@ export function TokenCard({ launch, featured = false }: { launch: Launch; sample
     </div>
     <div className="reward-card-focus"><span><AssetMark launch={launch} reward/>HOLDER REWARD</span><strong>Earn {launch.stockSymbol}</strong><small>{"$" + compact.format(launch.rewardAccumulatedUsd)} accumulated · {"$" + compact.format(launch.rewardRedeemableUsd)} redeemable</small></div>
     <div className="token-stats"><Metric label="Market cap" value={indexed ? "$" + compact.format(launch.marketCapUsd) : "Indexing"} tone={indexed ? marketCapTone(launch.marketCapUsd) : ""}/><Metric label="24h volume" value={indexed ? "$" + compact.format(launch.volume24hUsd) : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
-  </Link>;
+    </Link>
+    {creatorLock && creatorLockUrl && <div className="creator-lock-card"><span><i><LockKeyhole/></i><span><small>VERIFIED CREATOR LOCK</small><strong>{creatorLockPercentLabel(creatorLock)} locked</strong></span></span><a href={creatorLockUrl} target="_blank" rel="noreferrer">View lock <ExternalLink/></a></div>}
+  </article>;
 }
 
 export function Metric({label,value,tone=""}:{label:string;value:string;tone?:string}) {

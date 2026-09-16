@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Loader2, LockKeyhole, ShieldCheck, WalletCards } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink, Loader2, LockKeyhole, ShieldCheck, WalletCards } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
@@ -7,6 +7,7 @@ import { TokenMark } from "../components/TokenCard";
 import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
 import type { CreatorLock, Launch } from "../types";
+import { solscanAccountUrl } from "../creator-lock";
 
 function formatRaw(raw: string | undefined, decimals: number) {
   const value = String(raw ?? "0").replace(/^0+/, "") || "0";
@@ -86,8 +87,19 @@ export function CreatorManage() {
         ? await api.creatorLockTransaction(launch.id, wallet.address, amountRaw, effectiveDays * 86_400)
         : await api.creatorLockReleaseTransaction(launch.id, wallet.address);
       const signature = await wallet.sendTransaction(envelope);
+      let indexed = false;
+      try {
+        const confirmation = await api.confirmCreatorLock(launch.id, wallet.address, signature);
+        setLock(confirmation.creatorLock);
+        indexed = true;
+      } catch {
+        // The background on-chain scanner will recover a confirmed transaction if RPC indexing lags.
+      }
       toast.success((action === "lock" ? "Creator lock confirmed" : "Creator tokens released") + " · " + signature.slice(0, 7) + "…" + signature.slice(-6));
-      await refresh();
+      if (!indexed) {
+        toast.info("The on-chain lock is confirmed and will appear after the next index pass.");
+        await refresh();
+      }
     } catch (error) { toast.error(error instanceof Error ? error.message : "Creator action failed."); }
     finally { setBusy(null); }
   }
@@ -107,7 +119,7 @@ export function CreatorManage() {
     {lock?.status === "active" ? <section className="manage-active-lock">
       <header><span><LockKeyhole/><small>ACTIVE CREATOR LOCK</small></span><strong>{activeTradeShare.toFixed(3)}% per eligible transfer</strong></header>
       <div><span><small>Tokens locked</small><b>{formatRaw(lock.amountRaw, launch.tokenDecimals)} {launch.symbol}</b></span><span><small>Unlock date</small><b>{new Date(lock.unlockAt * 1_000).toLocaleDateString()}</b></span><span><small>Fee settlement</small><b>Paid automatically in SOL</b></span></div>
-      <footer><button className="secondary-button" disabled={busy !== null || Math.floor(Date.now()/1_000) < lock.unlockAt} onClick={() => void act("release")}>{busy === "release" && <Loader2 className="spin"/>}Release after maturity</button></footer>
+      <footer><a className="creator-lock-view" href={solscanAccountUrl(lock.vaultTokenAccount, config.network)} target="_blank" rel="noreferrer">View lock on Solscan <ExternalLink/></a><button className="secondary-button" disabled={busy !== null || Math.floor(Date.now()/1_000) < lock.unlockAt} onClick={() => void act("release")}>{busy === "release" && <Loader2 className="spin"/>}Release after maturity</button></footer>
     </section> : <div className="manage-grid">
       <section className="manage-builder">
         <header><small>STEP 1</small><h2>Build your creator lock</h2><p>Choose the token amount and lock duration.</p></header>

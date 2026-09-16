@@ -180,6 +180,7 @@ export type Launch = {
   rewardFeesAccruedRaw: string;
   buybackFeesAccruedRaw: string;
   treasuryFeesAccruedRaw: string;
+  creatorLock?: CreatorLock | null;
   launchedAt: number | null;
   createdAt: number;
 };

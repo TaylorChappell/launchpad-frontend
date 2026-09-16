@@ -8,6 +8,7 @@ import { decimalToRaw } from "../launch";
 import type { CreatorLock, Launch, MarketSnapshot, StockOption, Trade } from "../types";
 import { AssetMark, Metric, TokenMark } from "../components/TokenCard";
 import { MarketCapLine } from "../components/MarketCapCandles";
+import { activeCreatorLock, creatorLockPercentLabel, solscanAccountUrl } from "../creator-lock";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 4 });
@@ -88,10 +89,9 @@ export function Token() {
   const buyInputDecimals = routedSolBuy ? 9 : pairDecimals;
   const buyInputSymbol = routedSolBuy ? "SOL" : launch.pairSymbol;
   const explorerUrl = `https://explorer.solana.com/address/${launch.whirlpoolAddress || launch.mint}${config.network === "devnet" ? "?cluster=devnet" : ""}`;
-  const lockedPercent = creatorLock?.status === "active" && BigInt(creatorLock.totalSupplyRaw || "0") > 0n
-    ? Number(BigInt(creatorLock.amountRaw) * 1_000_000n / BigInt(creatorLock.totalSupplyRaw)) / 10_000
-    : 0;
-  const lockedPercentLabel = lockedPercent === 0 ? "0%" : `${lockedPercent.toFixed(lockedPercent < 0.01 ? 4 : 2)}%`;
+  const verifiedCreatorLock = activeCreatorLock(creatorLock);
+  const lockedPercentLabel = creatorLockPercentLabel(verifiedCreatorLock);
+  const creatorLockUrl = verifiedCreatorLock ? solscanAccountUrl(verifiedCreatorLock.vaultTokenAccount, config.network) : null;
 
   async function trade() {
     if (!wallet.address) {
@@ -139,7 +139,7 @@ export function Token() {
   return <main className="page token-page">
     <Link className="back" to="/"><ArrowLeft/>Explore markets</Link>
     <section className="token-hero">
-      <div className="token-identity"><TokenMark launch={launch} large/><div><div><h1>{launch.name}</h1><span>${launch.symbol}</span><em className={launch.status}>{launch.status === "live" ? "ORCA WHIRLPOOL" : "LAUNCHING"}</em><span className="creator-lock-market"><LockKeyhole/>{lockedPercentLabel} creator locked</span></div><p>{launch.description}</p><footer>{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2/> Website</a>}<a href={explorerUrl} target="_blank" rel="noreferrer">Explorer <ExternalLink/></a><button onClick={() => { void navigator.clipboard.writeText(launch.mint); toast.success("Mint copied"); }}><Copy/> {launch.mint.slice(0, 5)}…{launch.mint.slice(-4)}</button></footer></div></div>
+      <div className="token-identity"><TokenMark launch={launch} large/><div><div><h1>{launch.name}</h1><span>${launch.symbol}</span><em className={launch.status}>{launch.status === "live" ? "ORCA WHIRLPOOL" : "LAUNCHING"}</em>{verifiedCreatorLock && creatorLockUrl && <div className="creator-lock-market"><i><LockKeyhole/></i><span><small>VERIFIED CREATOR LOCK</small><strong>{lockedPercentLabel} of supply</strong></span><a href={creatorLockUrl} target="_blank" rel="noreferrer">View lock <ExternalLink/></a></div>}</div><p>{launch.description}</p><footer>{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2/> Website</a>}<a href={explorerUrl} target="_blank" rel="noreferrer">Explorer <ExternalLink/></a><button onClick={() => { void navigator.clipboard.writeText(launch.mint); toast.success("Mint copied"); }}><Copy/> {launch.mint.slice(0, 5)}…{launch.mint.slice(-4)}</button></footer></div></div>
       <div className="hero-metrics"><Metric label="Orca pair" value={`${launch.symbol} / ${launch.pairSymbol}`}/><Metric label="Stock reward" value={launch.stockSymbol}/><Metric label="TVL" value={launch.aquaIndexed ? `$${compact.format(launch.tvlUsd)}` : "Indexing"}/><Metric label="Market cap" value={launch.aquaIndexed ? `$${compact.format(launch.marketCapUsd)}` : "Indexing"}/></div>
     </section>
 

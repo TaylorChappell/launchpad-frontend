@@ -43,6 +43,7 @@ export const api = {
   creatorLockBalance: (id: string, creator: string) => request<CreatorLockBalance>(`/api/launches/${encodeURIComponent(id)}/creator-lock/balance?creator=${encodeURIComponent(creator)}`),
   creatorLockTransaction: (id: string, creator: string, amountRaw: string, durationSeconds: number) => request<CreatorLockTransactionEnvelope>(`/api/launches/${encodeURIComponent(id)}/creator-lock/transaction`, json({ creator, amountRaw, durationSeconds })),
   creatorLockReleaseTransaction: (id: string, creator: string) => request<TransactionEnvelope>(`/api/launches/${encodeURIComponent(id)}/creator-lock/release-transaction`, json({ creator })),
+  confirmCreatorLock: (id: string, creator: string, signature: string) => request<{ confirmed: true; creatorLock: CreatorLock }>(`/api/launches/${encodeURIComponent(id)}/creator-lock/confirm`, json({ creator, signature })),
   creatorFeesClaimTransaction: (id: string, creator: string) => request<TransactionEnvelope>(`/api/launches/${encodeURIComponent(id)}/creator-fees/claim-transaction`, json({ creator })),
   upload: (body: FormData) => request<{ imageId: string; imageUrl: string }>("/api/uploads", { method: "POST", body }),
   createLaunch: (body: unknown) => request<LaunchIntentResponse>("/api/launches", json(body)),
