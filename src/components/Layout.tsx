@@ -1,4 +1,4 @@
-import { BarChart3, CircleHelp, Compass, Gift, Menu, Plus, Search, X } from "lucide-react";
+import { ArrowRight, BarChart3, CircleHelp, Compass, Gift, Menu, Plus, Search, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRuntime, useWallet } from "../context";
@@ -7,6 +7,7 @@ import { AquaMark } from "./AquaMark";
 import { SearchModal } from "./SearchModal";
 import { OrcaMark } from "./OrcaMark";
 import { WalletMenu } from "./WalletMenu";
+import { RewardModeIcon } from "./RewardModeIcon";
 
 const links = [
   { to: "/", label: "Explore", icon: Compass },
@@ -16,6 +17,8 @@ const links = [
   { to: "/how-it-works", label: "How it works", icon: CircleHelp },
 ];
 const bottomLinks = links.filter((link) => link.to !== "/how-it-works");
+const MODES_UPDATE_KEY = "aqua:update:reward-modes-v1";
+const UPDATE_WINDOW_MS = 60 * 60 * 1_000;
 
 export function Layout({ children }: { children: ReactNode }) {
   const wallet = useWallet();
@@ -23,12 +26,26 @@ export function Layout({ children }: { children: ReactNode }) {
   const [mobile, setMobile] = useState(false);
   const [opening, setOpening] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [showModesUpdate, setShowModesUpdate] = useState(false);
   const isPreview = config.useTestnet || !config.transactionsEnabled;
-  const xUrl = window.AQUA_CONFIG?.X_URL?.trim() || "https://x.com";
+  const xUrl = window.AQUA_CONFIG?.X_URL?.trim() || "https://x.com/Aqua_Launchpad";
 
   useEffect(() => {
     const fallback = window.setTimeout(() => setOpening(false), 2300);
     return () => window.clearTimeout(fallback);
+  }, []);
+
+  useEffect(() => {
+    const releasedAt = Number(window.AQUA_CONFIG?.MODES_UPDATE_RELEASED_AT ?? 0);
+    const now = Date.now();
+    if (!releasedAt || now < releasedAt || now >= releasedAt + UPDATE_WINDOW_MS) return;
+    try {
+      if (window.localStorage.getItem(MODES_UPDATE_KEY)) return;
+      window.localStorage.setItem(MODES_UPDATE_KEY, String(now));
+    } catch {
+      // Storage can be unavailable in strict privacy modes. The in-memory state still prevents repeats this session.
+    }
+    setShowModesUpdate(true);
   }, []);
 
   const closeSearch = useCallback(() => setSearchOpen(false), []);
@@ -76,6 +93,20 @@ export function Layout({ children }: { children: ReactNode }) {
         <a href="https://www.orca.so/" target="_blank" rel="noreferrer" aria-label="Visit Orca" title="Orca"><OrcaMark/></a>
       </div>
     </footer>
+    {showModesUpdate && <div className="modes-update-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowModesUpdate(false); }}>
+      <section className="modes-update-flash" role="dialog" aria-modal="true" aria-labelledby="modes-update-title">
+        <button className="modes-update-close" aria-label="Close update" onClick={() => setShowModesUpdate(false)}><X/></button>
+        <small>NEW ON AQUA</small>
+        <h2 id="modes-update-title">Three ways to reward your market.</h2>
+        <p>Creators can now choose how the holder fee is used when launching a coin.</p>
+        <div className="modes-update-list">
+          <article className="holder_rewards"><i><RewardModeIcon mode="holder_rewards"/></i><span><b>Holder Rewards</b><small>Rewards consistent holders by balance and time held.</small></span></article>
+          <article className="buyback_burn"><i><RewardModeIcon mode="buyback_burn"/></i><span><b>Buyback &amp; Burn</b><small>Buys the coin from its live market and permanently burns it.</small></span></article>
+          <article className="jackpot"><i><RewardModeIcon mode="jackpot"/></i><span><b>Hourly Jackpot</b><small>Five consistent holders split each hourly reward pot.</small></span></article>
+        </div>
+        <footer><NavLink to="/how-it-works" onClick={() => setShowModesUpdate(false)}>See how the modes work <ArrowRight/></NavLink><button onClick={() => setShowModesUpdate(false)}>Got it</button></footer>
+      </section>
+    </div>}
     <nav className="bottom-nav" aria-label="Mobile navigation">{bottomLinks.map((link) => { const Icon = link.icon; return <NavLink key={link.to} to={link.to} end={link.to === "/"}><Icon size={18} />{link.label}</NavLink>; })}</nav>
     <WalletModal />
     <SearchModal open={searchOpen} onClose={closeSearch}/>
