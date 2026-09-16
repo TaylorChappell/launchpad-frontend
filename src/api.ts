@@ -1,4 +1,4 @@
-import type { AdminDiagnostics, AnalyticsResponse, BatchStepValidation, CreatorLock, CreatorLockBalance, CreatorLockTransactionEnvelope, CumulativeRewardClaimConfirmation, CumulativeRewardClaimEnvelope, Launch, LaunchConfirmation, LaunchIntentResponse, LaunchRetryResponse, MarketSnapshot, RewardModeState, RuntimeConfig, StockOption, Trade, TransactionEnvelope, WalletRewardsResponse } from "./types";
+import type { AdminDiagnostics, AnalyticsResponse, BatchStepValidation, CreatorLock, CreatorLockBalance, CreatorLockTransactionEnvelope, CumulativeRewardClaimConfirmation, CumulativeRewardClaimEnvelope, GovernanceMarket, GovernanceResponse, Launch, LaunchConfirmation, LaunchIntentResponse, LaunchRetryResponse, MarketSnapshot, RewardModeState, RuntimeConfig, StockOption, Trade, TransactionEnvelope, WalletRewardsResponse } from "./types";
 
 const DEFAULT_API_URL = "https://launchpad-backend-production-63dc.up.railway.app";
 const cleanUrl = (value: unknown) => typeof value === "string" && /^https?:\/\//i.test(value.trim()) ? value.trim().replace(/\/$/, "") : null;
@@ -37,6 +37,9 @@ export const api = {
   search: (query: string) => request<{ launches: Launch[] }>(`/api/search?q=${encodeURIComponent(query)}`),
   stocks: () => request<{ stocks: StockOption[] }>("/api/stocks"),
   rewards: (wallet: string) => request<WalletRewardsResponse>(`/api/rewards/${encodeURIComponent(wallet)}`),
+  governance: (wallet?: string | null) => request<GovernanceResponse>(`/api/governance${wallet ? `?wallet=${encodeURIComponent(wallet)}` : ""}`),
+  governanceVoteChallenge: (wallet: string, targetMint: string) => request<{ challenge: string; message: string; expiresAt: number; market: GovernanceMarket }>("/api/governance/vote-challenge", json({ wallet, targetMint })),
+  governanceVote: (body: { wallet: string; targetMint: string; challenge: string; message: string; signature: string }) => request<GovernanceResponse>("/api/governance/vote", json(body)),
   rewardClaim: (epochId: string, claimant: string) => request<TransactionEnvelope>(`/api/rewards/${encodeURIComponent(epochId)}/claim-transaction`, json({ claimant })),
   confirmRewardClaim: (epochId: string, claimant: string, signature: string) => request<{ claimed: true; signature: string }>(`/api/rewards/${encodeURIComponent(epochId)}/confirm`, json({ claimant, signature })),
   cumulativeRewardClaim: (launchId: string, claimant: string) => request<CumulativeRewardClaimEnvelope>(`/api/rewards/markets/${encodeURIComponent(launchId)}/claim-transaction`, json({ claimant })),
