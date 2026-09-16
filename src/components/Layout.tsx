@@ -25,7 +25,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const xUrl = window.AQUA_CONFIG?.X_URL?.trim() || "https://x.com";
 
   useEffect(() => {
-    const fallback = window.setTimeout(() => setOpening(false), 2600);
+    const fallback = window.setTimeout(() => setOpening(false), 2300);
     return () => window.clearTimeout(fallback);
   }, []);
 
@@ -44,7 +44,9 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return <div className="app-shell">
     {opening && <div className="opening-reveal" aria-hidden="true">
-      <div className="opening-reveal-water" onAnimationEnd={(event) => { if (event.currentTarget === event.target) setOpening(false); }}>
+      <div className="opening-reveal-water" onAnimationEnd={(event) => {
+        if (event.currentTarget === event.target && event.animationName === "opening-wave-down-slow") setOpening(false);
+      }}>
         <div className="opening-mark"><AquaMark /></div>
         <div className="opening-bubbles"><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
       </div>
