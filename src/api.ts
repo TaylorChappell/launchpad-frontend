@@ -2,7 +2,7 @@ import type { AdminDiagnostics, BatchStepValidation, CreatorLock, CreatorLockBal
 
 const DEFAULT_API_URL = "https://launchpad-backend-production-63dc.up.railway.app";
 const cleanUrl = (value: unknown) => typeof value === "string" && /^https?:\/\//i.test(value.trim()) ? value.trim().replace(/\/$/, "") : null;
-export const API_URL = cleanUrl(window.AQUA_CONFIG?.API_URL) ?? cleanUrl(import.meta.env.VITE_API_URL) ?? DEFAULT_API_URL;
+export const API_URL = cleanUrl(import.meta.env.VITE_API_URL) ?? cleanUrl(window.AQUA_CONFIG?.API_URL) ?? DEFAULT_API_URL;
 
 export class ApiError extends Error {
   status: number;
