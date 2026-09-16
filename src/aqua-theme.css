@@ -82,8 +82,20 @@ body::before {
   box-shadow: 0 10px 24px rgba(30, 143, 232, .2);
 }
 
-.wallet-button:hover,
 .primary:hover { color: white; background: linear-gradient(120deg, #147fd1, var(--aqua-blue)); }
+.wallet-button:not(.connected),
+.wallet-button:not(.connected):hover {
+  color: #0b3853 !important;
+  border-color: rgba(30, 143, 232, .25) !important;
+  background: linear-gradient(115deg, #a3d8f5 0%, #63c6f3 48%, #1e8fe8 100%) !important;
+  background-position: 0 0 !important;
+}
+.wallet-button:not(.connected):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(30, 143, 232, .24), inset 0 1px rgba(255, 255, 255, .5) !important;
+}
+.wallet-button:not(.connected)::before,
+.wallet-button:not(.connected)::after { display: none !important; }
 .environment-bar { color: #4b7088; background: rgba(255, 255, 255, .64); border-color: var(--line); }
 .environment-bar p { color: #66899e; }
 .system-banner { color: #805912; background: #fff7df; }
@@ -283,9 +295,179 @@ body::before {
 .site-footer {
   color: #5c8097;
   border-color: var(--line);
-  background: rgba(223, 242, 253, .72);
+  background: transparent !important;
+  box-shadow: none !important;
 }
 .site-footer a:hover { color: var(--aqua-blue); }
+
+/* Launch wizard contrast ------------------------------------------------- */
+.wizard-shell { background: rgba(248, 252, 255, .9) !important; }
+.wizard-rail {
+  color: var(--aqua-ink) !important;
+  border-right-color: var(--line) !important;
+  background: linear-gradient(180deg, rgba(212, 237, 252, .96), rgba(163, 216, 245, .58)) !important;
+}
+.wizard-rail-head { color: #416c85 !important; }
+.wizard-rail-head b { color: #176fae !important; }
+.wizard-rail > button,
+.wizard-rail > button:not(:disabled):hover,
+.wizard-rail > button.done { color: #315d78 !important; }
+.wizard-rail > button.active { color: var(--aqua-ink) !important; }
+.wizard-rail > button small { color: #587d94 !important; }
+.wizard-rail > button > span {
+  color: #315d78 !important;
+  border-color: rgba(30, 143, 232, .22) !important;
+  background: rgba(255, 255, 255, .7) !important;
+  box-shadow: 0 6px 16px rgba(38, 107, 150, .09) !important;
+}
+.wizard-rail > button.active > span {
+  color: white !important;
+  border-color: rgba(30, 143, 232, .46) !important;
+  background: linear-gradient(145deg, #63c6f3, #1e8fe8) !important;
+}
+.wizard-rail > button.done > span { color: #176fae !important; background: rgba(255, 255, 255, .58) !important; }
+.wizard-rail > button::after { background: rgba(30, 143, 232, .2) !important; }
+.wizard-rail-pulse { opacity: .16 !important; }
+.wizard-section > header { border-bottom-color: var(--line) !important; }
+.wizard-section > header h2 { color: var(--aqua-ink) !important; }
+.wizard-section > header p { color: #547a94 !important; }
+.wizard-field > span,
+.wizard-socials > header span { color: #315d78 !important; }
+.wizard-socials > header small {
+  color: #547a94 !important;
+  border-color: var(--line) !important;
+  background: rgba(163, 216, 245, .3) !important;
+}
+.wizard-field input,
+.wizard-field textarea,
+.stock-search input,
+.ticker-input,
+.unit-input {
+  color: var(--aqua-ink) !important;
+  border-color: rgba(30, 143, 232, .24) !important;
+  background: rgba(255, 255, 255, .82) !important;
+}
+.wizard-field input:focus,
+.wizard-field textarea:focus,
+.stock-search input:focus {
+  color: var(--aqua-ink) !important;
+  border-color: var(--aqua-blue) !important;
+  background: white !important;
+  box-shadow: 0 0 0 4px rgba(30, 143, 232, .1) !important;
+}
+.wizard-field input::placeholder,
+.wizard-field textarea::placeholder,
+.stock-search input::placeholder { color: #7899ad !important; }
+.ticker-input > span,
+.unit-input > span { color: #176fae !important; }
+.field-count,
+.field-help { color: #688ba0 !important; }
+.wizard-artwork,
+.wizard-artwork:hover {
+  color: #416c85 !important;
+  border-color: rgba(30, 143, 232, .38) !important;
+  background: rgba(255, 255, 255, .58) !important;
+}
+.wizard-artwork > svg,
+.wizard-rail-note svg { color: var(--aqua-blue) !important; }
+.wizard-artwork b { color: #176fae !important; }
+.wizard-artwork small { color: #547a94 !important; }
+.wizard-next {
+  color: white !important;
+  border-color: var(--aqua-blue) !important;
+  background: var(--aqua-blue) !important;
+}
+.wizard-next:disabled {
+  color: #315d78 !important;
+  border-color: rgba(30, 143, 232, .18) !important;
+  background: rgba(163, 216, 245, .62) !important;
+  opacity: .58 !important;
+}
+
+/* Documentation contrast ------------------------------------------------ */
+.aqua-docs-page { color: var(--aqua-ink); }
+.aqua-docs-hero { border-color: var(--line) !important; }
+.aqua-docs-kicker,
+.aqua-docs-section-heading small,
+.aqua-docs-inline-link { color: #176fae !important; }
+.aqua-docs-hero h1,
+.aqua-docs-hero h1 span,
+.aqua-docs-section h2,
+.aqua-docs-section > h3,
+.aqua-docs-sidebar-title {
+  color: var(--aqua-ink) !important;
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+.aqua-docs-hero > p,
+.aqua-docs-section > p,
+.aqua-docs-section > p.lead,
+.aqua-docs-section > p.fine-print,
+.aqua-docs-section > p.aqua-docs-disclaimer {
+  color: #426b84 !important;
+}
+.aqua-docs-section > p strong { color: var(--aqua-ink) !important; }
+.aqua-docs-nav-group small { color: #315d78 !important; }
+.aqua-docs-nav-group button { color: #547a94 !important; }
+.aqua-docs-nav-group button:hover { color: #176fae !important; }
+.aqua-docs-principle h3,
+.aqua-docs-flow-card h3,
+.aqua-docs-timeline-step h3,
+.aqua-docs-risk-grid h3,
+.aqua-docs-callout b,
+.aqua-docs-definition b,
+.aqua-docs-cost-card span b,
+.aqua-docs-cost-card strong,
+.aqua-docs-summary strong,
+.aqua-docs-allocation strong,
+.aqua-docs-score-grid span b,
+.aqua-docs-accounts b,
+.aqua-docs-table tbody td:first-child,
+.aqua-docs-table tbody th { color: var(--aqua-ink) !important; }
+.aqua-docs-principle p,
+.aqua-docs-flow-card p,
+.aqua-docs-timeline-step p,
+.aqua-docs-risk-grid p,
+.aqua-docs-callout p,
+.aqua-docs-definition span,
+.aqua-docs-cost-card span small,
+.aqua-docs-summary span,
+.aqua-docs-allocation span,
+.aqua-docs-checklist > div,
+.aqua-docs-accounts,
+.aqua-docs-table { color: #547a94 !important; }
+.aqua-docs-principle > span,
+.aqua-docs-flow-card > span,
+.aqua-docs-timeline-step > span,
+.aqua-docs-score-grid span svg,
+.aqua-docs-accounts span svg,
+.rewards-connect-card > span,
+.reward-market-fallback {
+  color: var(--aqua-blue) !important;
+  border-color: rgba(30, 143, 232, .22) !important;
+  background: rgba(163, 216, 245, .32) !important;
+}
+:where(
+  .aqua-docs-checklist > div, .aqua-docs-timeline.compact,
+  .aqua-docs-definition > div, .aqua-docs-table,
+  .aqua-docs-formula, .aqua-docs-score-grid > div,
+  .aqua-docs-accounts > a, .aqua-docs-accounts > div,
+  .aqua-docs-risk-grid > div, .aqua-docs-network
+) {
+  border-color: var(--line) !important;
+  background: rgba(255, 255, 255, .62) !important;
+}
+.aqua-docs-formula span,
+.aqua-docs-formula strong {
+  color: #315d78 !important;
+  border-color: var(--line) !important;
+  background: rgba(212, 237, 252, .72) !important;
+}
+.aqua-docs-formula strong { color: #176fae !important; border-color: rgba(30, 143, 232, .3) !important; }
+.aqua-docs-score-grid > div > strong { color: #176fae !important; }
+.aqua-docs-table thead th { color: #315d78 !important; background: rgba(163, 216, 245, .34) !important; }
+.aqua-docs-flow-arrow { color: var(--aqua-blue) !important; }
+.aqua-docs-callout { border-left-color: var(--aqua-blue) !important; }
 
 /* Opening animation follows the new logo palette. */
 .opening-reveal { background: var(--aqua-surface); }
