@@ -508,6 +508,27 @@ body::before {
 .wizard-section > header { border-bottom-color: var(--line) !important; }
 .wizard-section > header h2 { color: var(--aqua-ink) !important; }
 .wizard-section > header p { color: #547a94 !important; }
+.reward-mode-option { color: var(--aqua-ink); border-color: var(--line); background: rgba(255,255,255,.62); }
+.reward-mode-option:hover:not(:disabled) { border-color: rgba(30,143,232,.42); background: rgba(255,255,255,.84); }
+.reward-mode-option.selected { border-color: rgba(30,143,232,.58); background: linear-gradient(135deg,rgba(220,244,255,.92),rgba(255,255,255,.86)); box-shadow: 0 14px 34px rgba(40,139,195,.13); }
+.reward-mode-option > i { color: var(--aqua-blue); background: rgba(30,143,232,.1); }
+.reward-mode-option > div > small,.reward-mode-option p { color: #587d94; }
+.reward-mode-option p span { color: #356f8f; }
+.reward-mode-option > em { color: #64899f; }
+.reward-mode-option > em svg { color: var(--aqua-blue); }
+.mode-lock-note,.reward-mode-notice { color: #4f7891; border: 1px solid rgba(30,143,232,.12); background: rgba(217,242,255,.5); }
+.mode-lock-note svg,.reward-mode-notice svg { color: var(--aqua-blue); }
+.mode-lock-note b { color: #245d7e; }
+.mode-lock-note small { color: #5d8197; }
+.reward-mode-docs article { border-color: var(--line); background: rgba(255,255,255,.62); }
+.reward-mode-docs article > span { color: var(--aqua-blue); background: rgba(30,143,232,.1); }
+.reward-mode-docs article > small,.reward-mode-docs article > b { color: #477894; }
+.reward-mode-badge.buyback_burn { color: #b85b28 !important; border-color: rgba(222,112,52,.24) !important; background: rgba(255,184,143,.18) !important; }
+.reward-mode-badge.jackpot { color: #8d6810 !important; border-color: rgba(206,157,36,.24) !important; background: rgba(255,219,119,.2) !important; }
+.mode-panel-icon { color: var(--aqua-blue); background: rgba(30,143,232,.1); }
+.jackpot-winners span { background: rgba(30,143,232,.07); }
+.jackpot-winners code,.jackpot-proof { color: #5b8096; }
+.jackpot-winners strong { color: var(--aqua-blue); }
 .wizard-field > span,
 .wizard-socials > header span { color: #315d78 !important; }
 .wizard-socials > header small {

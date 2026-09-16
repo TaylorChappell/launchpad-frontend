@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowUpRight, ExternalLink, LockKeyhole } from "lucide-react";
+import { ArrowUpRight, ExternalLink, Flame, LockKeyhole, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { activeCreatorLock, creatorLockPercentLabel, solscanAccountUrl } from "../creator-lock";
 import { useRuntime } from "../context";
@@ -42,6 +42,7 @@ export function TokenCard({ launch, featured = false }: { launch: Launch; sample
   const indexed = launch.aquaIndexed;
   const creatorLock = activeCreatorLock(launch.creatorLock);
   const creatorLockUrl = creatorLock ? solscanAccountUrl(creatorLock.vaultTokenAccount, config.network) : null;
+  const rewardMode = launch.rewardMode ?? "holder_rewards";
   return <article className={"token-card " + (featured ? "featured" : "")}>
     <Link className="token-card-link" to={"/token/" + launch.id}>
     <div className="token-head">
@@ -49,7 +50,9 @@ export function TokenCard({ launch, featured = false }: { launch: Launch; sample
       <div><div className="token-title"><b>{launch.name}</b><span>{"$" + launch.symbol} / {launch.pairSymbol}</span></div><div className="token-pair"><AssetMark launch={launch}/>{launch.pairSymbol} market</div></div>
       <ArrowUpRight className="card-arrow" size={17}/>
     </div>
-    <div className="reward-card-focus"><span><AssetMark launch={launch} reward/>HOLDER REWARD</span><strong>Earn {launch.stockSymbol}</strong><small>{"$" + compact.format(launch.rewardAccumulatedUsd)} accumulated · {"$" + compact.format(launch.rewardRedeemableUsd)} redeemable</small></div>
+    {rewardMode === "holder_rewards" ? <div className="reward-card-focus"><span><AssetMark launch={launch} reward/>HOLDER REWARD</span><strong>Earn {launch.stockSymbol}</strong><small>{"$" + compact.format(launch.rewardAccumulatedUsd)} accumulated · {"$" + compact.format(launch.rewardRedeemableUsd)} redeemable</small></div>
+      : rewardMode === "buyback_burn" ? <div className="reward-card-focus mode-buyback"><span><Flame/>BUYBACK &amp; BURN</span><strong>Buy. Burn. Reduce supply.</strong><small>The reward share buys this coin and permanently burns it.</small></div>
+      : <div className="reward-card-focus mode-jackpot"><span><Trophy/>HOURLY JACKPOT</span><strong>5 holder winners</strong><small>50% · 20% · 20% · 5% · 5% every draw</small></div>}
     <div className="token-stats"><Metric label="Market cap" value={indexed ? "$" + compact.format(launch.marketCapUsd) : "Indexing"} tone={indexed ? marketCapTone(launch.marketCapUsd) : ""}/><Metric label="24h volume" value={indexed ? "$" + compact.format(launch.volume24hUsd) : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
     </Link>
     {creatorLock && creatorLockUrl && <div className="creator-lock-card"><span><i><LockKeyhole/></i><span><small>VERIFIED CREATOR LOCK</small><strong>{creatorLockPercentLabel(creatorLock)} locked</strong></span></span><a href={creatorLockUrl} target="_blank" rel="noreferrer">View lock <ExternalLink/></a></div>}

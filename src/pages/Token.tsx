@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Copy, ExternalLink, Globe2, Loader2, LockKeyhole, Settings2, ShieldAlert, Users } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink, Flame, Globe2, Loader2, LockKeyhole, Settings2, ShieldAlert, Trophy, Users } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
-import type { CreatorLock, Launch, MarketSnapshot, StockOption, Trade } from "../types";
+import type { CreatorLock, Launch, MarketSnapshot, RewardModeState, StockOption, Trade } from "../types";
 import { AssetMark, Metric, TokenMark } from "../components/TokenCard";
 import { MarketCapLine } from "../components/MarketCapCandles";
 import { activeCreatorLock, creatorLockPercentLabel, solscanAccountUrl } from "../creator-lock";
@@ -28,6 +28,7 @@ export function Token() {
   const { config } = useRuntime();
   const [launch, setLaunch] = useState<Launch | null>(null);
   const [creatorLock, setCreatorLock] = useState<CreatorLock | null>(null);
+  const [rewardModeState, setRewardModeState] = useState<RewardModeState | null>(null);
   const [stock, setStock] = useState<StockOption | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [tradesHaveMore, setTradesHaveMore] = useState(false);
@@ -50,6 +51,7 @@ export function Token() {
       if (!active) return;
       setLaunch(launchData.launch);
       setCreatorLock(launchData.creatorLock);
+      setRewardModeState(launchData.rewardModeState);
       setTrades(launchData.trades);
       setTradesHaveMore(Boolean(launchData.tradesHasMore));
       setSnapshots(marketData.snapshots);
@@ -92,6 +94,10 @@ export function Token() {
   const verifiedCreatorLock = activeCreatorLock(creatorLock);
   const lockedPercentLabel = creatorLockPercentLabel(verifiedCreatorLock);
   const creatorLockUrl = verifiedCreatorLock ? solscanAccountUrl(verifiedCreatorLock.vaultTokenAccount, config.network) : null;
+  const rewardMode = launch.rewardMode ?? "holder_rewards";
+  const modeLabel = rewardMode === "buyback_burn" ? "BUYBACK & BURN" : rewardMode === "jackpot" ? "HOURLY JACKPOT" : "HOLDER REWARDS";
+  const latestRound = rewardModeState?.jackpot;
+  const jackpotSeconds = latestRound ? Math.max(0, latestRound.endsAt - Math.floor(Date.now() / 1_000)) : config.rewardModes?.jackpot.drawSeconds ?? 3_600;
 
   async function trade() {
     if (!wallet.address) {
@@ -139,15 +145,17 @@ export function Token() {
   return <main className="page token-page">
     <Link className="back" to="/"><ArrowLeft/>Explore markets</Link>
     <section className="token-hero">
-      <div className="token-identity"><TokenMark launch={launch} large/><div><div><h1>{launch.name}</h1><span>${launch.symbol}</span><em className={launch.status}>{launch.status === "live" ? "ORCA WHIRLPOOL" : "LAUNCHING"}</em>{verifiedCreatorLock && creatorLockUrl && <div className="creator-lock-market"><i><LockKeyhole/></i><span><small>VERIFIED CREATOR LOCK</small><strong>{lockedPercentLabel} of supply</strong></span><a href={creatorLockUrl} target="_blank" rel="noreferrer">View lock <ExternalLink/></a></div>}</div><p>{launch.description}</p><footer>{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2/> Website</a>}<a href={explorerUrl} target="_blank" rel="noreferrer">Explorer <ExternalLink/></a><button onClick={() => { void navigator.clipboard.writeText(launch.mint); toast.success("Mint copied"); }}><Copy/> {launch.mint.slice(0, 5)}…{launch.mint.slice(-4)}</button></footer></div></div>
+      <div className="token-identity"><TokenMark launch={launch} large/><div><div><h1>{launch.name}</h1><span>${launch.symbol}</span><em className={launch.status}>{launch.status === "live" ? "ORCA WHIRLPOOL" : "LAUNCHING"}</em><em className={`reward-mode-badge ${rewardMode}`}>{modeLabel}</em>{verifiedCreatorLock && creatorLockUrl && <div className="creator-lock-market"><i><LockKeyhole/></i><span><small>VERIFIED CREATOR LOCK</small><strong>{lockedPercentLabel} of supply</strong></span><a href={creatorLockUrl} target="_blank" rel="noreferrer">View lock <ExternalLink/></a></div>}</div><p>{launch.description}</p><footer>{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2/> Website</a>}<a href={explorerUrl} target="_blank" rel="noreferrer">Explorer <ExternalLink/></a>{launch.marketPolicyAddress && <a href={solscanAccountUrl(launch.marketPolicyAddress, config.network)} target="_blank" rel="noreferrer">Mode policy <ExternalLink/></a>}<button onClick={() => { void navigator.clipboard.writeText(launch.mint); toast.success("Mint copied"); }}><Copy/> {launch.mint.slice(0, 5)}…{launch.mint.slice(-4)}</button></footer></div></div>
       <div className="hero-metrics"><Metric label="Orca pair" value={`${launch.symbol} / ${launch.pairSymbol}`}/><Metric label="Stock reward" value={launch.stockSymbol}/><Metric label="TVL" value={launch.aquaIndexed ? `$${compact.format(launch.tvlUsd)}` : "Indexing"}/><Metric label="Market cap" value={launch.aquaIndexed ? `$${compact.format(launch.marketCapUsd)}` : "Indexing"}/></div>
     </section>
 
     <div className="token-layout"><section className="token-main">
       <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div><span>{launch.indexingStatus === "indexed" ? "INDEXED" : launch.indexingStatus === "orca_indexed" ? "ORCA INDEXED" : "PENDING INDEXING"}</span></header><div className="chart market-line-shell"><MarketCapLine snapshots={snapshots}/></div></div>
 
-      <div className="info-grid single">
-        <div className="info-panel reward"><AssetMark launch={launch} reward/><b>Earn {launch.stockSymbol}</b><div><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Redeemable by holders" value={money.format(launch.rewardRedeemableUsd)}/></div><p>Shown in dollars. Allocations use eligible balance and time held; claimed rewards reduce the redeemable total.</p></div>
+      <div className="info-grid single reward-mode-market-panel">
+        {rewardMode === "holder_rewards" && <div className="info-panel reward"><AssetMark launch={launch} reward/><b>Holder Rewards · Earn {launch.stockSymbol}</b><div><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Redeemable by holders" value={money.format(launch.rewardRedeemableUsd)}/></div><p>Allocations use eligible balance × time held. All outstanding rewards for this market accumulate into one claim.</p></div>}
+        {rewardMode === "buyback_burn" && <div className="info-panel reward buyback-burn-panel"><span className="mode-panel-icon"><Flame/></span><b>Buyback &amp; Burn</b><div><Metric label="SOL used" value={`${compact.format(rewardModeState?.buybackBurn.totalSol ?? 0)} SOL`}/><Metric label={`${launch.symbol} burned`} value={formatRaw(rewardModeState?.buybackBurn.totalTokenRaw, launch.tokenDecimals)}/></div><p>The reward share buys {launch.symbol} through the live market, then permanently burns the purchased tokens. Each buy and burn is recorded on Solana.</p></div>}
+        {rewardMode === "jackpot" && <div className="info-panel reward jackpot-panel"><span className="mode-panel-icon"><Trophy/></span><b>Hourly holder jackpot</b><div><Metric label={latestRound?.status === "published" ? "Latest pot" : "Next draw"} value={latestRound?.status === "published" ? `${formatRaw(latestRound.totalRewardRaw, latestRound.rewardDecimals)} ${latestRound.rewardSymbol}` : `${Math.floor(jackpotSeconds / 60)}m ${jackpotSeconds % 60}s`}/><Metric label="Eligible wallets" value={String(latestRound?.eligibleWallets ?? launch.holderCount)}/></div><p>Five distinct wallets win 50% / 20% / 20% / 5% / 5%. Holding consistently and buying earlier raises score; selling or transferring out cuts accrued score.</p>{latestRound?.winners.length ? <div className="jackpot-winners">{latestRound.winners.map((winner) => <span key={winner.place}><b>#{winner.place}</b><code>{winner.wallet.slice(0,4)}…{winner.wallet.slice(-4)}</code><strong>{winner.prizeBps / 100}%</strong></span>)}</div> : <small className="jackpot-proof">Snapshot and future Solana block randomness are published with every draw.</small>}</div>}
       </div>
 
       {wallet.address === launch.creatorWallet && <Link className="creator-manage-button" to={"/manage/" + launch.id}><Settings2/>Manage coin</Link>}
@@ -159,7 +167,7 @@ export function Token() {
       <div className="trade-tabs"><button className={side === "buy" ? "active" : ""} onClick={() => setSide("buy")}>Buy</button><button className={side === "sell" ? "active" : ""} onClick={() => setSide("sell")}>Sell</button></div>
       {side === "buy" && launch.pairType !== "sol" && <div className="trade-pay-route"><span>Pay with</span><div><button className={buyCurrency === "SOL" ? "active" : ""} disabled={!solRoutingAvailable} onClick={() => setBuyCurrency("SOL")}>SOL</button><button className={buyCurrency === "PAIR" ? "active" : ""} onClick={() => setBuyCurrency("PAIR")}>{launch.pairSymbol}</button></div></div>}
       <label>You pay</label><div className="trade-input"><input value={amount} inputMode="decimal" onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))}/><b>{side === "buy" ? buyInputSymbol : launch.symbol}</b></div>
-      <TradeRow label="Execution" value={routedSolBuy ? "Jupiter → Orca Whirlpool" : "Orca Whirlpool"} strong/><TradeRow label="Transfer fee" value={`${(launch.transferFeeBps / 100).toFixed(2)}%`}/><TradeRow label="Holder reward" value={`${(config.fees.stockRewardsBps / 100).toFixed(2)}% to ${launch.stockSymbol}`} accent/><TradeRow label="Slippage" value="1.50%"/>
+      <TradeRow label="Execution" value={routedSolBuy ? "Jupiter → Orca Whirlpool" : "Orca Whirlpool"} strong/><TradeRow label="Transfer fee" value={`${(launch.transferFeeBps / 100).toFixed(2)}%`}/><TradeRow label="Reward mode" value={`${(config.fees.stockRewardsBps / 100).toFixed(2)}% · ${modeLabel}`} accent/><TradeRow label="Slippage" value="1.50%"/>
       <button className="primary full" disabled={!Number(amount) || busy || (!canTrade && Boolean(wallet.address))} onClick={() => void trade()}>{busy ? <><Loader2 className="spin"/>Confirming</> : !wallet.address ? "Connect wallet" : !canTrade ? "Trading unavailable" : side === "buy" ? `Buy ${launch.symbol}` : `Sell ${launch.symbol}`}</button>
       {!canTrade && <div className="locked"><ShieldAlert/><span><b>{launch.status !== "live" ? "Market is launching" : "Transactions disabled"}</b>{launch.status !== "live" ? "Trading opens after every launch transaction confirms." : "The backend is not currently issuing transactions."}</span></div>}
       <div className="creator"><span>Creator</span><b>{launch.creatorWallet}</b><span>Developer buy</span><b>{launch.pairType === "sol" ? launch.devBuySol > 0 ? `${launch.devBuySol} SOL` : "None" : BigInt(launch.devBuyStockRaw || "0") > 0n ? `${formatRaw(launch.devBuyStockRaw, stockDecimals)} ${launch.stockSymbol}` : "None"}</b><span>Holders</span><b><Users/> {compact.format(launch.holderCount)}</b></div>

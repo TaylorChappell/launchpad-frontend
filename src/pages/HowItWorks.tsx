@@ -6,12 +6,14 @@ import {
   Clock3,
   Coins,
   ExternalLink,
+  Flame,
   Gift,
   Landmark,
   Layers3,
   LockKeyhole,
   RefreshCw,
   ShieldCheck,
+  Trophy,
   Waves,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -40,6 +42,7 @@ const navigation = [
     items: [
       ["trading-fees", "The 2% trading fee"],
       ["settlement", "How fees are settled"],
+      ["reward-modes", "The three reward modes"],
       ["holder-rewards", "How rewards are calculated"],
       ["claiming", "Claiming rewards"],
     ],
@@ -222,7 +225,7 @@ export function HowItWorks() {
           <table className="aqua-docs-table fee-table">
             <thead><tr><th>Stream</th><th>Of trade value</th><th>Of collected fees</th><th>Purpose</th></tr></thead>
             <tbody>
-              <tr><td><span className="fee-dot reward"/>Holder rewards</td><td>{formatBps(config.fees.stockRewardsBps)}</td><td>50%</td><td>Settled through SOL, then converted into the selected tokenized stock at epoch close. SOL-paired markets reward SOL.</td></tr>
+              <tr><td><span className="fee-dot reward"/>Selected reward mode</td><td>{formatBps(config.fees.stockRewardsBps)}</td><td>50%</td><td>Used for holder distributions, market buybacks and burns, or the hourly jackpot selected permanently at launch.</td></tr>
               <tr><td><span className="fee-dot platform"/>Platform</td><td>{formatBps(config.fees.platformBps)}</td><td>50%</td><td>Funds treasury, buybacks and any earned creator share.</td></tr>
             </tbody>
           </table>
@@ -249,6 +252,19 @@ export function HowItWorks() {
           </Callout>
         </DocSection>
 
+        <DocSection id="reward-modes" eyebrow="FEES AND REWARDS" title="Three permanent ways to use the reward share">
+          <p>Every creator chooses one reward mode in the launch wizard. The choice is written to a separate on-chain market-policy account and is immutable, so the creator or AQUA operator cannot quietly redirect a successful coin later.</p>
+          <div className="reward-mode-docs">
+            <article><span><Gift/></span><small>MODE 01</small><h3>Holder Rewards</h3><p>The full reward share buys the selected pair asset and allocates it proportionally by balance × time held. Cumulative Merkle checkpoints let each wallet collect its outstanding market rewards in one claim.</p><b>Fairness</b><p>Continuous balance history replaces a single snapshot. Infrastructure accounts and the creator wallet are excluded.</p></article>
+            <article><span><Flame/></span><small>MODE 02</small><h3>Buyback &amp; Burn</h3><p>The reward share is settled into SOL, swapped back through the live market for that launch token, and the purchased tokens are permanently burned.</p><b>Fairness</b><p>The buy and burn use public Solana transactions. AQUA records the SOL spent, token amount bought, buy signature and burn signature.</p></article>
+            <article><span><Trophy/></span><small>MODE 03</small><h3>Hourly Jackpot</h3><p>Each eligible pot goes to five distinct holders: 50%, 20%, 20%, 5% and 5%. Winnings accumulate through the same one-claim reward distributor.</p><b>Fairness</b><p>Scores are committed before randomness is known. A future finalized Solana block supplies draw entropy, and the snapshot hash, blockhash, scores and winners remain auditable.</p></article>
+          </div>
+          <Callout title="Jackpot scoring rewards behaviour across the whole hour">
+            Balance earns score over time. New purchases mature into full scoring weight over 15 minutes, so buying immediately before the close has little effect. Any outbound transfer is treated like a sale and removes the same proportion of score already earned. Wallets with no outbound movement receive a modest 10% consistency multiplier. Winners are drawn without replacement, so one wallet cannot take two places in the same hour.
+          </Callout>
+          <p>If the jackpot is worth less than $10 or fewer than five eligible wallets exist, the value rolls forward instead of producing a tiny or invalid draw. Chance-based rewards can be regulated differently by jurisdiction, so Jackpot remains controlled by an environment flag and requires the applicable product and legal checks before mainnet activation.</p>
+        </DocSection>
+
         <DocSection id="holder-rewards" eyebrow="FEES AND REWARDS" title="How holder rewards are calculated">
           <p>Reward rounds use <strong>balance multiplied by time held</strong>. Holding twice as many tokens for the same period creates twice the weight. Holding the same balance for twice as long also creates twice the weight. Buying immediately before a round does not earn the same share as holding throughout it.</p>
           <div className="aqua-docs-formula">
@@ -265,13 +281,13 @@ export function HowItWorks() {
         </DocSection>
 
         <DocSection id="claiming" eyebrow="FEES AND REWARDS" title="Claiming rewards">
-          <p>Connect the eligible wallet on the Rewards page. AQUA combines that wallet’s unclaimed epochs by market and estimates the Solana transaction and account-creation costs. Claiming unlocks only when the reward remaining after those estimated costs is worth more than {minimumClaim}. The displayed values stay in dollars; the successful claim delivers the market’s stock reward asset.</p>
+          <p>Connect the eligible wallet on the Rewards page. AQUA combines that wallet’s holder allocations or jackpot winnings into one cumulative amount per market and estimates the Solana transaction and account-creation costs. Claiming unlocks only when the reward remaining after those estimated costs is worth more than {minimumClaim}. The displayed values stay in dollars; the successful claim delivers the market’s reward asset.</p>
           <div className="aqua-docs-checklist">
-            <CheckItem>One claim record is created per wallet, per epoch.</CheckItem>
+            <CheckItem>One cumulative claim record is maintained per wallet, per market.</CheckItem>
             <CheckItem>The program rejects an amount or proof that does not match the published root.</CheckItem>
             <CheckItem>Unclaimed funds stay in the program-controlled epoch vault.</CheckItem>
             <CheckItem>The claimant pays the claim transaction, claim-account rent and any missing reward token-account rent.</CheckItem>
-            <CheckItem>A multi-epoch claim can require more than one wallet approval because each epoch has its own on-chain proof.</CheckItem>
+            <CheckItem>All outstanding epochs for that market are collected with one wallet approval.</CheckItem>
           </div>
           <Link className="aqua-docs-inline-link" to="/rewards">Open holder rewards <ArrowRight size={15}/></Link>
         </DocSection>

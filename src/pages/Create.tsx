@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  ArrowLeft, ArrowRight, Check, Droplets, ImagePlus, Info, Rocket,
-  Loader2, RefreshCw, Search, X,
+  ArrowLeft, ArrowRight, Check, Droplets, Flame, Gift, ImagePlus, Info, Rocket,
+  Loader2, RefreshCw, Search, ShieldCheck, Trophy, X,
 } from "lucide-react";
 import { NetworkSolana } from "@web3icons/react";
 import { Link } from "react-router-dom";
@@ -14,19 +14,21 @@ import { TokenMark } from "../components/TokenCard";
 import type { Launch, LaunchBatchEnvelope, LaunchConfirmation, StockOption, TransactionEnvelope } from "../types";
 
 type DevBuyCurrency = "SOL" | "USDC";
+type RewardMode = "holder_rewards" | "buyback_burn" | "jackpot";
 type Form = {
   name: string; symbol: string; description: string; xUrl: string; websiteUrl: string;
-  telegramUrl: string; devBuyCurrency: DevBuyCurrency; launchAmount: string;
+  telegramUrl: string; devBuyCurrency: DevBuyCurrency; launchAmount: string; rewardMode: RewardMode;
 };
 type ChainStage = "mint" | "pool" | "liquidity" | "lock" | "devBuy";
 type ProgressKey = "approval" | ChainStage;
 type ProgressState = "waiting" | "active" | "done" | "error";
 type PendingAction = { launchId: string; stage: ChainStage; envelope?: TransactionEnvelope; signature?: string };
 
-const empty: Form = { name: "", symbol: "", description: "", xUrl: "", websiteUrl: "", telegramUrl: "", devBuyCurrency: "SOL", launchAmount: "" };
+const empty: Form = { name: "", symbol: "", description: "", xUrl: "", websiteUrl: "", telegramUrl: "", devBuyCurrency: "SOL", launchAmount: "", rewardMode: "holder_rewards" };
 const wizardSteps = [
   { label: "Coin", short: "Name and artwork" },
   { label: "Pair & rewards", short: "Choose SOL, ORCA, or an xStock" },
+  { label: "Reward mode", short: "Choose how the holder share works" },
   { label: "Dev buy", short: "Optional first buy" },
 ] as const;
 const chainSteps: Array<{ key: ProgressKey; label: string; detail: string }> = [
@@ -112,7 +114,7 @@ export function Create() {
   const amount = Number(amountInput || "0");
   const amountValid = !amountInput || (amountPattern.test(amountInput) && Number.isFinite(amount) && amount >= 0);
   const hasInitialBuy = amountValid && amount > 0;
-  const validForStep = [form.name.trim().length >= 2 && form.symbol.trim().length >= 2 && Boolean(file), Boolean(stock) && (!stock?.restricted || acknowledged), amountValid];
+  const validForStep = [form.name.trim().length >= 2 && form.symbol.trim().length >= 2 && Boolean(file), Boolean(stock) && (!stock?.restricted || acknowledged), true, amountValid];
   const currencySymbol = form.devBuyCurrency;
   const launchCost = config.launchCost;
   const currencyDecimals = form.devBuyCurrency === "SOL" ? 9 : 6;
@@ -127,7 +129,7 @@ export function Create() {
 
   function nextStep() {
     if (!validForStep[step]) {
-      toast.error(step === 0 ? "Add a coin name, ticker, and artwork." : step === 1 ? "Choose SOL or a supported stock." : "Enter a valid amount.");
+      toast.error(step === 0 ? "Add a coin name, ticker, and artwork." : step === 1 ? "Choose SOL or a supported stock." : step === 2 ? "Choose a reward mode." : "Enter a valid amount.");
       return;
     }
     setStep((current) => Math.min(wizardSteps.length - 1, current + 1));
@@ -357,7 +359,7 @@ export function Create() {
         name: form.name.trim(), description: form.description.trim(), imageId,
         stockMint: stock.mint, poolPair: stock.symbol === "SOL" ? "SOL" : "STOCK",
         devBuyStockRaw: "0", devBuyLamports: "0",
-        devBuyCurrency: form.devBuyCurrency, devBuyAmountRaw: initialBuyRaw,
+        devBuyCurrency: form.devBuyCurrency, devBuyAmountRaw: initialBuyRaw, rewardMode: form.rewardMode,
         sniperDefense: false, xUrl: normaliseUrl(form.xUrl), websiteUrl: normaliseUrl(form.websiteUrl), telegramUrl: normaliseTelegram(form.telegramUrl),
       });
       setStage("approval", "done");
@@ -386,7 +388,7 @@ export function Create() {
         <span className="launch-complete-orb"><Rocket/></span>
         <small>Orca market live</small>
         <h1>${form.symbol} launched</h1>
-        <p>Your pool is active, the full supply is committed to locked liquidity, and holder rewards follow the selected pair.</p>
+        <p>Your pool is active, the full supply is committed to locked liquidity, and {form.rewardMode === "holder_rewards" ? "holder rewards are accruing" : form.rewardMode === "buyback_burn" ? "market buybacks and burns are active" : "hourly jackpot scoring is active"}.</p>
         <div className="launch-complete-actions">
           <a className="complete-primary" href={`#/token/${completedLaunch.id}`}><span className="button-current"/>Go to coin <ArrowRight/></a>
           <button className="complete-secondary" onClick={launchAnother}>Launch another coin</button>
@@ -435,7 +437,26 @@ export function Create() {
           {stock?.restricted && <label className="stock-ack"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)}/><span>I understand tokenized stocks may be restricted or unavailable in my jurisdiction.</span></label>}
         </WizardSection>}
 
-        {step === 2 && <WizardSection title="Optional dev buy" description="Choose SOL or USDC to make the first buy. Leave the amount at zero to skip it.">
+        {step === 2 && <WizardSection title="Choose the reward mode" description="This policy is permanent after launch, so holders always know how the reward share will be used.">
+          <div className="reward-mode-grid" role="radiogroup" aria-label="Reward mode">
+            <ModeButton active={form.rewardMode === "holder_rewards"} onClick={() => update("rewardMode", "holder_rewards")} icon={<Gift/>} title="Holder Rewards" eyebrow="Steady rewards">
+              The holder share is converted into the selected pair asset and distributed by balance × time held. Rewards accumulate into one claim per market.
+              <span><ShieldCheck/> Fairness: continuous holding counts, not a last-second snapshot.</span>
+            </ModeButton>
+            <ModeButton active={form.rewardMode === "buyback_burn"} disabled={!config.rewardModes?.enabled} onClick={() => update("rewardMode", "buyback_burn")} icon={<Flame/>} title="Buyback & Burn" eyebrow="Reduce supply">
+              The holder share becomes SOL, buys this coin through the live market, then permanently burns every token purchased.
+              <span><ShieldCheck/> Verifiable buy and burn signatures are recorded publicly.</span>
+            </ModeButton>
+            <ModeButton active={form.rewardMode === "jackpot"} disabled={!config.rewardModes?.enabled || !config.rewardModes.jackpot.enabled} onClick={() => update("rewardMode", "jackpot")} icon={<Trophy/>} title="Hourly Jackpot" eyebrow="5 winners · every hour">
+              Five distinct holders split each pot 50% / 20% / 20% / 5% / 5%. Holding and buying earlier increases your score; selling cuts accrued score.
+              <span><ShieldCheck/> Snapshot commitments and a future finalized Solana block make each draw auditable.</span>
+            </ModeButton>
+          </div>
+          {!config.rewardModes?.enabled && <div className="reward-mode-notice"><Info/> Alternative modes will unlock after the staged program upgrade is enabled. Holder Rewards remains available.</div>}
+          <div className="mode-lock-note"><ShieldCheck/><span><b>Immutable at launch</b><small>The selected mode is written to an on-chain policy account and cannot be quietly switched later.</small></span></div>
+        </WizardSection>}
+
+        {step === 3 && <WizardSection title="Optional dev buy" description="Choose SOL or USDC to make the first buy. Leave the amount at zero to skip it.">
           <div className="launch-currency-grid pair-choice-grid" role="radiogroup" aria-label="Initial buy currency">
             <CurrencyButton code="SOL" name="Pay with Solana" active={form.devBuyCurrency === "SOL"} onClick={() => { update("devBuyCurrency", "SOL"); update("launchAmount", ""); }} icon={<NetworkSolana className="currency-brand-icon" variant="branded"/>}/>
             <CurrencyButton code="USDC" name="Pay with USD Coin" active={form.devBuyCurrency === "USDC"} onClick={() => { update("devBuyCurrency", "USDC"); update("launchAmount", ""); }} icon={<span className="usdc-mark">$</span>}/>
@@ -445,9 +466,9 @@ export function Create() {
             <div><span><b>Estimated launch cost</b><small>before any optional first buy</small></span><strong>{launchCost.estimatedTotalSol.minimum.toFixed(2)}–{launchCost.estimatedTotalSol.maximum.toFixed(2)} SOL</strong></div>
             <p><b>{launchCost.platformFeeSol.toFixed(2)} SOL AQUA fee</b> funds keeper operations. The rest is estimated Solana/Orca account rent and network fees; your wallet approval shows the authoritative amount.</p>
           </div>}
-          <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} on Orca · rewards in {stock?.symbol ?? "the pair"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
+          <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} · {form.rewardMode === "holder_rewards" ? "Holder Rewards" : form.rewardMode === "buyback_burn" ? "Buyback & Burn" : "Hourly Jackpot"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
           <label className="terms-acceptance"><input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)}/><span>I have read and agree to the <Link to="/terms" target="_blank">Terms of Service</Link>, including the cryptoasset, permanent-liquidity and third-party risks.</span></label>
-          <button className="wizard-launch-button" onClick={() => void (pending ? retryLaunch() : beginLaunch())} disabled={!validForStep[2] || launching || !acceptedTerms} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
+          <button className="wizard-launch-button" onClick={() => void (pending ? retryLaunch() : beginLaunch())} disabled={!validForStep[3] || launching || !acceptedTerms} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
         </WizardSection>}
 
         <footer className="wizard-actions"><button className="wizard-back" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ArrowLeft/> Back</button>{step < wizardSteps.length - 1 && <button className="wizard-next" onClick={nextStep} disabled={!validForStep[step]}>Continue <ArrowRight/></button>}</footer>
@@ -461,4 +482,5 @@ export function Create() {
 function WizardSection({ title, description, children }: { title: string; description: string; children: ReactNode }) { return <section className="wizard-section"><header><h2>{title}</h2><p>{description}</p></header><div className="wizard-section-body">{children}</div></section>; }
 function Field({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) { return <label className={`wizard-field ${wide ? "wide" : ""}`}><span>{label}</span>{children}</label>; }
 function CurrencyButton({ code, name, active, icon, onClick }: { code: string; name: string; active: boolean; icon: ReactNode; onClick: () => void }) { return <button type="button" role="radio" aria-checked={active} className={active ? "selected" : ""} onClick={onClick}><i>{icon}</i><span><b>{code}</b><small>{name}</small></span><em>{active && <Check/>}</em></button>; }
+function ModeButton({ active, disabled, onClick, icon, title, eyebrow, children }: { active: boolean; disabled?: boolean; onClick: () => void; icon: ReactNode; title: string; eyebrow: string; children: ReactNode }) { return <button type="button" role="radio" aria-checked={active} disabled={disabled} className={`reward-mode-option ${active ? "selected" : ""}`} onClick={onClick}><i>{icon}</i><div><small>{eyebrow}</small><b>{title}</b><p>{children}</p></div><em>{disabled ? "Coming soon" : active ? <Check/> : null}</em></button>; }
 function StockLogo({ stock }: { stock: StockOption }) { const [failed, setFailed] = useState(false); return <span className="stock-logo">{stock.symbol === "SOL" ? <NetworkSolana className="currency-brand-icon" variant="branded"/> : stock.logoUrl && !failed ? <img src={stock.logoUrl} alt="" onError={() => setFailed(true)}/> : stock.underlyingSymbol.slice(0, 2)}</span>; }

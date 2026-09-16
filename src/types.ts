@@ -48,6 +48,12 @@ export type RuntimeConfig = {
     claimableOnchain: boolean;
     cumulativeClaims?: boolean;
   };
+  rewardModes?: {
+    enabled: boolean;
+    available: Array<"holder_rewards" | "buyback_burn" | "jackpot">;
+    immutableAfterLaunch: boolean;
+    jackpot: { enabled: boolean; drawSeconds: number; buyMaturitySeconds: number; minimumUsdCents: number; prizeBps: number[] };
+  };
   creatorLocks: { minimumSeconds: number; maximumSeconds: number; maximumFeeShareBps: number; targetSupplyBps?: number; initialLiquidityExcluded?: boolean };
   sniperDefense: { supported: false; reason: string };
 };
@@ -129,6 +135,8 @@ export type Launch = {
   pairSymbol: string;
   pairMint: string;
   tradingPair: { type: "sol" | "stock"; symbol: string; mint: string };
+  rewardMode: "holder_rewards" | "buyback_burn" | "jackpot";
+  marketPolicyAddress?: string | null;
   pairVerified?: boolean;
   pairVerifiedAt?: number | null;
   status: LaunchStatus;
@@ -184,6 +192,24 @@ export type Launch = {
   creatorLock?: CreatorLock | null;
   launchedAt: number | null;
   createdAt: number;
+};
+
+export type RewardModeState = {
+  jackpot: null | {
+    id: string;
+    startsAt: number;
+    endsAt: number;
+    status: "committed" | "drawn" | "published" | "cancelled";
+    totalRewardRaw: string;
+    rewardSymbol: string;
+    rewardDecimals: number;
+    eligibleWallets: number;
+    snapshotHash: string;
+    entropySlot: number | null;
+    entropyBlockhash: string | null;
+    winners: Array<{ place: number; wallet: string; prizeBps: number; amountRaw: string }>;
+  };
+  buybackBurn: { totalSol: number; totalTokenRaw: string; lastBurnAt: number | null };
 };
 
 export type Trade = {
