@@ -1012,3 +1012,23 @@ body::before {
 .complete-primary { color: white; border-color: rgba(30,143,232,.45); background: linear-gradient(135deg,#45b9ee,#1e8fe8); box-shadow: 0 12px 30px rgba(30,143,232,.18); }
 .complete-secondary { color: #176fae; border-color: rgba(30,143,232,.24); background: rgba(255,255,255,.72); }
 .complete-secondary:hover { color: #0d639f; border-color: rgba(30,143,232,.42); background: white; }
+
+/* One-time reward modes release update */
+.modes-update-overlay { background: rgba(103,174,213,.22); }
+.modes-update-flash { color: var(--aqua-ink); border-color: rgba(30,143,232,.22); background: radial-gradient(circle at 85% 0,rgba(105,203,245,.22),transparent 34%),linear-gradient(155deg,rgba(255,255,255,.98),rgba(226,244,254,.98)); box-shadow: 0 34px 110px rgba(38,107,150,.24),inset 0 1px rgba(255,255,255,.92); }
+.modes-update-close { color: #315d78; border-color: rgba(30,143,232,.16); background: rgba(255,255,255,.72); }
+.modes-update-close:hover { color: #0d639f; border-color: rgba(30,143,232,.34); background: white; }
+.modes-update-flash > small { color: #176fae; }
+.modes-update-flash h2 { color: var(--aqua-ink); }
+.modes-update-flash > p { color: #547a94; }
+.modes-update-list article { border-color: rgba(30,143,232,.14); background: rgba(255,255,255,.62); }
+.modes-update-list article b { color: var(--aqua-ink); }
+.modes-update-list article small { color: #5c8097; }
+.modes-update-list article.holder_rewards > i { color: #176fae; background: rgba(30,143,232,.11); }
+.modes-update-list article.buyback_burn { border-color: rgba(213,62,80,.16); }
+.modes-update-list article.buyback_burn > i { color: #ad2737; background: rgba(213,62,80,.1); }
+.modes-update-list article.jackpot { border-color: rgba(204,151,17,.18); }
+.modes-update-list article.jackpot > i { color: #865f00; background: rgba(204,151,17,.12); }
+.modes-update-flash > footer a { color: #176fae; }
+.modes-update-flash > footer a:hover { color: #0d639f; }
+.modes-update-flash > footer button { color: white; border-color: rgba(30,143,232,.5); background: linear-gradient(135deg,#45b9ee,#1e8fe8); box-shadow: 0 10px 24px rgba(30,143,232,.18); }
