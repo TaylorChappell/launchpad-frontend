@@ -954,3 +954,61 @@ body::before {
   0% { opacity: 1; background-color: rgba(212,237,252,.48); -webkit-backdrop-filter: blur(15px) saturate(112%); backdrop-filter: blur(15px) saturate(112%); }
   100% { opacity: 0; background-color: rgba(212,237,252,0); -webkit-backdrop-filter: blur(0) saturate(100%); backdrop-filter: blur(0) saturate(100%); }
 }
+
+/* Reward-mode color language and market controls */
+.reward-mode-badge.holder_rewards { color: #176fae !important; border-color: rgba(30,143,232,.28) !important; background: rgba(163,216,245,.32) !important; }
+.reward-mode-badge.buyback_burn { color: #ad2737 !important; border-color: rgba(213,62,80,.3) !important; background: rgba(255,193,199,.3) !important; }
+.reward-mode-badge.jackpot { color: #865f00 !important; border-color: rgba(204,151,17,.34) !important; background: rgba(255,222,126,.36) !important; }
+.reward-card-focus.mode-buyback { border-color: rgba(213,62,80,.24) !important; background: linear-gradient(120deg,rgba(255,220,223,.66),rgba(255,255,255,.62)) !important; }
+.reward-card-focus.mode-buyback span,.reward-card-focus.mode-buyback strong { color: #ad2737 !important; }
+.reward-card-focus.mode-jackpot { border-color: rgba(204,151,17,.28) !important; background: linear-gradient(120deg,rgba(255,235,174,.7),rgba(255,255,255,.62)) !important; }
+.reward-card-focus.mode-jackpot span,.reward-card-focus.mode-jackpot strong { color: #865f00 !important; }
+.holder-reward-panel .mode-panel-icon { color: #176fae; background: rgba(30,143,232,.12); }
+.buyback-burn-panel .mode-panel-icon { color: #ad2737; background: rgba(213,62,80,.11); }
+.jackpot-panel .mode-panel-icon { color: #865f00; background: rgba(204,151,17,.14); }
+.buyback-burn-panel { border-color: rgba(213,62,80,.22) !important; background: linear-gradient(145deg,rgba(255,241,242,.86),rgba(255,255,255,.72)) !important; }
+.jackpot-panel { border-color: rgba(204,151,17,.25) !important; background: linear-gradient(145deg,rgba(255,246,216,.87),rgba(255,255,255,.72)) !important; }
+.market-mode-filters button { color: #426d87; border-color: rgba(30,143,232,.18); background: rgba(255,255,255,.67); box-shadow: 0 7px 20px rgba(38,107,150,.05); }
+.market-mode-filters button small { background: rgba(30,143,232,.08); }
+.market-mode-filters button:hover { color: #0d639f; border-color: rgba(30,143,232,.35); background: rgba(255,255,255,.92); }
+.market-mode-filters button.active { color: #0d639f; border-color: rgba(30,143,232,.42); background: rgba(204,235,252,.78); }
+.market-mode-filters button.buyback_burn.active { color: #ad2737; border-color: rgba(213,62,80,.34); background: rgba(255,220,223,.72); }
+.market-mode-filters button.jackpot.active { color: #865f00; border-color: rgba(204,151,17,.36); background: rgba(255,235,174,.75); }
+.markets-load-more { color: #176fae; border-color: rgba(30,143,232,.24); background: rgba(255,255,255,.72); box-shadow: 0 10px 28px rgba(38,107,150,.07); }
+.markets-load-more:hover { color: #0d639f; border-color: rgba(30,143,232,.42); background: white; }
+.markets-load-more span { color: #64899f; }
+
+/* Market detail contrast */
+.token-page .back,.token-identity p,.token-identity footer a,.token-identity footer button { color: #4f7891; }
+.token-identity > div > div > span,.trade-card > label,.trade-row,.creator span,.activity header span,.activity header strong { color: #557d95; }
+.chart-panel header small,.info-panel > small,.info-panel p { color: #527991; }
+.chart-panel header b,.trade-row b,.creator b { color: var(--aqua-ink); }
+.index-badge { border: 1px solid rgba(30,143,232,.22); color: #176fae !important; background: rgba(163,216,245,.34) !important; font-weight: 750; letter-spacing: .07em; }
+.index-badge.orca_indexed { color: #087f7d !important; border-color: rgba(18,154,151,.24); background: rgba(183,239,236,.42) !important; }
+.index-badge.pending_indexing { color: #805912 !important; border-color: rgba(168,111,18,.24); background: rgba(255,239,190,.5) !important; }
+.trade-tabs { border-color: rgba(30,143,232,.2); background: rgba(212,237,252,.36); }
+.trade-tabs button { color: #557d95; }
+.trade-tabs button.active { color: #0d639f; background: rgba(255,255,255,.84); box-shadow: 0 4px 12px rgba(38,107,150,.08); }
+.trade-pay-route { border-color: rgba(30,143,232,.2); background: rgba(212,237,252,.42); }
+.trade-pay-route > span,.trade-pay-route button { color: #557d95; }
+.trade-pay-route button:hover:not(:disabled) { color: #176fae; background: rgba(255,255,255,.62); }
+.trade-pay-route button.active { color: #0d639f; border-color: rgba(30,143,232,.3); background: white; box-shadow: 0 4px 12px rgba(38,107,150,.08); }
+.jackpot-draw-history > header > span,.jackpot-draw-history article > header small,.jackpot-empty-history { color: #5b8096; }
+.jackpot-draw-history article { border-color: rgba(204,151,17,.2); background: rgba(255,255,255,.58); }
+.jackpot-draw-history article > header strong,.jackpot-draw-history article > header a,.jackpot-winners strong { color: #865f00; }
+.jackpot-winners span { background: rgba(255,226,139,.22); }
+.jackpot-winners code { color: #456e87; }
+
+/* Launch progress and success screens */
+.wizard-launching-screen { border: 1px solid rgba(30,143,232,.16); background: radial-gradient(circle at 50% 42%,rgba(69,185,238,.2),transparent 31%),linear-gradient(145deg,rgba(248,253,255,.98),rgba(212,237,252,.98)); box-shadow: inset 0 1px rgba(255,255,255,.9); }
+.launching-water::before,.launch-complete-water::before { background: linear-gradient(165deg,rgba(105,203,245,.25),rgba(30,143,232,.18)); }
+.launching-water i,.launch-complete-water i { border-color: rgba(30,143,232,.36); background: rgba(255,255,255,.45); }
+.launch-simple-status { color: var(--aqua-ink); }
+.launching-orb,.launch-complete-orb { color: #07517d; border-color: rgba(30,143,232,.3); background: linear-gradient(145deg,#eefaff,#a3d8f5 58%,#45b9ee); box-shadow: 0 0 0 12px rgba(69,185,238,.08),0 22px 50px rgba(38,107,150,.16); }
+.launch-complete-screen::before { background: radial-gradient(circle at 50% 44%,rgba(69,185,238,.2),transparent 30%),linear-gradient(145deg,rgba(248,253,255,.98),rgba(212,237,252,.98)); }
+.launch-complete-screen > small { color: #176fae; }
+.launch-complete-screen h1 { color: var(--aqua-ink); }
+.launch-complete-screen p { color: #547a94; }
+.complete-primary { color: white; border-color: rgba(30,143,232,.45); background: linear-gradient(135deg,#45b9ee,#1e8fe8); box-shadow: 0 12px 30px rgba(30,143,232,.18); }
+.complete-secondary { color: #176fae; border-color: rgba(30,143,232,.24); background: rgba(255,255,255,.72); }
+.complete-secondary:hover { color: #0d639f; border-color: rgba(30,143,232,.42); background: white; }
