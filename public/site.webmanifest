@@ -4,14 +4,14 @@
   "description": "A Solana token launchpad with direct Orca markets and holder rewards.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#020b11",
-  "theme_color": "#010a12",
+  "background_color": "#D4EDFC",
+  "theme_color": "#1E8FE8",
   "icons": [
     {
-      "src": "./aqua-logo.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "./aqua-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }
