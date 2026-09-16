@@ -54,6 +54,15 @@ export type RuntimeConfig = {
     immutableAfterLaunch: boolean;
     jackpot: { enabled: boolean; drawSeconds: number; buyMaturitySeconds: number; minimumUsdCents: number; prizeBps: number[] };
   };
+  governance?: {
+    enabled: boolean;
+    governanceMint: string | null;
+    minimumHoldingBps: number;
+    weeklyRoundSeconds: number;
+    winnerBonusBps: number;
+    winnerBonusSeconds: number;
+    weighting: string;
+  };
   creatorLocks: { minimumSeconds: number; maximumSeconds: number; maximumFeeShareBps: number; targetSupplyBps?: number; initialLiquidityExcluded?: boolean };
   sniperDefense: { supported: false; reason: string };
 };
@@ -220,6 +229,37 @@ export type RewardModeState = {
     }>;
   };
   buybackBurn: { totalSol: number; totalTokenRaw: string; lastBurnAt: number | null };
+};
+
+export type GovernanceMarket = {
+  launchId: string;
+  mint: string;
+  name: string;
+  symbol: string;
+  imageId: string | null;
+  rewardMode: "holder_rewards" | "buyback_burn" | "jackpot";
+};
+
+export type GovernanceResponse = {
+  enabled: false;
+  reason: string;
+} | {
+  enabled: true;
+  governanceMint: string;
+  decimals: number;
+  minimumHoldingBps: number;
+  bonusBps: number;
+  round: { id: string; startsAt: number; endsAt: number };
+  leaders: Array<GovernanceMarket & { rank: number; votingPowerRaw: string; voters: number }>;
+  wallet: null | {
+    currentBalanceRaw: string;
+    averageBalanceRaw: string;
+    votingPowerRaw: string;
+    eligible: boolean;
+    vote: GovernanceMarket | null;
+  };
+  previousWinner: (GovernanceMarket & { scoreRaw: string; bonusStartsAt: number; bonusEndsAt: number }) | null;
+  activeBonus: (GovernanceMarket & { endsAt: number }) | null;
 };
 
 export type Trade = {
