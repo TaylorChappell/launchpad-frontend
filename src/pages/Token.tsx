@@ -23,6 +23,18 @@ function formatRaw(raw: string | undefined, decimals: number) {
   return fraction ? `${whole}.${fraction}` : whole;
 }
 
+function formatCountdown(seconds: number) {
+  const value = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(value / 3_600);
+  const minutes = Math.floor((value % 3_600) / 60);
+  const remainder = value % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+}
+
+function solscanTransactionUrl(signature: string, network: string) {
+  return `https://solscan.io/tx/${signature}${network === "devnet" ? "?cluster=devnet" : ""}`;
+}
+
 export function Token() {
   const { id = "" } = useParams();
   const wallet = useWallet();
@@ -40,6 +52,7 @@ export function Token() {
   const [buyCurrency, setBuyCurrency] = useState<"SOL" | "PAIR">("SOL");
   const [amount, setAmount] = useState("1");
   const [busy, setBusy] = useState(false);
+  const [nowSeconds, setNowSeconds] = useState(() => Math.floor(Date.now() / 1_000));
 
   useEffect(() => {
     let active = true;
@@ -70,6 +83,11 @@ export function Token() {
   }, [id]);
 
   useEffect(() => {
+    const timer = window.setInterval(() => setNowSeconds(Math.floor(Date.now() / 1_000)), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     if (!launch?.stockMint) return;
     let active = true;
     void api.stocks().then((stockData) => {
@@ -97,8 +115,8 @@ export function Token() {
   const creatorLockUrl = verifiedCreatorLock ? solscanAccountUrl(verifiedCreatorLock.vaultTokenAccount, config.network) : null;
   const rewardMode = launch.rewardMode ?? "holder_rewards";
   const modeLabel = rewardMode === "buyback_burn" ? "BUYBACK & BURN" : rewardMode === "jackpot" ? "HOURLY JACKPOT" : "HOLDER REWARDS";
-  const latestRound = rewardModeState?.jackpot;
-  const jackpotSeconds = latestRound ? Math.max(0, latestRound.endsAt - Math.floor(Date.now() / 1_000)) : config.rewardModes?.jackpot.drawSeconds ?? 3_600;
+  const jackpot = rewardModeState?.jackpot;
+  const jackpotSeconds = Math.max(0, (jackpot?.nextDrawAt ?? nowSeconds + (config.rewardModes?.jackpot.drawSeconds ?? 3_600)) - nowSeconds);
 
   async function trade() {
     if (!wallet.address) {
@@ -151,12 +169,12 @@ export function Token() {
     </section>
 
     <div className="token-layout"><section className="token-main">
-      <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div><span>{launch.indexingStatus === "indexed" ? "INDEXED" : launch.indexingStatus === "orca_indexed" ? "ORCA INDEXED" : "PENDING INDEXING"}</span></header><div className="chart market-line-shell"><MarketCapLine snapshots={snapshots}/></div></div>
+      <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div><span className={`index-badge ${launch.indexingStatus}`}>{launch.indexingStatus === "indexed" ? "INDEXED" : launch.indexingStatus === "orca_indexed" ? "ORCA INDEXED" : "PENDING INDEXING"}</span></header><div className="chart market-line-shell"><MarketCapLine snapshots={snapshots}/></div></div>
 
       <div className="info-grid single reward-mode-market-panel">
-        {rewardMode === "holder_rewards" && <div className="info-panel reward"><span className="mode-panel-icon"><RewardModeIcon mode="holder_rewards"/></span><b>Holder Rewards · Earn {launch.stockSymbol}</b><div><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Redeemable by holders" value={money.format(launch.rewardRedeemableUsd)}/></div><p>Allocations use eligible balance × time held. All outstanding rewards for this market accumulate into one claim.</p></div>}
+        {rewardMode === "holder_rewards" && <div className="info-panel reward holder-reward-panel"><span className="mode-panel-icon"><RewardModeIcon mode="holder_rewards"/></span><b>Holder Rewards · Earn {launch.stockSymbol}</b><div><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Redeemable by holders" value={money.format(launch.rewardRedeemableUsd)}/></div><p>Allocations use eligible balance × time held. All outstanding rewards for this market accumulate into one claim.</p></div>}
         {rewardMode === "buyback_burn" && <div className="info-panel reward buyback-burn-panel"><span className="mode-panel-icon"><RewardModeIcon mode="buyback_burn"/></span><b>Buyback &amp; Burn</b><div><Metric label="SOL used" value={`${compact.format(rewardModeState?.buybackBurn.totalSol ?? 0)} SOL`}/><Metric label={`${launch.symbol} burned`} value={formatRaw(rewardModeState?.buybackBurn.totalTokenRaw, launch.tokenDecimals)}/></div><p>The reward share buys {launch.symbol} through the live market, then permanently burns the purchased tokens. Each buy and burn is recorded on Solana.</p></div>}
-        {rewardMode === "jackpot" && <div className="info-panel reward jackpot-panel"><span className="mode-panel-icon"><RewardModeIcon mode="jackpot"/></span><b>Hourly holder jackpot</b><div><Metric label={latestRound?.status === "published" ? "Latest pot" : "Next draw"} value={latestRound?.status === "published" ? `${formatRaw(latestRound.totalRewardRaw, latestRound.rewardDecimals)} ${latestRound.rewardSymbol}` : `${Math.floor(jackpotSeconds / 60)}m ${jackpotSeconds % 60}s`}/><Metric label="Eligible wallets" value={String(latestRound?.eligibleWallets ?? launch.holderCount)}/></div><p>Five distinct wallets win 50% / 20% / 20% / 5% / 5%. Holding consistently and buying earlier raises score; selling or transferring out cuts accrued score.</p>{latestRound?.winners.length ? <div className="jackpot-winners">{latestRound.winners.map((winner) => <span key={winner.place}><b>#{winner.place}</b><code>{winner.wallet.slice(0,4)}…{winner.wallet.slice(-4)}</code><strong>{winner.prizeBps / 100}%</strong></span>)}</div> : <small className="jackpot-proof">Snapshot and future Solana block randomness are published with every draw.</small>}</div>}
+        {rewardMode === "jackpot" && <div className="info-panel reward jackpot-panel"><span className="mode-panel-icon"><RewardModeIcon mode="jackpot"/></span><b>Hourly holder jackpot</b><div className="jackpot-live-metrics"><Metric label="Next draw" value={formatCountdown(jackpotSeconds)}/><Metric label="Current pot" value={jackpot ? `${formatRaw(jackpot.currentPotRaw, jackpot.rewardDecimals)} ${jackpot.rewardSymbol}` : "Loading…"}/><Metric label="Current pot value" value={jackpot ? money.format(jackpot.currentPotUsd) : "Loading…"}/><Metric label="Eligible holders" value={String(jackpot?.eligibleWallets ?? launch.holderCount)}/></div><p>Five distinct wallets win 50% / 20% / 20% / 5% / 5%. Holding consistently and buying earlier raises score; selling or transferring out cuts accrued score.</p><small className="jackpot-proof">The countdown updates live. Snapshot and future Solana block randomness are published with every draw.</small>{jackpot?.previousDraws.length ? <div className="jackpot-draw-history"><header><b>Previous draws</b><span>Verified on Solana</span></header>{jackpot.previousDraws.map((draw) => <article key={draw.id}><header><div><small>{new Date(draw.endsAt * 1_000).toLocaleString()}</small><strong>{formatRaw(draw.totalRewardRaw, draw.rewardDecimals)} {draw.rewardSymbol} total</strong></div>{draw.transactionSignature && <a href={solscanTransactionUrl(draw.transactionSignature, config.network)} target="_blank" rel="noreferrer">Solscan <ExternalLink/></a>}</header><div className="jackpot-winners">{draw.winners.map((winner) => <span key={winner.place}><b>#{winner.place}</b><code>{winner.wallet.slice(0,4)}…{winner.wallet.slice(-4)}</code><strong>{formatRaw(winner.amountRaw, draw.rewardDecimals)} {draw.rewardSymbol}</strong></span>)}</div></article>)}</div> : <div className="jackpot-empty-history">The first completed draw will appear here with every winner and its Solscan proof.</div>}</div>}
       </div>
 
       {wallet.address === launch.creatorWallet && <Link className="creator-manage-button" to={"/manage/" + launch.id}><Settings2/>Manage coin</Link>}
