@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Coins, Gift, Loader2, RefreshCw, WalletCards } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Coins, ExternalLink, Gift, Loader2, RefreshCw, Share2, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../api";
 import { PageBubbles } from "../components/PageBubbles";
@@ -10,6 +10,17 @@ import { openXComposer, rewardClaimShareText } from "../share";
 
 const EMPTY_REWARDS: WalletRewardsResponse = { rewards: [], holdings: [], markets: [] };
 
+type ClaimExperience = {
+  phase: "preparing" | "approval" | "confirming" | "success";
+  launchId: string;
+  name: string;
+  amountUsd: string;
+  signature?: string;
+  amountRaw?: string;
+  stockSymbol?: string;
+  stockDecimals?: number;
+};
+
 function dollars(cents: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -19,6 +30,19 @@ function dollars(cents: number) {
   }).format(cents / 100);
 }
 
+function tokenAmount(raw?: string, decimals = 0, symbol = "reward") {
+  if (!raw) return symbol;
+  const value = BigInt(raw);
+  const scale = 10n ** BigInt(decimals);
+  const whole = value / scale;
+  const fraction = (value % scale).toString().padStart(decimals, "0").replace(/0+$/, "").slice(0, 6);
+  return `${whole.toLocaleString("en-US")}${fraction ? `.${fraction}` : ""} ${symbol}`;
+}
+
+function solscanTransactionUrl(signature: string, network: "devnet" | "mainnet-beta") {
+  return `https://solscan.io/tx/${signature}${network === "devnet" ? "?cluster=devnet" : ""}`;
+}
+
 export function Rewards() {
   const wallet = useWallet();
   const { config } = useRuntime();
@@ -26,6 +50,7 @@ export function Rewards() {
   const [launches, setLaunches] = useState<Launch[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "offline">("loading");
   const [claiming, setClaiming] = useState("");
+  const [claimExperience, setClaimExperience] = useState<ClaimExperience | null>(null);
 
   async function refresh(address: string) {
     const [rewardData, launchData] = await Promise.all([api.rewards(address), api.launches()]);
@@ -52,26 +77,74 @@ export function Rewards() {
 
   async function claim(market: WalletRewardMarket, launch?: Launch) {
     if (!wallet.address) return wallet.setModalOpen(true);
-    if (!market.canClaim || !market.claimableEpochIds.length) return;
+    if (!market.canClaim) return;
+    const cumulative = market.claimMode === "cumulative";
+    if (!cumulative && market.claimableEpochIds.length !== 1) {
+      toast.info("These rewards are being consolidated into one claim. They will be available after the rewards migration completes.");
+      return;
+    }
+    const amountUsd = dollars(market.claimableUsdCents);
+    const baseExperience: ClaimExperience = {
+      phase: "preparing",
+      launchId: market.launchId,
+      name: launch?.name ?? "AQUA rewards",
+      amountUsd,
+      stockSymbol: launch?.stockSymbol,
+    };
     setClaiming(market.launchId);
+    setClaimExperience(baseExperience);
     try {
-      const envelopes = await Promise.all(market.claimableEpochIds.map((epochId) => api.rewardClaim(epochId, wallet.address!)));
-      for (let index = 0; index < envelopes.length; index += 1) {
-        const signature = await wallet.sendTransaction(envelopes[index]);
-        await api.confirmRewardClaim(market.claimableEpochIds[index], wallet.address, signature);
+      if (cumulative) {
+        const envelope = await api.cumulativeRewardClaim(market.launchId, wallet.address);
+        setClaimExperience({ ...baseExperience, phase: "approval", amountRaw: envelope.amountRaw, stockSymbol: envelope.stockSymbol, stockDecimals: envelope.stockDecimals });
+        const signature = await wallet.sendTransaction(envelope);
+        setClaimExperience((current) => current ? { ...current, phase: "confirming", signature } : current);
+        const confirmed = await api.confirmCumulativeRewardClaim(market.launchId, wallet.address, signature, envelope.sequence);
+        setClaimExperience({ ...baseExperience, phase: "success", signature, amountRaw: confirmed.amountRaw, stockSymbol: confirmed.stockSymbol, stockDecimals: confirmed.stockDecimals });
+      } else {
+        const epochId = market.claimableEpochIds[0];
+        const envelope = await api.rewardClaim(epochId, wallet.address);
+        setClaimExperience({ ...baseExperience, phase: "approval" });
+        const signature = await wallet.sendTransaction(envelope);
+        setClaimExperience({ ...baseExperience, phase: "confirming", signature });
+        await api.confirmRewardClaim(epochId, wallet.address, signature);
+        setClaimExperience({ ...baseExperience, phase: "success", signature });
       }
-      const claimedAmount = dollars(market.claimableUsdCents);
-      toast.success(`${launch?.stockSymbol ?? "Holder"} rewards claimed in ${envelopes.length} transaction${envelopes.length === 1 ? "" : "s"}`, {
-        description: `Share your ${claimedAmount} reward claim on X.`,
-        duration: 12_000,
-        action: { label: "Post on X", onClick: () => openXComposer(rewardClaimShareText(claimedAmount)) },
-      });
       await refresh(wallet.address);
     } catch (error) {
+      setClaimExperience(null);
       toast.error(error instanceof Error ? error.message : "Claim failed.");
     } finally {
       setClaiming("");
     }
+  }
+
+  if (claimExperience) {
+    const success = claimExperience.phase === "success";
+    const status = claimExperience.phase === "preparing"
+      ? "Preparing your single claim"
+      : claimExperience.phase === "approval"
+        ? "Approve one transaction in your wallet"
+        : claimExperience.phase === "confirming"
+          ? "Confirming your reward on Solana"
+          : "Rewards claimed";
+    return <main className="page rewards-page rewards-vault-page reward-claim-experience">
+      <PageBubbles count={14}/>
+      <section className={`reward-claim-card ${success ? "complete" : "processing"}`}>
+        <span className="reward-claim-icon">{success ? <CheckCircle2/> : <Loader2 className="spin"/>}</span>
+        <small>{claimExperience.name}</small>
+        <h1>{status}</h1>
+        <strong className="reward-claim-amount">{claimExperience.amountUsd}</strong>
+        {success ? <>
+          <p>{tokenAmount(claimExperience.amountRaw, claimExperience.stockDecimals, claimExperience.stockSymbol)} arrived in your wallet.</p>
+          <div className="reward-claim-actions">
+            <button className="primary" onClick={() => openXComposer(rewardClaimShareText(claimExperience.amountUsd))}><Share2/>Post on X</button>
+            {claimExperience.signature && <a href={solscanTransactionUrl(claimExperience.signature, config.network)} target="_blank" rel="noreferrer">View transaction <ExternalLink/></a>}
+            <button className="reward-claim-back" onClick={() => setClaimExperience(null)}><ArrowLeft/>Back to rewards</button>
+          </div>
+        </> : <p>Keep this page open. Your wallet will only ask for one approval.</p>}
+      </section>
+    </main>;
   }
 
   return <main className="page rewards-page rewards-vault-page">
@@ -103,8 +176,8 @@ export function Rewards() {
               {market.canClaim ? <><span className="reward-ready-dot"/><span><small>Estimated after costs</small><b>{dollars(market.netClaimableUsdCents)}</b></span></> : <span><small>Claim unlock</small><b>&gt; {dollars(market.minimumClaimUsdCents)} net</b></span>}
             </div>
             <div className="reward-action">
-              {market.canClaim ? <button onClick={() => void claim(market, launch)} disabled={claiming === market.launchId}>{claiming === market.launchId ? <Loader2 className="spin"/> : <>Claim {dollars(market.claimableUsdCents)}</>}</button> : <span>Allocates every {epochMinutes} min</span>}
-              {market.canClaim && <small>{market.claimableEpochIds.length} wallet approval{market.claimableEpochIds.length === 1 ? "" : "s"} · est. {dollars(market.estimatedClaimFeeUsdCents)} costs</small>}
+              {market.canClaim ? <button onClick={() => void claim(market, launch)} disabled={claiming === market.launchId || (market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1)}>{claiming === market.launchId ? <Loader2 className="spin"/> : market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1 ? <>Preparing one claim</> : <>Claim {dollars(market.claimableUsdCents)}</>}</button> : <span>Allocates every {epochMinutes} min</span>}
+              {market.canClaim && <small>{market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1 ? "Consolidation in progress" : `1 wallet approval · est. ${dollars(market.estimatedClaimFeeUsdCents)} costs`}</small>}
             </div>
             {!market.canClaim && <div className="reward-water-progress"><i style={{ width: `${Math.max(6, Math.min(94, market.minimumClaimUsdCents ? market.accumulatingUsdCents / market.minimumClaimUsdCents * 100 : 6))}%` }}/><span/><span/></div>}
           </article>;

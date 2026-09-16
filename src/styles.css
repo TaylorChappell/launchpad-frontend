@@ -4128,6 +4128,24 @@ body::before {
 .rewards-empty > svg { width: 25px; color: #72dfe3; }
 .rewards-empty h2 { margin: 15px 0 0; color: #dff2f3; font: 700 .95rem/1.2 "Manrope", sans-serif; }
 .rewards-empty p { margin: 8px 0 0; color: #68878e; font-size: .73rem; }
+.reward-claim-experience { min-height: 78vh; display: grid; place-items: center; }
+.reward-claim-card { position: relative; z-index: 2; width: min(620px, 100%); min-height: 520px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 58px 48px; overflow: hidden; border: 1px solid rgba(84, 221, 213, .26); border-radius: 32px; background: radial-gradient(circle at 50% -12%, rgba(79, 220, 218, .18), transparent 44%), linear-gradient(145deg, rgba(8, 39, 50, .95), rgba(3, 18, 27, .94)); box-shadow: 0 28px 90px rgba(0, 0, 0, .24); text-align: center; }
+.reward-claim-card::after { content: ""; position: absolute; left: -8%; right: -8%; bottom: -68px; height: 125px; border-radius: 48% 52% 0 0 / 24% 31% 0 0; background: rgba(52, 207, 211, .08); animation: intro-water-bob 6s ease-in-out infinite; }
+.reward-claim-card > * { position: relative; z-index: 1; }
+.reward-claim-icon { width: 82px; height: 82px; display: grid; place-items: center; margin-bottom: 24px; border: 1px solid rgba(125, 236, 233, .28); border-radius: 50%; color: #79ebe5; background: rgba(45, 184, 189, .1); box-shadow: 0 0 0 12px rgba(57, 203, 204, .04), 0 0 46px rgba(57, 203, 204, .12); }
+.reward-claim-card.complete .reward-claim-icon { color: #75f0d6; background: rgba(53, 215, 189, .13); }
+.reward-claim-icon svg { width: 36px; height: 36px; }
+.reward-claim-card > small { color: #6f989f; font: 700 .7rem/1 "Manrope", sans-serif; letter-spacing: .11em; text-transform: uppercase; }
+.reward-claim-card h1 { max-width: 510px; margin: 13px 0 0; font: 760 clamp(1.8rem, 5vw, 3.15rem)/1.08 "Manrope", sans-serif; letter-spacing: -.045em; }
+.reward-claim-amount { margin-top: 18px; color: #8cf2ec; font: 760 clamp(2.4rem, 7vw, 4.5rem)/1 "Manrope", sans-serif; letter-spacing: -.055em; }
+.reward-claim-card p { max-width: 430px; margin: 20px 0 0; color: #77979e; font-size: .82rem; line-height: 1.65; }
+.reward-claim-actions { width: min(390px, 100%); display: grid; gap: 11px; margin-top: 30px; }
+.reward-claim-actions > button,
+.reward-claim-actions > a { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; font: 750 .75rem/1 "Manrope", sans-serif; text-decoration: none; }
+.reward-claim-actions > button svg,
+.reward-claim-actions > a svg { width: 16px; }
+.reward-claim-actions > a { color: #83dfe3; border: 1px solid rgba(116, 216, 222, .18); background: rgba(22, 91, 103, .1); }
+.reward-claim-actions .reward-claim-back { color: #6c8c93; border: 0; background: transparent; }
 
 @keyframes reward-progress-wave {
   0%, 100% { transform: translateX(-1.5%) scaleY(.75); }
@@ -4183,6 +4201,7 @@ body::before {
   .rewards-connect-card { grid-template-columns: 48px 1fr; padding: 21px; }
   .rewards-connect-card > span { width: 46px; height: 46px; }
   .rewards-connect-card > button { grid-column: 1 / -1; }
+  .reward-claim-card { min-height: 500px; padding: 44px 22px; border-radius: 25px; }
   .holder-reward-card { grid-template-columns: 1fr auto; gap: 18px 12px; padding: 18px; }
   .reward-market-identity { grid-column: 1 / -1; }
   .reward-amount { grid-column: 1; }

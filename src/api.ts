@@ -1,4 +1,4 @@
-import type { AdminDiagnostics, AnalyticsResponse, BatchStepValidation, CreatorLock, CreatorLockBalance, CreatorLockTransactionEnvelope, Launch, LaunchConfirmation, LaunchIntentResponse, LaunchRetryResponse, MarketSnapshot, RuntimeConfig, StockOption, Trade, TransactionEnvelope, WalletRewardsResponse } from "./types";
+import type { AdminDiagnostics, AnalyticsResponse, BatchStepValidation, CreatorLock, CreatorLockBalance, CreatorLockTransactionEnvelope, CumulativeRewardClaimConfirmation, CumulativeRewardClaimEnvelope, Launch, LaunchConfirmation, LaunchIntentResponse, LaunchRetryResponse, MarketSnapshot, RuntimeConfig, StockOption, Trade, TransactionEnvelope, WalletRewardsResponse } from "./types";
 
 const DEFAULT_API_URL = "https://launchpad-backend-production-63dc.up.railway.app";
 const cleanUrl = (value: unknown) => typeof value === "string" && /^https?:\/\//i.test(value.trim()) ? value.trim().replace(/\/$/, "") : null;
@@ -39,6 +39,8 @@ export const api = {
   rewards: (wallet: string) => request<WalletRewardsResponse>(`/api/rewards/${encodeURIComponent(wallet)}`),
   rewardClaim: (epochId: string, claimant: string) => request<TransactionEnvelope>(`/api/rewards/${encodeURIComponent(epochId)}/claim-transaction`, json({ claimant })),
   confirmRewardClaim: (epochId: string, claimant: string, signature: string) => request<{ claimed: true; signature: string }>(`/api/rewards/${encodeURIComponent(epochId)}/confirm`, json({ claimant, signature })),
+  cumulativeRewardClaim: (launchId: string, claimant: string) => request<CumulativeRewardClaimEnvelope>(`/api/rewards/markets/${encodeURIComponent(launchId)}/claim-transaction`, json({ claimant })),
+  confirmCumulativeRewardClaim: (launchId: string, claimant: string, signature: string, sequence: string) => request<CumulativeRewardClaimConfirmation>(`/api/rewards/markets/${encodeURIComponent(launchId)}/confirm`, json({ claimant, signature, sequence })),
   creatorFeeQuote: (amountRaw: string, totalSupplyRaw: string, durationSeconds: number) => request<{ feeShareBps: number }>(`/api/creator-fee-quote?amountRaw=${encodeURIComponent(amountRaw)}&totalSupplyRaw=${encodeURIComponent(totalSupplyRaw)}&durationSeconds=${durationSeconds}`),
   creatorLockBalance: (id: string, creator: string) => request<CreatorLockBalance>(`/api/launches/${encodeURIComponent(id)}/creator-lock/balance?creator=${encodeURIComponent(creator)}`),
   creatorLockTransaction: (id: string, creator: string, amountRaw: string, durationSeconds: number) => request<CreatorLockTransactionEnvelope>(`/api/launches/${encodeURIComponent(id)}/creator-lock/transaction`, json({ creator, amountRaw, durationSeconds })),

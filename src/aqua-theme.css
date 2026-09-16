@@ -115,7 +115,7 @@ body::before {
   .activity, .trade-card, .wallet-card, .reward-ledger, .reward-explainer,
   .system-map, .detail-panel, .mode-card, .empty-card, .simple-stats > div,
   .liquidity-flow, .data-badge, .search-modal, .wallet-dropdown,
-  .rewards-connect-card, .rewards-empty, .holder-reward-card,
+  .rewards-connect-card, .rewards-empty, .holder-reward-card, .reward-claim-card,
   .manage-hero, .manage-builder, .manage-quote, .manage-active-lock,
   .manage-gate, .admin-access, .admin-hero, .admin-panel,
   .admin-stat-grid article, .aqua-docs-callout, .aqua-docs-cost-card,
@@ -151,6 +151,12 @@ body::before {
 .analytics-panel td:first-child b,
 .buyback-list div b,
 .buyback-list strong { color: var(--aqua-ink); }
+.reward-claim-card { background: radial-gradient(circle at 50% -12%, rgba(71, 181, 238, .22), transparent 44%), rgba(255, 255, 255, .82) !important; }
+.reward-claim-card > small,
+.reward-claim-card p { color: #5e8197; }
+.reward-claim-amount { color: #1679b8; }
+.reward-claim-actions > a { color: #176fae; border-color: var(--line); background: rgba(211, 238, 253, .55); }
+.reward-claim-actions .reward-claim-back { color: #547a94; }
 
 .token-card.featured,
 .token-card:hover,

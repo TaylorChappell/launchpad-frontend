@@ -46,6 +46,7 @@ export type RuntimeConfig = {
     claimFeePerEpochLamports: number;
     swapSlippageBps: number;
     claimableOnchain: boolean;
+    cumulativeClaims?: boolean;
   };
   creatorLocks: { minimumSeconds: number; maximumSeconds: number; maximumFeeShareBps: number; targetSupplyBps?: number; initialLiquidityExcluded?: boolean };
   sniperDefense: { supported: false; reason: string };
@@ -262,6 +263,8 @@ export type WalletRewardHolding = {
 export type WalletRewardMarket = {
   launchId: string;
   balanceRaw: string;
+  claimMode?: "legacy" | "cumulative";
+  claimSequence?: string | null;
   claimableEpochIds: string[];
   grossRedeemableUsdCents: number;
   pendingUsdCents: number;
@@ -285,6 +288,24 @@ export type TransactionEnvelope = {
   transactionVersion: "legacy" | 0;
   recentBlockhash?: string;
   lastValidBlockHeight: number;
+};
+
+export type CumulativeRewardClaimEnvelope = TransactionEnvelope & {
+  sequence: string;
+  amountRaw: string;
+  stockSymbol: string;
+  stockMint: string;
+  stockDecimals: number;
+};
+
+export type CumulativeRewardClaimConfirmation = {
+  claimed: true;
+  signature: string;
+  sequence: string;
+  amountRaw: string;
+  stockSymbol: string;
+  stockMint: string;
+  stockDecimals: number;
 };
 
 export type LaunchBatchEnvelope = TransactionEnvelope & { step: "pool" | "liquidity" | "lock" };
