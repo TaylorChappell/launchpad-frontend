@@ -34,6 +34,7 @@ export function Token() {
   const [snapshots, setSnapshots] = useState<MarketSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [side, setSide] = useState<"buy" | "sell">("buy");
+  const [buyCurrency, setBuyCurrency] = useState<"SOL" | "PAIR">("SOL");
   const [amount, setAmount] = useState("1");
   const [busy, setBusy] = useState(false);
 
@@ -60,6 +61,10 @@ export function Token() {
   const activeLaunch = launch;
   const stockDecimals = stock?.decimals ?? 6;
   const pairDecimals = launch.pairType === "sol" ? 9 : stockDecimals;
+  const solRoutingAvailable = launch.pairType === "sol" || Boolean(config.solBuyRouting?.enabled);
+  const routedSolBuy = side === "buy" && launch.pairType !== "sol" && solRoutingAvailable && buyCurrency === "SOL";
+  const buyInputDecimals = routedSolBuy ? 9 : pairDecimals;
+  const buyInputSymbol = routedSolBuy ? "SOL" : launch.pairSymbol;
   const explorerUrl = `https://explorer.solana.com/address/${launch.whirlpoolAddress || launch.mint}${config.network === "devnet" ? "?cluster=devnet" : ""}`;
   const lockedPercent = creatorLock?.status === "active" && BigInt(creatorLock.totalSupplyRaw || "0") > 0n
     ? Number(BigInt(creatorLock.amountRaw) * 1_000_000n / BigInt(creatorLock.totalSupplyRaw)) / 10_000
@@ -74,9 +79,9 @@ export function Token() {
     if (!canTrade) return;
     setBusy(true);
     try {
-      const amountRaw = decimalToRaw(amount, side === "buy" ? pairDecimals : activeLaunch.tokenDecimals);
+      const amountRaw = decimalToRaw(amount, side === "buy" ? buyInputDecimals : activeLaunch.tokenDecimals);
       if (BigInt(amountRaw) <= 0n) throw new Error("Enter an amount greater than zero.");
-      const transaction = await api.tradeTransaction(activeLaunch.id, { trader: wallet.address, side, amountRaw, slippageBps: 150 });
+      const transaction = await api.tradeTransaction(activeLaunch.id, { trader: wallet.address, side, buyCurrency: routedSolBuy ? "SOL" : "PAIR", amountRaw, slippageBps: 150 });
       const signature = await wallet.sendTransaction(transaction);
       toast.success(`Trade confirmed · ${signature.slice(0, 7)}…${signature.slice(-6)}`);
     } catch (error) {
@@ -121,8 +126,9 @@ export function Token() {
 
     <aside className="trade-card">
       <div className="trade-tabs"><button className={side === "buy" ? "active" : ""} onClick={() => setSide("buy")}>Buy</button><button className={side === "sell" ? "active" : ""} onClick={() => setSide("sell")}>Sell</button></div>
-      <label>You pay</label><div className="trade-input"><input value={amount} inputMode="decimal" onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))}/><b>{side === "buy" ? launch.pairSymbol : launch.symbol}</b></div>
-      <TradeRow label="Execution" value="Orca Whirlpool" strong/><TradeRow label="Transfer fee" value={`${(launch.transferFeeBps / 100).toFixed(2)}%`}/><TradeRow label="Holder reward" value={`${(config.fees.stockRewardsBps / 100).toFixed(2)}% to ${launch.stockSymbol}`} accent/><TradeRow label="Slippage" value="1.50%"/>
+      {side === "buy" && launch.pairType !== "sol" && <div className="trade-pay-route"><span>Pay with</span><div><button className={buyCurrency === "SOL" ? "active" : ""} disabled={!solRoutingAvailable} onClick={() => setBuyCurrency("SOL")}>SOL</button><button className={buyCurrency === "PAIR" ? "active" : ""} onClick={() => setBuyCurrency("PAIR")}>{launch.pairSymbol}</button></div></div>}
+      <label>You pay</label><div className="trade-input"><input value={amount} inputMode="decimal" onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))}/><b>{side === "buy" ? buyInputSymbol : launch.symbol}</b></div>
+      <TradeRow label="Execution" value={routedSolBuy ? "Jupiter → Orca Whirlpool" : "Orca Whirlpool"} strong/><TradeRow label="Transfer fee" value={`${(launch.transferFeeBps / 100).toFixed(2)}%`}/><TradeRow label="Holder reward" value={`${(config.fees.stockRewardsBps / 100).toFixed(2)}% to ${launch.stockSymbol}`} accent/><TradeRow label="Slippage" value="1.50%"/>
       <button className="primary full" disabled={!Number(amount) || busy || (!canTrade && Boolean(wallet.address))} onClick={() => void trade()}>{busy ? <><Loader2 className="spin"/>Confirming</> : !wallet.address ? "Connect wallet" : !canTrade ? "Trading unavailable" : side === "buy" ? `Buy ${launch.symbol}` : `Sell ${launch.symbol}`}</button>
       {!canTrade && <div className="locked"><ShieldAlert/><span><b>{launch.status !== "live" ? "Market is launching" : "Transactions disabled"}</b>{launch.status !== "live" ? "Trading opens after every launch transaction confirms." : "The backend is not currently issuing transactions."}</span></div>}
       <div className="creator"><span>Creator</span><b>{launch.creatorWallet}</b><span>Developer buy</span><b>{launch.pairType === "sol" ? launch.devBuySol > 0 ? `${launch.devBuySol} SOL` : "None" : BigInt(launch.devBuyStockRaw || "0") > 0n ? `${formatRaw(launch.devBuyStockRaw, stockDecimals)} ${launch.stockSymbol}` : "None"}</b><span>Holders</span><b><Users/> {compact.format(launch.holderCount)}</b></div>

@@ -6659,3 +6659,12 @@ body::before {
     justify-content: center;
   }
 }
+
+
+/* Routed SOL buys */
+.trade-pay-route { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -8px 0 17px; padding: 9px 10px 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: rgba(5, 24, 32, .72); }
+.trade-pay-route > span { color: #78949a; font-size: .69rem; }
+.trade-pay-route > div { display: flex; gap: 4px; }
+.trade-pay-route button { min-width: 54px; padding: 7px 10px; border: 1px solid transparent; border-radius: 6px; color: #78949a; background: transparent; font: 700 .66rem "Manrope", sans-serif; }
+.trade-pay-route button.active { border-color: rgba(100, 221, 225, .2); color: #d9f5f5; background: #0f2c36; }
+.trade-pay-route button:disabled { cursor: not-allowed; opacity: .4; }

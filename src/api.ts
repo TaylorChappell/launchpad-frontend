@@ -49,7 +49,7 @@ export const api = {
   confirmLaunch: (id: string, signature: string) => request<LaunchConfirmation>(`/api/launches/${encodeURIComponent(id)}/confirm`, json({ signature })),
   validateBatchStep: (id: string, step: "pool" | "liquidity" | "lock", signedTransactionBase64: string) => request<BatchStepValidation>(`/api/launches/${encodeURIComponent(id)}/validate-batch-step`, json({ step, signedTransactionBase64 })),
   devBuyTransaction: (id: string, body: { trader: string; amountRaw: string; slippageBps: number }) => request<TransactionEnvelope>(`/api/launches/${encodeURIComponent(id)}/dev-buy-transaction`, json(body)),
-  tradeTransaction: (id: string, body: { trader: string; side: "buy" | "sell"; amountRaw: string; slippageBps: number }) => request<TransactionEnvelope>(`/api/launches/${encodeURIComponent(id)}/trade-transaction`, json(body)),
+  tradeTransaction: (id: string, body: { trader: string; side: "buy" | "sell"; buyCurrency?: "PAIR" | "SOL"; amountRaw: string; slippageBps: number }) => request<TransactionEnvelope & { route?: "orca" | "jupiter"; inputSymbol?: string; outputSymbol?: string }>(`/api/launches/${encodeURIComponent(id)}/trade-transaction`, json(body)),
   adminChallenge: (wallet: string) => request<{ challenge: string; message: string; expiresAt: number }>(`/api/admin/challenge?wallet=${encodeURIComponent(wallet)}`),
   adminSession: (body: { wallet: string; challenge: string; message: string; signature: string }) => request<{ token: string; expiresAt: number }>("/api/admin/session", json(body)),
   adminDiagnostics: (token: string) => request<AdminDiagnostics>("/api/admin/diagnostics", { headers: { Authorization: `Bearer ${token}` } }),

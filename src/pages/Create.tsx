@@ -26,7 +26,7 @@ type PendingAction = { launchId: string; stage: ChainStage; envelope?: Transacti
 const empty: Form = { name: "", symbol: "", description: "", xUrl: "", websiteUrl: "", telegramUrl: "", devBuyCurrency: "SOL", launchAmount: "" };
 const wizardSteps = [
   { label: "Coin", short: "Name and artwork" },
-  { label: "Pair & rewards", short: "Choose SOL or an xStock" },
+  { label: "Pair & rewards", short: "Choose SOL, ORCA, or an xStock" },
   { label: "Dev buy", short: "Optional first buy" },
 ] as const;
 const chainSteps: Array<{ key: ProgressKey; label: string; detail: string }> = [
@@ -422,11 +422,11 @@ export function Create() {
           </div></section>
         </WizardSection>}
 
-        {step === 1 && <WizardSection title="Choose the pair and reward" description="Launch against SOL or one supported xStock. Holders earn the same asset you choose.">
-          <div className="stock-search"><Search size={17}/><input value={stockQuery} placeholder="Search SOL or stocks" onChange={(event) => { setStockQuery(event.target.value); setVisibleStocks(10); }}/><span>{stocks.length} assets</span></div>
+        {step === 1 && <WizardSection title="Choose the pair and reward" description="Launch against SOL, official ORCA, or one supported xStock. Holders earn the same asset you choose.">
+          <div className="stock-search"><Search size={17}/><input value={stockQuery} placeholder="Search SOL, ORCA, or stocks" onChange={(event) => { setStockQuery(event.target.value); setVisibleStocks(10); }}/><span>{stocks.length} assets</span></div>
           {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Loading stocks</span></div> : stockError ? <div className="stock-error"><Info/><span>{stockError}</span><button onClick={() => void loadStocks()}><RefreshCw size={14}/> Retry</button></div> : <>
             <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { setStock(item); setAcknowledged(false); }}>
-              <StockLogo stock={item}/><div><b>{item.symbol}</b><small>{item.name}</small></div><span className="stock-market-depth">{item.symbol === "SOL" ? <><b>Native pair</b><small>SOL rewards</small></> : <><b>${compactNumber.format(item.orcaTvlUsd)} TVL</b><small>${compactNumber.format(item.orcaVolume24hUsd)} 24h</small></>}</span><i>{stock?.mint === item.mint && <Check size={14}/>}</i>
+              <StockLogo stock={item}/><div><b>{item.symbol}</b><small>{item.name}</small></div><span className="stock-market-depth">{item.symbol === "SOL" ? <><b>Native pair</b><small>SOL rewards</small></> : item.symbol === "ORCA" ? <><b>Official ORCA</b><small>ORCA rewards</small></> : <><b>${compactNumber.format(item.orcaTvlUsd)} TVL</b><small>${compactNumber.format(item.orcaVolume24hUsd)} 24h</small></>}</span><i>{stock?.mint === item.mint && <Check size={14}/>}</i>
             </button>)}</div>
             {filteredStocks.length === 0 && <div className="no-stock-results">No stocks match “{stockQuery}”.</div>}
             {filteredStocks.length < stockResultsCount && <button className="stock-more" onClick={() => setVisibleStocks((value) => value + 20)}>Show more</button>}

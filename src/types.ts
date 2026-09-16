@@ -9,7 +9,8 @@ export type RuntimeConfig = {
   programInitialized?: boolean;
   transactionsEnabled: boolean;
   transactionsDisabledReason?: string | null;
-  whirlpools: { programId: string; config: string; tickSpacing: number; pair: string; supportedPairs?: Array<"SOL" | "STOCK">; liquidityLock: "permanent" };
+  whirlpools: { programId: string; config: string; tickSpacing: number; pair: string; supportedPairs?: Array<"SOL" | "ORCA" | "STOCK">; liquidityLock: "permanent" };
+  solBuyRouting?: { enabled: boolean; provider: "Jupiter"; directPairFallback: boolean };
   stockEligibility?: { minOrcaTvlUsd: number; minOrcaVolume24hUsd: number; requiresLivePool: boolean };
   launchEconomics?: {
     tokenSupply: string;
