@@ -40,6 +40,8 @@ export const api = {
   governance: (wallet?: string | null) => request<GovernanceResponse>(`/api/governance${wallet ? `?wallet=${encodeURIComponent(wallet)}` : ""}`),
   governanceVoteChallenge: (wallet: string, targetMint: string) => request<{ challenge: string; message: string; expiresAt: number; market: GovernanceMarket }>("/api/governance/vote-challenge", json({ wallet, targetMint })),
   governanceVote: (body: { wallet: string; targetMint: string; challenge: string; message: string; signature: string }) => request<GovernanceResponse>("/api/governance/vote", json(body)),
+  developerChallenge: (wallet: string, name: string) => request<{ challenge: string; message: string; expiresAt: number }>("/v1/developer/challenge", json({ wallet, name })),
+  createDeveloperKey: (body: { wallet: string; name: string; challenge: string; message: string; signature: string }) => request<{ id: string; key: string; prefix: string; tier: string; rateLimitPerMinute: number; notice: string }>("/v1/developer/keys", json(body)),
   rewardClaim: (epochId: string, claimant: string) => request<TransactionEnvelope>(`/api/rewards/${encodeURIComponent(epochId)}/claim-transaction`, json({ claimant })),
   confirmRewardClaim: (epochId: string, claimant: string, signature: string) => request<{ claimed: true; signature: string }>(`/api/rewards/${encodeURIComponent(epochId)}/confirm`, json({ claimant, signature })),
   cumulativeRewardClaim: (launchId: string, claimant: string) => request<CumulativeRewardClaimEnvelope>(`/api/rewards/markets/${encodeURIComponent(launchId)}/claim-transaction`, json({ claimant })),

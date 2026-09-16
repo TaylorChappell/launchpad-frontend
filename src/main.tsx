@@ -6,4 +6,5 @@ import { RuntimeProvider, WalletProvider } from "./context";
 import "./styles.css";
 import "./polish.css";
 import "./aqua-theme.css";
+import "./developer.css";
 createRoot(document.getElementById("root")!).render(<StrictMode><RuntimeProvider><WalletProvider><App/><Toaster theme="light" richColors/></WalletProvider></RuntimeProvider></StrictMode>);
