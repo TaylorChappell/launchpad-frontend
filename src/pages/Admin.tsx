@@ -105,7 +105,7 @@ export function Admin() {
 function SubmittedProposalDetails({ proposal }: { proposal: MarketProposal }) {
   const profile = proposal.payload.dexDetails;
   const values = { ...proposal.payload, ...(profile && typeof profile === "object" ? profile : {}) };
-  const labels: Record<string, string> = { reason: "Reason", description: "Profile description", bannerUrl: "Banner", websiteUrl: "Website", xUrl: "X", telegramUrl: "Telegram", communityLead: "Proposed lead", developerWallet: "New developer wallet", plan: "Transition plan", evidenceUrl: "Public evidence" };
+  const labels: Record<string, string> = { reason: "Reason", description: "Profile description", bannerUrl: "Banner", websiteUrl: "Website", xUrl: "X", telegramUrl: "Telegram", communityLead: "Proposed lead", communityTakeoverWallet: "Community takeover wallet", developerWallet: "Community takeover wallet", plan: "Transition plan", evidenceUrl: "Public evidence" };
   const fields = Object.entries(values).filter(([key, value]) => labels[key] && typeof value === "string" && value);
   return <details className="admin-submitted-details"><summary>Submitted details</summary><dl>{fields.map(([key, value]) => <div key={key}><dt>{labels[key]}</dt><dd>{/^https?:\/\//i.test(String(value)) ? <a href={String(value)} target="_blank" rel="noreferrer">{String(value)}<ExternalLink/></a> : String(value)}</dd></div>)}</dl>{proposal.type === "dex_payment" && !proposal.payload.detailsSubmittedAt && <p>Waiting for the creator’s profile.</p>}</details>;
 }
