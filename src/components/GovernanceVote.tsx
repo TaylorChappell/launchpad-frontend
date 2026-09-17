@@ -118,7 +118,7 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
   const marketButtonLabel = ineligible ? "HOLD 0.1% AQUA" : alreadySelected ? "BOOSTED" : selected ? "CHANGE BOOST" : "BOOST";
 
   if (compact && market) return <section data-governance="weekly-market-vote" className="market-boost-strip">
-    <div className="market-boost-copy"><AquaVoteArt small/><span><small>WEEKLY AQUA BOOST</small><b>Back this market</b></span><em><Clock3/> {timeLeft(data.round.endsAt, now)}</em></div>
+    <div className="market-boost-copy"><AquaVoteArt small/><span><small>FRIDAY AQUA BOOST</small><b>Back this market</b></span><em><Clock3/> {timeLeft(data.round.endsAt, now)}</em></div>
     <button className={alreadySelected ? "active" : ""} disabled={Boolean(busyMint) || alreadySelected || ineligible} onClick={() => void castVote(market)}>
       {busyMint ? <Loader2 className="spin"/> : alreadySelected ? <Check/> : null}{marketButtonLabel}
     </button>
@@ -128,7 +128,7 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
     <section data-governance="weekly-market-vote" className={`governance-hub ${selected ? "has-vote" : ""}`}>
       <div className="governance-compact-callout">
         <AquaVoteArt/>
-        <div className="governance-compact-copy"><small>WEEKLY AQUA BOOST</small><h2>VOTE FOR THE NEXT BOOSTED MARKET</h2><p>One market receives 10% of AQUA platform fees for 24 hours.</p></div>
+        <div className="governance-compact-copy"><small>FRIDAY AQUA BOOST</small><h2>VOTE FOR THE NEXT BOOSTED MARKET</h2><p>Voting closes Friday. The winner receives 10% of AQUA platform fees for 24 hours.</p></div>
         <span className="governance-compact-time"><Clock3/> {timeLeft(data.round.endsAt, now)}</span>
         {selected && <span className="governance-current-vote"><Check/> ${selected.symbol}</span>}
         <button className="governance-open-vote" onClick={() => setSelectorOpen(true)}>{selected ? "CHANGE" : "VOTE"}<ChevronRight/></button>
@@ -149,7 +149,7 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
     {selectorOpen && createPortal(<div className="governance-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelectorOpen(false); }}>
       <section className="governance-dialog vote-picker" role="dialog" aria-modal="true" aria-labelledby="vote-picker-title">
         <button className="governance-dialog-close" onClick={() => setSelectorOpen(false)} aria-label="Close"><X/></button>
-        <header><AquaVoteArt/><div><small>WEEKLY AQUA BOOST</small><h2 id="vote-picker-title">Choose a market</h2><p>Search by coin, ticker, reward stock, or contract address.</p></div></header>
+        <header><AquaVoteArt/><div><small>FRIDAY AQUA BOOST</small><h2 id="vote-picker-title">Choose a market</h2><p>Search by coin, ticker, reward stock, or contract address.</p></div></header>
         <label className="governance-search"><Search/><input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search markets or paste a CA"/></label>
         {ineligible && <div className="governance-eligibility-note">This wallet needs at least 0.1% of AQUA to vote.</div>}
         <div className="governance-suggestions-title"><b>{query.trim() ? "SEARCH RESULTS" : "SUGGESTED MARKETS"}</b><span>{candidates.length} shown</span></div>
@@ -167,7 +167,7 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
     {leaderboardOpen && createPortal(<div className="governance-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setLeaderboardOpen(false); }}>
       <section className="governance-dialog leaderboard" role="dialog" aria-modal="true" aria-labelledby="leaderboard-title">
         <button className="governance-dialog-close" onClick={() => setLeaderboardOpen(false)} aria-label="Close"><X/></button>
-        <header><span className="leaderboard-trophy"><Trophy/></span><div><small>LIVE WEEKLY RANKING</small><h2 id="leaderboard-title">Boost leaderboard</h2><p>Rankings update as eligible AQUA holders change their vote.</p></div></header>
+        <header><span className="leaderboard-trophy"><Trophy/></span><div><small>LIVE FRIDAY RANKING</small><h2 id="leaderboard-title">Boost leaderboard</h2><p>Rankings update as eligible AQUA holders change their vote.</p></div></header>
         <div className="governance-leaderboard-head"><span>MARKET</span><span>VOTERS</span><span>AQUA WEIGHT</span></div>
         <div className="governance-leaderboard-list">
           {data.leaders.map((leader) => <div key={leader.launchId} className={`${leader.rank === 1 ? "winner" : ""} ${selected?.mint === leader.mint ? "your-pick" : ""}`}><b className="governance-rank">{leader.rank}</b><MarketMark market={leader} launch={launchByMint.get(leader.mint)}/><span><strong>{leader.name}</strong><small>${leader.symbol} · {modeLabel(leader.rewardMode)}</small></span><em>{leader.voters}</em><b className="governance-leader-score">{tokenAmount(leader.votingPowerRaw, data.decimals)}</b></div>)}

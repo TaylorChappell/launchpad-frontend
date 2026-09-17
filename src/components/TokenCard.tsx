@@ -38,17 +38,18 @@ function marketCapTone(value: number) {
   return "cap-normal";
 }
 
-export function TokenCard({ launch, featured = false }: { launch: Launch; sample?: boolean; featured?: boolean }) {
+export function TokenCard({ launch, featured = false, boosted = false }: { launch: Launch; sample?: boolean; featured?: boolean; boosted?: boolean }) {
   const { config } = useRuntime();
   const indexed = launch.aquaIndexed;
   const creatorLock = activeCreatorLock(launch.creatorLock);
   const creatorLockUrl = creatorLock ? solscanAccountUrl(creatorLock.vaultTokenAccount, config.network) : null;
   const rewardMode = launch.rewardMode ?? "holder_rewards";
-  return <article className={"token-card " + (featured ? "featured" : "")}>
+  return <article className={`token-card ${featured ? "featured" : ""} ${boosted ? "boosted" : ""}`}>
     <Link className="token-card-link" to={"/token/" + launch.id}>
     <div className="token-head">
       <TokenMark launch={launch}/>
       <div><div className="token-title"><b>{launch.name}</b><span>{"$" + launch.symbol} / {launch.pairSymbol}</span></div><div className="token-pair"><AssetMark launch={launch}/>{launch.pairSymbol} market</div></div>
+      {boosted && <span className="boosted-market-badge"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 2.1 4.7L17 8.5l-3.7 3.3.9 5L10 14.2l-4.2 2.6.9-5L3 8.5l4.9-1.8L10 2Z"/></svg>Boosted</span>}
       <ArrowUpRight className="card-arrow" size={17}/>
     </div>
     {rewardMode === "holder_rewards" ? <div className="reward-card-focus"><span><RewardModeIcon mode="holder_rewards"/>HOLDER REWARD</span><strong>Earn {launch.stockSymbol}</strong><small>{"$" + compact.format(launch.rewardAccumulatedUsd)} accumulated · {"$" + compact.format(launch.rewardRedeemableUsd)} redeemable</small></div>

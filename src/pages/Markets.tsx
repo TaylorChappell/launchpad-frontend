@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Database } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
-import type { Launch } from "../types";
+import type { GovernanceResponse, Launch } from "../types";
 import { TokenCard } from "../components/TokenCard";
 import { PageBubbles } from "../components/PageBubbles";
 import { AquaMark } from "../components/AquaMark";
@@ -21,6 +21,7 @@ const modeFilters: Array<{ value: ModeFilter; label: string }> = [
 
 export function Markets() {
   const [launches, setLaunches] = useState<Launch[]>([]);
+  const [governance, setGovernance] = useState<Extract<GovernanceResponse, { enabled: true }> | null>(null);
   const [state, setState] = useState<DataState>("loading");
   const [modeFilter, setModeFilter] = useState<ModeFilter>("all");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -29,10 +30,14 @@ export function Markets() {
     let active = true;
 
     const refresh = async () => {
-      const data = await api.launches();
+      const [data, vote] = await Promise.all([
+        api.launches(),
+        api.governance().catch(() => null),
+      ]);
       if (!active) return;
       const liveLaunches = data.launches.filter((launch) => launch.status === "live");
       setLaunches(liveLaunches);
+      setGovernance(vote?.enabled ? vote : null);
       setState(liveLaunches.length ? "live" : "empty");
     };
 
@@ -47,10 +52,14 @@ export function Markets() {
     };
   }, []);
 
-  const filtered = useMemo(() => launches
-    .filter((launch) => modeFilter === "all" || launch.rewardMode === modeFilter)
-    .slice()
-    .sort((a, b) => Number(b.volume24hUsd || 0) - Number(a.volume24hUsd || 0)), [launches, modeFilter]);
+  const boostedMint = governance?.activeBonus?.mint ?? null;
+  const filtered = useMemo(() => {
+    const priority = (launch: Launch) => launch.mint === governance?.governanceMint ? 0 : launch.mint === boostedMint ? 1 : 2;
+    return launches
+      .filter((launch) => modeFilter === "all" || launch.rewardMode === modeFilter)
+      .slice()
+      .sort((a, b) => priority(a) - priority(b) || Number(b.volume24hUsd || 0) - Number(a.volume24hUsd || 0));
+  }, [boostedMint, governance?.governanceMint, launches, modeFilter]);
   const visible = filtered.slice(0, visibleCount);
 
   useEffect(() => setVisibleCount(PAGE_SIZE), [modeFilter]);
@@ -78,7 +87,7 @@ export function Markets() {
         {modeFilters.map((filter) => <button key={filter.value} className={`${filter.value} ${modeFilter === filter.value ? "active" : ""}`} onClick={() => setModeFilter(filter.value)}>{filter.value !== "all" && <RewardModeIcon mode={filter.value}/>}<span>{filter.label}</span><small>{filter.value === "all" ? launches.length : launches.filter((launch) => launch.rewardMode === filter.value).length}</small></button>)}
       </div>
 
-      {state === "loading" ? <div className="market-skeletons markets-list-top">{[0,1,2].map(i => <div key={i}/>)}</div> : <div className="token-grid markets-list-top">{visible.map((launch, index) => <TokenCard key={launch.id} launch={launch} featured={index === 0}/>)}</div>}
+      {state === "loading" ? <div className="market-skeletons markets-list-top">{[0,1,2].map(i => <div key={i}/>)}</div> : <div className="token-grid markets-list-top">{visible.map((launch) => <TokenCard key={launch.id} launch={launch} featured={launch.mint === governance?.governanceMint} boosted={launch.mint === boostedMint}/>)}</div>}
       {state !== "loading" && !filtered.length && <div className="empty-state markets-list-top"><Database/><h3>{state === "offline" ? "Markets unavailable" : "Fresh markets are on the way"}</h3><p>{state === "offline" ? "AQUA could not reach the market index. Try again shortly." : "New launches appear here after their market data starts indexing."}</p></div>}
       {visible.length < filtered.length && <button className="markets-load-more" onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}>Load more markets <span>{visible.length} of {filtered.length}</span></button>}
     </section>
