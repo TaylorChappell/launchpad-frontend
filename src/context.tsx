@@ -30,6 +30,7 @@ const fallback: RuntimeConfig = {
   programId: null,
   programInitialized: false,
   transactionsEnabled: false,
+  marketGovernanceEnabled: false,
   transactionsDisabledReason: "AQUA launch transactions are not configured.",
   whirlpools: { programId: "", config: "", tickSpacing: 64, pair: "tokenized stock", liquidityLock: "permanent" },
   fees: { transferFeeBps: 200, platformBps: 100, stockRewardsBps: 100, universal: true },

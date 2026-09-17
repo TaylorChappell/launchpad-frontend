@@ -8,6 +8,7 @@ export type RuntimeConfig = {
   adminWallet?: string;
   programInitialized?: boolean;
   transactionsEnabled: boolean;
+  marketGovernanceEnabled: boolean;
   transactionsDisabledReason?: string | null;
   whirlpools: { programId: string; config: string; tickSpacing: number; pair: string; supportedPairs?: Array<"SOL" | "ORCA" | "STOCK">; liquidityLock: "permanent" };
   solBuyRouting?: { enabled: boolean; provider: "Jupiter"; directPairFallback: boolean };
@@ -272,7 +273,23 @@ export type RewardModeState = {
     entropySlot: number | null;
     entropyBlockhash: string | null;
     transactionSignature: string | null;
-    winners: Array<{ place: number; wallet: string; prizeBps: number; amountRaw: string }>;
+    winners: Array<{
+      place: number;
+      wallet: string;
+      prizeBps: number;
+      amountRaw: string;
+      claimed: boolean;
+      claimedSignature: string | null;
+      claimedAt: number | null;
+    }>;
+    }>;
+    allTimeWinners: Array<{
+      wallet: string;
+      totalAmountRaw: string;
+      wins: number;
+      claimedWins: number;
+      unclaimedWins: number;
+      latestWinAt: number;
     }>;
   };
   buybackBurn: { totalSol: number; totalTokenRaw: string; lastBurnAt: number | null };
