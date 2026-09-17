@@ -9,6 +9,7 @@ export type RuntimeConfig = {
   programInitialized?: boolean;
   transactionsEnabled: boolean;
   marketGovernanceEnabled: boolean;
+  proposalTestingMode?: boolean;
   transactionsDisabledReason?: string | null;
   whirlpools: { programId: string; config: string; tickSpacing: number; pair: string; supportedPairs?: Array<"SOL" | "ORCA" | "STOCK">; liquidityLock: "permanent" };
   solBuyRouting?: { enabled: boolean; provider: "Jupiter"; directPairFallback: boolean };
@@ -138,6 +139,7 @@ export type MarketProposal = {
 
 export type MarketGovernanceResponse = {
   enabled: boolean;
+  testingMode: boolean;
   disabledReason: string | null;
   dexPaid: boolean;
   dexCheckedAt: number;
@@ -201,6 +203,7 @@ export type Launch = {
   pairMint: string;
   tradingPair: { type: "sol" | "stock"; symbol: string; mint: string };
   rewardMode: "holder_rewards" | "buyback_burn" | "jackpot";
+  dexPaid?: boolean;
   marketPolicyAddress?: string | null;
   pairVerified?: boolean;
   pairVerifiedAt?: number | null;

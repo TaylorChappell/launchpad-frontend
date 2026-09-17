@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, ArrowRight, Check, ChevronDown, ExternalLink, Loader2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, ExternalLink, ImagePlus, Loader2, X } from "lucide-react";
 import { PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
 import { api } from "../api";
@@ -114,8 +114,8 @@ export function MarketProposals() {
     document.addEventListener("mousedown", outside); document.addEventListener("keydown", escape);
     return () => { document.removeEventListener("mousedown", outside); document.removeEventListener("keydown", escape); };
   }, []);
-  const unlocked = Boolean(data?.proposalsOpenAt && now >= data.proposalsOpenAt);
-  const eligible = Boolean(data?.enabled && wallet.address && data.createPower?.eligible && unlocked);
+  const unlocked = Boolean(data?.testingMode || (data?.proposalsOpenAt && now >= data.proposalsOpenAt));
+  const eligible = Boolean(data?.enabled && wallet.address && (data.testingMode || data.createPower?.eligible) && unlocked);
   const hint = !data ? error || "Checking proposal eligibility…" : !data.enabled ? data.disabledReason ?? "Unavailable."
     : !wallet.address ? "Connect a wallet. Creating a proposal requires 0.50% of " + launch.symbol + "."
     : !unlocked ? "Proposals unlock in " + countdown(data.proposalsOpenAt ?? now, now) + ", 15 minutes after launch."
@@ -144,7 +144,7 @@ function ProposalCard({ proposal, compact = false }: { proposal: MarketProposal;
   const yes = BigInt(proposal.yesPowerRaw || "0"), no = BigInt(proposal.noPowerRaw || "0"), total = yes + no;
   const percent = total ? Number(yes * 10_000n / total) / 100 : 0;
   const voting = proposal.status === "voting" && now >= proposal.startsAt && now < proposal.endsAt;
-  const canVote = voting && Boolean(wallet.address && data.votePower?.eligible) && !busy;
+  const canVote = voting && Boolean(wallet.address && (data.testingMode || data.votePower?.eligible)) && !busy;
   const creator = wallet.address === data.creatorWallet;
   const detailsSubmitted = Boolean(proposal.payload.detailsSubmittedAt);
   const canSubmitDetails = creator && proposal.type === "dex_payment" && ["voting", "funding", "ready"].includes(proposal.status) && !detailsSubmitted && Boolean(proposal.detailsDeadlineAt && now <= proposal.detailsDeadlineAt);
@@ -163,14 +163,14 @@ function ProposalCard({ proposal, compact = false }: { proposal: MarketProposal;
       <div className="proposal-tally"><span>Yes <b>{Math.round(percent)}%</b></span><span>No <b>{total ? 100 - Math.round(percent) : 0}%</b></span></div>
       <div className={"proposal-water-votes " + (total ? "" : "empty")}><i style={{ width: percent + "%" }}/></div>
       <div className="proposal-vote-buttons">{(["yes", "no"] as const).map((choice) => <button key={choice} className={choice + (data.votes[proposal.id] === choice ? " chosen" : "")} disabled={!canVote || data.votes[proposal.id] === choice} onClick={() => void vote(proposal, choice)}>{busy ? <Loader2 className="spin"/> : data.votes[proposal.id] === choice ? <Check/> : null}{choice === "yes" ? "Yes" : "No"}</button>)}</div>
-      {(!wallet.address || !data.votePower?.eligible) && <p className="proposal-eligibility">{voteHint}</p>}
+      {(!wallet.address || (!data.testingMode && !data.votePower?.eligible)) && <p className="proposal-eligibility">{voteHint}</p>}
       <details className="proposal-vote-rules"><summary>How this vote passes</summary><p>{proposal.type === "cto" ? "24-hour vote. Requires 20% of supply in eligible voting power and two-thirds approval. An early result needs 25% of supply on one side, 80% of votes and at least 3 eligible voters after 15 minutes." : "15-minute vote. Requires 5% of supply in eligible voting power and 60% approval. An early result needs 10% of supply on one side, 75% of votes and at least 3 eligible voters after 3 minutes."}</p></details>
     </>}
     {proposal.type === "dex_payment" && ["funding", "ready", "withdrawing", "withdrawn", "completed"].includes(proposal.status) && <div className="proposal-funded"><div><span>Profile funding</span><b>${proposal.fundedUsd.toFixed(2)} / ${proposal.targetUsd.toFixed(0)}</b></div><progress value={proposal.fundedUsd} max={proposal.targetUsd}/></div>}
     {canSubmitDetails && <button className="proposal-creator-action" disabled={busy} onClick={() => open({ kind: "details", proposal })}><DexScreenerIcon/>Submit DEX details <ArrowRight/></button>}
     {proposal.type === "dex_payment" && !detailsSubmitted && ["voting", "funding", "ready"].includes(proposal.status) && <p className="proposal-detail-note">{creator ? "Only you can submit the profile." : "Waiting for the creator’s DEX profile."}{proposal.detailsDeadlineAt && <> Due in {countdown(proposal.detailsDeadlineAt, now)}.</>}</p>}
     {["rejected", "cancelled"].includes(proposal.status) && <p className="proposal-detail-note">{proposal.outcome === "no_quorum" ? "The vote did not reach the required participation." : proposal.outcome === "details_expired" ? "The creator did not submit profile details before the deadline." : proposal.outcome === "paid_externally" ? "This profile was paid for externally." : proposal.status === "rejected" ? "Holders did not approve this proposal." : "This proposal was cancelled."}</p>}
-    {["funding", "approved", "ready"].includes(proposal.status) && data.votePower?.eligible && <button className="proposal-text-action" disabled={busy} onClick={() => open({ kind: "challenge", proposal })}>Challenge this proposal{proposal.openChallenges ? " (" + proposal.openChallenges + " open)" : ""}</button>}
+    {["funding", "approved", "ready"].includes(proposal.status) && (data.testingMode || data.votePower?.eligible) && <button className="proposal-text-action" disabled={busy} onClick={() => open({ kind: "challenge", proposal })}>Challenge this proposal{proposal.openChallenges ? " (" + proposal.openChallenges + " open)" : ""}</button>}
     {proposal.withdrawalSignature && <a className="proposal-text-action" href={"https://solscan.io/tx/" + proposal.withdrawalSignature + (config.network === "devnet" ? "?cluster=devnet" : "")} target="_blank" rel="noreferrer">View funding transaction <ExternalLink/></a>}
   </article>;
 }
@@ -179,10 +179,11 @@ export function DexFundingVote() {
   const { data, now, launch, error, refresh } = useProposals();
   const { config } = useRuntime();
   if (!config.marketGovernanceEnabled || (data && !data.enabled)) return null;
-  const proposal = data?.proposals.find((item) => item.isDefault);
+  const defaultProposal = data?.proposals.find((item) => item.isDefault);
+  const proposal = defaultProposal && !["rejected", "cancelled"].includes(defaultProposal.status) ? defaultProposal : null;
   const opensAt = data?.defaultDexOpensAt ?? (launch.launchedAt ? launch.launchedAt + 300 : null);
   if (proposal) return <div className="default-dex-vote"><ProposalCard proposal={proposal} compact/></div>;
-  if (data?.dexPaid) return <section className="dex-completed"><DexScreenerIcon/><div><b>DEX Screener profile</b><span>Already funded</span></div><Check/></section>;
+  if (data?.dexPaid || defaultProposal) return null;
   return <section className="default-dex-vote dex-vote-pending">
     <header><span>{!opensAt ? "Available after launch" : now < opensAt ? "DEX vote opens in" : "Preparing DEX vote"}</span>{opensAt && now < opensAt && <time>{countdown(opensAt, now)}</time>}</header>
     <div className="dex-vote-preview" aria-hidden="true"><div><DexScreenerIcon/><b>Fund DEX Screener</b></div><p>Fund the profile together.</p><div className="proposal-water-votes"><i/></div><div className="proposal-vote-buttons"><span>Yes</span><span>No</span></div></div>
@@ -194,7 +195,7 @@ export function DexFundingVote() {
 export function CommunityProposalVotes() {
   const { data } = useProposals();
   if (!data?.enabled) return null;
-  const proposals = data.proposals.filter((item) => !item.isDefault);
+  const proposals = data.proposals.filter((item) => !item.isDefault && !(item.type !== "cto" && ["rejected", "cancelled"].includes(item.status)));
   const active = proposals.filter((item) => liveStatuses.includes(item.status));
   const history = proposals.filter((item) => !liveStatuses.includes(item.status));
   if (!proposals.length) return null;
@@ -264,5 +265,21 @@ function ProposalSurvey({ dialog, draft, launch, busy, close, submit }: { dialog
 }
 
 export function DexProfileFields({ profile, update, optional = false }: { profile: DexProfile; update: (key: keyof DexProfile, value: string) => void; optional?: boolean }) {
-  return <div className="dex-profile-fields"><label>Profile description{optional && <small>Optional</small>}<textarea required={!optional} minLength={optional ? undefined : 20} maxLength={1000} value={profile.description} onChange={(event) => update("description", event.target.value)} placeholder="Describe the project for visitors on DEX Screener."/></label><label>Banner image URL{optional && <small>Optional</small>}<input type="url" required={!optional} maxLength={500} value={profile.bannerUrl} onChange={(event) => update("bannerUrl", event.target.value)} placeholder="https://…/banner.png"/><small>Use a publicly accessible banner image. Your coin’s existing artwork remains its icon.</small></label><div className="survey-field-row">{(["websiteUrl", "xUrl", "telegramUrl"] as const).map((key) => <label key={key}>{{ websiteUrl: "Website", xUrl: "X", telegramUrl: "Telegram" }[key]}<input type="url" maxLength={500} value={profile[key]} onChange={(event) => update(key, event.target.value)} placeholder="https://…"/></label>)}</div></div>;
+  const wallet = useWallet();
+  const [uploading, setUploading] = useState(false);
+  async function uploadBanner(file: File | undefined) {
+    if (!file) return;
+    if (!wallet.address) { wallet.setModalOpen(true); toast.error("Connect the creator wallet before uploading a banner."); return; }
+    if (!["image/png", "image/jpeg"].includes(file.type)) { toast.error("Use a PNG or JPG banner."); return; }
+    if (file.size > 3_000_000) { toast.error("Banner images must be 3 MB or smaller."); return; }
+    setUploading(true);
+    try {
+      const body = new FormData(); body.set("file", file); body.set("creatorWallet", wallet.address); body.set("clientRequestId", crypto.randomUUID());
+      const result = await api.upload(body);
+      update("bannerUrl", result.imageUrl);
+      toast.success("Banner uploaded");
+    } catch (cause) { toast.error(cause instanceof Error ? cause.message : "The banner could not be uploaded."); }
+    finally { setUploading(false); }
+  }
+  return <div className="dex-profile-fields"><label>Profile description{optional && <small>Optional</small>}<textarea required={!optional} minLength={optional ? undefined : 20} maxLength={1000} value={profile.description} onChange={(event) => update("description", event.target.value)} placeholder="Describe the project for visitors on DEX Screener."/></label><div className="dex-banner-field"><label>Banner image URL{optional && <small>Optional</small>}<input type="url" required={!optional} maxLength={500} value={profile.bannerUrl} onChange={(event) => update("bannerUrl", event.target.value)} placeholder="https://…/banner.png"/></label><div className="dex-banner-upload"><label className={uploading ? "busy" : ""}><ImagePlus/>{uploading ? "Uploading…" : "Upload PNG or JPG"}<input type="file" accept="image/png,image/jpeg" disabled={uploading} onChange={(event) => { void uploadBanner(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label>{profile.bannerUrl && validUrl(profile.bannerUrl) && <img src={profile.bannerUrl} alt="Banner preview"/>}</div><small>Use a public URL or upload a PNG/JPG up to 3 MB. The coin artwork remains its icon.</small></div><div className="survey-field-row">{(["websiteUrl", "xUrl", "telegramUrl"] as const).map((key) => <label key={key}>{{ websiteUrl: "Website", xUrl: "X", telegramUrl: "Telegram" }[key]}<input type="url" maxLength={500} value={profile[key]} onChange={(event) => update(key, event.target.value)} placeholder="https://…"/></label>)}</div></div>;
 }

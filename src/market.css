@@ -240,3 +240,69 @@
 .admin-submitted-details dt { margin-top: 10px; font-size: 10px; color: #7793a3; }
 .admin-submitted-details dd { margin: 3px 0; overflow-wrap: anywhere; white-space: pre-wrap; line-height: 1.6; }
 .admin-submitted-details dd a { word-break: break-word; }
+
+/* Market discovery filters. */
+.market-filter-menu { position: relative; flex: 0 0 auto; }
+.market-filter-trigger { min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid #bfdbe9; border-radius: 8px; color: #3f708b; background: rgba(255,255,255,.76); font: 700 11px/1 "Manrope",sans-serif; cursor: pointer; }
+.market-filter-trigger:hover,.market-filter-trigger.active { color: #126d9f; border-color: #77b8d9; background: #fff; }
+.market-filter-trigger > svg { width: 15px; height: 15px; }
+.market-filter-trigger > svg:last-child { width: 12px; transition: transform .15s; }
+.market-filter-trigger[aria-expanded="true"] > svg:last-child { transform: rotate(180deg); }
+.market-filter-trigger b { min-width: 19px; height: 19px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #218dcc; font-size: 9px; }
+.market-filter-panel { position: absolute; z-index: 90; top: calc(100% + 10px); right: 0; width: min(390px,calc(100vw - 28px)); padding: 18px; border: 1px solid #c7deea; border-radius: 14px; color: #244c64; background: #fbfeff; box-shadow: 0 20px 55px rgba(25,75,102,.2); animation: market-surface-in .18s ease-out; }
+.market-filter-panel > header { display: flex; align-items: flex-start; justify-content: space-between; padding-bottom: 15px; border-bottom: 1px solid #dfebf2; }
+.market-filter-panel header small { color: #63869a; font-size: 9px; font-weight: 800; letter-spacing: .11em; }
+.market-filter-panel h3 { margin: 5px 0 0; font-size: 18px; letter-spacing: -.025em; }
+.market-filter-panel header button { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 6px; color: #628295; background: transparent; cursor: pointer; }
+.market-filter-panel header button:hover { background: #eaf4f9; }
+.market-filter-panel header svg { width: 15px; }
+.market-filter-panel fieldset { display: grid; grid-template-columns: 1fr; gap: 7px; margin: 16px 0 0; padding: 0; border: 0; }
+.market-filter-panel legend { width: 100%; margin-bottom: 9px; color: #456d84; font-size: 11px; font-weight: 750; }
+.market-filter-panel legend small { float: right; color: #849ca9; font-weight: 450; }
+.market-filter-panel fieldset button { min-height: 37px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border: 1px solid #d5e5ed; border-radius: 7px; color: #52758a; background: #fff; font: 600 11px/1 "Manrope",sans-serif; cursor: pointer; }
+.market-filter-panel fieldset button:hover { border-color: #9ac9de; background: #f4fbfe; }
+.market-filter-panel fieldset button.selected { color: #176f9f; border-color: #75b9da; background: #eaf7fd; }
+.market-filter-panel fieldset button i { width: 17px; height: 17px; display: grid; place-items: center; border: 1px solid #cbdde6; border-radius: 4px; color: white; background: #fff; }
+.market-filter-panel fieldset button.selected i { border-color: #248dc5; background: #248dc5; }
+.market-filter-panel fieldset button i svg { width: 11px; height: 11px; }
+.filter-pair-row,.filter-sort-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.market-filter-panel > footer { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 14px; border-top: 1px solid #dfebf2; color: #7290a0; font-size: 10px; }
+.market-filter-panel > footer button { border: 0; color: #3f7898; background: transparent; font: 650 10px/1 "Manrope",sans-serif; cursor: pointer; }
+.market-filter-panel > footer button:disabled { color: #a3b3bc; cursor: default; }
+
+/* Paid DEX profile mark. */
+.dex-paid-badge,.market-dex-paid { display: inline-flex; align-items: center; justify-content: center; color: #27815d !important; border: 1px solid #9ed7bf; background: #e7f7ef; }
+.dex-paid-badge { flex: 0 0 auto; width: 27px; height: 27px; margin-left: auto; border-radius: 50%; }
+.boosted-market-badge + .dex-paid-badge { margin-left: 0; }
+.dex-paid-badge .dex-screener-icon,.market-dex-paid .dex-screener-icon { width: 17px; height: 17px; filter: invert(43%) sepia(30%) saturate(1040%) hue-rotate(101deg) brightness(88%); }
+.dex-paid-badge + .card-arrow { margin-left: 0; }
+.market-dex-paid { gap: 5px; padding: 4px 7px; border-radius: 5px; font: 750 9px/1 "Manrope",sans-serif !important; }
+.market-dex-paid .dex-screener-icon { width: 14px; height: 14px; }
+.market-dex-paid > span { color: inherit !important; font: inherit !important; }
+
+/* Banner upload shared by launch drafts and creator DEX submissions. */
+.dex-banner-field { display: grid; gap: 8px; }
+.dex-banner-field > small { color: #7491a2; font-size: 11px; line-height: 1.5; }
+.dex-banner-upload { display: flex; align-items: center; gap: 10px; }
+.dex-banner-upload > label { width: max-content; min-height: 38px; display: inline-flex; grid-auto-flow: column; align-items: center; gap: 7px; padding: 0 11px; border: 1px solid #a9cfe1; border-radius: 7px; color: #2f7599; background: #eef8fc; cursor: pointer; }
+.dex-banner-upload > label.busy { opacity: .6; cursor: wait; }
+.dex-banner-upload label svg { width: 15px; height: 15px; }
+.dex-banner-upload input { position: absolute; width: 1px !important; height: 1px; overflow: hidden; clip: rect(0,0,0,0); opacity: 0; }
+.dex-banner-upload img { width: 88px; height: 38px; object-fit: cover; border: 1px solid #c6dde9; border-radius: 6px; }
+
+/* Deliberate, individual jackpot podium movement. */
+.podium-place { transition: transform .22s ease; }
+.podium-place > div,.podium-column { transition: transform .22s ease,filter .22s ease,box-shadow .22s ease; }
+.podium-place:hover { transform: translateY(-4px); }
+.podium-place:hover > div { transform: translateY(-2px) scale(1.04); }
+.podium-place:hover .podium-column { transform: scaleY(1.045); transform-origin: bottom; filter: saturate(1.12); box-shadow: 0 9px 20px rgba(52,139,180,.13); }
+
+/* Creator management is a right-aligned primary market action. */
+.token-page .creator-manage-button { justify-self: end; margin-left: auto; border-color: #62add2; color: #fff; background: linear-gradient(135deg,#258fc7,#1a79b5); box-shadow: 0 8px 20px rgba(30,116,165,.16); }
+.token-page .creator-manage-button:hover { color: #fff; background: linear-gradient(135deg,#1d82ba,#146da7); transform: translateY(-1px); }
+
+@media(max-width:700px) {
+  .market-filter-panel { position: fixed; top: auto; left: 14px; right: 14px; bottom: 78px; width: auto; max-height: calc(100dvh - 110px); overflow: auto; }
+  .market-filter-trigger span { display: none; }
+  .dex-banner-upload { align-items: flex-start; flex-direction: column; }
+}

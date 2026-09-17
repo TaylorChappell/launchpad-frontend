@@ -11,6 +11,7 @@ import { MarketCapLine } from "../components/MarketCapCandles";
 import { activeCreatorLock, creatorLockPercentLabel, solscanAccountUrl } from "../creator-lock";
 import { GovernanceVote } from "../components/GovernanceVote";
 import { MarketProposals, MarketGovernanceProvider, CommunityProposalVotes, DexFundingVote } from "../components/MarketProposals";
+import { DexScreenerIcon } from "../components/DexScreenerIcon";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 4 });
@@ -22,6 +23,13 @@ function formatRaw(raw: string | undefined, decimals: number) {
   const whole = padded.slice(0, -decimals);
   const fraction = padded.slice(-decimals).replace(/0+$/, "").slice(0, 5);
   return fraction ? `${whole}.${fraction}` : whole;
+}
+
+function formatCompactRaw(raw: string | undefined, decimals: number) {
+  const whole = BigInt(raw || "0") / 10n ** BigInt(decimals);
+  const units: Array<[bigint, string]> = [[1_000_000_000_000n, "T"], [1_000_000_000n, "B"], [1_000_000n, "M"], [1_000n, "K"]];
+  for (const [unit, suffix] of units) if (whole >= unit) return `${(whole + unit / 2n) / unit}${suffix}`;
+  return whole.toString();
 }
 
 function formatCountdown(seconds: number) {
@@ -171,7 +179,7 @@ export function Token() {
   return <MarketGovernanceProvider key={launch.id} launch={launch}><main className="page token-page">
     <div className="token-market-toolbar"><Link className="back" to="/"><ArrowLeft/>Explore markets</Link><div className="token-market-actions"><GovernanceVote market={launch} compact/>{config.marketGovernanceEnabled && <MarketProposals/>}</div></div>
     <section className="token-hero">
-      <div className="token-identity"><TokenMark launch={launch} large/><div><div><h1>{launch.name}</h1><span>${launch.symbol}</span><em className={launch.status}>{launch.status === "live" ? "ORCA WHIRLPOOL" : "LAUNCHING"}</em><em className={`reward-mode-badge ${rewardMode}`}>{modeLabel}</em>{verifiedCreatorLock && creatorLockUrl && <div className="creator-lock-market"><i><LockKeyhole/></i><span><small>VERIFIED CREATOR LOCK</small><strong>{lockedPercentLabel} of supply</strong></span><a href={creatorLockUrl} target="_blank" rel="noreferrer">View lock <ExternalLink/></a></div>}</div><p>{launch.description}</p><footer>{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2/> Website</a>}<a href={explorerUrl} target="_blank" rel="noreferrer">Explorer <ExternalLink/></a>{launch.marketPolicyAddress && <a href={solscanAccountUrl(launch.marketPolicyAddress, config.network)} target="_blank" rel="noreferrer">Mode policy <ExternalLink/></a>}<button onClick={() => { void navigator.clipboard.writeText(launch.mint); toast.success("Mint copied"); }}><Copy/> {launch.mint.slice(0, 5)}…{launch.mint.slice(-4)}</button></footer></div></div>
+      <div className="token-identity"><TokenMark launch={launch} large/><div><div><h1>{launch.name}</h1><span>${launch.symbol}</span><em className={launch.status}>{launch.status === "live" ? "ORCA WHIRLPOOL" : "LAUNCHING"}</em><em className={`reward-mode-badge ${rewardMode}`}>{modeLabel}</em>{launch.dexPaid && <span className="market-dex-paid" title="DEX Screener profile paid"><DexScreenerIcon/><span>DEX paid</span></span>}{verifiedCreatorLock && creatorLockUrl && <div className="creator-lock-market"><i><LockKeyhole/></i><span><small>VERIFIED CREATOR LOCK</small><strong>{lockedPercentLabel} of supply</strong></span><a href={creatorLockUrl} target="_blank" rel="noreferrer">View lock <ExternalLink/></a></div>}</div><p>{launch.description}</p><footer>{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2/> Website</a>}<a href={explorerUrl} target="_blank" rel="noreferrer">Explorer <ExternalLink/></a>{launch.marketPolicyAddress && <a href={solscanAccountUrl(launch.marketPolicyAddress, config.network)} target="_blank" rel="noreferrer">Mode policy <ExternalLink/></a>}<button onClick={() => { void navigator.clipboard.writeText(launch.mint); toast.success("Mint copied"); }}><Copy/> {launch.mint.slice(0, 5)}…{launch.mint.slice(-4)}</button></footer></div></div>
       <div className="hero-metrics"><Metric label="Orca pair" value={`${launch.symbol} / ${launch.pairSymbol}`}/><Metric label="Stock reward" value={launch.stockSymbol}/><Metric label="TVL" value={launch.aquaIndexed ? `$${compact.format(launch.tvlUsd)}` : "Indexing"}/><Metric label="Market cap" value={launch.aquaIndexed ? `$${compact.format(launch.marketCapUsd)}` : "Indexing"}/></div>
     </section>
 
@@ -180,7 +188,7 @@ export function Token() {
 
       <div className="info-grid single reward-mode-market-panel">
         {rewardMode === "holder_rewards" && <section className="market-reward-panel"><header><div><small>HOLDER REWARDS</small><h2>Earn {launch.stockSymbol}</h2></div><span className="reward-live-label">Accumulating</span></header><div className="reward-stat-row"><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Ready to claim" value={money.format(launch.rewardRedeemableUsd)}/></div><footer>Rewards follow your balance and time held. Claim them together on the Rewards page.</footer></section>}
-        {rewardMode === "buyback_burn" && <section className="market-reward-panel"><header><div><small>BUYBACK &amp; BURN</small><h2>Reducing the supply</h2></div><span className="reward-live-label">Market buybacks</span></header><div className="reward-stat-row"><Metric label="SOL spent on buybacks" value={`${compact.format(rewardModeState?.buybackBurn.totalSol ?? 0)} SOL`}/><Metric label={`${launch.symbol} permanently burned`} value={formatRaw(rewardModeState?.buybackBurn.totalTokenRaw, launch.tokenDecimals)}/></div><footer>{rewardModeState?.buybackBurn.lastBurnAt ? "Last burn · " + new Date(rewardModeState.buybackBurn.lastBurnAt).toLocaleString() : "The reward share buys this coin through its pool and burns the purchased tokens."}</footer></section>}
+        {rewardMode === "buyback_burn" && <section className="market-reward-panel"><header><div><small>BUYBACK &amp; BURN</small><h2>Reducing the supply</h2></div><span className="reward-live-label">Market buybacks</span></header><div className="reward-stat-row"><Metric label="SOL spent on buybacks" value={`${compact.format(rewardModeState?.buybackBurn.totalSol ?? 0)} SOL`}/><Metric label={`${launch.symbol} permanently burned`} value={formatCompactRaw(rewardModeState?.buybackBurn.totalTokenRaw, launch.tokenDecimals)}/></div><footer>{rewardModeState?.buybackBurn.lastBurnAt ? "Last burn · " + new Date(rewardModeState.buybackBurn.lastBurnAt).toLocaleString() : "The reward share buys this coin through its pool and burns the purchased tokens."}</footer></section>}
         {rewardMode === "jackpot" && <section className="market-reward-panel market-jackpot">
           <header><div><small>HOURLY JACKPOT</small><h2>Five places. One draw.</h2></div><div className="jackpot-next-draw"><span>Next draw</span><strong>{formatCountdown(jackpotSeconds)}</strong></div></header>
           <div className="jackpot-podium" aria-label="Prize amounts for the next five winners">
