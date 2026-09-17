@@ -107,6 +107,7 @@ export type MarketProposal = {
   id: string;
   launchId: string;
   type: MarketProposalType;
+  isDefault: boolean;
   proposerWallet: string;
   status: "voting" | "funding" | "approved" | "ready" | "withdrawing" | "withdrawn" | "completed" | "rejected" | "cancelled";
   payload: Record<string, unknown>;
@@ -142,11 +143,17 @@ export type MarketGovernanceResponse = {
   dexCheckedAt: number;
   creatorWallet: string;
   totalSupplyRaw: string;
+  defaultDexOpensAt: number | null;
+  proposalsOpenAt: number | null;
+  dexProfileDraft: Partial<DexProfile> | null;
+  options: Record<MarketProposalType, { available: boolean; completed: boolean; reason: string | null }>;
   createPower: { currentRaw: string; averageRaw: string; effectiveRaw: string; thresholdRaw: string; eligible: boolean; windowStartsAt: number } | null;
   votePower: { currentRaw: string; averageRaw: string; effectiveRaw: string; thresholdRaw: string; eligible: boolean; windowStartsAt: number } | null;
   votes: Record<string, "yes" | "no">;
   proposals: MarketProposal[];
 };
+
+export type DexProfile = { description: string; bannerUrl: string; websiteUrl: string; xUrl: string; telegramUrl: string };
 
 export type StockOption = {
   symbol: string;

@@ -1,0 +1,242 @@
+/* Market governance and rewards: calm surfaces, readable data, water in motion. */
+.token-page { --market-ink: #153d51; --market-muted: #597789; --market-line: #cde1eb; }
+.token-market-toolbar { align-items: center; margin-bottom: 12px; }
+.token-market-toolbar .back { white-space: nowrap; }
+.token-market-actions { width: auto; flex: 0 0 auto; }
+.market-corner-action { min-height: 34px; font-size: 11px; letter-spacing: 0; border-radius: 7px; }
+.market-action-hint { position: relative; display: inline-flex; outline-offset: 4px; }
+.market-action-hint > [role="tooltip"] { position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 90; width: 270px; max-width: 75vw; padding: 11px 13px; border-radius: 8px; background: #163d52; color: #f5fbff; box-shadow: 0 8px 24px #173d5120; font-size: 12px; font-weight: 500; line-height: 1.55; opacity: 0; visibility: hidden; transform: translateY(3px); pointer-events: none; transition: .16s ease; }
+.market-action-hint:hover > [role="tooltip"], .market-action-hint:focus-within > [role="tooltip"] { opacity: 1; visibility: visible; transform: translateY(0); }
+.market-proposal-menu { position: relative; }
+.proposal-dropdown { position: absolute; top: calc(100% + 9px); right: 0; z-index: 70; width: 282px; padding: 7px; border: 1px solid #c9dfe9; border-radius: 11px; background: #fbfeff; box-shadow: 0 16px 40px #1b526a26; animation: market-surface-in .18s ease-out; }
+.proposal-dropdown > small { display: block; padding: 8px 10px; color: #668190; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+.proposal-dropdown > button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 10px; text-align: left; border: 0; border-radius: 6px; color: #1c455b; background: transparent; cursor: pointer; transition: background .16s; }
+.proposal-dropdown > button:hover:not(:disabled) { background: #e9f6fc; }
+.proposal-dropdown > button:disabled { cursor: not-allowed; color: #8b9da7; background: #f2f6f8; }
+.proposal-dropdown > button:disabled .dex-screener-icon { opacity: .35; }
+.proposal-dropdown > button > span:not(.proposal-community-mark) { flex: 1; }
+.proposal-dropdown b { display: block; font-size: 13px; font-weight: 650; }
+.proposal-dropdown small { display: block; margin-top: 3px; font-size: 10px; line-height: 1.4; }
+.proposal-dropdown svg { width: 14px; height: 14px; }
+.dex-screener-icon { flex: 0 0 auto; width: 22px; height: 22px; object-fit: contain; }
+.proposal-community-mark { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid #a6c8d9; border-radius: 50%; font-family: inherit; font-weight: 650; font-size: 12px; line-height: 1; }
+.community-proposals { padding: 24px 0 4px; color: var(--market-ink); }
+.community-proposals > header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.community-proposals > header small { color: #528098; font-size: 10px; letter-spacing: .12em; font-weight: 750; }
+.community-proposals h2 { margin: 5px 0 0; font-size: 21px; letter-spacing: -.025em; }
+.community-proposals > header > span { color: #618195; font-size: 12px; }
+.community-proposal-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(300px,100%),1fr)); gap: 14px; align-items: start; }
+.proposal-vote-card { min-width: 0; padding: 21px; border: 1px solid var(--market-line); border-radius: 12px; background: #fbfeff; color: var(--market-ink); box-shadow: 0 3px 12px #3c6a7e06; }
+.proposal-vote-card > header, .proposal-vote-card > header > div { display: flex; align-items: center; gap: 9px; }
+.proposal-vote-card > header { justify-content: space-between; gap: 6px; }
+.proposal-vote-card h3 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+.proposal-vote-card h4 { margin: 16px 0 0; font-size: 17px; letter-spacing: -.025em; }
+.proposal-state { padding: 4px 6px; border-radius: 4px; background: #eef3f6; color: #67818d; font-size: 9px; white-space: nowrap; text-transform: capitalize; }
+.proposal-state.voting { background: #e9f7fd; color: #267ba9; }
+.proposal-state.completed,.proposal-state.approved,.proposal-state.ready { background: #e6f7ee; color: #327854; }
+.proposal-reason { margin: 12px 0 16px; color: #4e6e80; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
+.proposal-funding-terms { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px 0; border-top: 1px solid #e0edf3; border-bottom: 1px solid #e0edf3; }
+.proposal-funding-terms span { color: #638191; font-size: 10px; }
+.proposal-funding-terms b { display: block; margin-top: 4px; color: #224d64; font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.proposal-vote-meta,.proposal-tally { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: #5c7b8e; font-size: 11px; }
+.proposal-vote-meta { margin: 17px 0 12px; }
+.proposal-vote-meta time { color: #216287; font-variant-numeric: tabular-nums; }
+.proposal-tally b { margin-left: 4px; color: #254b62; font-weight: 650; }
+.proposal-water-votes { height: 6px; margin: 8px 0 14px; overflow: hidden; border-radius: 10px; background: #dedee7; }
+.proposal-water-votes.empty { background: #e2edf3; }
+.proposal-water-votes > i { position: relative; display: block; height: 100%; border-radius: inherit; background: linear-gradient(100deg,#277fc1,#55c9d2,#277fc1); background-size: 200% 100%; transition: width .6s ease; animation: market-water-flow 7s linear infinite; }
+.proposal-vote-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.proposal-vote-buttons button,.proposal-vote-buttons > span { display: flex; justify-content: center; align-items: center; gap: 6px; min-height: 36px; border: 1px solid #b6d6e5; border-radius: 6px; color: #2a688a; background: #edf8fe; font-family: inherit; font-weight: 650; font-size: 12px; cursor: pointer; transition: background .15s,border-color .15s; }
+.proposal-vote-buttons button.no { background: #fafbfc; border-color: #d4dee5; color: #5c6f7a; }
+.proposal-vote-buttons button:hover:not(:disabled) { background: #d8effb; border-color: #7fbbdc; }
+.proposal-vote-buttons button.chosen { color: #fff; background: #1b83bb; border-color: #1b83bb; }
+.proposal-vote-buttons button.no.chosen { background: #677888; border-color: #677888; }
+.proposal-vote-buttons button:disabled:not(.chosen) { background: #f0f4f6; color: #93a5af; border-color: #dbe6ec; cursor: not-allowed; }
+.proposal-vote-buttons svg { width: 14px; height: 14px; }
+.proposal-eligibility,.proposal-detail-note { color: #6b8594; font-size: 10px; line-height: 1.6; margin: 10px 0 0; }
+.proposal-creator-action { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 16px; padding: 10px; border: 1px solid #b4d6e7; border-radius: 6px; background: #eaf6fc; color: #266486; font-family: inherit; font-weight: 650; font-size: 11px; cursor: pointer; }
+.proposal-creator-action svg { width: 13px; height: 13px; }
+.proposal-creator-action .dex-screener-icon { width: 17px; height: 17px; }
+.proposal-text-action { display: inline-flex; align-items: center; gap: 6px; padding: 0; margin-top: 13px; background: none; border: 0; color: #487389; font-size: 11px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.proposal-text-action svg { width: 12px; height: 12px; }
+.proposal-public-details,.proposal-vote-rules { margin-top: 12px; color: #53788d; font-size: 11px; line-height: 1.6; }
+.proposal-public-details summary,.proposal-vote-rules summary { cursor: pointer; }
+.proposal-public-details dl { margin: 10px 0; }
+.proposal-public-details dt { font-weight: 700; margin-top: 8px; }
+.proposal-public-details dd { margin: 2px 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.proposal-public-details a { display: inline-flex; align-items: center; gap: 3px; margin-right: 12px; color: #197cac; }
+.proposal-public-details a svg { width: 11px; height: 11px; }
+.proposal-vote-rules { font-size: 10px; }
+.proposal-funded { margin-top: 16px; }
+.proposal-funded > div { display: flex; justify-content: space-between; color: #4c758b; font-size: 11px; }
+.proposal-funded progress { width: 100%; height: 6px; margin-top: 10px; accent-color: #298fbf; }
+.community-proposal-history { margin-top: 14px; color: #658398; font-size: 12px; }
+.community-proposal-history > summary { cursor: pointer; padding: 10px 0; }
+.community-proposal-history .proposal-vote-card { margin-top: 10px; }
+.dex-vote-pending,.dex-completed { border: 1px solid var(--market-line); border-radius: 12px; padding: 18px; background: #fafdff; color: var(--market-ink); }
+.dex-vote-pending > header { display: flex; justify-content: space-between; align-items: center; color: #3e6b83; font-size: 11px; }
+.dex-vote-pending time { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.dex-vote-preview { margin-top: 15px; padding: 10px; filter: blur(3.2px); opacity: .48; user-select: none; pointer-events: none; }
+.dex-vote-preview > div:first-child { display: flex; align-items: center; gap: 8px; }
+.dex-vote-preview p,.dex-vote-pending > p { font-size: 11px; line-height: 1.6; color: #648396; }
+.dex-vote-preview .proposal-water-votes > i { width: 45%; }
+.dex-completed { display: flex; align-items: center; gap: 10px; }
+.dex-completed div { flex: 1; }
+.dex-completed b,.dex-completed span { display: block; font-size: 12px; }
+.dex-completed span { margin-top: 3px; font-size: 10px; color: #548271; }
+.dex-completed > svg { width: 16px; color: #398669; }
+
+/* Two-step proposal survey. */
+.aqua-survey-backdrop { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 24px; background: #0d344b66; backdrop-filter: blur(7px); }
+.aqua-survey { width: min(660px,100%); max-height: calc(100dvh - 48px); overflow: auto; border: 1px solid #d1e7f2; border-radius: 17px; background: #fbfeff; color: #21475c; box-shadow: 0 28px 90px #0c354852; outline: 0; animation: market-surface-in .23s ease-out; }
+.aqua-survey > header { position: relative; padding: 28px 30px 0; background: linear-gradient(120deg,#eaf8ff,#f8fdff 70%); border-bottom: 1px solid #d7e9f2; }
+.survey-market { display: flex; align-items: center; gap: 8px; padding-right: 30px; color: #4583a5; font-size: 11px; font-weight: 650; }
+.survey-market .dex-screener-icon { width: 18px; height: 18px; }
+.aqua-survey > header > button { position: absolute; top: 19px; right: 20px; display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 6px; background: transparent; color: #60849a; cursor: pointer; }
+.aqua-survey > header > button:hover { background: #dfedf4; }
+.aqua-survey > header > button svg { width: 18px; height: 18px; }
+.aqua-survey h2 { margin: 15px 0 8px; font-size: 28px; letter-spacing: -.035em; }
+.aqua-survey > header p { max-width: 525px; margin: 0; color: #557c92; font-size: 13px; line-height: 1.6; }
+.survey-steps { display: flex; gap: 28px; margin-top: 23px; color: #809bab; font-size: 11px; font-weight: 650; }
+.survey-steps > span { padding-bottom: 13px; border-bottom: 2px solid transparent; }
+.survey-steps > span.active { border-color: #258dcc; color: #247fae; }
+.survey-steps > span.done { color: #4d8f8a; }
+.aqua-survey form { padding: 26px 30px; }
+.survey-fields,.dex-profile-fields { display: grid; gap: 19px; }
+.aqua-survey label,.launch-dex-fields label { display: grid; gap: 7px; min-width: 0; color: #325b72; font-size: 12px; font-weight: 650; }
+.aqua-survey input:not([type="checkbox"]),.aqua-survey textarea,.launch-dex-fields input,.launch-dex-fields textarea { width: 100%; min-width: 0; padding: 12px; border: 1px solid #c5dce9; border-radius: 7px; background: #fff; color: #214b63; outline: 0; font: 400 13px/1.5 "Manrope",sans-serif; transition: border-color .15s,box-shadow .15s; }
+.aqua-survey input:focus,.aqua-survey textarea:focus,.launch-dex-fields input:focus,.launch-dex-fields textarea:focus { border-color: #3996c9; box-shadow: 0 0 0 3px #3899c814; }
+.aqua-survey textarea,.launch-dex-fields textarea { min-height: 105px; resize: vertical; }
+.aqua-survey label small,.launch-dex-fields label small { font-size: 11px; color: #7491a2; font-weight: 400; line-height: 1.5; }
+.survey-field-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+.dex-profile-fields .survey-field-row { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.survey-funding-summary { padding: 17px 18px; border-left: 2px solid #50a6ca; border-radius: 0 7px 7px 0; background: #eff8fc; }
+.survey-funding-summary b { font-size: 13px; font-weight: 650; }
+.survey-funding-summary p { margin: 7px 0; color: #54778b; font-size: 12px; line-height: 1.7; }
+.survey-funding-summary span { color: #3f7796; font-size: 10px; }
+.aqua-survey form > footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 26px; padding-top: 20px; border-top: 1px solid #deebf2; }
+.aqua-survey form > footer button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 7px; font-size: 12px; font-weight: 650; cursor: pointer; }
+.survey-back { border: 1px solid #d7e5ed; background: #fff; color: #638093; }
+.survey-submit { border: 1px solid #2287c2; background: #2287c2; color: #fff; }
+.survey-submit:hover { background: #1676b2; }
+.aqua-survey button:disabled { opacity: .5; cursor: not-allowed; }
+.aqua-survey form > footer svg { width: 15px; height: 15px; }
+.survey-review > small { color: #678b9e; font-size: 10px; letter-spacing: .08em; }
+.survey-review dl { margin: 18px 0 24px; }
+.survey-review dl > div { padding: 11px 0; border-bottom: 1px solid #e0edf3; }
+.survey-review dt { font-size: 10px; color: #7d97a6; }
+.survey-review dd { margin: 5px 0 0; color: #365f76; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
+.survey-review label.survey-consent { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; font-weight: 500; font-size: 12px; line-height: 1.6; }
+.survey-consent input { margin-top: 3px; accent-color: #2189bf; width: 15px; height: 15px; flex: 0 0 auto; }
+.survey-review > p { font-size: 11px; color: #7c96a6; line-height: 1.6; }
+.survey-error { color: #b4515c; font-size: 12px; line-height: 1.5; }
+.launch-dex-intro { display: flex; align-items: flex-start; gap: 15px; margin-bottom: 25px; padding: 18px; border: 1px solid #cbe2ee; border-radius: 9px; background: #f4fbff; }
+.launch-dex-intro > img { width: 30px; height: 30px; }
+.launch-dex-intro b { color: #265b78; font-size: 14px; }
+.launch-dex-intro p { margin: 6px 0 0; color: #5d8399; font-size: 12px; line-height: 1.7; }
+
+/* Reward information uses the same quiet surface in every mode. */
+.market-reward-panel { position: relative; overflow: hidden; padding: 24px; border: 1px solid #c7e0ed; border-radius: 12px; color: #1f4b65; background: linear-gradient(135deg,#f8fdff,#f0f9fe); }
+.market-reward-panel::after { content: ""; position: absolute; left: -20%; right: -20%; bottom: -42px; height: 48px; border-radius: 50%; background: #8cdaef24; animation: market-tide 10s ease-in-out infinite alternate; pointer-events: none; }
+.market-reward-panel > header { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 23px; }
+.market-reward-panel header small { color: #56849b; font-size: 10px; font-weight: 750; letter-spacing: .12em; }
+.market-reward-panel h2 { margin: 6px 0 0; color: #204b63; font-size: 22px; line-height: 1.2; font-weight: 650; letter-spacing: -.035em; }
+.reward-live-label { color: #458296; font-size: 10px; }
+.reward-stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 5px 0 23px; }
+.reward-stat-row > div + div { padding-left: 24px; border-left: 1px solid #d0e6f0; }
+.reward-stat-row .metric > small { color: #618295; font-size: 11px; }
+.reward-stat-row .metric > b { display: block; margin-top: 9px; color: #175778; font-size: clamp(22px,2.6vw,30px); line-height: 1.25; font-weight: 650; letter-spacing: -.04em; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.market-reward-panel > footer { padding-top: 15px; border-top: 1px solid #d5e8f1; color: #628499; font-size: 11px; line-height: 1.6; }
+.jackpot-next-draw { text-align: right; }
+.jackpot-next-draw span { display: block; color: #6b8a9b; font-size: 10px; }
+.jackpot-next-draw strong { display: block; margin-top: 5px; color: #246c8f; font-size: 23px; font-weight: 600; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+.jackpot-podium { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); align-items: end; gap: 8px; margin-top: 28px; }
+.podium-place { min-width: 0; text-align: center; }
+.podium-place > div { margin-bottom: 10px; }
+.podium-place small { color: #6a8b9d; font-size: 9px; font-weight: 750; letter-spacing: .08em; }
+.podium-place b { display: block; margin-top: 5px; color: #275c7b; font-size: clamp(10px,1.1vw,14px); font-weight: 650; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.podium-column { position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 12px; height: 45px; border: 1px solid #bfdeed; border-radius: 8px 8px 3px 3px; background: linear-gradient(155deg,#dcedf7,#c5e7f6); overflow: hidden; }
+.podium-column::before { content: ""; position: absolute; height: 30px; width: 160%; left: -30%; bottom: -15px; border-radius: 48%; background: #7ec4e431; animation: market-tide 6s ease-in-out infinite alternate; }
+.podium-column em { color: #5790ae; font-style: normal; font-size: 13px; font-weight: 700; }
+.place-1st { grid-column: 3; grid-row: 1; }
+.place-2nd { grid-column: 2; grid-row: 1; }
+.place-3rd { grid-column: 4; grid-row: 1; }
+.place-4th { grid-column: 1; grid-row: 1; }
+.place-5th { grid-column: 5; grid-row: 1; }
+.place-1st .podium-column { height: 108px; border-color: #8dbfd8; background: linear-gradient(155deg,#c6e8f6,#9fd3eb); }
+.place-1st .podium-column em { color: #306e91; font-size: 21px; }
+.place-2nd .podium-column,.place-3rd .podium-column { height: 75px; }
+.place-1st b { color: #145a82; font-weight: 800; }
+.jackpot-recent-winners,.token-side .jackpot-leaderboard { border: 1px solid #cedeeb; border-radius: 12px; background: #fbfeff; color: #244c65; box-shadow: none; overflow: hidden; }
+.jackpot-recent-winners > header,.token-side .jackpot-leaderboard > header { display: block; padding: 18px 18px 14px; border-bottom: 1px solid #e1edf3; }
+.jackpot-recent-winners header > small,.token-side .jackpot-leaderboard header > span { color: #7892a2; font-size: 9px; font-weight: 750; letter-spacing: .08em; }
+.jackpot-recent-winners h3,.token-side .jackpot-leaderboard header > b { display: block; margin: 5px 0 0; color: #2a526b; font-size: 15px; font-weight: 650; }
+.jackpot-recent-winners > p,.token-side .jackpot-leaderboard > p { padding: 16px 18px; margin: 0; color: #7b95a4; font-size: 11px; }
+.jackpot-recent-winners > article { padding: 12px 18px; }
+.jackpot-recent-winners article > header small { color: #7590a1; font-size: 10px; }
+.jackpot-recent-winners .jackpot-winners { display: block; margin-top: 10px; }
+.jackpot-recent-winners .jackpot-winners > span { display: grid; grid-template-columns: 24px minmax(0,1fr) auto; gap: 5px; padding: 10px 0; border: 0; border-bottom: 1px solid #e6eff4; border-radius: 0; background: transparent; box-shadow: none; }
+.jackpot-recent-winners .jackpot-winners b { color: #7a96a7; font-size: 10px; }
+.jackpot-recent-winners code,.token-side .jackpot-leaderboard code { color: #466a80; font-size: 11px; }
+.jackpot-recent-winners .jackpot-winners strong { color: #2a6180; font-size: 11px; text-align: right; }
+.jackpot-recent-winners .jackpot-claim-status { grid-column: 2 / -1; justify-self: end; margin: 0; font-size: 9px; }
+.token-side .jackpot-leaderboard li { border-bottom-color: #e3edf3; }
+.token-side .jackpot-leaderboard li > i { color: #648498; background: #eaf4fa; border-color: #d2e5ef; }
+.token-side .jackpot-leaderboard li > strong { color: #2d627e; }
+.token-side .jackpot-leaderboard li small { color: #7a97a6; }
+.token-side .jackpot-claim-status { color: #947448; background: transparent; border: 0; font-style: normal; }
+.token-side .jackpot-claim-status.claimed { color: #4b9175; }
+.token-side .jackpot-load-more { color: #3b7898; background: #eef7fc; border: 1px solid #d8e9f2; border-radius: 6px; font-size: 11px; }
+.token-page .token-side { max-height: none; overflow: visible; position: static; }
+@keyframes market-surface-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes market-water-flow { to { background-position: 200% 0; } }
+@keyframes market-tide { from { transform: translateX(-3%) rotate(-2deg); } to { transform: translateX(3%) rotate(2deg); } }
+@media(max-width:1100px) {
+  .token-page .token-layout { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+  .token-page .token-main > *,.token-page .token-side > * { min-width: 0; width: 100%; }
+  .token-page .token-main,.token-page .token-side { display: contents; }
+  .token-page .trade-card { order: 1; }
+  .token-page .default-dex-vote,.token-page .dex-completed { order: 2; }
+  .token-page .chart-panel { order: 3; }
+  .token-page .reward-mode-market-panel { order: 4; }
+  .token-page .community-proposals { order: 5; }
+  .token-page .jackpot-recent-winners { order: 6; }
+  .token-page .jackpot-leaderboard { order: 7; }
+  .token-page .creator-manage-button { order: 8; }
+  .token-page .activity { order: 9; }
+}
+@media(max-width:1000px) {
+  .launch-wizard-only .wizard-rail { grid-template-columns: repeat(5,minmax(0,1fr)); }
+}
+@media(max-width:700px) {
+  .token-market-toolbar { gap: 6px; }
+  .token-market-toolbar .back { font-size: 10px; }
+  .market-corner-action { padding: 0 8px; font-size: 10px; min-height: 32px; }
+  .market-reward-panel { padding: 18px; }
+  .market-reward-panel h2 { font-size: 18px; }
+  .jackpot-next-draw strong { font-size: 19px; }
+  .reward-stat-row { gap: 10px; }
+  .reward-stat-row > div + div { padding-left: 12px; }
+  .jackpot-podium { gap: 4px; }
+  .podium-place b { font-size: 10px; }
+  .aqua-survey-backdrop { padding: 10px; }
+  .aqua-survey { max-height: calc(100dvh - 20px); border-radius: 12px; }
+  .aqua-survey > header { padding: 23px 20px 0; }
+  .aqua-survey h2 { font-size: 24px; }
+  .aqua-survey form { padding: 22px 20px; }
+  .survey-field-row,.dex-profile-fields .survey-field-row { grid-template-columns: 1fr; }
+  .aqua-survey form > footer button { padding: 0 11px; font-size: 11px; }
+  .launch-wizard-only .wizard-rail > button div small { display: none; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .proposal-dropdown,.aqua-survey,.proposal-water-votes > i,.market-reward-panel::after,.podium-column::before { animation: none; }
+  .market-action-hint > [role="tooltip"],.proposal-water-votes > i { transition: none; }
+}
+
+.admin-proposal-type { display: flex !important; align-items: center; gap: 5px; }
+.admin-proposal-type .dex-screener-icon { width: 14px; height: 14px; }
+.admin-submitted-details { margin: 8px 0; max-width: 300px; white-space: normal; font-size: 11px; }
+.admin-submitted-details summary { cursor: pointer; color: #447b9b; }
+.admin-submitted-details dt { margin-top: 10px; font-size: 10px; color: #7793a3; }
+.admin-submitted-details dd { margin: 3px 0; overflow-wrap: anywhere; white-space: pre-wrap; line-height: 1.6; }
+.admin-submitted-details dd a { word-break: break-word; }

@@ -6,6 +6,7 @@ import { api } from "../api";
 import { useWallet } from "../context";
 import type { GovernanceMarket, GovernanceResponse, Launch } from "../types";
 import { TokenMark } from "./TokenCard";
+import { MarketActionHint } from "./MarketActionHint";
 
 function tokenAmount(raw: string, decimals: number) {
   const scale = 10n ** BigInt(decimals);
@@ -144,19 +145,19 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
     const holding = supplyPercent(data.wallet?.votingPowerRaw, data.totalSupplyRaw);
     const required = `${new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.minimumHoldingBps / 100)}%`;
     const title = alreadySelected
-      ? "Remove your boost vote from this market."
+      ? "Remove your vote for this market’s next AQUA boost. You can choose it again while voting is open."
       : !wallet.address
         ? `Connect a wallet to check boost eligibility. ${required} of AQUA is required.`
         : !data.votingOpen
           ? "Boost voting opens tomorrow."
           : !data.wallet?.eligible
             ? `You have ${holding} effective AQUA / ${required} required to boost.`
-            : "Boost this market.";
-    return <span className="market-corner-action-wrap" data-tooltip={!eligible ? title : undefined}>
-      <button data-governance="market-vote" className={`market-corner-action boost ${alreadySelected ? "selected" : ""}`} disabled={!eligible} title={eligible ? title : undefined} onClick={() => void (alreadySelected ? removeBoost() : castVote(market))}>
+            : `Vote for this market to receive ${data.bonusBps / 100}% of AQUA platform fees for 24 hours if it wins. You can change or remove your vote.`;
+    return <MarketActionHint text={title} disabled={!eligible}>
+      <button data-governance="market-vote" className={`market-corner-action boost ${alreadySelected ? "selected" : ""}`} disabled={!eligible} onClick={() => void (alreadySelected ? removeBoost() : castVote(market))}>
         {busyMint ? <Loader2 className="spin"/> : alreadySelected ? <X/> : <AquaVoteArt small/>}<span>{alreadySelected ? "Unboost" : "Boost"}</span>
       </button>
-    </span>;
+    </MarketActionHint>;
   }
 
   return <>
