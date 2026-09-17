@@ -993,37 +993,20 @@ body::before {
 .trade-pay-route > span,.trade-pay-route button { color: #557d95; }
 .trade-pay-route button:hover:not(:disabled) { color: #176fae; background: rgba(255,255,255,.62); }
 .trade-pay-route button.active { color: #0d639f; border-color: rgba(30,143,232,.3); background: white; box-shadow: 0 4px 12px rgba(38,107,150,.08); }
-.jackpot-draw-history > header > span,.jackpot-draw-history article > header small,.jackpot-empty-history { color: #5b8096; }
+.jackpot-draw-history article > header small,.jackpot-empty-history { color: #5b8096; }
 .jackpot-draw-history article { border-color: rgba(204,151,17,.2); background: rgba(255,255,255,.58); }
-.jackpot-draw-history article > header strong,.jackpot-draw-history article > header a,.jackpot-winners strong { color: #865f00; }
+.jackpot-winners strong { color: #865f00; }
 .jackpot-winners span { background: rgba(255,226,139,.22); }
 .jackpot-winners code { color: #456e87; }
-.jackpot-hero-header > div > small { color: #8a6405; }
-.jackpot-hero-header h2 { color: var(--aqua-ink); }
-.jackpot-hero-header p { color: #547a91; }
-.jackpot-hero-header > span { color: #865f00; border-color: rgba(204,151,17,.28); background: rgba(255,224,132,.38); }
-.jackpot-hero-header > span.ready { color: #087f63; border-color: rgba(8,127,99,.24); background: rgba(187,239,218,.48); }
-.jackpot-main-stats > div { border-color: rgba(204,151,17,.2); background: rgba(255,255,255,.58); box-shadow: inset 0 1px rgba(255,255,255,.8); }
-.jackpot-main-stats small { color: #80672b; }
-.jackpot-main-stats strong,.jackpot-explainer b { color: #553c00; }
-.jackpot-main-stats span,.jackpot-eligibility span { color: #5b8096; }
-.jackpot-pot span { color: #865f00; }
-.jackpot-prize-split > div,.jackpot-eligibility { border-color: rgba(204,151,17,.18); background: rgba(255,255,255,.48); }
+.jackpot-compact-header .mode-panel-icon { color: #865f00; border-color: rgba(204,151,17,.24); background: rgba(255,224,132,.38); }
+.jackpot-compact-header small { color: #80672b; }
+.jackpot-compact-header b { color: #6f5720; }
+.jackpot-compact-header > strong { color: #553c00; }
+.jackpot-prize-split > div { border-color: rgba(204,151,17,.18); background: rgba(255,255,255,.48); }
 .jackpot-prize-split > div:first-child { border-color: rgba(204,151,17,.3); background: rgba(255,223,128,.38); }
 .jackpot-prize-split small { color: #7e6c43; }
 .jackpot-prize-split b { color: #6f5720; }
 .jackpot-prize-split > div:first-child b { color: #865f00; }
-.jackpot-eligibility > div + div { border-color: rgba(204,151,17,.18); }
-.jackpot-eligibility b { color: var(--aqua-ink); }
-.jackpot-claim-status { color: #865f00; border-color: rgba(204,151,17,.3); background: rgba(255,255,255,.54); }
-.jackpot-claim-status.claimed { color: #087f63; border-color: rgba(8,127,99,.25); }
-.jackpot-leaderboard { border-color: rgba(204,151,17,.24); background: linear-gradient(145deg,rgba(255,244,205,.88),rgba(255,255,255,.78)); box-shadow: 0 12px 34px rgba(91,119,134,.08); }
-.jackpot-leaderboard > header { border-color: rgba(204,151,17,.16); }
-.jackpot-leaderboard > header span,.jackpot-leaderboard li > strong { color: #865f00; }
-.jackpot-leaderboard > header b,.jackpot-leaderboard li code { color: var(--aqua-ink); }
-.jackpot-leaderboard > header small,.jackpot-leaderboard li div small,.jackpot-leaderboard > p { color: #5b8096; }
-.jackpot-leaderboard li { border-color: rgba(55,109,140,.1); }
-.jackpot-leaderboard li > i { color: #865f00; background: rgba(255,216,104,.33); }
 
 /* Launch progress and success screens */
 .wizard-launching-screen { border: 1px solid rgba(30,143,232,.16); background: radial-gradient(circle at 50% 42%,rgba(69,185,238,.2),transparent 31%),linear-gradient(145deg,rgba(248,253,255,.98),rgba(212,237,252,.98)); box-shadow: inset 0 1px rgba(255,255,255,.9); }

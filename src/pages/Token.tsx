@@ -33,10 +33,6 @@ function formatCountdown(seconds: number) {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
 }
 
-function solscanTransactionUrl(signature: string, network: string) {
-  return `https://solscan.io/tx/${signature}${network === "devnet" ? "?cluster=devnet" : ""}`;
-}
-
 export function Token() {
   const { id = "" } = useParams();
   const wallet = useWallet();
@@ -119,11 +115,6 @@ export function Token() {
   const modeLabel = rewardMode === "buyback_burn" ? "BUYBACK & BURN" : rewardMode === "jackpot" ? "HOURLY JACKPOT" : "HOLDER REWARDS";
   const jackpot = rewardModeState?.jackpot;
   const jackpotSeconds = Math.max(0, (jackpot?.nextDrawAt ?? nowSeconds + (config.rewardModes?.jackpot.drawSeconds ?? 3_600)) - nowSeconds);
-  const jackpotEligibleHolders = jackpot?.eligibleWallets ?? launch.holderCount;
-  const jackpotMinimumUsd = (config.rewardModes?.jackpot.minimumUsdCents ?? 1_000) / 100;
-  const jackpotReady = jackpotEligibleHolders >= 5 && (jackpot?.currentPotUsd ?? 0) >= jackpotMinimumUsd;
-  const jackpotMissingHolders = Math.max(0, 5 - jackpotEligibleHolders);
-  const jackpotRequirement = jackpotReady ? "Ready" : jackpotMissingHolders && (jackpot?.currentPotUsd ?? 0) < jackpotMinimumUsd ? `${jackpotMissingHolders} more holder${jackpotMissingHolders === 1 ? "" : "s"} + ${money.format(jackpotMinimumUsd)} pot` : jackpotMissingHolders ? `${jackpotMissingHolders} more eligible holder${jackpotMissingHolders === 1 ? "" : "s"}` : `${money.format(jackpotMinimumUsd)} minimum pot`;
 
   async function trade() {
     if (!wallet.address) {
@@ -185,16 +176,9 @@ export function Token() {
         {rewardMode === "holder_rewards" && <div className="info-panel reward holder-reward-panel"><span className="mode-panel-icon"><RewardModeIcon mode="holder_rewards"/></span><b>Holder Rewards · Earn {launch.stockSymbol}</b><div><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Redeemable by holders" value={money.format(launch.rewardRedeemableUsd)}/></div><p>Allocations use eligible balance × time held. All outstanding rewards for this market accumulate into one claim.</p></div>}
         {rewardMode === "buyback_burn" && <div className="info-panel reward buyback-burn-panel"><span className="mode-panel-icon"><RewardModeIcon mode="buyback_burn"/></span><b>Buyback &amp; Burn</b><div><Metric label="SOL used" value={`${compact.format(rewardModeState?.buybackBurn.totalSol ?? 0)} SOL`}/><Metric label={`${launch.symbol} burned`} value={formatRaw(rewardModeState?.buybackBurn.totalTokenRaw, launch.tokenDecimals)}/></div><p>The reward share buys {launch.symbol} through the live market, then permanently burns the purchased tokens. Each buy and burn is recorded on Solana.</p></div>}
         {rewardMode === "jackpot" && <div className="info-panel reward jackpot-panel">
-          <header className="jackpot-hero-header"><div><small>HOURLY HOLDER JACKPOT</small><h2>Five holders win every draw</h2><p>The longer you hold without selling, the stronger your chance of winning.</p></div><span className={jackpotReady ? "ready" : "rolling"}>{jackpotReady ? "DRAW READY" : "POT BUILDING"}</span></header>
-          <div className="jackpot-main-stats">
-            <div className="jackpot-countdown"><small>NEXT DRAW</small><strong>{formatCountdown(jackpotSeconds)}</strong><span>Live countdown</span></div>
-            <div className="jackpot-pot"><small>CURRENT PRIZE POOL</small><strong>{jackpot ? `${formatRaw(jackpot.currentPotRaw, jackpot.rewardDecimals)} ${jackpot.rewardSymbol}` : "Loading…"}</strong><span>{jackpot ? money.format(jackpot.currentPotUsd) : "Loading…"}</span></div>
-          </div>
+          <header className="jackpot-compact-header"><span className="mode-panel-icon"><RewardModeIcon mode="jackpot"/></span><div><small>HOURLY JACKPOT</small><b>Next draw</b></div><strong>{formatCountdown(jackpotSeconds)}</strong></header>
           <div className="jackpot-prize-split"><div><small>1ST</small><b>50%</b></div><div><small>2ND</small><b>20%</b></div><div><small>3RD</small><b>20%</b></div><div><small>4TH</small><b>5%</b></div><div><small>5TH</small><b>5%</b></div></div>
-          <div className="jackpot-eligibility"><div><span>Eligible holders</span><b>{jackpotEligibleHolders}</b></div><div><span>Draw requirements</span><b>{jackpotRequirement}</b></div></div>
-          <div className="jackpot-explainer"><b>How your odds grow</b><p>Keep holding through the hour or buy earlier to build a higher time-weighted score. Selling or transferring out reduces the score you have built.</p></div>
-          <small className="jackpot-proof">Every draw publishes its holder snapshot and future Solana block randomness, so the result can be independently checked.</small>
-          <JackpotHistory jackpot={jackpot} network={config.network}/>
+          <JackpotHistory jackpot={jackpot}/>
         </div>}
       </div>
 
@@ -211,7 +195,7 @@ export function Token() {
       <button className="primary full" disabled={!Number(amount) || busy || (!canTrade && Boolean(wallet.address))} onClick={() => void trade()}>{busy ? <><Loader2 className="spin"/>Confirming</> : !wallet.address ? "Connect wallet" : !canTrade ? "Trading unavailable" : side === "buy" ? `Buy ${launch.symbol}` : `Sell ${launch.symbol}`}</button>
       {!canTrade && <div className="locked"><ShieldAlert/><span><b>{launch.status !== "live" ? "Market is launching" : "Transactions disabled"}</b>{launch.status !== "live" ? "Trading opens after every launch transaction confirms." : "The backend is not currently issuing transactions."}</span></div>}
       <div className="creator"><span>Creator</span><b>{launch.creatorWallet}</b><span>Developer buy</span><b>{launch.pairType === "sol" ? launch.devBuySol > 0 ? `${launch.devBuySol} SOL` : "None" : BigInt(launch.devBuyStockRaw || "0") > 0n ? `${formatRaw(launch.devBuyStockRaw, stockDecimals)} ${launch.stockSymbol}` : "None"}</b><span>Holders</span><b><Users/> {compact.format(launch.holderCount)}</b></div>
-    </div>{rewardMode === "jackpot" && <JackpotLeaderboard jackpot={jackpot}/>}</aside></div>
+    </div></aside></div>
   </main>;
 }
 
@@ -219,25 +203,15 @@ function TradeRow({ label, value, strong, accent }: { label: string; value: stri
   return <div className={`trade-row ${strong ? "strong" : ""}`}><span>{label}</span><b className={accent ? "green" : ""}>{value}</b></div>;
 }
 
-function JackpotHistory({ jackpot, network }: { jackpot: RewardModeState["jackpot"] | undefined; network: string }) {
-  if (!jackpot?.previousDraws.length) return <div className="jackpot-empty-history">The first completed draw will appear here with every winner and its Solscan proof.</div>;
+function JackpotHistory({ jackpot }: { jackpot: RewardModeState["jackpot"] | undefined }) {
+  if (!jackpot?.previousDraws.length) return <div className="jackpot-empty-history">No previous winners yet.</div>;
   return <div className="jackpot-draw-history">
-    <header><b>Previous rounds</b><span>All five winners · biggest first</span></header>
+    <header><b>Previous winners</b></header>
     {jackpot.previousDraws.map((draw) => <article key={draw.id}>
-      <header><div><small>{new Date(draw.endsAt * 1_000).toLocaleString()}</small><strong>{formatRaw(draw.totalRewardRaw, draw.rewardDecimals)} {draw.rewardSymbol} total</strong></div>{draw.transactionSignature && <a href={solscanTransactionUrl(draw.transactionSignature, network)} target="_blank" rel="noreferrer">Draw proof <ExternalLink/></a>}</header>
+      <header><small>{new Date(draw.endsAt * 1_000).toLocaleString()}</small></header>
       <div className="jackpot-winners">{draw.winners.map((winner) => <span key={`${draw.id}:${winner.wallet}`}>
         <b>#{winner.place}</b><code>{winner.wallet.slice(0,4)}…{winner.wallet.slice(-4)}</code><strong>{formatRaw(winner.amountRaw, draw.rewardDecimals)} {draw.rewardSymbol}</strong>
-        {winner.claimedSignature ? <a className="jackpot-claim-status claimed" href={solscanTransactionUrl(winner.claimedSignature, network)} target="_blank" rel="noreferrer">Claimed <ExternalLink/></a> : <em className="jackpot-claim-status">Unclaimed</em>}
       </span>)}</div>
     </article>)}
   </div>;
-}
-
-function JackpotLeaderboard({ jackpot }: { jackpot: RewardModeState["jackpot"] | undefined }) {
-  return <section className="jackpot-leaderboard">
-    <header><span>ALL-TIME</span><b>Biggest jackpot winners</b><small>Ranked by total winnings</small></header>
-    {jackpot?.allTimeWinners.length ? <ol>{jackpot.allTimeWinners.map((winner, index) => <li key={winner.wallet}>
-      <i>{index + 1}</i><div><code>{winner.wallet.slice(0,4)}…{winner.wallet.slice(-4)}</code><small>{winner.wins} win{winner.wins === 1 ? "" : "s"} · {winner.unclaimedWins ? `${winner.unclaimedWins} unclaimed` : "all claimed"}</small></div><strong>{formatRaw(winner.totalAmountRaw, jackpot.rewardDecimals)} <small>{jackpot.rewardSymbol}</small></strong>
-    </li>)}</ol> : <p>No completed jackpot rounds yet.</p>}
-  </section>;
 }
