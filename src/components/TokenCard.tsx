@@ -6,6 +6,7 @@ import { useRuntime } from "../context";
 import type { Launch } from "../types";
 import { RewardModeIcon } from "./RewardModeIcon";
 import { DexScreenerIcon } from "./DexScreenerIcon";
+import { launchAge } from "../time";
 
 const compact = new Intl.NumberFormat("en-US", { notation:"compact", maximumFractionDigits:1 });
 
@@ -49,7 +50,7 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
     <Link className="token-card-link" to={"/token/" + launch.id}>
     <div className="token-head">
       <TokenMark launch={launch}/>
-      <div><div className="token-title"><b>{launch.name}</b><span>{"$" + launch.symbol} / {launch.pairSymbol}</span></div><div className="token-pair"><AssetMark launch={launch}/>{launch.pairSymbol} market</div></div>
+      <div><div className="token-title"><b>{launch.name}</b><span>{"$" + launch.symbol} / {launch.pairSymbol}</span></div><div className="token-pair"><AssetMark launch={launch}/>{launch.pairSymbol} market · {launchAge(launch.launchedAt, launch.createdAt).replace("Launched ", "")}</div></div>
       {boosted && <span className="boosted-market-badge"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 2.1 4.7L17 8.5l-3.7 3.3.9 5L10 14.2l-4.2 2.6.9-5L3 8.5l4.9-1.8L10 2Z"/></svg>Boosted</span>}
       {launch.dexPaid && <span className="dex-paid-badge" title="DEX Screener profile paid" aria-label="DEX Screener profile paid"><DexScreenerIcon/></span>}
       <ArrowUpRight className="card-arrow" size={17}/>
