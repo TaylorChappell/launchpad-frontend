@@ -3130,6 +3130,34 @@ body::before {
 .aqua-reward-mode-icon .mode-icon-wash { fill: currentColor; opacity: .13; }
 .aqua-reward-mode-icon .mode-icon-solid { fill: currentColor; }
 .aqua-reward-mode-icon .mode-icon-bubble { fill: currentColor; opacity: .55; }
+.jackpot-panel { padding: 24px; border-color: rgba(255,205,84,.28) !important; background: radial-gradient(circle at 82% 0,rgba(255,211,91,.13),transparent 34%),linear-gradient(145deg,rgba(21,31,33,.96),rgba(7,25,34,.82)) !important; }
+.jackpot-hero-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.jackpot-hero-header > div > small { display: block; color: #ffd675; font: 850 .6rem/1 "Manrope",sans-serif; letter-spacing: .14em; }
+.jackpot-hero-header h2 { margin: 8px 0 6px; font: 780 1.35rem/1.12 "Manrope",sans-serif; letter-spacing: -.025em; }
+.jackpot-hero-header p { max-width: 600px; margin: 0; color: #90aeb2; font-size: .72rem; }
+.jackpot-hero-header > span { flex: none; padding: 7px 10px; border: 1px solid rgba(255,205,84,.24); border-radius: 999px; color: #ffd675; background: rgba(255,196,47,.08); font: 800 .58rem/1 "Manrope",sans-serif; letter-spacing: .08em; }
+.jackpot-hero-header > span.ready { color: #67ddbd; border-color: rgba(103,221,189,.3); background: rgba(48,192,154,.1); }
+.jackpot-main-stats { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 12px; margin: 22px 0 12px !important; }
+.jackpot-main-stats > div { min-height: 126px; display: flex; flex-direction: column; justify-content: center; padding: 20px; border: 1px solid rgba(255,205,84,.17); border-radius: 15px; background: rgba(255,255,255,.035); }
+.jackpot-main-stats small { color: #9b8b5c; font: 800 .58rem/1 "Manrope",sans-serif; letter-spacing: .12em; }
+.jackpot-main-stats strong { display: block; margin-top: 10px; color: #fff1c6; font: 800 1.7rem/1 "JetBrains Mono",monospace; letter-spacing: -.04em; }
+.jackpot-countdown strong { font-size: 2.1rem; letter-spacing: .02em; }
+.jackpot-main-stats span { display: block; margin-top: 9px; color: #789ba1; font: 650 .66rem/1 "Manrope",sans-serif; }
+.jackpot-pot span { color: #ffd675; }
+.jackpot-prize-split { display: grid !important; grid-template-columns: 1.35fr repeat(4,1fr) !important; gap: 7px; margin: 0 0 12px !important; }
+.jackpot-prize-split > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 11px; border: 1px solid rgba(255,205,84,.12); border-radius: 10px; background: rgba(255,255,255,.025); }
+.jackpot-prize-split > div:first-child { border-color: rgba(255,205,84,.27); background: rgba(255,196,47,.09); }
+.jackpot-prize-split small { color: #887c59; font: 800 .55rem/1 "Manrope",sans-serif; }
+.jackpot-prize-split b { color: #d9c994; font: 800 .7rem/1 "JetBrains Mono",monospace; }
+.jackpot-prize-split > div:first-child b { color: #ffd675; }
+.jackpot-eligibility { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 0; margin: 0 !important; border: 1px solid rgba(255,205,84,.12); border-radius: 11px; background: rgba(255,255,255,.025); }
+.jackpot-eligibility > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; }
+.jackpot-eligibility > div + div { border-left: 1px solid rgba(255,205,84,.12); }
+.jackpot-eligibility span { color: #789ba1; font-size: .64rem; }
+.jackpot-eligibility b { color: #dcebed; font: 750 .66rem/1.25 "Manrope",sans-serif; text-align: right; }
+.jackpot-explainer { display: grid !important; grid-template-columns: 150px minmax(0,1fr) !important; gap: 16px; align-items: start; margin: 18px 0 0 !important; padding: 0 !important; }
+.jackpot-explainer b { color: #fff1c6; font-size: .72rem; }
+.jackpot-explainer p { margin: 0; }
 .jackpot-winners { display: grid; gap: 7px; margin-top: 16px; }
 .jackpot-winners span { display: grid; grid-template-columns: 32px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 11px; border-radius: 10px; background: rgba(70,178,188,.08); }
 .jackpot-winners code { color: #8eb4b9; font-size: .72rem; }
@@ -3168,7 +3196,7 @@ body::before {
 .jackpot-leaderboard li > strong small { color: inherit; font-size: .54rem; }
 .jackpot-leaderboard > p { margin: 0; padding: 18px; color: #72969c; font-size: .68rem; }
 @media (max-width: 880px) { .reward-mode-docs { grid-template-columns: 1fr; } .reward-mode-option { grid-template-columns: 42px minmax(0,1fr); } .reward-mode-option > em { grid-column: 2; min-width: 0; text-align: left; } }
-@media (max-width: 720px) { .jackpot-live-metrics { grid-template-columns: repeat(2,minmax(0,1fr)) !important; } .market-mode-filters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); } .market-mode-filters button { justify-content: center; } }
+@media (max-width: 720px) { .jackpot-live-metrics { grid-template-columns: repeat(2,minmax(0,1fr)) !important; } .jackpot-hero-header { flex-direction: column; gap: 12px; } .jackpot-main-stats { grid-template-columns: 1fr !important; } .jackpot-prize-split { grid-template-columns: repeat(5,minmax(0,1fr)) !important; } .jackpot-prize-split > div { align-items: center; flex-direction: column; padding: 9px 4px; } .jackpot-eligibility { grid-template-columns: 1fr !important; } .jackpot-eligibility > div + div { border-top: 1px solid rgba(255,205,84,.12); border-left: 0; } .jackpot-explainer { grid-template-columns: 1fr !important; gap: 6px; } .jackpot-winners span { grid-template-columns: 26px 1fr auto; } .jackpot-claim-status { grid-column: 2 / -1; justify-self: start; } .market-mode-filters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); } .market-mode-filters button { justify-content: center; } }
 
 .coin-identity-grid { display: grid; grid-template-columns: 156px minmax(0, 1fr); gap: 20px; }
 .wizard-artwork {

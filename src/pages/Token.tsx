@@ -119,6 +119,11 @@ export function Token() {
   const modeLabel = rewardMode === "buyback_burn" ? "BUYBACK & BURN" : rewardMode === "jackpot" ? "HOURLY JACKPOT" : "HOLDER REWARDS";
   const jackpot = rewardModeState?.jackpot;
   const jackpotSeconds = Math.max(0, (jackpot?.nextDrawAt ?? nowSeconds + (config.rewardModes?.jackpot.drawSeconds ?? 3_600)) - nowSeconds);
+  const jackpotEligibleHolders = jackpot?.eligibleWallets ?? launch.holderCount;
+  const jackpotMinimumUsd = (config.rewardModes?.jackpot.minimumUsdCents ?? 1_000) / 100;
+  const jackpotReady = jackpotEligibleHolders >= 5 && (jackpot?.currentPotUsd ?? 0) >= jackpotMinimumUsd;
+  const jackpotMissingHolders = Math.max(0, 5 - jackpotEligibleHolders);
+  const jackpotRequirement = jackpotReady ? "Ready" : jackpotMissingHolders && (jackpot?.currentPotUsd ?? 0) < jackpotMinimumUsd ? `${jackpotMissingHolders} more holder${jackpotMissingHolders === 1 ? "" : "s"} + ${money.format(jackpotMinimumUsd)} pot` : jackpotMissingHolders ? `${jackpotMissingHolders} more eligible holder${jackpotMissingHolders === 1 ? "" : "s"}` : `${money.format(jackpotMinimumUsd)} minimum pot`;
 
   async function trade() {
     if (!wallet.address) {
@@ -180,10 +185,15 @@ export function Token() {
         {rewardMode === "holder_rewards" && <div className="info-panel reward holder-reward-panel"><span className="mode-panel-icon"><RewardModeIcon mode="holder_rewards"/></span><b>Holder Rewards · Earn {launch.stockSymbol}</b><div><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Redeemable by holders" value={money.format(launch.rewardRedeemableUsd)}/></div><p>Allocations use eligible balance × time held. All outstanding rewards for this market accumulate into one claim.</p></div>}
         {rewardMode === "buyback_burn" && <div className="info-panel reward buyback-burn-panel"><span className="mode-panel-icon"><RewardModeIcon mode="buyback_burn"/></span><b>Buyback &amp; Burn</b><div><Metric label="SOL used" value={`${compact.format(rewardModeState?.buybackBurn.totalSol ?? 0)} SOL`}/><Metric label={`${launch.symbol} burned`} value={formatRaw(rewardModeState?.buybackBurn.totalTokenRaw, launch.tokenDecimals)}/></div><p>The reward share buys {launch.symbol} through the live market, then permanently burns the purchased tokens. Each buy and burn is recorded on Solana.</p></div>}
         {rewardMode === "jackpot" && <div className="info-panel reward jackpot-panel">
-          <span className="mode-panel-icon"><RewardModeIcon mode="jackpot"/></span><b>Hourly holder jackpot</b>
-          <div className="jackpot-live-metrics"><Metric label="Next draw" value={formatCountdown(jackpotSeconds)}/><Metric label="Current pot" value={jackpot ? `${formatRaw(jackpot.currentPotRaw, jackpot.rewardDecimals)} ${jackpot.rewardSymbol}` : "Loading…"}/><Metric label="Current pot value" value={jackpot ? money.format(jackpot.currentPotUsd) : "Loading…"}/><Metric label="Eligible holders" value={String(jackpot?.eligibleWallets ?? launch.holderCount)}/></div>
-          <p>Five distinct wallets win 50% / 20% / 20% / 5% / 5%. Holding consistently and buying earlier raises score; selling or transferring out cuts accrued score.</p>
-          <small className="jackpot-proof">The countdown updates live. Snapshot and future Solana block randomness are published with every draw.</small>
+          <header className="jackpot-hero-header"><div><small>HOURLY HOLDER JACKPOT</small><h2>Five holders win every draw</h2><p>The longer you hold without selling, the stronger your chance of winning.</p></div><span className={jackpotReady ? "ready" : "rolling"}>{jackpotReady ? "DRAW READY" : "POT BUILDING"}</span></header>
+          <div className="jackpot-main-stats">
+            <div className="jackpot-countdown"><small>NEXT DRAW</small><strong>{formatCountdown(jackpotSeconds)}</strong><span>Live countdown</span></div>
+            <div className="jackpot-pot"><small>CURRENT PRIZE POOL</small><strong>{jackpot ? `${formatRaw(jackpot.currentPotRaw, jackpot.rewardDecimals)} ${jackpot.rewardSymbol}` : "Loading…"}</strong><span>{jackpot ? money.format(jackpot.currentPotUsd) : "Loading…"}</span></div>
+          </div>
+          <div className="jackpot-prize-split"><div><small>1ST</small><b>50%</b></div><div><small>2ND</small><b>20%</b></div><div><small>3RD</small><b>20%</b></div><div><small>4TH</small><b>5%</b></div><div><small>5TH</small><b>5%</b></div></div>
+          <div className="jackpot-eligibility"><div><span>Eligible holders</span><b>{jackpotEligibleHolders}</b></div><div><span>Draw requirements</span><b>{jackpotRequirement}</b></div></div>
+          <div className="jackpot-explainer"><b>How your odds grow</b><p>Keep holding through the hour or buy earlier to build a higher time-weighted score. Selling or transferring out reduces the score you have built.</p></div>
+          <small className="jackpot-proof">Every draw publishes its holder snapshot and future Solana block randomness, so the result can be independently checked.</small>
           <JackpotHistory jackpot={jackpot} network={config.network}/>
         </div>}
       </div>
