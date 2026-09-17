@@ -131,9 +131,18 @@ export function CreatorManage() {
 
   return <main className="page manage-page">
     <Link className="back" to={"/token/" + launch.id}><ArrowLeft/>Back to market</Link>
-    <section className="manage-hero"><div><TokenMark launch={launch} large/><span><small>CREATOR MANAGER</small><h1>Manage {"$" + launch.symbol}</h1><p>Set up a transparent creator lock, preview the fee share, and claim accrued creator fees.</p></span></div></section>
+    <section className="manage-hero">
+      <div className="manage-hero-identity"><TokenMark launch={launch} large/><span><small>CREATOR CONTROL</small><h1>Manage {"$" + launch.symbol}</h1><p>Configure a public creator lock and see the exact fee share it unlocks. Creator fees settle automatically in SOL.</p></span></div>
+      <span className="manage-owner-badge"><ShieldCheck/>Creator verified</span>
+    </section>
 
-    <div className="manage-steps"><span className={lock?.status === "active" ? "done" : "active"}><i>{lock?.status === "active" ? <Check/> : "1"}</i><b>1. Configure lock</b></span><span className={lock?.status === "active" ? "active" : ""}><i>2</i><b>2. Earn fees</b></span></div>
+    <section className="manage-overview" aria-label="Market management overview">
+      <article><small>CREATOR WALLET</small><a href={solscanAccountUrl(launch.creatorWallet, config.network)} target="_blank" rel="noreferrer">{launch.creatorWallet.slice(0, 6)}…{launch.creatorWallet.slice(-6)} <ExternalLink/></a></article>
+      <article><small>TRADING PAIR</small><strong>{launch.symbol} / {launch.pairSymbol}</strong></article>
+      <article><small>LOCK STATUS</small><strong className={lock?.status === "active" ? "status-active" : "status-open"}>{lock?.status === "active" ? "Active" : "Not configured"}</strong></article>
+    </section>
+
+    <div className="manage-steps"><span className={lock?.status === "active" ? "done" : "active"}><i>{lock?.status === "active" ? <Check/> : "1"}</i><span><b>Configure lock</b><small>Choose amount and duration</small></span></span><span className={lock?.status === "active" ? "active" : ""}><i>2</i><span><b>Earn creator fees</b><small>Automatic SOL settlement</small></span></span></div>
 
     {lock?.status === "active" ? <section className="manage-active-lock">
       <header><span><LockKeyhole/><small>ACTIVE CREATOR LOCK</small></span><strong>{activeTradeShare.toFixed(3)}% per eligible transfer</strong></header>
@@ -141,14 +150,16 @@ export function CreatorManage() {
       <footer><a className="creator-lock-view" href={solscanAccountUrl(lock.vaultTokenAccount, config.network)} target="_blank" rel="noreferrer">View lock on Solscan <ExternalLink/></a><button className="secondary-button" disabled={busy !== null || Math.floor(Date.now()/1_000) < lock.unlockAt} onClick={() => void act("release")}>{busy === "release" && <Loader2 className="spin"/>}Release after maturity</button></footer>
     </section> : <div className="manage-grid">
       <section className="manage-builder">
-        <header><small>STEP 1</small><h2>Build your creator lock</h2><p>Choose the token amount and lock duration.</p></header>
+        <header><span className="manage-section-icon"><LockKeyhole/></span><div><small>LOCK CONFIGURATION</small><h2>Build your creator lock</h2><p>Locking more supply for longer increases your share of the platform fee.</p></div></header>
         <label><span>Creator tokens to lock</span><div className={`manage-input ${exceedsAvailable ? "invalid" : ""}`}><input value={amount} inputMode="decimal" placeholder="0" onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))}/><b>{launch.symbol}</b></div><small className={`creator-lock-balance ${exceedsAvailable ? "cap-warning" : ""}`}><span>{availableRaw === null ? "Reading wallet balance…" : `${formatRaw(availableRaw, launch.tokenDecimals)} ${launch.symbol} available · ${amountPercent.toFixed(amountPercent < .01 ? 4 : 2)}% of supply`}</span>{availableRaw !== null && BigInt(availableRaw) > 0n && <button type="button" onClick={() => setAmount(formatRaw(availableRaw, launch.tokenDecimals))}>Max</button>}</small></label>
         <label><span>Lock duration</span><div className="manage-input"><input value={days} inputMode="numeric" onChange={(event) => setDays(event.target.value.replace(/[^0-9]/g, ""))}/><b>days</b></div><small className={isCapped ? "cap-warning" : ""}>{isCapped ? `Using the maximum ${maximumDays}-day score` : `${minimumDays} to ${maximumDays} days`}</small></label>
         <div className="duration-presets">{[30,90,180,maximumDays].filter((value,index,array) => value >= minimumDays && array.indexOf(value) === index).map((value) => <button key={value} className={effectiveDays === value ? "active" : ""} onClick={() => setDays(String(value))}>{value === maximumDays ? "Max · " + value + "d" : value + " days"}</button>)}</div>
-        <div className="score-bars"><div><span><b>Amount score</b></span><i><b style={{width: amountProgress + "%"}}/></i></div><div><span><b>Time score</b></span><i><b style={{width: timeProgress + "%"}}/></i></div></div>
+        <div className="score-bars"><div><span><b>Locked supply</b><small>{amountPercent.toFixed(amountPercent < .01 ? 4 : 2)}% / {targetPercent}% target</small></span><i><b style={{width: amountProgress + "%"}}/></i></div><div><span><b>Lock duration</b><small>{effectiveDays} / {maximumDays} days</small></span><i><b style={{width: timeProgress + "%"}}/></i></div></div>
+        <p className="manage-security-note"><ShieldCheck/>The lock transaction is shown in your wallet before anything moves. AQUA cannot sign it for you.</p>
       </section>
       <aside className="manage-quote">
-        <small>ESTIMATED FEE PER TRANSFER</small><strong>{effectiveTradeShare.toFixed(3)}%</strong><p>of each eligible transfer while the lock is active.</p>
+        <span className="manage-quote-icon"><ShieldCheck/></span><small>CREATOR FEE PREVIEW</small><strong>{effectiveTradeShare.toFixed(3)}%</strong><p>of each eligible transfer while your creator lock is active.</p>
+        <dl><div><dt>Locked supply</dt><dd>{amountPercent.toFixed(amountPercent < .01 ? 4 : 2)}%</dd></div><div><dt>Duration</dt><dd>{effectiveDays} days</dd></div><div><dt>Settlement</dt><dd>Automatic · SOL</dd></div></dl>
         <button className="primary full" disabled={busy !== null || availableRaw === null || BigInt(amountRaw || "0") <= 0n || exceedsAvailable} onClick={() => void act("lock")}>{busy === "lock" && <Loader2 className="spin"/>}Review lock in wallet</button>
       </aside>
     </div>}
