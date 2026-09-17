@@ -85,7 +85,6 @@ export function Layout({ children }: { children: ReactNode }) {
       <span className="community-reward-prizes"><b>$1,250</b><i/> <b>$750</b><i/> <b>$500</b></span>
       <span className="community-reward-link">VIEW PROGRAM <ExternalLink/></span>
     </a>
-    <div className="community-reward-banner-spacer" aria-hidden="true"/>
     {error && <div className="system-banner"><b>Backend unavailable</b><span>Live data could not be loaded. Actions remain disabled until the connection recovers.</span></div>}
     {children}
     <footer className="site-footer">

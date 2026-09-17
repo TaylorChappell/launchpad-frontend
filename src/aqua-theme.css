@@ -1058,10 +1058,8 @@ body::before {
 
 /* Compact community boost UI */
 .community-reward-banner {
-  position: fixed;
+  position: relative;
   z-index: 45;
-  top: 82px;
-  left: 50%;
   width: min(1240px,calc(100% - 28px));
   min-height: 68px;
   display: grid;
@@ -1069,7 +1067,7 @@ body::before {
   align-items: center;
   gap: 22px;
   overflow: hidden;
-  margin: 0;
+  margin: 12px auto 0;
   padding: 5px 18px;
   border: 1px solid rgba(255,255,255,.32);
   border-radius: 14px;
@@ -1078,11 +1076,9 @@ body::before {
   box-shadow: 0 18px 46px rgba(26,91,132,.27),0 4px 12px rgba(32,100,142,.16),inset 0 1px rgba(255,255,255,.16);
   text-decoration: none;
   isolation: isolate;
-  transform: translateX(-50%);
   transition: box-shadow .2s ease;
 }
 .community-reward-banner:hover { box-shadow: 0 22px 54px rgba(26,91,132,.31),0 5px 14px rgba(32,100,142,.18),inset 0 1px rgba(255,255,255,.19); }
-.community-reward-banner-spacer { height: 92px; }
 .community-reward-banner::before { content: ""; position: absolute; z-index: -1; inset: 0; background: linear-gradient(90deg,#075f9e 0%,#0a78bc 56%,#0b92d2 100%); }
 .community-reward-banner::after { content: ""; position: absolute; z-index: -1; width: 360px; height: 150px; right: 7%; top: -115px; border: 24px solid rgba(255,255,255,.08); border-radius: 50%; transform: rotate(-8deg); }
 .campaign-banner-art { width: 94px; height: 58px; display: block; }
@@ -1217,7 +1213,7 @@ body::before {
 .community-update-flash > footer a:last-child { padding: 0 14px; border-radius: 8px; color: #fff; background: #168fd3; font-weight: 800; letter-spacing: .04em; }
 
 @media (max-width: 900px) {
-  .community-reward-banner { top: 80px; width: calc(100% - 20px); grid-template-columns: 74px minmax(0,1fr) auto; gap: 13px; padding-inline: 18px; }
+  .community-reward-banner { width: calc(100% - 20px); grid-template-columns: 74px minmax(0,1fr) auto; gap: 13px; padding-inline: 18px; }
   .campaign-banner-art { width: 74px; }
   .community-reward-prizes { display: none; }
   .governance-compact-callout { grid-template-columns: 46px minmax(0,1fr) auto; }
@@ -1231,8 +1227,7 @@ body::before {
 }
 
 @media (max-width: 640px) {
-  .community-reward-banner { top: 74px; width: calc(100% - 12px); min-height: 62px; grid-template-columns: 52px minmax(0,1fr) auto; gap: 9px; padding-inline: 11px; border-radius: 11px; }
-  .community-reward-banner-spacer { height: 74px; }
+  .community-reward-banner { width: calc(100% - 12px); min-height: 62px; margin-top: 6px; grid-template-columns: 52px minmax(0,1fr) auto; gap: 9px; padding-inline: 11px; border-radius: 11px; }
   .campaign-banner-art { width: 52px; height: 48px; }
   .community-reward-banner-copy small { font-size: .48rem; }
   .community-reward-banner-copy strong { font-size: .82rem; }
