@@ -94,6 +94,7 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
       setSelectorOpen(false);
       return wallet.setModalOpen(true);
     }
+    if (data?.enabled && !data.votingOpen) return toast.error("Today is boost day. Voting opens again tomorrow.");
     if (data?.enabled && data.wallet && !data.wallet.eligible) return toast.error("Hold at least 0.1% of AQUA to vote.");
     setBusyMint(target.mint);
     try {
@@ -111,27 +112,27 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
     }
   }
 
-  if (!data) return compact ? null : <section data-governance="weekly-market-vote" className="governance-hub loading"><Loader2 className="spin"/> Loading weekly market vote…</section>;
+  if (!data) return compact ? null : <section data-governance="market-vote" className="governance-hub loading"><Loader2 className="spin"/> Loading market vote…</section>;
   if (!data.enabled || isAqua) return null;
 
   const ineligible = Boolean(wallet.address && data.wallet && !data.wallet.eligible);
-  const marketButtonLabel = ineligible ? "HOLD 0.1% AQUA" : alreadySelected ? "BOOSTED" : selected ? "CHANGE BOOST" : "BOOST";
+  const marketButtonLabel = !data.votingOpen ? "VOTING TOMORROW" : ineligible ? "HOLD 0.1% AQUA" : alreadySelected ? "BOOSTED" : selected ? "CHANGE BOOST" : "BOOST";
 
-  if (compact && market) return <section data-governance="weekly-market-vote" className="market-boost-strip">
-    <div className="market-boost-copy"><AquaVoteArt small/><span><small>FRIDAY AQUA BOOST</small><b>Back this market</b></span><em><Clock3/> {timeLeft(data.round.endsAt, now)}</em></div>
-    <button className={alreadySelected ? "active" : ""} disabled={Boolean(busyMint) || alreadySelected || ineligible} onClick={() => void castVote(market)}>
+  if (compact && market) return <section data-governance="market-vote" className={`market-boost-strip ${data.votingOpen ? "voting-day" : "boost-day"}`}>
+    <div className="market-boost-copy"><AquaVoteArt small/><span><small>{data.votingOpen ? "AQUA VOTING DAY" : "AQUA BOOST DAY"}</small><b>{data.votingOpen ? "Back this market" : data.activeBonus ? `$${data.activeBonus.symbol} is boosted` : "Next vote opens tomorrow"}</b></span><em><Clock3/> {timeLeft(data.votingOpen ? data.round.endsAt : data.round.startsAt, now)}</em></div>
+    <button className={alreadySelected ? "active" : ""} disabled={!data.votingOpen || Boolean(busyMint) || alreadySelected || ineligible} onClick={() => void castVote(market)}>
       {busyMint ? <Loader2 className="spin"/> : alreadySelected ? <Check/> : null}{marketButtonLabel}
     </button>
   </section>;
 
   return <>
-    <section data-governance="weekly-market-vote" className={`governance-hub ${selected ? "has-vote" : ""}`}>
+    <section data-governance="market-vote" className={`governance-hub ${selected ? "has-vote" : ""} ${data.votingOpen ? "voting-day" : "boost-day"}`}>
       <div className="governance-compact-callout">
         <AquaVoteArt/>
-        <div className="governance-compact-copy"><small>FRIDAY AQUA BOOST</small><h2>VOTE FOR THE NEXT BOOSTED MARKET</h2><p>Voting closes Friday. The winner receives 10% of AQUA platform fees for 24 hours.</p></div>
-        <span className="governance-compact-time"><Clock3/> {timeLeft(data.round.endsAt, now)}</span>
+        <div className="governance-compact-copy"><small>{data.votingOpen ? "AQUA VOTING DAY" : "AQUA BOOST DAY"}</small><h2>{data.votingOpen ? "VOTE FOR THE NEXT BOOSTED MARKET" : data.activeBonus ? `$${data.activeBonus.symbol} IS BOOSTED TODAY` : "THE NEXT VOTE OPENS TOMORROW"}</h2><p>{data.votingOpen ? "Vote today. Tomorrow, the winner receives 10% of AQUA platform fees for 24 hours." : "Voting and boosting alternate every day. The next voting round opens at 00:00 UTC."}</p></div>
+        <span className="governance-compact-time"><Clock3/> {data.votingOpen ? "Closes" : "Opens"} in {timeLeft(data.votingOpen ? data.round.endsAt : data.round.startsAt, now)}</span>
         {selected && <span className="governance-current-vote"><Check/> ${selected.symbol}</span>}
-        <button className="governance-open-vote" onClick={() => setSelectorOpen(true)}>{selected ? "CHANGE" : "VOTE"}<ChevronRight/></button>
+        <button className="governance-open-vote" disabled={!data.votingOpen} onClick={() => setSelectorOpen(true)}>{data.votingOpen ? selected ? "CHANGE" : "VOTE" : "BOOSTING"}{data.votingOpen && <ChevronRight/>}</button>
       </div>
 
       {selected && <div className="governance-top-preview">
@@ -149,7 +150,7 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
     {selectorOpen && createPortal(<div className="governance-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelectorOpen(false); }}>
       <section className="governance-dialog vote-picker" role="dialog" aria-modal="true" aria-labelledby="vote-picker-title">
         <button className="governance-dialog-close" onClick={() => setSelectorOpen(false)} aria-label="Close"><X/></button>
-        <header><AquaVoteArt/><div><small>FRIDAY AQUA BOOST</small><h2 id="vote-picker-title">Choose a market</h2><p>Search by coin, ticker, reward stock, or contract address.</p></div></header>
+        <header><AquaVoteArt/><div><small>AQUA VOTING DAY</small><h2 id="vote-picker-title">Choose a market</h2><p>Search by coin, ticker, reward stock, or contract address.</p></div></header>
         <label className="governance-search"><Search/><input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search markets or paste a CA"/></label>
         {ineligible && <div className="governance-eligibility-note">This wallet needs at least 0.1% of AQUA to vote.</div>}
         <div className="governance-suggestions-title"><b>{query.trim() ? "SEARCH RESULTS" : "SUGGESTED MARKETS"}</b><span>{candidates.length} shown</span></div>
@@ -167,7 +168,7 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
     {leaderboardOpen && createPortal(<div className="governance-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setLeaderboardOpen(false); }}>
       <section className="governance-dialog leaderboard" role="dialog" aria-modal="true" aria-labelledby="leaderboard-title">
         <button className="governance-dialog-close" onClick={() => setLeaderboardOpen(false)} aria-label="Close"><X/></button>
-        <header><span className="leaderboard-trophy"><Trophy/></span><div><small>LIVE FRIDAY RANKING</small><h2 id="leaderboard-title">Boost leaderboard</h2><p>Rankings update as eligible AQUA holders change their vote.</p></div></header>
+        <header><span className="leaderboard-trophy"><Trophy/></span><div><small>LIVE VOTING DAY RANKING</small><h2 id="leaderboard-title">Boost leaderboard</h2><p>Rankings update as eligible AQUA holders change their vote.</p></div></header>
         <div className="governance-leaderboard-head"><span>MARKET</span><span>VOTERS</span><span>AQUA WEIGHT</span></div>
         <div className="governance-leaderboard-list">
           {data.leaders.map((leader) => <div key={leader.launchId} className={`${leader.rank === 1 ? "winner" : ""} ${selected?.mint === leader.mint ? "your-pick" : ""}`}><b className="governance-rank">{leader.rank}</b><MarketMark market={leader} launch={launchByMint.get(leader.mint)}/><span><strong>{leader.name}</strong><small>${leader.symbol} · {modeLabel(leader.rewardMode)}</small></span><em>{leader.voters}</em><b className="governance-leader-score">{tokenAmount(leader.votingPowerRaw, data.decimals)}</b></div>)}

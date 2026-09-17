@@ -27,7 +27,7 @@ const eventGroups = [
   { title: "Rewards & fees", tone: "aqua", events: [["fees.settled", "Collected fees are settled."], ["reward.funded", "A reward epoch is funded."], ["reward.claimable", "Rewards become claimable."], ["reward.claimed", "A holder completes a claim."]] },
   { title: "Buybacks", tone: "red", events: [["buyback.executed", "A tracked buyback confirms."], ["burn.executed", "Bought tokens are permanently burned."]] },
   { title: "Jackpots", tone: "gold", events: [["jackpot.committed", "A draw is committed with its snapshot."], ["jackpot.drawn", "Entropy selects the winners."], ["jackpot.published", "The final result is published."]] },
-  { title: "Governance & locks", tone: "violet", events: [["governance.vote_cast", "A vote is created or changed."], ["governance.round_finalized", "The weekly boosted market is finalized."], ["lock.created", "Creator tokens enter a lock vault."], ["lock.released", "An eligible creator lock is released."]] },
+  { title: "Governance & locks", tone: "violet", events: [["governance.vote_cast", "A vote is created or changed."], ["governance.round_finalized", "The next boosted market is finalized."], ["lock.created", "Creator tokens enter a lock vault."], ["lock.released", "An eligible creator lock is released."]] },
 ] as const;
 
 const curlExample = `curl ${API_URL}/v1/markets?reward_mode=jackpot \\

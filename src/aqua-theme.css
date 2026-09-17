@@ -1110,6 +1110,8 @@ body::before {
 .governance-open-vote { min-height: 38px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; border: 1px solid #168bd3; border-radius: 8px; color: #fff; background: #168bd3; font: 800 .66rem/1 "Manrope",sans-serif; letter-spacing: .04em; transition: transform .2s ease,background .2s ease; }
 .governance-open-vote svg { width: 14px; }
 .governance-open-vote:hover { transform: translateY(-1px); background: #0879c2; }
+.governance-open-vote:disabled { cursor: default; transform: none; border-color: #d4a72b; color: #76540b; background: #ffe38a; }
+.governance-hub.boost-day { border-color: rgba(218,166,34,.3); background: linear-gradient(135deg,rgba(255,248,221,.96),rgba(255,235,168,.42)); }
 .governance-top-preview { min-height: 59px; display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 14px; padding: 9px 15px; border-top: 1px solid rgba(24,126,190,.13); background: rgba(223,243,253,.43); }
 .governance-top-label { color: #537b93; font: 800 .54rem/1 "Manrope",sans-serif; letter-spacing: .11em; white-space: nowrap; }
 .governance-top-three { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }

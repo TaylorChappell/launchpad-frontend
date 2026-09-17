@@ -99,7 +99,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <section className="community-update-flash" role="dialog" aria-modal="true" aria-labelledby="community-update-title">
         <button className="community-update-close" aria-label="Close update" onClick={() => setShowCommunityUpdate(false)}><X/></button>
         <CommunityUpdateArt/>
-        <div className="community-update-copy"><small>NEW ON AQUA</small><h2 id="community-update-title">Weekly market boosts are live.</h2><p>AQUA holders now choose one market to receive an extra allocation from the AQUA treasury.</p></div>
+        <div className="community-update-copy"><small>NEW ON AQUA</small><h2 id="community-update-title">Daily vote and boost cycles are live.</h2><p>AQUA holders vote for one day, then the winning market receives its boost the next day.</p></div>
         <div className="community-update-points"><span><Check/><b>Hold at least 0.1% AQUA</b></span><span><Check/><b>Change your vote any time</b></span><span><Check/><b>Winner gets 10% of platform fees for 24 hours</b></span></div>
         <footer><a href={COMMUNITY_POST_URL} target="_blank" rel="noreferrer">$2,500 reward program <ExternalLink/></a><NavLink to="/rewards" onClick={() => setShowCommunityUpdate(false)}>VOTE NOW <ArrowRight/></NavLink></footer>
       </section>

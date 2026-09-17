@@ -58,7 +58,8 @@ export type RuntimeConfig = {
     enabled: boolean;
     governanceMint: string | null;
     minimumHoldingBps: number;
-    weeklyRoundSeconds: number;
+    cycleSeconds: number;
+    votingSeconds: number;
     winnerBonusBps: number;
     winnerBonusSeconds: number;
     weighting: string;
@@ -249,7 +250,8 @@ export type GovernanceResponse = {
   decimals: number;
   minimumHoldingBps: number;
   bonusBps: number;
-  round: { id: string; startsAt: number; endsAt: number };
+  votingOpen: boolean;
+  round: { id: string | null; startsAt: number; endsAt: number };
   leaders: Array<GovernanceMarket & { rank: number; votingPowerRaw: string; voters: number }>;
   wallet: null | {
     currentBalanceRaw: string;
