@@ -11,6 +11,7 @@ import { RewardModeIcon } from "../components/RewardModeIcon";
 import { MarketCapLine } from "../components/MarketCapCandles";
 import { activeCreatorLock, creatorLockPercentLabel, solscanAccountUrl } from "../creator-lock";
 import { GovernanceVote } from "../components/GovernanceVote";
+import { MarketProposals } from "../components/MarketProposals";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 4 });
@@ -170,6 +171,7 @@ export function Token() {
     </section>
 
     <GovernanceVote market={launch} compact/>
+    <MarketProposals launch={launch}/>
 
     <div className="token-layout"><section className="token-main">
       <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div><span className={`index-badge ${launch.indexingStatus}`}>{launch.indexingStatus === "indexed" ? "INDEXED" : launch.indexingStatus === "orca_indexed" ? "ORCA INDEXED" : "PENDING INDEXING"}</span></header><div className="chart market-line-shell"><MarketCapLine snapshots={snapshots}/></div></div>

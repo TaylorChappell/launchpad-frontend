@@ -88,7 +88,7 @@ export type AdminDiagnostics = {
     rewardOperator?: string;
     programId?: string;
     destinations?: { treasury: string; rewardBuyer: string; buybackBuyer: string; feeKeeper: string };
-    balances?: { nativeLamports: string; rewardNativeLamports: string; wrappedSolLamports: string; reservedRewardLamports: string };
+    balances?: { nativeLamports: string; rewardNativeLamports: string; wrappedSolLamports: string; reservedRewardLamports: string; reservedDexLamports?: string };
     markets?: Array<Record<string, unknown>>;
   };
   launches: Array<Record<string, unknown>>;
@@ -98,6 +98,52 @@ export type AdminDiagnostics = {
   rewardPurchases: Array<Record<string, unknown>>;
   rewardEpochs: Array<Record<string, unknown>>;
   creatorLocks: Array<Record<string, unknown>>;
+  proposals: MarketProposal[];
+};
+
+export type MarketProposalType = "dex_payment" | "dex_update" | "cto";
+export type MarketProposal = {
+  id: string;
+  launchId: string;
+  type: MarketProposalType;
+  proposerWallet: string;
+  status: "voting" | "funding" | "approved" | "ready" | "withdrawing" | "withdrawn" | "completed" | "rejected" | "cancelled";
+  payload: Record<string, unknown>;
+  startsAt: number;
+  minimumEndsAt: number;
+  endsAt: number;
+  detailsDeadlineAt: number | null;
+  challengeEndsAt: number | null;
+  targetUsd: number;
+  fundedUsd: number;
+  fundedLamports: string;
+  withdrawalWallet?: string | null;
+  withdrawalSignature?: string | null;
+  dexOrderReference?: string | null;
+  dexPaidAt?: number | null;
+  finalizedAt?: number | null;
+  outcome?: string | null;
+  yesPowerRaw: string;
+  noPowerRaw: string;
+  eligibleVoters: number;
+  openChallenges?: number;
+  createdAt: number;
+  marketName?: string;
+  marketSymbol?: string;
+  mint?: string;
+  creatorWallet?: string;
+};
+
+export type MarketGovernanceResponse = {
+  enabled: boolean;
+  disabledReason: string | null;
+  dexPaid: boolean;
+  dexCheckedAt: number;
+  creatorWallet: string;
+  createPower: { currentRaw: string; averageRaw: string; effectiveRaw: string; thresholdRaw: string; eligible: boolean; windowStartsAt: number } | null;
+  votePower: { currentRaw: string; averageRaw: string; effectiveRaw: string; thresholdRaw: string; eligible: boolean; windowStartsAt: number } | null;
+  votes: Record<string, "yes" | "no">;
+  proposals: MarketProposal[];
 };
 
 export type StockOption = {
