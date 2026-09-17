@@ -16,6 +16,13 @@ function tokenAmount(raw: string, decimals: number) {
   return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 }).format(numeric);
 }
 
+function supplyPercent(raw: string | undefined, totalRaw: string) {
+  const total = BigInt(totalRaw || "0");
+  if (!raw || total <= 0n) return "0.00%";
+  const scaled = BigInt(raw) * 1_000_000n / total;
+  return `${new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(Number(scaled) / 10_000)}%`;
+}
+
 function timeLeft(endsAt: number, now: number) {
   const seconds = Math.max(0, endsAt - now);
   const days = Math.floor(seconds / 86_400);
@@ -112,25 +119,44 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
     }
   }
 
+  async function removeBoost() {
+    if (!wallet.address) return wallet.setModalOpen(true);
+    setBusyMint(market?.mint ?? "unboost");
+    try {
+      const challenge = await api.governanceUnboostChallenge(wallet.address);
+      const signed = await wallet.signMessage(challenge.message);
+      setData(await api.governanceUnboost({ wallet: wallet.address, challenge: challenge.challenge, ...signed }));
+      toast.success("Your boost vote was removed.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "The boost could not be removed.");
+    } finally {
+      setBusyMint("");
+    }
+  }
+
   if (!data) return compact ? null : <section data-governance="market-vote" className="governance-hub loading"><Loader2 className="spin"/> Loading market vote…</section>;
   if (!data.enabled || isAqua) return null;
 
   const ineligible = Boolean(wallet.address && data.wallet && !data.wallet.eligible);
 
   if (compact && market) {
-    const eligible = Boolean(wallet.address && data.votingOpen && data.wallet?.eligible && !alreadySelected && !busyMint);
+    const eligible = Boolean(wallet.address && data.votingOpen && (alreadySelected || data.wallet?.eligible) && !busyMint);
+    const holding = supplyPercent(data.wallet?.votingPowerRaw, data.totalSupplyRaw);
+    const required = `${new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.minimumHoldingBps / 100)}%`;
     const title = alreadySelected
-      ? "This market is already your boost vote."
+      ? "Remove your boost vote from this market."
       : !wallet.address
-        ? "Connect a wallet to check boost eligibility."
+        ? `Connect a wallet to check boost eligibility. ${required} of AQUA is required.`
         : !data.votingOpen
           ? "Boost voting opens tomorrow."
           : !data.wallet?.eligible
-            ? "Hold at least 0.1% of AQUA to boost a market."
+            ? `You have ${holding} effective AQUA / ${required} required to boost.`
             : "Boost this market.";
-    return <button data-governance="market-vote" className={`market-corner-action boost ${alreadySelected ? "selected" : ""}`} disabled={!eligible} title={title} onClick={() => void castVote(market)}>
-      {busyMint ? <Loader2 className="spin"/> : alreadySelected ? <Check/> : <AquaVoteArt small/>}<span>{alreadySelected ? "Boosted" : "Boost"}</span>
-    </button>;
+    return <span className="market-corner-action-wrap" data-tooltip={!eligible ? title : undefined}>
+      <button data-governance="market-vote" className={`market-corner-action boost ${alreadySelected ? "selected" : ""}`} disabled={!eligible} title={eligible ? title : undefined} onClick={() => void (alreadySelected ? removeBoost() : castVote(market))}>
+        {busyMint ? <Loader2 className="spin"/> : alreadySelected ? <X/> : <AquaVoteArt small/>}<span>{alreadySelected ? "Unboost" : "Boost"}</span>
+      </button>
+    </span>;
   }
 
   return <>

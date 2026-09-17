@@ -40,6 +40,8 @@ export const api = {
   governance: (wallet?: string | null) => request<GovernanceResponse>(`/api/governance${wallet ? `?wallet=${encodeURIComponent(wallet)}` : ""}`),
   governanceVoteChallenge: (wallet: string, targetMint: string) => request<{ challenge: string; message: string; expiresAt: number; market: GovernanceMarket }>("/api/governance/vote-challenge", json({ wallet, targetMint })),
   governanceVote: (body: { wallet: string; targetMint: string; challenge: string; message: string; signature: string }) => request<GovernanceResponse>("/api/governance/vote", json(body)),
+  governanceUnboostChallenge: (wallet: string) => request<{ challenge: string; message: string; expiresAt: number }>("/api/governance/unboost-challenge", json({ wallet })),
+  governanceUnboost: (body: { wallet: string; challenge: string; message: string; signature: string }) => request<GovernanceResponse>("/api/governance/unboost", json(body)),
   marketGovernance: (id: string, wallet?: string | null) => request<MarketGovernanceResponse>(`/api/launches/${encodeURIComponent(id)}/proposals${wallet ? `?wallet=${encodeURIComponent(wallet)}` : ""}`),
   marketProposalChallenge: (id: string, body: { action: "create" | "vote" | "details" | "challenge"; wallet: string; proposalId?: string; content: unknown }) => request<{ challenge: string; message: string; expiresAt: number }>(`/api/launches/${encodeURIComponent(id)}/proposals/challenge`, json(body)),
   createMarketProposal: (id: string, body: { wallet: string; type: MarketProposalType; payload: Record<string, unknown>; challenge: string; message: string; signature: string }) => request<MarketGovernanceResponse>(`/api/launches/${encodeURIComponent(id)}/proposals`, json(body)),

@@ -19,6 +19,13 @@ function countdown(at: number, now: number) {
   return hours ? `${hours}h ${minutes}m` : `${minutes}:${String(remainder).padStart(2, "0")}`;
 }
 
+function supplyPercent(raw: string | undefined, totalRaw: string) {
+  const total = BigInt(totalRaw || "0");
+  if (!raw || total <= 0n) return "0.00%";
+  const scaled = BigInt(raw) * 1_000_000n / total;
+  return `${new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(Number(scaled) / 10_000)}%`;
+}
+
 function ProposalIcon({ type }: { type: MarketProposalType }) {
   return <span className={`proposal-icon ${type}`}>{type === "dex_payment" ? <BadgeDollarSign/> : type === "dex_update" ? <FilePenLine/> : <Crown/>}</span>;
 }
@@ -134,24 +141,28 @@ export function MarketProposals({ launch, corner = false }: { launch: Launch; co
   function showChallenge(proposal: MarketProposal) { setSelected(proposal); setForm((current) => ({ ...current, reason: "" })); setOpen("challenge"); }
 
   if (!data) return corner
-    ? <button className="market-corner-action proposal" disabled title="Checking proposal eligibility"><Loader2 className="spin"/><span>Proposals</span></button>
+    ? <span className="market-corner-action-wrap" data-tooltip="Checking proposal eligibility."><button className="market-corner-action proposal" disabled><Loader2 className="spin"/><span>Proposals</span></button></span>
     : <section className="market-proposals loading"><Loader2 className="spin"/>Loading community proposals</section>;
   if (!data.enabled) return corner
-    ? <button className="market-corner-action proposal" disabled title={data.disabledReason ?? "Market proposals are unavailable."}><Gavel/><span>Proposals</span></button>
+    ? <span className="market-corner-action-wrap" data-tooltip={data.disabledReason ?? "Market proposals are unavailable."}><button className="market-corner-action proposal" disabled><Gavel/><span>Proposals</span></button></span>
     : <section className="market-proposals disabled"><Gavel/><div><b>AQUA market governance</b><span>{data.disabledReason}</span></div></section>;
+  const requiredBps = active ? 10 : 50;
+  const relevantPower = active ? data.votePower : data.createPower;
+  const holding = supplyPercent(relevantPower?.effectiveRaw, data.totalSupplyRaw);
+  const required = `${(requiredBps / 100).toFixed(2)}%`;
   const eligible = Boolean(wallet.address && (active
     ? active.status === "voting"
       ? data.votePower?.eligible
       : data.votePower?.eligible || wallet.address === data.creatorWallet
     : data.createPower?.eligible));
   const eligibilityTitle = !wallet.address
-    ? "Connect a wallet to check proposal eligibility."
+    ? `Connect a wallet to check proposal eligibility. ${required} of ${launch.symbol} is required.`
     : active && active.status === "voting" && !data.votePower?.eligible
-      ? "Hold at least 0.1% of this market to vote."
+      ? `You have ${holding} effective ${launch.symbol} / ${required} required to vote.`
       : !active && !data.createPower?.eligible
-        ? "Creating a proposal requires at least 0.5% current and time-weighted holdings."
+        ? `You have ${holding} effective ${launch.symbol} / ${required} required to create a proposal.`
         : active && !eligible
-          ? "This wallet is not eligible to act on the active proposal."
+          ? `You have ${holding} effective ${launch.symbol} / ${required} required to act on this proposal.`
           : active
             ? "Open the active community proposal."
             : "Create a community proposal.";
@@ -163,7 +174,7 @@ export function MarketProposals({ launch, corner = false }: { launch: Launch; co
   </section>;
   return <>
     {corner ? <>
-      <button className="market-corner-action proposal" disabled={!eligible} title={eligibilityTitle} onClick={() => setPanelOpen(true)}><Gavel/><span>Proposals</span>{active && <i/>}</button>
+      <span className="market-corner-action-wrap" data-tooltip={!eligible ? eligibilityTitle : undefined}><button className="market-corner-action proposal" disabled={!eligible} title={eligible ? eligibilityTitle : undefined} onClick={() => setPanelOpen(true)}><Gavel/><span>Proposals</span>{active && <i/>}</button></span>
       {panelOpen && <div className="proposal-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setPanelOpen(false)}><section className="proposal-modal proposal-browser"><button className="proposal-modal-close" onClick={() => setPanelOpen(false)}><X/></button>{proposalPanel}</section></div>}
     </> : proposalPanel}
     {open && <div className="proposal-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setOpen(null)}><section className="proposal-modal"><button className="proposal-modal-close" onClick={() => setOpen(null)}><X/></button>

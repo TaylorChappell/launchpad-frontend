@@ -141,6 +141,7 @@ export type MarketGovernanceResponse = {
   dexPaid: boolean;
   dexCheckedAt: number;
   creatorWallet: string;
+  totalSupplyRaw: string;
   createPower: { currentRaw: string; averageRaw: string; effectiveRaw: string; thresholdRaw: string; eligible: boolean; windowStartsAt: number } | null;
   votePower: { currentRaw: string; averageRaw: string; effectiveRaw: string; thresholdRaw: string; eligible: boolean; windowStartsAt: number } | null;
   votes: Record<string, "yes" | "no">;
@@ -310,6 +311,7 @@ export type GovernanceResponse = {
 } | {
   enabled: true;
   governanceMint: string;
+  totalSupplyRaw: string;
   decimals: number;
   minimumHoldingBps: number;
   bonusBps: number;
