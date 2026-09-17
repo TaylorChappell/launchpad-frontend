@@ -50,7 +50,7 @@ function ProposalCard({ proposal, vote, now, busy, onVote, onDetails, onChalleng
   </article>;
 }
 
-export function MarketProposals({ launch }: { launch: Launch }) {
+export function MarketProposals({ launch, corner = false }: { launch: Launch; corner?: boolean }) {
   const wallet = useWallet();
   const { config } = useRuntime();
   const [data, setData] = useState<MarketGovernanceResponse | null>(null);
@@ -59,6 +59,7 @@ export function MarketProposals({ launch }: { launch: Launch }) {
   const [type, setType] = useState<MarketProposalType>("dex_payment");
   const [form, setForm] = useState({ reason: "", description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "", communityLead: "", multisig: "" });
   const [busy, setBusy] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1_000));
 
   const load = useCallback(() => api.marketGovernance(launch.id, wallet.address).then(setData).catch((error) => toast.error(error instanceof Error ? error.message : "Proposals could not be loaded.")), [launch.id, wallet.address]);
@@ -132,15 +133,39 @@ export function MarketProposals({ launch }: { launch: Launch }) {
   function showDetails(proposal: MarketProposal) { setSelected(proposal); setForm((current) => ({ ...current, reason: "" })); setOpen("details"); }
   function showChallenge(proposal: MarketProposal) { setSelected(proposal); setForm((current) => ({ ...current, reason: "" })); setOpen("challenge"); }
 
-  if (!data) return <section className="market-proposals loading"><Loader2 className="spin"/>Loading community proposals</section>;
-  if (!data.enabled) return <section className="market-proposals disabled"><Gavel/><div><b>AQUA market governance</b><span>{data.disabledReason}</span></div></section>;
+  if (!data) return corner
+    ? <button className="market-corner-action proposal" disabled title="Checking proposal eligibility"><Loader2 className="spin"/><span>Proposals</span></button>
+    : <section className="market-proposals loading"><Loader2 className="spin"/>Loading community proposals</section>;
+  if (!data.enabled) return corner
+    ? <button className="market-corner-action proposal" disabled title={data.disabledReason ?? "Market proposals are unavailable."}><Gavel/><span>Proposals</span></button>
+    : <section className="market-proposals disabled"><Gavel/><div><b>AQUA market governance</b><span>{data.disabledReason}</span></div></section>;
+  const eligible = Boolean(wallet.address && (active
+    ? active.status === "voting"
+      ? data.votePower?.eligible
+      : data.votePower?.eligible || wallet.address === data.creatorWallet
+    : data.createPower?.eligible));
+  const eligibilityTitle = !wallet.address
+    ? "Connect a wallet to check proposal eligibility."
+    : active && active.status === "voting" && !data.votePower?.eligible
+      ? "Hold at least 0.1% of this market to vote."
+      : !active && !data.createPower?.eligible
+        ? "Creating a proposal requires at least 0.5% current and time-weighted holdings."
+        : active && !eligible
+          ? "This wallet is not eligible to act on the active proposal."
+          : active
+            ? "Open the active community proposal."
+            : "Create a community proposal.";
+  const proposalPanel = <section className="market-proposals">
+    <header><div><Gavel/><span><b>Community proposals</b><small>Holder-governed DEX and CTO actions</small></span></div>{!active && <button disabled={Boolean(wallet.address) && !data.createPower?.eligible} onClick={() => ensureWallet() && setOpen("create")}><Plus/>Create proposal</button>}</header>
+    {!active && <div className="proposal-empty"><span>No active vote</span><p>Eligible holders can open a DEX payment, DEX update or community takeover proposal.</p>{wallet.address && !data.createPower?.eligible && <small>Creation requires 0.5% current and time-weighted holdings.</small>}</div>}
+    {active && <ProposalCard proposal={active} vote={data.votes[active.id]} now={now} busy={busy} onVote={(proposal, choice) => void vote(proposal, choice)} onDetails={showDetails} onChallenge={showChallenge} network={config.network}/>}
+    {data.proposals.filter((proposal) => proposal.id !== active?.id).length > 0 && <details className="proposal-history"><summary>Previous proposals ({data.proposals.length - (active ? 1 : 0)})</summary>{data.proposals.filter((proposal) => proposal.id !== active?.id).slice(0, 8).map((proposal) => <ProposalCard key={proposal.id} proposal={proposal} vote={data.votes[proposal.id]} now={now} busy={busy} onVote={(item, choice) => void vote(item, choice)} onDetails={showDetails} onChallenge={showChallenge} network={config.network}/>)}</details>}
+  </section>;
   return <>
-    <section className="market-proposals">
-      <header><div><Gavel/><span><b>Community proposals</b><small>Holder-governed DEX and CTO actions</small></span></div>{!active && <button disabled={Boolean(wallet.address) && !data.createPower?.eligible} onClick={() => ensureWallet() && setOpen("create")}><Plus/>Create proposal</button>}</header>
-      {!active && <div className="proposal-empty"><span>No active vote</span><p>Eligible holders can open a DEX payment, DEX update or community takeover proposal.</p>{wallet.address && !data.createPower?.eligible && <small>Creation requires 0.5% current and time-weighted holdings.</small>}</div>}
-      {active && <ProposalCard proposal={active} vote={data.votes[active.id]} now={now} busy={busy} onVote={(proposal, choice) => void vote(proposal, choice)} onDetails={showDetails} onChallenge={showChallenge} network={config.network}/>} 
-      {data.proposals.filter((proposal) => proposal.id !== active?.id).length > 0 && <details className="proposal-history"><summary>Previous proposals ({data.proposals.length - (active ? 1 : 0)})</summary>{data.proposals.filter((proposal) => proposal.id !== active?.id).slice(0, 8).map((proposal) => <ProposalCard key={proposal.id} proposal={proposal} vote={data.votes[proposal.id]} now={now} busy={busy} onVote={(item, choice) => void vote(item, choice)} onDetails={showDetails} onChallenge={showChallenge} network={config.network}/>)}</details>}
-    </section>
+    {corner ? <>
+      <button className="market-corner-action proposal" disabled={!eligible} title={eligibilityTitle} onClick={() => setPanelOpen(true)}><Gavel/><span>Proposals</span>{active && <i/>}</button>
+      {panelOpen && <div className="proposal-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setPanelOpen(false)}><section className="proposal-modal proposal-browser"><button className="proposal-modal-close" onClick={() => setPanelOpen(false)}><X/></button>{proposalPanel}</section></div>}
+    </> : proposalPanel}
     {open && <div className="proposal-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setOpen(null)}><section className="proposal-modal"><button className="proposal-modal-close" onClick={() => setOpen(null)}><X/></button>
       {open === "create" && <><small>MARKET GOVERNANCE</small><h2>Create a proposal</h2><div className="proposal-type-grid">{(Object.keys(labels) as MarketProposalType[]).map((item) => <button key={item} className={type === item ? `selected ${item}` : item} disabled={item === "dex_payment" && data.dexPaid} onClick={() => setType(item)}><ProposalIcon type={item}/><b>{labels[item].title}</b><span>{item === "dex_payment" && data.dexPaid ? "Already paid" : labels[item].copy}</span></button>)}</div><label>Why should holders approve this?<textarea value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} placeholder="Give holders the facts they need to decide."/></label>{type === "dex_update" && <ProfileFields form={form} setForm={setForm}/>} {type === "cto" && <><label>Proposed community lead<input value={form.communityLead} onChange={(event) => setForm({ ...form, communityLead: event.target.value })} placeholder="Name or wallet"/></label><label>Community multisig<input value={form.multisig} onChange={(event) => setForm({ ...form, multisig: event.target.value })} placeholder="Solana address"/></label><ProfileFields form={form} setForm={setForm}/></>}<button className="primary full" disabled={busy} onClick={() => void createProposal()}>{busy ? <Loader2 className="spin"/> : <Gavel/>}Open vote</button></>}
       {open === "details" && <><small>CREATOR ACTION</small><h2>Submit the DEX profile</h2><p>These exact details stay attached to the approved proposal for the AQUA admin to use.</p><ProfileFields form={form} setForm={setForm}/><button className="primary full" disabled={busy} onClick={() => void submitDetails()}>{busy ? <Loader2 className="spin"/> : <Check/>}Submit details</button></>}

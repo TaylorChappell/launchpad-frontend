@@ -116,14 +116,22 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
   if (!data.enabled || isAqua) return null;
 
   const ineligible = Boolean(wallet.address && data.wallet && !data.wallet.eligible);
-  const marketButtonLabel = !data.votingOpen ? "VOTING TOMORROW" : ineligible ? "HOLD 0.1% AQUA" : alreadySelected ? "BOOSTED" : selected ? "CHANGE BOOST" : "BOOST";
 
-  if (compact && market) return <section data-governance="market-vote" className={`market-boost-strip ${data.votingOpen ? "voting-day" : "boost-day"}`}>
-    <div className="market-boost-copy"><AquaVoteArt small/><span><small>{data.votingOpen ? "AQUA VOTING DAY" : "AQUA BOOST DAY"}</small><b>{data.votingOpen ? "Back this market" : data.activeBonus ? `$${data.activeBonus.symbol} is boosted` : "Next vote opens tomorrow"}</b></span><em><Clock3/> {timeLeft(data.votingOpen ? data.round.endsAt : data.round.startsAt, now)}</em></div>
-    <button className={alreadySelected ? "active" : ""} disabled={!data.votingOpen || Boolean(busyMint) || alreadySelected || ineligible} onClick={() => void castVote(market)}>
-      {busyMint ? <Loader2 className="spin"/> : alreadySelected ? <Check/> : null}{marketButtonLabel}
-    </button>
-  </section>;
+  if (compact && market) {
+    const eligible = Boolean(wallet.address && data.votingOpen && data.wallet?.eligible && !alreadySelected && !busyMint);
+    const title = alreadySelected
+      ? "This market is already your boost vote."
+      : !wallet.address
+        ? "Connect a wallet to check boost eligibility."
+        : !data.votingOpen
+          ? "Boost voting opens tomorrow."
+          : !data.wallet?.eligible
+            ? "Hold at least 0.1% of AQUA to boost a market."
+            : "Boost this market.";
+    return <button data-governance="market-vote" className={`market-corner-action boost ${alreadySelected ? "selected" : ""}`} disabled={!eligible} title={title} onClick={() => void castVote(market)}>
+      {busyMint ? <Loader2 className="spin"/> : alreadySelected ? <Check/> : <AquaVoteArt small/>}<span>{alreadySelected ? "Boosted" : "Boost"}</span>
+    </button>;
+  }
 
   return <>
     <section data-governance="market-vote" className={`governance-hub ${selected ? "has-vote" : ""} ${data.votingOpen ? "voting-day" : "boost-day"}`}>

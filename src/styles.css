@@ -469,7 +469,16 @@ img { max-width: 100%; }
 .token-identity footer a, .token-identity footer button { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; color: #6e8c92; background: transparent; font-size: .75rem; }
 .token-identity footer a:hover, .token-identity footer button:hover { color: var(--aqua); }
 .token-identity footer svg { width: 12px; }
+.token-hero-right { min-width: 480px; display: grid; gap: 10px; }
+.token-market-actions { min-height: 32px; display: flex; justify-content: flex-end; gap: 7px; }
+.market-corner-action { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 11px; border: 1px solid rgba(100,221,225,.2); border-radius: 9px; color: #bdeff0; background: rgba(40,174,185,.09); font: 800 .6rem/1 "Manrope",sans-serif; letter-spacing: .035em; cursor: pointer; }
+.market-corner-action > svg,.market-corner-action .aqua-vote-art { width: 14px; height: 14px; filter: none; }
+.market-corner-action.proposal { color: #9ed8f1; border-color: rgba(67,166,219,.2); background: rgba(46,139,191,.08); }
+.market-corner-action.selected { color: #f0cf69; border-color: rgba(230,190,72,.25); background: rgba(207,163,37,.1); }
+.market-corner-action:disabled:not(.selected) { color: #657e84; border-color: rgba(118,145,150,.13); background: rgba(118,145,150,.055); cursor: not-allowed; opacity: .72; }
+.market-corner-action > i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
 .hero-metrics { min-width: 480px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.token-hero-right .hero-metrics { min-width: 0; width: 100%; }
 .token-layout { display: grid; grid-template-columns: minmax(0,1fr) 330px; align-items: start; gap: 14px; }
 .token-main { display: grid; gap: 14px; }
 .chart-panel { padding: 18px; }
@@ -630,6 +639,7 @@ img { max-width: 100%; }
   .mode-comparison { grid-template-columns: 1fr 1fr; }
   .mode-comparison > div:first-child { grid-column: 1 / -1; }
   .hero-metrics { min-width: 0; width: 100%; }
+  .token-hero-right { min-width: 0; width: 100%; }
   .token-hero { align-items: flex-start; flex-direction: column; }
 }
 
