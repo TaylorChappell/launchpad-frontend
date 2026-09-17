@@ -13,11 +13,11 @@ const labels: Record<MarketProposalType, string> = { dex_payment: "Fund Dex", de
 const descriptions: Record<MarketProposalType, string> = {
   dex_payment: "Ask holders to fund this coin’s DEX Screener profile from incoming market rewards.",
   dex_update: "Propose the exact description, banner and links for the coin’s DEX Screener profile.",
-  cto: "Put a new community lead and a clear transition plan to a holder vote.",
+  cto: "Nominate a new developer wallet and put a clear handover plan to a holder vote.",
 };
 const liveStatuses = ["voting", "funding", "approved", "ready", "withdrawing", "withdrawn"];
 const blankProfile: DexProfile = { description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" };
-type Dialog = { kind: "create"; type: MarketProposalType } | { kind: "details" | "challenge"; proposal: MarketProposal };
+type Dialog = { kind: "create"; type: MarketProposalType } | { kind: "details" | "challenge" | "activity"; proposal: MarketProposal };
 type GovernanceContextValue = {
   launch: Launch; data: MarketGovernanceResponse | null; now: number; busy: boolean; error: string;
   refresh: () => Promise<void>; open: (dialog: Dialog) => void;
@@ -57,7 +57,7 @@ export function MarketGovernanceProvider({ launch, children }: { launch: Launch;
   }, [refresh]);
   useEffect(() => { const clock = window.setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000); return () => window.clearInterval(clock); }, []);
 
-  async function sign(action: "create" | "vote" | "details" | "challenge", proposalId: string | undefined, content: unknown) {
+  async function sign(action: "create" | "vote" | "details" | "challenge" | "activity", proposalId: string | undefined, content: unknown) {
     if (!wallet.address) throw new Error("Connect a wallet first.");
     const address = wallet.address;
     const approval = await api.marketProposalChallenge(launch.id, { action, wallet: address, proposalId, content });
@@ -87,10 +87,13 @@ export function MarketGovernanceProvider({ launch, children }: { launch: Launch;
       } else if (dialog.kind === "details") {
         const approval = await sign("details", dialog.proposal.id, content);
         result = await api.submitDexDetails(launch.id, dialog.proposal.id, { ...approval, details: content });
-      } else {
+      } else if (dialog.kind === "challenge") {
         const reason = String(content.reason);
         const approval = await sign("challenge", dialog.proposal.id, { reason });
         result = await api.challengeMarketProposal(launch.id, dialog.proposal.id, { ...approval, reason });
+      } else {
+        const approval = await sign("activity", dialog.proposal.id, content);
+        result = await api.submitDeveloperActivity(launch.id, dialog.proposal.id, { ...approval, activity: content });
       }
       if (currentIdentity.current === identity) { setData(result); setDialog(null); }
       toast.success(dialog.kind === "create" ? "Proposal is live. Holders can vote on the market page." : "Submitted successfully");
@@ -147,7 +150,9 @@ function ProposalCard({ proposal, compact = false }: { proposal: MarketProposal;
   const canVote = voting && Boolean(wallet.address && (data.testingMode || data.votePower?.eligible)) && !busy;
   const creator = wallet.address === data.creatorWallet;
   const detailsSubmitted = Boolean(proposal.payload.detailsSubmittedAt);
+  const developerActivity = proposal.payload.developerActivity as { summary?: string; evidenceUrl?: string; wallet?: string } | undefined;
   const canSubmitDetails = creator && proposal.type === "dex_payment" && ["voting", "funding", "ready"].includes(proposal.status) && !detailsSubmitted && Boolean(proposal.detailsDeadlineAt && now <= proposal.detailsDeadlineAt);
+  const canSubmitActivity = creator && proposal.type === "cto" && proposal.status === "voting" && !developerActivity;
   const profile = (proposal.type === "dex_update" ? proposal.payload : proposal.payload.dexDetails) as Partial<DexProfile> | undefined;
   const voteHint = !wallet.address ? "Connect a wallet to vote. Requires 0.10% of " + launch.symbol + "."
     : "Current: " + holdingPercent(data.votePower?.currentRaw, data.totalSupplyRaw) + " · Time-weighted: " + holdingPercent(data.votePower?.averageRaw, data.totalSupplyRaw) + " · Both must reach 0.10%.";
@@ -156,7 +161,8 @@ function ProposalCard({ proposal, compact = false }: { proposal: MarketProposal;
     {proposal.isDefault && <h4>Fund the token profile</h4>}
     <p className="proposal-reason">{String(proposal.payload.reason ?? descriptions[proposal.type])}</p>
     {proposal.type === "dex_payment" && <div className="proposal-funding-terms"><span>Funding target <b>${proposal.targetUsd.toFixed(0)}</b></span><span>From incoming rewards <b>80%</b></span></div>}
-    {proposal.type === "cto" && <details className="proposal-public-details"><summary>Read the takeover plan</summary><dl><dt>Community lead</dt><dd>{String(proposal.payload.communityLead ?? "")}</dd><dt>Multisig</dt><dd>{String(proposal.payload.multisig ?? "")}</dd><dt>Transition plan</dt><dd>{String(proposal.payload.plan ?? "")}</dd></dl>{validUrl(String(proposal.payload.evidenceUrl ?? "")) && <a href={String(proposal.payload.evidenceUrl)} target="_blank" rel="noreferrer">Community evidence <ExternalLink/></a>}</details>}
+    {proposal.type === "cto" && <details className="proposal-public-details"><summary>Read the takeover plan</summary><dl><dt>Proposed lead</dt><dd>{String(proposal.payload.communityLead ?? "")}</dd><dt>New developer wallet</dt><dd>{String(proposal.payload.developerWallet ?? proposal.payload.multisig ?? "")}</dd><dt>Transition plan</dt><dd>{String(proposal.payload.plan ?? "")}</dd></dl>{validUrl(String(proposal.payload.evidenceUrl ?? "")) && <a href={String(proposal.payload.evidenceUrl)} target="_blank" rel="noreferrer">Community evidence <ExternalLink/></a>}</details>}
+    {developerActivity && <details className="proposal-public-details developer-activity-proof" open><summary>Current developer activity evidence</summary><p>{developerActivity.summary}</p>{validUrl(String(developerActivity.evidenceUrl ?? "")) && <a href={developerActivity.evidenceUrl} target="_blank" rel="noreferrer">View public evidence <ExternalLink/></a>}</details>}
     {profile && <details className="proposal-public-details"><summary>Review DEX profile details</summary><p>{profile.description}</p>{(["bannerUrl", "websiteUrl", "xUrl", "telegramUrl"] as const).map((key) => profile[key] && validUrl(profile[key]!) ? <a key={key} href={profile[key]} target="_blank" rel="noreferrer">{{ bannerUrl: "Banner", websiteUrl: "Website", xUrl: "X", telegramUrl: "Telegram" }[key]} <ExternalLink/></a> : null)}</details>}
     {proposal.status === "voting" && <>
       <div className="proposal-vote-meta"><span>{proposal.eligibleVoters} eligible vote{proposal.eligibleVoters === 1 ? "" : "s"}</span><time>{countdown(proposal.endsAt, now)} left</time></div>
@@ -168,6 +174,7 @@ function ProposalCard({ proposal, compact = false }: { proposal: MarketProposal;
     </>}
     {proposal.type === "dex_payment" && ["funding", "ready", "withdrawing", "withdrawn", "completed"].includes(proposal.status) && <div className="proposal-funded"><div><span>Profile funding</span><b>${proposal.fundedUsd.toFixed(2)} / ${proposal.targetUsd.toFixed(0)}</b></div><progress value={proposal.fundedUsd} max={proposal.targetUsd}/></div>}
     {canSubmitDetails && <button className="proposal-creator-action" disabled={busy} onClick={() => open({ kind: "details", proposal })}><DexScreenerIcon/>Submit DEX details <ArrowRight/></button>}
+    {canSubmitActivity && <button className="proposal-creator-action" disabled={busy} onClick={() => open({ kind: "activity", proposal })}>Show active development <ArrowRight/></button>}
     {proposal.type === "dex_payment" && !detailsSubmitted && ["voting", "funding", "ready"].includes(proposal.status) && <p className="proposal-detail-note">{creator ? "Only you can submit the profile." : "Waiting for the creator’s DEX profile."}{proposal.detailsDeadlineAt && <> Due in {countdown(proposal.detailsDeadlineAt, now)}.</>}</p>}
     {["rejected", "cancelled"].includes(proposal.status) && <p className="proposal-detail-note">{proposal.outcome === "no_quorum" ? "The vote did not reach the required participation." : proposal.outcome === "details_expired" ? "The creator did not submit profile details before the deadline." : proposal.outcome === "paid_externally" ? "This profile was paid for externally." : proposal.status === "rejected" ? "Holders did not approve this proposal." : "This proposal was cancelled."}</p>}
     {["funding", "approved", "ready"].includes(proposal.status) && (data.testingMode || data.votePower?.eligible) && <button className="proposal-text-action" disabled={busy} onClick={() => open({ kind: "challenge", proposal })}>Challenge this proposal{proposal.openChallenges ? " (" + proposal.openChallenges + " open)" : ""}</button>}
@@ -206,12 +213,12 @@ function ProposalSurvey({ dialog, draft, launch, busy, close, submit }: { dialog
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const [accepted, setAccepted] = useState(false);
-  const [form, setForm] = useState({ ...blankProfile, ...draft, reason: "", communityLead: "", multisig: "", plan: "", evidenceUrl: "" });
+  const [form, setForm] = useState({ ...blankProfile, ...draft, reason: "", communityLead: "", developerWallet: "", plan: "", evidenceUrl: "" });
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef(close); closeRef.current = close;
   const kind = dialog.kind;
   const type = dialog.kind === "create" ? dialog.type : dialog.proposal.type;
-  const title = kind === "details" ? "DEX profile details" : kind === "challenge" ? "Challenge this proposal" : labels[type];
+  const title = kind === "details" ? "DEX profile details" : kind === "challenge" ? "Challenge this proposal" : kind === "activity" ? "Show active development" : labels[type];
   const profileFields = kind === "details" || (kind === "create" && type === "dex_update");
   const set = (key: keyof typeof form, value: string) => setForm((previous) => ({ ...previous, [key]: value }));
   useEffect(() => {
@@ -232,9 +239,10 @@ function ProposalSurvey({ dialog, draft, launch, busy, close, submit }: { dialog
   function content(): Record<string, unknown> {
     const profile = Object.fromEntries(Object.keys(blankProfile).map((key) => [key, form[key as keyof DexProfile].trim()]));
     if (kind === "details") return profile;
+    if (kind === "activity") return { summary: form.reason.trim(), evidenceUrl: form.evidenceUrl.trim() };
     if (kind === "challenge" || type === "dex_payment") return { reason: form.reason.trim() };
     if (type === "dex_update") return { reason: form.reason.trim(), ...profile };
-    return { reason: form.reason.trim(), communityLead: form.communityLead.trim(), multisig: form.multisig.trim(), plan: form.plan.trim(), evidenceUrl: form.evidenceUrl.trim() };
+    return { reason: form.reason.trim(), communityLead: form.communityLead.trim(), developerWallet: form.developerWallet.trim(), plan: form.plan.trim(), evidenceUrl: form.evidenceUrl.trim() };
   }
   function review() {
     if (kind !== "details" && form.reason.trim().length < 20) return setError("Explain your proposal in at least 20 characters.");
@@ -244,19 +252,21 @@ function ProposalSurvey({ dialog, draft, launch, busy, close, submit }: { dialog
     }
     if (kind === "create" && type === "cto") {
       if (form.communityLead.trim().length < 2 || form.plan.trim().length < 40 || !validUrl(form.evidenceUrl)) return setError("Add a community lead, a transition plan of at least 40 characters and a public evidence URL.");
-      try { new PublicKey(form.multisig); } catch { return setError("Enter a valid Solana multisig address."); }
+      try { new PublicKey(form.developerWallet); } catch { return setError("Enter a valid new Solana developer wallet."); }
     }
+    if (kind === "activity" && !validUrl(form.evidenceUrl)) return setError("Add a public link showing the active development work.");
     setError(""); setStep(1); dialogRef.current?.scrollTo({ top: 0 });
   }
-  const reviewLabels: Record<string, string> = { reason: "Reason", description: "Description", bannerUrl: "Banner URL", websiteUrl: "Website", xUrl: "X profile", telegramUrl: "Telegram", communityLead: "Community lead", multisig: "Multisig", plan: "Transition plan", evidenceUrl: "Public evidence" };
+  const reviewLabels: Record<string, string> = { reason: "Reason", summary: "Active work", description: "Description", bannerUrl: "Banner URL", websiteUrl: "Website", xUrl: "X profile", telegramUrl: "Telegram", communityLead: "Proposed lead", developerWallet: "New developer wallet", plan: "Transition plan", evidenceUrl: "Public evidence" };
   return createPortal(<div className="aqua-survey-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}><section className="aqua-survey" role="dialog" aria-modal="true" aria-labelledby="proposal-survey-title" ref={dialogRef} tabIndex={-1}>
-    <header><span className="survey-market">{type !== "cto" && <DexScreenerIcon/>}${launch.symbol} · {kind === "details" ? "Creator submission" : "Community governance"}</span><button aria-label="Close survey" disabled={busy} onClick={close}><X/></button><h2 id="proposal-survey-title">{title}</h2><p>{kind === "details" ? "Review the profile that AQUA will submit to DEX Screener. Only the creator can approve these details." : kind === "challenge" ? "Provide verifiable evidence. Funding stays reserved while an open challenge is reviewed." : descriptions[type]}</p><div className="survey-steps"><span className={step === 0 ? "active" : "done"}>01 · Details</span><span className={step === 1 ? "active" : ""}>02 · Review & sign</span></div></header>
+    <header><span className="survey-market">{type !== "cto" && <DexScreenerIcon/>}${launch.symbol} · {kind === "details" || kind === "activity" ? "Creator submission" : "Community governance"}</span><button aria-label="Close survey" disabled={busy} onClick={close}><X/></button><h2 id="proposal-survey-title">{title}</h2><p>{kind === "details" ? "Review the profile that AQUA will submit to DEX Screener. Only the creator can approve these details." : kind === "activity" ? "Share public evidence that you are still actively developing this coin. If holders reject the takeover, this enables a seven-day protection period." : kind === "challenge" ? "Provide verifiable evidence. Funding stays reserved while an open challenge is reviewed." : descriptions[type]}</p><div className="survey-steps"><span className={step === 0 ? "active" : "done"}>01 · Details</span><span className={step === 1 ? "active" : ""}>02 · Review & sign</span></div></header>
     <form onSubmit={(event) => { event.preventDefault(); if (!step) review(); else if (accepted && !busy) void submit(content()); }}>
       {!step ? <div className="survey-fields">
-        {kind !== "details" && <label>{kind === "challenge" ? "What should be investigated?" : "Why should holders support this?"}<textarea required minLength={20} maxLength={1000} value={form.reason} onChange={(event) => set("reason", event.target.value)} placeholder={type === "dex_payment" ? "Explain how a DEX profile will help this coin and its holders." : "Describe the change, its purpose and the benefit to holders."}/><small>Be specific. This explanation will be visible on the market page.</small></label>}
+        {kind !== "details" && <label>{kind === "challenge" ? "What should be investigated?" : kind === "activity" ? "What are you actively working on?" : "Why should holders support this?"}<textarea required minLength={20} maxLength={1000} value={form.reason} onChange={(event) => set("reason", event.target.value)} placeholder={kind === "activity" ? "Describe recent work, current progress and what you are shipping next." : type === "dex_payment" ? "Explain how a DEX profile will help this coin and its holders." : "Describe the change, its purpose and the benefit to holders."}/><small>Be specific. This explanation will be visible on the market page.</small></label>}
+        {kind === "activity" && <label>Public proof of work<input type="url" required maxLength={500} value={form.evidenceUrl} onChange={(event) => set("evidenceUrl", event.target.value)} placeholder="https://github.com/… or https://x.com/…"/><small>Link to recent, verifiable work or project updates.</small></label>}
         {kind === "create" && type === "dex_payment" && <div className="survey-funding-summary"><b>A $300 profile, funded by the market</b><p>If holders approve, 80% of incoming market rewards is reserved until the target is met. The remaining 20% continues to holder rewards. Only the creator submits the DEX profile details.</p><span>15-minute vote · 5% quorum · 60% approval</span></div>}
-        {profileFields && <DexProfileFields profile={form} update={(key, value) => set(key, value)}/>}
-        {kind === "create" && type === "cto" && <><div className="survey-field-row"><label>Proposed community lead<input required minLength={2} maxLength={100} value={form.communityLead} onChange={(event) => set("communityLead", event.target.value)} placeholder="Name or public handle"/></label><label>Public evidence / community URL<input type="url" required maxLength={500} value={form.evidenceUrl} onChange={(event) => set("evidenceUrl", event.target.value)} placeholder="https://…"/></label></div><label>Community treasury address<input required value={form.multisig} onChange={(event) => set("multisig", event.target.value)} placeholder="Public Solana treasury address"/><small>The proposed public treasury address. AQUA records this address but does not verify that it is controlled by a multisig.</small></label><label>Transition plan<textarea required minLength={40} maxLength={2000} value={form.plan} onChange={(event) => set("plan", event.target.value)} placeholder="Who takes responsibility, what changes, and how will holders stay informed?"/></label><div className="survey-funding-summary"><p>24-hour vote · 20% quorum · two-thirds approval. A rejected takeover enters a seven-day cooldown. Approval records the community mandate; it does not automatically transfer control or treasury funds.</p></div></>}
+        {profileFields && <DexProfileFields profile={form} update={(key, value) => set(key, value)}/>} 
+        {kind === "create" && type === "cto" && <><div className="survey-field-row"><label>Proposed community lead<input required minLength={2} maxLength={100} value={form.communityLead} onChange={(event) => set("communityLead", event.target.value)} placeholder="Name or public handle"/></label><label>Public evidence / community URL<input type="url" required maxLength={500} value={form.evidenceUrl} onChange={(event) => set("evidenceUrl", event.target.value)} placeholder="https://…"/></label></div><label>New developer wallet<input required value={form.developerWallet} onChange={(event) => set("developerWallet", event.target.value)} placeholder="Solana wallet address"/><small>The wallet proposed to receive future creator fees and manage additional developer locks after the handover is executed on-chain.</small></label><label>Transition plan<textarea required minLength={40} maxLength={2000} value={form.plan} onChange={(event) => set("plan", event.target.value)} placeholder="Who takes responsibility, what changes, and how will holders stay informed?"/></label><div className="survey-funding-summary"><p>24-hour vote · 20% quorum · two-thirds approval. Multiple takeover candidates may run at once; the first approved vote becomes the winner. A seven-day protection period only follows a rejected attempt when the current developer has submitted public activity evidence. Approval records the mandate; wallet authority changes only after verified on-chain execution.</p></div></>}
       </div> : <div className="survey-review"><small>CHECK BEFORE SIGNING</small><dl>{Object.entries(content()).filter(([, value]) => value).map(([key, value]) => <div key={key}><dt>{reviewLabels[key] ?? key}</dt><dd>{String(value)}</dd></div>)}</dl><label className="survey-consent"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)}/><span>I have checked these details and approve their publication for this market.</span></label><p>Your wallet signs a message. This approval does not spend funds.</p></div>}
       {error && <p className="survey-error" role="alert">{error}</p>}
       <footer><button type="button" className="survey-back" disabled={busy} onClick={() => { if (step) { setStep(0); setAccepted(false); } else close(); }}><ArrowLeft/>{step ? "Edit details" : "Cancel"}</button><button className="survey-submit" disabled={busy || (step === 1 && !accepted)}>{busy ? <Loader2 className="spin"/> : null}{!step ? "Review proposal" : kind === "create" ? "Sign & open vote" : "Sign & submit"}{!busy && <ArrowRight/>}</button></footer>
