@@ -202,7 +202,6 @@
   .token-page .community-proposals { order: 5; }
   .token-page .jackpot-recent-winners { order: 6; }
   .token-page .jackpot-leaderboard { order: 7; }
-  .token-page .creator-manage-button { order: 8; }
   .token-page .activity { order: 9; }
 }
 @media(max-width:1000px) {
@@ -298,7 +297,7 @@
 .podium-place:hover .podium-column { transform: scaleY(1.045); transform-origin: bottom; filter: saturate(1.12); box-shadow: 0 9px 20px rgba(52,139,180,.13); }
 
 /* Creator management is a right-aligned primary market action. */
-.token-page .creator-manage-button { justify-self: end; margin-left: auto; border-color: #62add2; color: #fff; background: linear-gradient(135deg,#258fc7,#1a79b5); box-shadow: 0 8px 20px rgba(30,116,165,.16); }
+.token-market-actions .creator-manage-button { min-height: 32px; justify-content: center; gap: 6px; padding: 0 11px; border-radius: 9px; border-color: #62add2; color: #fff; background: linear-gradient(135deg,#258fc7,#1a79b5); box-shadow: 0 8px 20px rgba(30,116,165,.16); font-size: .6rem; letter-spacing: .035em; white-space: nowrap; }
 .token-page .creator-manage-button:hover { color: #fff; background: linear-gradient(135deg,#1d82ba,#146da7); transform: translateY(-1px); }
 
 @media(max-width:700px) {
