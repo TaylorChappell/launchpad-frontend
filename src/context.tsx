@@ -6,7 +6,9 @@ import type { LaunchBatchEnvelope, RuntimeConfig, SignedTransactionEnvelope, Tra
 
 type PhantomProvider = {
   isPhantom?: boolean;
-  connect: () => Promise<{ publicKey: { toString: () => string } }>;
+  connect: (options?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey: { toString: () => string } }>;
+  on?: (event: string, listener: (...args: any[]) => void) => void;
+  removeListener?: (event: string, listener: (...args: any[]) => void) => void;
   disconnect: () => Promise<void>;
   signMessage: (message: Uint8Array, encoding: string) => Promise<{ signature: Uint8Array }>;
   signAndSendTransaction: (transaction: unknown, options?: { preflightCommitment?: string; maxRetries?: number }) => Promise<{ signature: string } | string>;
@@ -106,59 +108,117 @@ async function waitForConfirmation(connection: import("@solana/web3.js").Connect
 }
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const { config } = useRuntime();
+  const { config, loading: configLoading } = useRuntime();
   const [address, setAddress] = useState<string | null>(null);
   const [kind, setKind] = useState<"phantom" | "metamask" | null>(null);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const adapter = useRef<Adapter | null>(null);
+  const connectionAttempt = useRef(0);
+  const metaClient = useRef<Promise<SolanaClient> | null>(null);
+  const remember = (value: "phantom" | "metamask" | null) => {
+    try { if (value) localStorage.setItem("aqua:wallet", value); else localStorage.removeItem("aqua:wallet"); } catch { /* Private browsing may disable storage. */ }
+  };
   const phantomInstalled = typeof window !== "undefined" && Boolean((window as Window & { phantom?: { solana?: PhantomProvider } }).phantom?.solana?.isPhantom);
 
-  const connect = useCallback(async (next: "phantom" | "metamask") => {
+  const connectWallet = useCallback(async (next: "phantom" | "metamask", silent = false) => {
+    const attempt = ++connectionAttempt.current;
     setConnecting(next);
     try {
       if (next === "phantom") {
         const provider = (window as Window & { phantom?: { solana?: PhantomProvider } }).phantom?.solana;
         if (!provider?.isPhantom) {
-          window.open("https://phantom.com/download", "_blank", "noopener,noreferrer");
+          if (!silent) window.open("https://phantom.com/download", "_blank", "noopener,noreferrer");
           throw new Error("Phantom is not installed.");
         }
-        const result = await provider.connect();
+        const result = await provider.connect(silent ? { onlyIfTrusted: true } : undefined);
+        if (attempt !== connectionAttempt.current) return;
         adapter.current = { kind: "phantom", provider };
         setAddress(result.publicKey.toString());
       } else {
         const { createSolanaClient } = await import("@metamask/connect-solana");
-        const client = await createSolanaClient({
+        const client = await (metaClient.current ??= createSolanaClient({
           dapp: { name: "AQUA", url: window.location.origin, iconUrl: `${window.location.origin}${import.meta.env.BASE_URL}aqua-logo.png` },
           api: { supportedNetworks: config.network === "devnet" ? { devnet: config.publicRpcUrl } : { mainnet: config.publicRpcUrl } },
           analytics: { enabled: false, integrationType: "direct" },
-        });
+        }));
         const wallet = client.getWallet() as unknown as WalletStandard;
         const feature = wallet.features["standard:connect"] as StandardConnect | undefined;
         if (!feature) throw new Error("MetaMask does not expose a Solana account.");
-        const result = await feature.connect();
+        // The SDK restores an existing Solana session during initialization.
+        // Never request a new session automatically when permission is absent.
+        const result = silent ? { accounts: wallet.accounts } : await feature.connect();
+        if (attempt !== connectionAttempt.current) return;
         const account = result.accounts?.[0] ?? wallet.accounts[0];
         if (!account) throw new Error("No Solana account was returned.");
         adapter.current = { kind: "metamask", value: { client, wallet, account } };
         setAddress(account.address);
       }
+      remember(next);
       setKind(next);
       setModalOpen(false);
-      toast.success(`${next === "phantom" ? "Phantom" : "MetaMask"} connected`);
+      if (!silent) toast.success(`${next === "phantom" ? "Phantom" : "MetaMask"} connected`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Wallet connection failed.");
+      // Allow a later manual attempt to recreate the SDK after an init failure.
+      if (next === "metamask") metaClient.current = null;
+      if (!silent && attempt === connectionAttempt.current) toast.error(error instanceof Error ? error.message : "Wallet connection failed.");
     } finally {
-      setConnecting(null);
+      if (attempt === connectionAttempt.current) setConnecting(null);
     }
   }, [config.network, config.publicRpcUrl]);
 
+  const connect = useCallback((next: "phantom" | "metamask") => connectWallet(next), [connectWallet]);
+
+  useEffect(() => {
+    if (configLoading || adapter.current) return;
+    let saved: string | null = null;
+    try { saved = localStorage.getItem("aqua:wallet"); } catch { /* No persisted preference. */ }
+    if (saved === "phantom" || saved === "metamask") void connectWallet(saved, true);
+    return () => { connectionAttempt.current++; };
+  }, [configLoading, connectWallet]);
+
   const disconnect = useCallback(async () => {
-    if (adapter.current?.kind === "phantom") await adapter.current.provider.disconnect();
-    if (adapter.current?.kind === "metamask") await adapter.current.value.client.disconnect();
+    ++connectionAttempt.current;
+    const previous = adapter.current;
     adapter.current = null;
+    remember(null);
     setAddress(null);
     setKind(null);
+    setConnecting(null);
+    setModalOpen(false);
+    try {
+      if (previous?.kind === "phantom") await previous.provider.disconnect();
+      if (previous?.kind === "metamask") await previous.value.client.disconnect();
+    } catch { /* AQUA remains signed out even if the extension is unavailable. */ }
   }, []);
+
+  useEffect(() => {
+    const current = adapter.current;
+    if (!current) return;
+    const clear = () => {
+      if (adapter.current !== current) return;
+      ++connectionAttempt.current;
+      adapter.current = null; remember(null); setAddress(null); setKind(null);
+    };
+    if (current.kind === "phantom") {
+      const changed = (key: { toString: () => string } | null) => {
+        if (adapter.current !== current) return;
+        if (key) setAddress(key.toString()); else clear();
+      };
+      current.provider.on?.("accountChanged", changed);
+      current.provider.on?.("disconnect", clear);
+      return () => {
+        current.provider.removeListener?.("accountChanged", changed);
+        current.provider.removeListener?.("disconnect", clear);
+      };
+    }
+    const events = current.value.wallet.features["standard:events"] as { on: (event: "change", listener: (change: { accounts?: readonly SolanaAccount[] }) => void) => () => void } | undefined;
+    return events?.on("change", ({ accounts }) => {
+      if (!accounts || adapter.current !== current) return;
+      if (!accounts.length) { clear(); return; }
+      current.value.account = accounts[0]; setAddress(accounts[0].address);
+    });
+  }, [kind, address]);
 
   const signMessage = useCallback(async (message: string) => {
     if (!adapter.current || !address) throw new Error("Connect your wallet first.");

@@ -57,7 +57,7 @@ export function WalletMenu() {
       </section>
       <Link className="wallet-launch-link" to="/create" role="menuitem"><Plus size={15}/>Launch a coin</Link>
       {address === config.adminWallet && <Link className="wallet-launch-link wallet-admin-link" to="/admin" role="menuitem"><ShieldCheck size={15}/>Admin diagnostics</Link>}
-      <button className="wallet-disconnect" role="menuitem" onClick={() => void wallet.disconnect()}><LogOut size={15}/>Disconnect</button>
+      <button className="wallet-disconnect" role="menuitem" onClick={() => void wallet.disconnect()}><LogOut size={15}/>Sign out</button>
     </div>}
   </div>;
 }

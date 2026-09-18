@@ -540,3 +540,9 @@ export type CreatorLockTransactionEnvelope = TransactionEnvelope & {
   estimatedLockedRaw: string;
   estimatedTransferFeeRaw: string;
 };
+
+export type WalletNotification = {
+  id: string; kind: "jackpot" | "cto" | "dex_details"; launchId: string;
+  symbol: string; createdAt: number; title: string; message: string;
+  claimed?: boolean; amountRaw?: string; rewardDecimals?: number; rewardSymbol?: string;
+};

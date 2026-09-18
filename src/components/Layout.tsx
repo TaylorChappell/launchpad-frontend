@@ -6,6 +6,7 @@ import { WalletModal } from "./WalletModal";
 import { AquaMark } from "./AquaMark";
 import { SearchModal } from "./SearchModal";
 import { OrcaMark } from "./OrcaMark";
+import { Notifications } from "./Notifications";
 import { WalletMenu } from "./WalletMenu";
 
 const links = [
@@ -74,6 +75,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <nav aria-label="Primary navigation">{links.map((link) => <NavLink key={link.to} to={link.to} end={link.to === "/"}>{link.label}</NavLink>)}</nav>
         <div className="header-actions">
           <button className="header-search" onClick={() => { setMobile(false); setSearchOpen(true); }} aria-label="Search AQUA markets"><Search size={17}/><span>Search coins, stocks...</span><kbd>/</kbd></button>
+          {wallet.address && <Notifications key={wallet.address} wallet={wallet.address}/>}
           <WalletMenu/>
           <button className="mobile-menu" onClick={() => setMobile(!mobile)} aria-label="Toggle navigation" aria-expanded={mobile}>{mobile ? <X /> : <Menu />}</button>
         </div>
