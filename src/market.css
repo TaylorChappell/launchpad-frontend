@@ -489,3 +489,12 @@
 .execution-panel button:focus-visible,.chart-controls button:focus-visible,.search-modal button:focus-visible { outline: 2px solid #167cae; outline-offset: 3px; }
 @media(max-width:1100px) { .trading-shell .token-layout { display: flex; } .trading-shell .chart-panel { order: 1; } .trading-shell .trade-card { order: 2; } .trading-shell .default-dex-vote { order: 3; } .market-facts { order: 8; } }
 @media(max-width:600px) { .aqua-search-overlay { padding: 12px; } .aqua-search-overlay .search-modal { padding: 20px 16px; max-height: calc(100dvh - 24px); border-radius: 12px; } .chart-canvas { height: 270px; } .chart-controls { padding: 4px 10px 12px; } .chart-controls > span { display: none; } .trading-shell .token-identity h1 { font-size: 23px; } .execution-panel { padding: 18px; } }
+
+.custom-slippage { display: flex; align-items: center; gap: 6px; color: #173e55; }
+.custom-slippage input { width: 76px; padding: 7px 9px; border: 1px solid #c8dde8; border-radius: 6px; background: #fff; color: #173e55; text-align: right; }
+.card-jackpot-prizes { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 7px; margin-top: 10px; }
+.card-jackpot-prizes > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.reward-card-focus .card-jackpot-prizes span { font-size: 10px; color: #58788b; }
+.card-jackpot-prizes b { font-size: 12px; color: #234c64; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.reward-card-focus .card-jackpot-prizes small { font-size: 9px; }
+.execution-panel > .primary { margin-top: 16px; }

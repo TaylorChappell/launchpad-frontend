@@ -203,6 +203,8 @@ export type Launch = {
   pairMint: string;
   tradingPair: { type: "sol" | "stock"; symbol: string; mint: string };
   rewardMode: "holder_rewards" | "buyback_burn" | "jackpot";
+  burnSummary?: { totalSol: number; totalTokenRaw: string };
+  jackpotSummary?: { currentPotRaw: string; rewardSymbol: string; rewardDecimals: number };
   dexPaid?: boolean;
   marketPolicyAddress?: string | null;
   pairVerified?: boolean;

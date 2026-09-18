@@ -67,7 +67,7 @@ export function Markets() {
   const boostedMint = governance?.activeBonus?.mint ?? null;
   const filtered = useMemo(() => {
     const priority = (launch: Launch) => launch.mint === (governance?.governanceMint ?? AQUA_MINT) ? 0 : launch.mint === boostedMint ? 1 : 2;
-    const pinned = (launch: Launch) => priority(launch) < 2;
+    const pinFeatured = sortMode === "popular" && !modeFiltersActive.size && !pairFilters.size && !dexOnly;
     const compare = (a: Launch, b: Launch) => {
       if (sortMode === "recent") return Number(b.createdAt || 0) - Number(a.createdAt || 0);
       if (sortMode === "market_cap") return Number(b.marketCapUsd || 0) - Number(a.marketCapUsd || 0);
@@ -78,11 +78,11 @@ export function Markets() {
       return Number(b.volume24hUsd || 0) - Number(a.volume24hUsd || 0);
     };
     return launches
-      .filter((launch) => pinned(launch) || (!modeFiltersActive.size || modeFiltersActive.has(launch.rewardMode)))
-      .filter((launch) => pinned(launch) || (!pairFilters.size || pairFilters.has(launch.pairType)))
-      .filter((launch) => pinned(launch) || !dexOnly || launch.dexPaid)
+      .filter((launch) => (!modeFiltersActive.size || modeFiltersActive.has(launch.rewardMode)))
+      .filter((launch) => (!pairFilters.size || pairFilters.has(launch.pairType)))
+      .filter((launch) => !dexOnly || launch.dexPaid)
       .slice()
-      .sort((a, b) => priority(a) - priority(b) || compare(a, b));
+      .sort((a, b) => (pinFeatured ? priority(a) - priority(b) : 0) || compare(a, b));
   }, [boostedMint, dexOnly, governance?.governanceMint, launches, modeFiltersActive, pairFilters, sortMode]);
   const visible = filtered.slice(0, visibleCount);
   const activeFilterCount = modeFiltersActive.size + pairFilters.size + Number(dexOnly);
@@ -105,7 +105,7 @@ export function Markets() {
       <header className="workspace-heading">
         <div>
           <h2>Explore markets</h2>
-          <p>{sortLabels[sortMode]} AQUA launches. AQUA and the active boosted market stay pinned first.</p>
+          <p>{sortLabels[sortMode]} AQUA launches.</p>
         </div>
         <div className="market-filter-menu" ref={filterRoot}>
           <button className={`market-filter-trigger ${activeFilterCount ? "active" : ""}`} onClick={() => setFiltersOpen((open) => !open)} aria-expanded={filtersOpen} aria-controls="market-filter-panel"><SlidersHorizontal/><span>Filters</span>{activeFilterCount > 0 && <b>{activeFilterCount}</b>}<ChevronDown/></button>
