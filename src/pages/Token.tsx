@@ -43,7 +43,9 @@ function formatCountdown(seconds: number) {
 
 function jackpotPrizeAmount(jackpot: RewardModeState["jackpot"] | undefined, prizeBps: number) {
   if (!jackpot) return "Loading…";
-  const amountRaw = BigInt(jackpot.currentPotRaw) * BigInt(prizeBps) / 10_000n;
+  const pot = BigInt(jackpot.currentPotRaw);
+  const remainder = pot - [5000n, 2000n, 2000n, 500n, 500n].reduce((sum, bps) => sum + pot * bps / 10000n, 0n);
+  const amountRaw = pot * BigInt(prizeBps) / 10_000n + (prizeBps === 5000 ? remainder : 0n);
   return `${formatRaw(amountRaw.toString(), jackpot.rewardDecimals)} ${jackpot.rewardSymbol}`;
 }
 
@@ -153,7 +155,9 @@ export function Token() {
         {rewardMode === "holder_rewards" && <section className="market-reward-panel"><header><div><small>HOLDER REWARDS</small><h2>Earn {launch.stockSymbol}</h2></div><span className="reward-live-label">Accumulating</span></header><div className="reward-stat-row"><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Available to all holders" value={money.format(launch.rewardRedeemableUsd)}/></div><footer>Rewards follow your balance and time held. Claim them together on the Rewards page.</footer></section>}
         {rewardMode === "buyback_burn" && <section className="market-reward-panel"><header><div><small>BUYBACK &amp; BURN</small><h2>Reducing the supply</h2></div><span className="reward-live-label">Market buybacks</span></header><div className="reward-stat-row"><Metric label="SOL spent on buybacks" value={`${compact.format(rewardModeState?.buybackBurn.totalSol ?? 0)} SOL`}/><Metric label={`${launch.symbol} permanently burned`} value={formatCompactRaw(rewardModeState?.buybackBurn.totalTokenRaw, launch.tokenDecimals)}/></div><footer>{rewardModeState?.buybackBurn.lastBurnAt ? "Last burn · " + new Date(rewardModeState.buybackBurn.lastBurnAt).toLocaleString() : "The reward share buys this coin through its pool and burns the purchased tokens."}</footer></section>}
         {rewardMode === "jackpot" && <section className="market-reward-panel market-jackpot">
-          <header><div><small>HOURLY JACKPOT</small><h2>Five places. One draw.</h2></div><div className="jackpot-next-draw"><span>Next draw</span><strong>{formatCountdown(jackpotSeconds)}</strong></div></header>
+          <header><div><small>HOURLY JACKPOT</small><h2>Five places. One draw.</h2></div><div className="jackpot-next-draw"><span>{jackpot?.status === "rolling_over" ? "Next attempt" : "Next draw"}</span><strong>{!jackpot ? "Loading…" : jackpot.status === "blocked" ? "Delayed" : jackpot.status === "drawing" ? "Drawing…" : jackpot.status === "publishing" ? "Funding prizes…" : jackpotSeconds === 0 ? "Awaiting draw" : formatCountdown(jackpotSeconds)}</strong></div></header>
+          {jackpot?.status === "rolling_over" && <p className="jackpot-state-note">{jackpot.reason === "eligible_holders" ? `Waiting for five eligible holders${jackpot.eligibleWallets !== null ? ` (${jackpot.eligibleWallets} currently eligible)` : ""}. Prizes carry forward.` : "Waiting for the minimum funding. Prizes carry forward."}</p>}
+          {jackpot?.status === "blocked" && <p className="jackpot-state-note">Settlement is delayed. Prizes remain pending until funding is confirmed.</p>}
           <div className="jackpot-podium" aria-label="Prize amounts for the next five winners">
             {[["1ST", 5_000], ["2ND", 2_000], ["3RD", 2_000], ["4TH", 500], ["5TH", 500]].map(([place, bps]) => {
               const amount = jackpotPrizeAmount(jackpot, Number(bps));

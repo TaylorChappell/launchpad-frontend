@@ -498,3 +498,5 @@
 .card-jackpot-prizes b { font-size: 12px; color: #234c64; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .reward-card-focus .card-jackpot-prizes small { font-size: 9px; }
 .execution-panel > .primary { margin-top: 16px; }
+
+.jackpot-state-note { margin: 0 0 14px; color: #57768a; font-size: 12px; line-height: 1.5; }

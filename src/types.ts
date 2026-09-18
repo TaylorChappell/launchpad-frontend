@@ -266,13 +266,15 @@ export type Launch = {
 
 export type RewardModeState = {
   jackpot: {
+    status?: "scheduled" | "awaiting_draw" | "drawing" | "publishing" | "rolling_over" | "blocked";
+    reason?: string | null;
     nextDrawAt: number;
     drawSeconds: number;
     currentPotRaw: string;
     currentPotUsd: number;
     rewardSymbol: string;
     rewardDecimals: number;
-    eligibleWallets: number;
+    eligibleWallets: number | null;
     previousDraws: Array<{
     id: string;
     startsAt: number;
