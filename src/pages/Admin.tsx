@@ -1,45 +1,87 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, ExternalLink, Gavel, Loader2, RefreshCw, ShieldCheck, WalletCards } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useSearchParams, Link } from "react-router-dom";
+import { ArrowUpRight, Check, ChevronLeft, ChevronRight, Copy, ExternalLink, Loader2, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { DexScreenerIcon } from "../components/DexScreenerIcon";
 import type { AdminDiagnostics, MarketProposal } from "../types";
+import "./admin.css";
 
 const SESSION_KEY = "aqua-admin-session-v1";
-const sol = (value: unknown) => `${(Number(String(value ?? 0)) / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 6 })} SOL`;
-const raw = (value: unknown) => BigInt(String(value ?? 0)).toLocaleString();
-const when = (value: unknown) => value ? new Date(Number(value)).toLocaleString() : "Never";
-const short = (value: unknown) => { const text = String(value ?? ""); return text.length > 15 ? `${text.slice(0, 6)}…${text.slice(-6)}` : text || "—"; };
-const explorer = (kind: "account" | "tx", value: unknown) => `https://solscan.io/${kind}/${String(value)}`;
+const sections = ["overview", "dex", "logs", "rewards", "custody"] as const;
+type Section = typeof sections[number];
+type Row = Record<string, unknown>;
+type Action = "withdraw" | "paid" | "complete" | "uphold" | "reject" | "access";
+const labels: Record<Section, string> = { overview: "Overview", dex: "DEX & proposals", logs: "Logs & pipeline", rewards: "Reward epochs", custody: "Custody & settings" };
+const actionLabels: Record<Action, string> = { withdraw: "Withdraw reserved SOL", paid: "Record DEX payment", complete: "Complete profile update", uphold: "Uphold challenges", reject: "Reject challenges", access: "Confirm AQUA profile access" };
+const sol = (value: unknown) => `${(Number(value ?? 0) / 1e9).toLocaleString(undefined, { maximumFractionDigits: 6 })} SOL`;
+const raw = (value: unknown) => { try { return BigInt(String(value ?? 0)).toLocaleString(); } catch { return "—"; } };
+const when = (value: unknown) => value ? new Date(Number(value)).toLocaleString() : "—";
+const short = (value: unknown) => { const text = String(value ?? ""); return text.length > 18 ? `${text.slice(0, 7)}…${text.slice(-6)}` : text || "—"; };
+const titleCase = (value: unknown) => String(value ?? "unknown").replaceAll("_", " ");
+const typeLabel = (p: MarketProposal) => p.type === "cto" ? "Community takeover" : p.type === "dex_update" ? "Update DEX" : "Fund DEX";
+const active = (p: MarketProposal) => !["completed", "rejected", "cancelled"].includes(p.status);
+const needsAction = (p: MarketProposal) => Boolean(p.openChallenges) || (!p.spendingPaused && ["ready", "withdrawing", "withdrawn", "approved"].includes(p.status));
+const matches = (value: unknown, search: string) => JSON.stringify(value).toLowerCase().includes(search.trim().toLowerCase());
 
-function Flag({ label, enabled }: { label: string; enabled: boolean }) {
-  return <div className={`admin-flag ${enabled ? "on" : "off"}`}>{enabled ? <CheckCircle2/> : <AlertTriangle/>}<span>{label}</span><b>{enabled ? "Enabled" : "Disabled"}</b></div>;
+function Status({ value }: { value: unknown }) { return <span className={`ops-status is-${String(value)}`}>{titleCase(value)}</span>; }
+function ChainLink({ value, tx = false }: { value: unknown; tx?: boolean }) {
+  const { config } = useRuntime();
+  if (!value) return <span>—</span>;
+  return <a className="ops-chain" href={`https://solscan.io/${tx ? "tx" : "account"}/${String(value)}${config.useTestnet ? "?cluster=devnet" : ""}`} target="_blank" rel="noreferrer" title={String(value)}>{short(value)}<ExternalLink size={12}/></a>;
+}
+function Empty({ children }: { children: ReactNode }) { return <div className="ops-empty">{children}</div>; }
+function Panel({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+  return <section className="ops-panel"><header><h2>{title}</h2>{description && <p>{description}</p>}</header>{children}</section>;
+}
+function Pager({ page, total, size, setPage }: { page: number; total: number; size: number; setPage: (page: number) => void }) {
+  const pages = Math.max(1, Math.ceil(total / size));
+  return <footer className="ops-pager"><span>{total ? `${page * size + 1}–${Math.min(total, (page + 1) * size)} of ${total}` : "0 results"}</span><div><button aria-label="Previous page" disabled={page === 0} onClick={() => setPage(page - 1)}><ChevronLeft size={16}/></button><span>Page {page + 1} / {pages}</span><button aria-label="Next page" disabled={page + 1 >= pages} onClick={() => setPage(page + 1)}><ChevronRight size={16}/></button></div></footer>;
+}
+function DataTable({ rows, columns, render, empty }: { rows: Row[]; columns: string[]; render: (row: Row) => ReactNode; empty: string }) {
+  const [page, setPage] = useState(0);
+  const current = Math.min(page, Math.max(0, Math.ceil(rows.length / 15) - 1));
+  return <><div className="ops-table-scroll" tabIndex={0} role="region" aria-label="Scrollable records"><table><thead><tr>{columns.map(column => <th key={column} scope="col">{column}</th>)}</tr></thead><tbody>{rows.slice(current * 15, current * 15 + 15).map((row, index) => <tr key={String(row.id ?? row.signature ?? row.launch_id ?? index)}>{render(row)}</tr>)}</tbody></table>{!rows.length && <Empty>{empty}</Empty>}</div><Pager page={current} total={rows.length} size={15} setPage={setPage}/></>;
 }
 
 export function Admin() {
   const wallet = useWallet();
   const { config } = useRuntime();
+  const [params, setParams] = useSearchParams();
+  const section = sections.includes(params.get("section") as Section) ? params.get("section") as Section : "overview";
+  const search = params.get("search") ?? "";
   const [token, setToken] = useState(() => sessionStorage.getItem(SESSION_KEY));
   const [data, setData] = useState<AdminDiagnostics | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [proposalBusy, setProposalBusy] = useState<string | null>(null);
+  const [pending, setPending] = useState<{ proposal: MarketProposal; action: Action } | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [filter, setFilter] = useState("active");
+  const [logSource, setLogSource] = useState("keeper");
+  const [errorsOnly, setErrorsOnly] = useState(false);
+  const [page, setPage] = useState(0);
   const authorizedWallet = Boolean(wallet.address && wallet.address === config.adminWallet);
-
-  const load = useCallback(async (session: string) => {
+  const requestId = useRef(0);
+  const load = useCallback(async (session: string, includeRuntime = false) => {
+    const id = ++requestId.current;
     setBusy(true); setError(null);
-    try { setData(await api.adminDiagnostics(session)); }
+    try { const next = await api.adminDiagnostics(session, includeRuntime); if (id === requestId.current) setData(next); }
     catch (reason) {
+      if (id !== requestId.current) return;
       const message = reason instanceof Error ? reason.message : "Diagnostics could not be loaded.";
-      setError(message); setData(null);
-      if (/authorization|expired|verification/i.test(message)) { sessionStorage.removeItem(SESSION_KEY); setToken(null); }
-    } finally { setBusy(false); }
+      setError(message);
+      if (/authorization|expired|verification/i.test(message)) { sessionStorage.removeItem(SESSION_KEY); setToken(null); setData(null); }
+    } finally { if (id === requestId.current) setBusy(false); }
   }, []);
-
-  useEffect(() => { if (authorizedWallet && token) void load(token); else setData(null); }, [authorizedWallet, load, token]);
-  useEffect(() => { if (!authorizedWallet) { sessionStorage.removeItem(SESSION_KEY); setToken(null); } }, [authorizedWallet, wallet.address]);
-
+  useEffect(() => {
+    if (authorizedWallet && token) void load(token); else setData(null);
+    return () => { requestId.current++; };
+  }, [authorizedWallet, load, token]);
+  useEffect(() => { if (!authorizedWallet) { sessionStorage.removeItem(SESSION_KEY); setToken(null); setPending(null); } }, [authorizedWallet]);
+  useEffect(() => { setPage(0); }, [search, filter]);
+  const navigate = (next: Section, query = "") => { setParams({ section: next, ...(query ? { search: query } : {}) }); };
   const verify = async () => {
     if (!wallet.address || !authorizedWallet) return;
     setBusy(true); setError(null);
@@ -48,75 +90,108 @@ export function Admin() {
       const signed = await wallet.signMessage(challenge.message);
       const session = await api.adminSession({ wallet: wallet.address, challenge: challenge.challenge, ...signed });
       sessionStorage.setItem(SESSION_KEY, session.token); setToken(session.token);
-      toast.success("Admin wallet verified");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Admin verification failed."); }
     finally { setBusy(false); }
   };
-
-  const diagnosticsByLaunch = useMemo(() => new Map((data?.diagnostics ?? []).map((item) => [String(item.launch_id), item])), [data]);
-  const runtimeByLaunch = useMemo(() => new Map((data?.runtime.markets ?? []).map((item) => [String(item.launchId), item])), [data]);
-
-  const proposalAction = async (id: string, action: "withdraw" | "paid" | "complete" | "uphold" | "reject" | "access") => {
-    if (!token) return;
-    if (action === "withdraw" && !window.confirm("Withdraw this proposal's reserved SOL to the configured AQUA admin wallet?")) return;
-    setProposalBusy(`${id}:${action}`);
+  const proposals = useMemo(() => (data?.proposals ?? []).filter(p => matches(p, search) && (filter === "all" || (filter === "active" ? active(p) : filter === "attention" ? needsAction(p) : p.status === filter))).sort((a,b) => Number(needsAction(b)) - Number(needsAction(a)) || b.createdAt - a.createdAt), [data, search, filter]);
+  const chosen = proposals.find(p => p.id === selected) ?? proposals[0];
+  const action = async (reference: string, managed: boolean) => {
+    if (!token || !pending || !authorizedWallet) return;
+    setActionBusy(true);
+    const { proposal: p, action: kind } = pending;
     try {
-      if (action === "withdraw") {
-        const result = await api.adminWithdrawProposal(token, id);
-        toast.success(`DEX fund withdrawn · ${result.signature.slice(0, 8)}…`);
-      } else if (action === "paid") {
-        const reference = window.prompt("External DEX order reference. Confirm only after the approved profile is live.");
-        if (!reference?.trim()) return;
-        const managed = window.confirm("Can AQUA currently edit this DEX profile through its own marketplace account?");
-        await api.adminMarkProposalPaid(token, id, reference, managed);
-        toast.success("DEX payment marked complete");
-      } else if (action === "complete") {
-        const reference = window.prompt("External DEX update reference. Confirm only after the approved details are live.");
-        if (!reference?.trim()) return;
-        await api.adminCompleteProposal(token, id, reference);
-        toast.success("Proposal marked completed");
-      } else if (action === "access") {
-        const reference = window.prompt("Profile access / order reference after verifying AQUA can edit this profile:");
-        if (!reference?.trim()) return;
-        const proposal = data?.proposals.find(item => item.id === id);
-        if (!proposal) return;
-        await api.adminDexAccess(token, proposal.launchId, true, reference);
-        toast.success("AQUA profile access recorded");
-      } else {
-        await api.adminResolveProposalChallenge(token, id, action === "uphold");
-        toast.success(action === "uphold" ? "Challenge upheld; reserved funds returned to rewards" : "Challenge rejected");
-      }
-      await load(token);
-    } catch (reason) { toast.error(reason instanceof Error ? reason.message : "Proposal action failed."); }
-    finally { setProposalBusy(null); }
+      if (kind === "withdraw") await api.adminWithdrawProposal(token, p.id);
+      else if (kind === "paid") await api.adminMarkProposalPaid(token, p.id, reference, managed);
+      else if (kind === "complete") await api.adminCompleteProposal(token, p.id, reference);
+      else if (kind === "access") await api.adminDexAccess(token, p.launchId, true, reference);
+      else await api.adminResolveProposalChallenge(token, p.id, kind === "uphold");
+      toast.success(kind === "withdraw" ? "Reserved SOL withdrawn" : "Admin action recorded");
+      setPending(null); await load(token);
+    } catch (reason) { toast.error(reason instanceof Error ? reason.message : "Admin action failed."); }
+    finally { setActionBusy(false); }
   };
 
-  if (!wallet.address) return <main className="page admin-page"><section className="admin-access"><ShieldCheck/><span>Wallet-protected operations</span><h1>AQUA control room</h1><p>Connect the authorized operations wallet to inspect fee conversion, reward funding, holder epochs, and keeper health.</p><button className="primary" onClick={() => wallet.setModalOpen(true)}><WalletCards/>Connect admin wallet</button></section></main>;
-  if (!authorizedWallet) return <main className="page admin-page"><section className="admin-access denied"><AlertTriangle/><span>Access restricted</span><h1>This wallet is not authorized</h1><p>Diagnostics are available only to the configured AQUA admin wallet. No operational data was requested from the backend.</p><code>{wallet.address}</code></section></main>;
-  if (!token || !data) return <main className="page admin-page"><section className="admin-access"><ShieldCheck/><span>Authorized wallet detected</span><h1>Verify to open diagnostics</h1><p>Sign a short-lived, read-only message. This is not a transaction and cannot move funds.</p><button className="primary" disabled={busy} onClick={() => void verify()}>{busy ? <Loader2 className="spin"/> : <ShieldCheck/>}{busy ? "Waiting for signature" : "Verify admin wallet"}</button>{error && <div className="admin-error"><AlertTriangle/>{error}</div>}</section></main>;
+  if (!wallet.address || !authorizedWallet || !token || !data) return <main className="page ops-page"><section className="ops-access"><span className="ops-eyebrow">AQUA / OPERATIONS</span><h1>{!wallet.address ? "Your control room." : !authorizedWallet ? "Access restricted" : token ? "Loading operations" : "Verify your admin wallet"}</h1><p>{!wallet.address ? "Connect the authorized wallet to manage DEX funding and inspect market operations." : !authorizedWallet ? "This wallet is not authorized to access operational data." : token ? "Fetching the latest market and keeper records." : "Sign a verification message. This is not a transaction and cannot move funds."}</p>{!wallet.address ? <button className="ops-primary" onClick={() => wallet.setModalOpen(true)}>Connect admin wallet</button> : authorizedWallet && <button className="ops-primary" disabled={busy} onClick={() => token ? void load(token) : void verify()}>{busy && <Loader2 size={16} className="spin"/>}{busy ? "Please wait…" : token ? "Retry loading" : "Verify wallet"}</button>}{error && <div className="ops-error" role="alert">{error}</div>}</section></main>;
 
-  return <main className={`page admin-page ${config.marketGovernanceEnabled ? "" : "market-governance-disabled"}`}>
-    <header className="admin-hero"><div><span><ShieldCheck/>Private operations view</span><h1>AQUA control room</h1><p>Live chain custody, SOL conversion routes, settlement history, and reward-epoch health in one place.</p></div><button onClick={() => void load(token)} disabled={busy}><RefreshCw className={busy ? "spin" : ""}/>Refresh</button></header>
-    {error && <div className="admin-error"><AlertTriangle/>{error}</div>}
-    <section className="admin-flags"><Flag label="Fee keeper" enabled={data.flags.feeKeeperEnabled}/><Flag label="SOL conversion" enabled={data.flags.solFeeConversionEnabled}/><Flag label="Holder rewards" enabled={data.flags.rewardDistributionEnabled}/></section>
-    <section className="admin-stat-grid">
-      <article><small>Live launches</small><b>{data.counts.live_launches ?? 0}</b><span>{data.counts.launches ?? 0} total records</span></article>
-      <article><small>Active conversions</small><b>{data.counts.active_conversions ?? 0}</b><span>{data.counts.conversion_errors ?? 0} logged errors</span></article>
-      <article><small>Claimable epochs</small><b>{data.counts.claimable_epochs ?? 0}</b><span>{data.counts.unclaimed_entitlements ?? 0} unclaimed wallets</span></article>
-      <article><small>Next conversion</small><b>${(data.flags.conversionMinimumUsdCents / 100).toFixed(2)}</b><span>{data.flags.conversionSlippageBps / 100}% max slippage</span></article>
-    </section>
-    <section className="admin-panel"><header><div><h2>Custody and destinations</h2><p>Public keys read directly from the deployed AQUA configuration and fee-role PDA.</p></div><time>Updated {when(data.generatedAt)}</time></header>{data.runtime.available ? <div className="admin-custody"><div><small>Fee keeper</small><a href={explorer("account", data.runtime.operator)} target="_blank" rel="noreferrer">{short(data.runtime.operator)}<ExternalLink/></a><b>{sol(data.runtime.balances?.nativeLamports)} native</b><span>Harvests, converts and divides fees</span></div><div><small>Reward wallet</small><a href={explorer("account", data.runtime.rewardOperator)} target="_blank" rel="noreferrer">{short(data.runtime.rewardOperator)}<ExternalLink/></a><b>{sol(data.runtime.balances?.rewardNativeLamports)} native</b><span>{sol(data.runtime.balances?.reservedRewardLamports)} allocated · {sol(data.runtime.balances?.wrappedSolLamports)} wrapped</span></div><div><small>Treasury</small><a href={explorer("account", data.runtime.destinations?.treasury)} target="_blank" rel="noreferrer">{short(data.runtime.destinations?.treasury)}<ExternalLink/></a></div><div><small>Buyback wallet</small><a href={explorer("account", data.runtime.destinations?.buybackBuyer)} target="_blank" rel="noreferrer">{short(data.runtime.destinations?.buybackBuyer)}<ExternalLink/></a></div></div> : <div className="admin-empty">{data.runtime.reason}</div>}</section>
-    <section className="admin-panel admin-proposals"><header><div><h2><Gavel/> Market proposals</h2><p>Review votes and challenges, withdraw a fully funded DEX reserve, then record the external action.</p></div><b>{data.proposals.filter((item) => ["voting", "funding", "approved", "ready", "withdrawn"].includes(item.status)).length} active</b></header><div className="admin-table-wrap"><table><thead><tr><th>Market / type</th><th>Status</th><th>Vote</th><th>DEX fund</th><th>Challenges</th><th>Admin action</th></tr></thead><tbody>{data.proposals.length ? data.proposals.map((proposal) => { const yes=BigInt(proposal.yesPowerRaw || "0"); const no=BigInt(proposal.noPowerRaw || "0"); const total=yes+no; const yesPct=total ? Number(yes*100n/total) : 0; return <tr key={proposal.id}><td><b>${proposal.marketSymbol}</b><small className="admin-proposal-type">{proposal.type !== "cto" && <DexScreenerIcon/>}{proposal.type.replaceAll("_", " ")}</small><SubmittedProposalDetails proposal={proposal}/>{proposal.type !== "cto" && <><a href="https://marketplace.dexscreener.com/" target="_blank" rel="noreferrer">Open DEX marketplace <ExternalLink/></a><button disabled={Boolean(proposalBusy)} onClick={() => void proposalAction(proposal.id, "access")}>Confirm profile access</button></>}<a href={explorer("account", proposal.mint)} target="_blank" rel="noreferrer">{short(proposal.mint)}<ExternalLink/></a></td><td><span className={`admin-status ${proposal.status}`}>{proposal.status}</span><small>{proposal.spendingPaused ? "Profile vote · spending paused" : proposal.outcome ?? "Voting"}</small></td><td><b>{yesPct}% yes</b><small>{proposal.eligibleVoters} eligible voters</small></td><td>{(proposal.type === "dex_payment" || proposal.payload.dexService === "community_takeover") ? <><b>${proposal.fundedUsd.toFixed(2)} / ${proposal.targetUsd.toFixed(0)}</b><small>{sol(proposal.fundedLamports)}</small>{proposal.withdrawalSignature && <a href={explorer("tx", proposal.withdrawalSignature)} target="_blank" rel="noreferrer">Proof <ExternalLink/></a>}</> : "—"}</td><td>{proposal.openChallenges ?? 0}</td><td><div className="admin-proposal-actions">{["ready", "withdrawing"].includes(proposal.status) && <button title={proposal.spendingPaused ? "Spending paused during the profile replacement vote" : undefined} disabled={Boolean(proposalBusy) || proposal.spendingPaused} onClick={() => void proposalAction(proposal.id, "withdraw")}>{proposalBusy === `${proposal.id}:withdraw` ? <Loader2 className="spin"/> : null}{proposal.status === "withdrawing" ? "Resume withdrawal" : "Withdraw"}</button>}{proposal.status === "withdrawn" && <button disabled={Boolean(proposalBusy)} onClick={() => void proposalAction(proposal.id, "paid")}>Mark paid</button>}{proposal.status === "approved" && proposal.type === "dex_update" && <button disabled={Boolean(proposalBusy)} onClick={() => void proposalAction(proposal.id, "complete")}>Mark complete</button>}{proposal.status === "approved" && proposal.type === "cto" && <small>On-chain handover required</small>}{Boolean(proposal.openChallenges) && <><button className="danger" disabled={Boolean(proposalBusy)} onClick={() => void proposalAction(proposal.id, "uphold")}>Uphold</button><button disabled={Boolean(proposalBusy)} onClick={() => void proposalAction(proposal.id, "reject")}>Reject</button></>}</div></td></tr>; }) : <tr><td colSpan={6} className="admin-empty">No market proposals yet.</td></tr>}</tbody></table></div></section>
-    <section className="admin-panel"><header><div><h2>Market pipeline</h2><p>The latest keeper stage and live on-chain fee balances for every launch.</p></div></header><div className="admin-table-wrap"><table><thead><tr><th>Market</th><th>Keeper state</th><th>Withheld</th><th>Fee vault</th><th>Accrued split</th><th>Last attempt</th></tr></thead><tbody>{data.launches.map((launch) => { const id=String(launch.id); const diagnostic=diagnosticsByLaunch.get(id); const live=runtimeByLaunch.get(id); const accrued=(live?.accrued ?? {}) as Record<string,unknown>; return <tr key={id}><td><b>${String(launch.symbol)}</b><a href={explorer("account", launch.mint)} target="_blank" rel="noreferrer">{short(launch.mint)}<ExternalLink/></a></td><td><span className={`admin-status ${String(diagnostic?.status ?? "unknown")}`}>{String(diagnostic?.status ?? "unknown")}</span><small>{String(diagnostic?.stage ?? "No keeper pass")}</small><em>{String(diagnostic?.message ?? "")}</em></td><td>{raw(live?.withheldRaw)}<small>{String(live?.withheldSourceCount ?? 0)} sources</small></td><td>{raw(live?.feeVaultRaw)}</td><td><small>Rewards {raw(accrued.rewardRaw ?? launch.reward_fees_accrued_raw)}</small><small>Buyback {raw(accrued.buybackRaw ?? launch.buyback_fees_accrued_raw)}</small><small>Treasury {raw(accrued.treasuryRaw ?? launch.treasury_fees_accrued_raw)}</small><small>Creator {raw(accrued.creatorRaw ?? launch.creator_fees_accrued_raw)}</small></td><td>{when(diagnostic?.last_attempt_at)}</td></tr>; })}</tbody></table></div></section>
-    <section className="admin-panel"><header><div><h2>SOL conversions</h2><p>Launch-pool first routing means a new token does not need to be indexed by Jupiter.</p></div></header><div className="admin-table-wrap"><table><thead><tr><th>Status</th><th>Launch</th><th>Route</th><th>Launch tokens</th><th>SOL output</th><th>Transactions / error</th></tr></thead><tbody>{data.conversions.length ? data.conversions.map((item) => <tr key={String(item.id)}><td><span className={`admin-status ${String(item.status)}`}>{String(item.status)}</span></td><td>{String(item.launch_id)}</td><td>{String(item.route ?? "legacy Jupiter")}</td><td>{raw(item.total_launch_raw)}</td><td>{item.sol_output_lamports ? sol(item.sol_output_lamports) : "—"}</td><td>{item.swap_signature ? <a href={explorer("tx", item.swap_signature)} target="_blank" rel="noreferrer">{short(item.swap_signature)}<ExternalLink/></a> : <em>{String(item.last_error ?? "Waiting")}</em>}</td></tr>) : <tr><td colSpan={6} className="admin-empty">No SOL conversion attempts yet.</td></tr>}</tbody></table></div></section>
-    <section className="admin-panel"><header><div><h2>Holder reward epochs</h2><p>Rewards use amount-held × time-held snapshots, accumulate across epochs, and remain claimable until the holder claims.</p></div></header><div className="admin-table-wrap"><table><thead><tr><th>Epoch</th><th>Market</th><th>Reward</th><th>Eligible holders</th><th>Status</th><th>Funding</th></tr></thead><tbody>{data.rewardEpochs.length ? data.rewardEpochs.map((item) => <tr key={String(item.id)}><td>{short(item.id)}<small>{when(item.ends_at)}</small></td><td>{String(item.launch_id)}</td><td>{raw(item.total_stock_raw)} {String(item.stock_symbol)}</td><td>{String(item.eligible_holders)}</td><td><span className={`admin-status ${String(item.status)}`}>{String(item.status)}</span></td><td>{item.funding_signature ? <a href={explorer("tx", item.funding_signature)} target="_blank" rel="noreferrer">{short(item.funding_signature)}<ExternalLink/></a> : "Waiting"}</td></tr>) : <tr><td colSpan={6} className="admin-empty">No holder epochs have been created yet.</td></tr>}</tbody></table></div></section>
+  const attention = config.marketGovernanceEnabled ? data.proposals.filter(needsAction) : [];
+  const blocked = data.diagnostics.filter(d => ["blocked", "failed"].includes(String(d.status)));
+  const marketName = (id: unknown) => data.launches.find(l => l.id === id)?.symbol ?? id;
+  const keeperRows = data.diagnostics.map(row => ({ ...row, onChain: data.runtime.markets?.find(m => m.launchId === row.launch_id), recordedAccruals: data.launches.filter(l => l.id === row.launch_id).map(l => ({ rewardRaw: l.reward_fees_accrued_raw, buybackRaw: l.buyback_fees_accrued_raw, treasuryRaw: l.treasury_fees_accrued_raw, creatorRaw: l.creator_fees_accrued_raw }))[0] }));
+  const logs = (logSource === "keeper" ? keeperRows : logSource === "conversions" ? data.conversions : logSource === "settlements" ? data.settlements : data.rewardPurchases).filter(row => matches([row, marketName(row.launch_id)], search) && (!errorsOnly || Boolean(row.last_error) || ["blocked", "failed"].includes(String(row.status))));
+  const proposalPage = Math.min(page, Math.max(0, Math.ceil(proposals.length / 8) - 1));
+  return <main className="page ops-page">
+    <header className="ops-hero"><div><span className="ops-eyebrow">AQUA / OPERATIONS</span><h1>Control room</h1><p>Market operations, with a clear next step.</p></div><div className="ops-refresh"><span><i/>{config.useTestnet ? "Devnet" : "Mainnet"}<small>Snapshot · {when(data.generatedAt)}</small></span><button onClick={() => void load(token)} disabled={busy}><RefreshCw size={16} className={busy ? "spin" : ""}/>{busy ? "Refreshing…" : "Refresh"}</button></div></header>
+    {error && <div className="ops-error" role="alert">{error} Your previous snapshot is still shown.</div>}
+    <div className="ops-workspace"><aside className="ops-sidebar"><nav aria-label="Admin sections">{sections.filter(s => s !== "dex" || config.marketGovernanceEnabled).map(s => <button key={s} aria-current={section === s ? "page" : undefined} onClick={() => navigate(s)}>{labels[s]}{s === "dex" && attention.length > 0 && <b>{attention.length}</b>}{s === "logs" && blocked.length > 0 && <b className="warning">{blocked.length}</b>}</button>)}</nav><div className="ops-sidebar-note"><ShieldCheck size={16}/><span>Wallet verified<small>{short(wallet.address)}</small></span></div></aside>
+    <div className="ops-content">
+      {section !== "overview" && section !== "custody" && <div className="ops-section-title"><h2>{labels[section]}</h2><label className="ops-search"><Search size={17}/><input aria-label="Search admin records" value={search} placeholder="Search market, mint, ID or error…" onChange={e => setParams({ section, ...(e.target.value ? { search: e.target.value } : {}) }, { replace: true })}/>{search && <button aria-label="Clear search" onClick={() => setParams({ section }, { replace: true })}><X size={15}/></button>}</label></div>}
+      {section === "overview" && <>
+        <div className="ops-metrics"><Metric label="Needs your attention" value={attention.length + blocked.length} note="Proposals and blocked markets" onClick={() => navigate(attention.length ? "dex" : "logs")}/><Metric label="Live markets" value={data.counts.live_launches ?? 0} note="Graduated launches" onClick={() => navigate("logs")}/><Metric label="DEX reserved" value={data.dexReservedLamports !== undefined ? sol(data.dexReservedLamports) : data.runtime.available ? sol(data.runtime.balances?.reservedDexLamports) : "Unavailable"} note="Held for approved funding" onClick={() => navigate(config.marketGovernanceEnabled ? "dex" : "custody")}/><Metric label="Claimable epochs" value={data.counts.claimable_epochs ?? 0} note={`${data.counts.unclaimed_entitlements ?? 0} unclaimed entitlements`} onClick={() => navigate("rewards")}/></div>
+        <Panel title="Action queue" description="Pending decisions and blocked operations come first."><div className="ops-queue">{attention.slice(0, 6).map(p => <button key={p.id} onClick={() => { setSelected(p.id); setFilter("attention"); navigate("dex"); }}><div><b>${p.marketSymbol} <span>{typeLabel(p)}</span></b><small>{p.openChallenges ? `${p.openChallenges} open challenge(s)` : nextStep(p)}</small></div><Status value={p.status}/><ArrowUpRight size={17}/></button>)}{blocked.slice(0, 4).map(d => <button key={String(d.launch_id)} onClick={() => { setLogSource("keeper"); navigate("logs", String(d.launch_id)); }}><div><b>${String(marketName(d.launch_id))} <span>Keeper blocked</span></b><small>{titleCase(d.stage)}</small></div><Status value={d.status}/><ArrowUpRight size={17}/></button>)}{!attention.length && !blocked.length && <Empty>No pending admin actions in this snapshot.</Empty>}</div></Panel>
+        <Panel title="Service status"><div className="ops-service-grid">{[["Fee keeper", data.flags.feeKeeperEnabled], ["SOL conversion", data.flags.solFeeConversionEnabled], ["Holder rewards", data.flags.rewardDistributionEnabled], ["Market governance", config.marketGovernanceEnabled]].map(([label, enabled]) => <div key={String(label)}><span>{label}</span><Status value={enabled ? "enabled" : "disabled"}/></div>)}</div></Panel>
+        <AlertSettings alerts={data.alerts}/>
+      </>}
+      {section === "dex" && (!config.marketGovernanceEnabled ? <Empty>Market governance is disabled in this environment.</Empty> : <>
+        <div className="ops-toolbar"><div className="ops-filters" aria-label="Filter proposals">{[["active", "Active"], ["attention", "Needs action"], ["funding", "Funding"], ["all", "All records"]].map(([value, label]) => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div><span>{proposals.length} matches · up to 200 records, active first</span></div>
+        <div className="ops-dex-layout"><section className="ops-proposal-list" aria-label="Proposals">{proposals.slice(proposalPage * 8, proposalPage * 8 + 8).map(p => <button className={chosen?.id === p.id ? "selected" : ""} key={p.id} onClick={() => setSelected(p.id)} aria-pressed={chosen?.id === p.id}><div><b>${p.marketSymbol}</b><Status value={p.status}/></div><span>{p.type !== "cto" && <DexScreenerIcon/>}{typeLabel(p)}</span>{p.targetUsd > 0 && p.type !== "cto" && <><div className="ops-funding-numbers"><strong>${p.fundedUsd.toFixed(2)}</strong><small>of ${p.targetUsd.toFixed(0)}</small></div><progress aria-label="Funding progress" value={Math.min(p.fundedUsd, p.targetUsd)} max={p.targetUsd}/></>}<small>{p.openChallenges ? `${p.openChallenges} challenge(s) to review` : nextStep(p)}</small></button>)}{!proposals.length && <Empty>No proposals match this view.</Empty>}<Pager page={proposalPage} total={proposals.length} size={8} setPage={next => { setPage(next); setSelected(proposals[next * 8]?.id ?? null); }}/></section>
+        {chosen && <ProposalDetail key={chosen.id} proposal={chosen} onAction={kind => setPending({ proposal: chosen, action: kind })}/>}
+        </div></>)}
+      {section === "logs" && <>
+        <div className="ops-toolbar"><label>Source <select aria-label="Log source" value={logSource} onChange={e => setLogSource(e.target.value)}><option value="keeper">Keeper / market pipeline</option><option value="conversions">SOL conversions</option><option value="settlements">Fee settlements</option><option value="purchases">Reward purchases</option></select></label><label className="ops-check"><input type="checkbox" checked={errorsOnly} onChange={e => setErrorsOnly(e.target.checked)}/>Errors only</label></div>
+        <Panel title={logSource === "keeper" ? "Latest keeper state" : titleCase(logSource)} description={logSource === "keeper" ? "Latest pass per market, not a full Railway log stream. Expand a row for the complete error and recorded details. Latest 100 markets." : "Latest 200 stored records. Search and pagination apply to this snapshot."}>
+          <DataTable key={`${logSource}:${search}:${errorsOnly}`} rows={logs} columns={["Market", "Status / stage", "Updated", "Details & transactions"]} empty="No records match your filters." render={row => <><td><Link to={`/token/${String(row.launch_id)}`}>${String(marketName(row.launch_id))}</Link><small className="ops-mono">{String(row.launch_id)}</small></td><td><Status value={row.status ?? row.kind ?? "recorded"}/><small>{titleCase(row.stage ?? row.route ?? row.kind ?? "")}</small></td><td className="ops-nowrap">{when(row.updated_at ?? row.last_attempt_at ?? row.created_at)}</td><td><LogDetails row={row}/></td></>}/>
+        </Panel>
+      </>}
+      {section === "rewards" && <Panel title="Holder reward epochs" description="Latest 200 epochs. Raw reward amounts use the token's smallest unit; they are not SOL values."><DataTable key={search} rows={data.rewardEpochs.filter(row => matches([row, marketName(row.launch_id)], search))} columns={["Market / epoch", "Amount (raw)", "Holders", "Status", "Funding"]} empty="No reward epochs match your search." render={row => <><td><b>${String(marketName(row.launch_id))}</b><small>{short(row.id)} · {when(row.ends_at)}</small></td><td>{raw(row.total_stock_raw)}<small>{String(row.stock_symbol)}</small></td><td>{String(row.eligible_holders)}</td><td><Status value={row.status}/></td><td><ChainLink value={row.funding_signature} tx/></td></>}/></Panel>}
+      {section === "custody" && <>
+        <div className="ops-toolbar"><span>Live chain scans are optional. Other admin views use stored records.</span><button disabled={busy} onClick={() => void load(token, true)}><RefreshCw size={15} className={busy ? "spin" : ""}/>{busy ? "Loading…" : "Scan live balances"}</button></div>
+        <Panel title="Wallets & reserves" description="Public destinations and balances read from the deployed program.">{data.runtime.available ? <div className="ops-custody">{[["Fee keeper", data.runtime.operator, sol(data.runtime.balances?.nativeLamports)], ["Reward operator", data.runtime.rewardOperator, sol(data.runtime.balances?.rewardNativeLamports)], ["Treasury", data.runtime.destinations?.treasury, ""], ["Buyback wallet", data.runtime.destinations?.buybackBuyer, ""]].map(([label, address, balance]) => <article key={label}><small>{label}</small><ChainLink value={address}/><b>{balance}</b></article>)}<article><small>Reward reserves</small><b>{sol(data.runtime.balances?.reservedRewardLamports)}</b><span>{sol(data.runtime.balances?.wrappedSolLamports)} wrapped</span></article><article><small>DEX reserves</small><b>{sol(data.runtime.balances?.reservedDexLamports)}</b><span>Allocated, not spendable rewards</span></article></div> : <Empty>{data.runtime.reason ?? "Chain diagnostics unavailable."}</Empty>}</Panel>
+        <Panel title="Keeper configuration"><dl className="ops-definition"><div><dt>Conversion minimum</dt><dd>${(data.flags.conversionMinimumUsdCents / 100).toFixed(2)}</dd></div><div><dt>Conversion slippage</dt><dd>{data.flags.conversionSlippageBps / 100}%</dd></div><div><dt>Keeper interval</dt><dd>{data.flags.keeperIntervalMs / 1000}s</dd></div><div><dt>Reward epoch</dt><dd>{data.flags.rewardEpochSeconds / 60} minutes</dd></div></dl></Panel><AlertSettings alerts={data.alerts}/>
+      </>}
+    </div></div>
+    {pending && <ActionDialog key={`${pending.proposal.id}:${pending.action}`} pending={pending} busy={actionBusy} onClose={() => setPending(null)} onSubmit={action}/>}
   </main>;
 }
 
+function Metric({ label, value, note, onClick }: { label: string; value: ReactNode; note: string; onClick: () => void }) { return <button className="ops-metric" onClick={onClick}><span>{label}</span><strong>{value}</strong><small>{note}</small></button>; }
+function nextStep(p: MarketProposal) {
+  if (p.spendingPaused) return "Spending paused during the profile vote";
+  if (p.status === "ready") return "Review approved details, then withdraw";
+  if (p.status === "withdrawing") return "Review or resume the existing withdrawal";
+  if (p.status === "withdrawn") return "Submit to DEX, then record payment";
+  if (p.status === "approved") return p.type === "cto" ? "Verify on-chain handover" : "Apply approved details, then complete";
+  if (p.status === "funding") return "Accumulating fees toward the target";
+  if (p.status === "voting") return "Waiting for the holder vote";
+  return "No action needed";
+}
+function ProposalDetail({ proposal: p, onAction }: { proposal: MarketProposal; onAction: (action: Action) => void }) {
+  const yes = BigInt(p.submittedVotes?.yesPowerRaw || "0"), total = yes + BigInt(p.submittedVotes?.noPowerRaw || "0");
+  const challengeActive = Boolean(p.openChallenges) || Boolean(p.challengeEndsAt && p.challengeEndsAt * 1000 > Date.now());
+  return <section className="ops-detail"><header><span className="ops-eyebrow">{typeLabel(p)}</span><h2>${p.marketSymbol} <Status value={p.status}/></h2><Link to={`/token/${p.launchId}`}>Open market <ArrowUpRight size={14}/></Link></header><div className="ops-next-step"><small>Next step</small><b>{p.openChallenges ? "Review the open challenges before proceeding" : nextStep(p)}</b></div><dl className="ops-definition"><div><dt>Reserved SOL</dt><dd>{sol(p.reservedLamports ?? p.fundedLamports)}</dd></div><div><dt>Submitted ballots</dt><dd>{p.submittedVotes ? <>{total ? `${Number(yes * 100n / total)}% yes` : "No votes"} · {p.submittedVotes.voters} voters<small>Power recorded at submission; live eligibility is checked on the market.</small></> : "View live totals on the market"}</dd></div><div><dt>Vote ends</dt><dd>{when(p.endsAt * 1000)}</dd></div>{p.challengeEndsAt && <div><dt>Challenge window ends</dt><dd>{when(p.challengeEndsAt * 1000)}</dd></div>}<div><dt>Mint</dt><dd><ChainLink value={p.mint}/></dd></div><div><dt>Proposal ID</dt><dd className="ops-mono">{p.id}</dd></div>{p.withdrawalSignature && <div><dt>Withdrawal proof</dt><dd><ChainLink value={p.withdrawalSignature} tx/></dd></div>}</dl><SubmittedProposalDetails proposal={p}/>
+    {Boolean(p.openChallenges) && <div className="ops-challenges"><h3>Open challenges</h3>{p.challenges?.map(c => <article key={c.id}><ChainLink value={c.wallet}/><p>{c.reason}</p><small>{when(c.createdAt)}</small></article>)}{!p.challenges?.length && <p>Challenge details require the updated backend. Review evidence before resolving.</p>}</div>}
+    <div className="ops-actions">{["ready", "withdrawing"].includes(p.status) && <button className="ops-primary" disabled={p.spendingPaused || challengeActive} title={challengeActive ? "Withdrawal is blocked while challenges are open or their window is active." : undefined} onClick={() => onAction("withdraw")}>{p.status === "withdrawing" ? "Resume withdrawal" : "Withdraw reserved SOL"}</button>}{p.status === "withdrawn" && <button className="ops-primary" onClick={() => onAction("paid")}>Record DEX payment</button>}{p.status === "approved" && p.type === "dex_update" && <button className="ops-primary" disabled={Boolean(p.openChallenges) || p.spendingPaused} onClick={() => onAction("complete")}>Complete profile update</button>}{Boolean(p.openChallenges) && <><button className="ops-danger" disabled={!p.challenges?.length} onClick={() => onAction("uphold")}>Uphold challenges</button><button disabled={!p.challenges?.length} onClick={() => onAction("reject")}>Reject challenges</button></>}{p.type !== "cto" && <><a className="ops-button" href="https://marketplace.dexscreener.com/" target="_blank" rel="noreferrer"><DexScreenerIcon/>DEX marketplace <ExternalLink size={13}/></a><button onClick={() => onAction("access")}>Confirm AQUA profile access</button></>}</div></section>;
+}
 function SubmittedProposalDetails({ proposal }: { proposal: MarketProposal }) {
   const profile = proposal.payload.dexDetails;
   const values = { ...proposal.payload, ...(profile && typeof profile === "object" ? profile : {}) };
-  const labels: Record<string, string> = { reason: "Reason", description: "Profile description", bannerUrl: "Banner", websiteUrl: "Website", xUrl: "X", telegramUrl: "Telegram", communityLead: "Proposed lead", communityTakeoverWallet: "Community takeover wallet", developerWallet: "Community takeover wallet", plan: "Transition plan", evidenceUrl: "Public evidence" };
-  const fields = Object.entries(values).filter(([key, value]) => labels[key] && typeof value === "string" && value);
-  return <details className="admin-submitted-details"><summary>Submitted details</summary><dl>{fields.map(([key, value]) => <div key={key}><dt>{labels[key]}</dt><dd>{/^https?:\/\//i.test(String(value)) ? <a href={String(value)} target="_blank" rel="noreferrer">{String(value)}<ExternalLink/></a> : String(value)}</dd></div>)}</dl>{proposal.type === "dex_payment" && !proposal.payload.detailsSubmittedAt && <p>Waiting for a holder-approved profile.</p>}</details>;
+  const names: Record<string, string> = { reason: "Reason", description: "Profile description", bannerUrl: "Banner", websiteUrl: "Website", xUrl: "X", telegramUrl: "Telegram", communityLead: "Proposed lead", communityTakeoverWallet: "Community takeover wallet", developerWallet: "Community takeover wallet", plan: "Transition plan", evidenceUrl: "Public evidence" };
+  const fields = Object.entries(values).filter(([key, value]) => names[key] && typeof value === "string" && value);
+  return <details className="ops-submitted" open><summary>Submitted information</summary><dl>{fields.map(([key, value]) => <div key={key}><dt>{names[key]}</dt><dd>{/^https?:\/\//i.test(String(value)) ? <a href={String(value)} target="_blank" rel="noreferrer">{String(value)}<ExternalLink size={12}/></a> : String(value)}</dd></div>)}</dl>{proposal.type === "dex_payment" && !proposal.payload.detailsSubmittedAt && <p>Waiting for a holder-approved profile.</p>}</details>;
+}
+function LogDetails({ row }: { row: Row }) {
+  const [copied, setCopied] = useState(false);
+  const message = String(row.last_error ?? row.message ?? "Recorded successfully");
+  return <details className="ops-log-details"><summary>{message}</summary><p>{message}</p><div className="ops-proof-links">{["signature", "withdraw_signature", "swap_signature", "pool_swap_signature", "payout_signature", "purchase_signature", "funding_signature"].filter(key => row[key]).map(key => <div key={key}><small>{titleCase(key)}</small><ChainLink value={row[key]} tx/></div>)}</div><pre>{JSON.stringify(row, null, 2)}</pre><button onClick={async () => { try { await navigator.clipboard.writeText(JSON.stringify(row, null, 2)); setCopied(true); } catch { toast.error("Could not copy this record"); } }}>{copied ? <Check size={14}/> : <Copy size={14}/>}{copied ? "Copied" : "Copy record"}</button></details>;
+}
+function AlertSettings({ alerts }: { alerts?: AdminDiagnostics["alerts"] }) {
+  return <Panel title="Discord alerts" description="Important funding milestones, DEX actions, challenges, and blocked keepers."><div className="ops-alert-settings"><Status value={!alerts?.configured ? "disabled" : alerts.valid ? "enabled" : "invalid"}/><p>{!alerts?.configured ? <>Set <code>ADMIN_DISCORD_WEBHOOK_URL</code> on the backend Railway service to enable notifications.</> : !alerts.valid ? "The configured webhook URL is invalid. The API remains available; fix the backend variable to enable alerts." : <>Webhook configured. Last delivered: {when(alerts.lastDeliveredAt)}.{alerts.failedDeliveries > 0 && ` ${alerts.failedDeliveries} undelivered alert(s) have recorded errors; active events are retried.`}</>}</p></div></Panel>;
+}
+function ActionDialog({ pending: { proposal, action }, busy, onClose, onSubmit }: { pending: { proposal: MarketProposal; action: Action }; busy: boolean; onClose: () => void; onSubmit: (reference: string, managed: boolean) => Promise<void> }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [reference, setReference] = useState("");
+  const [managed, setManaged] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const requiresReference = ["paid", "complete", "access"].includes(action);
+  useEffect(() => { dialog.current?.showModal(); }, []);
+  return <dialog ref={dialog} className="ops-dialog" aria-labelledby="admin-action-title" onCancel={e => { e.preventDefault(); if (!busy) onClose(); }}><form onSubmit={e => { e.preventDefault(); if (confirmed && (!requiresReference || reference.trim())) void onSubmit(reference.trim(), managed); }}><header><span className="ops-eyebrow">${proposal.marketSymbol} / ADMIN ACTION</span><button type="button" aria-label="Close confirmation" disabled={busy} onClick={onClose}><X size={18}/></button></header><h2 id="admin-action-title">{actionLabels[action]}</h2><p>{action === "withdraw" ? `This moves ${sol(proposal.reservedLamports ?? proposal.fundedLamports)} of reserved funding to the configured AQUA admin wallet. It does not pay DEX Screener automatically.` : action === "uphold" ? "This upholds all open challenges on this proposal and returns reserved funding to rewards. Review each challenge first." : action === "reject" ? "This rejects all open challenges on this proposal. Review each challenge first." : action === "access" ? "Confirm only after verifying AQUA can edit this profile through its own marketplace account." : "Record completion only after the exact holder-approved details are live on DEX Screener."}</p>{requiresReference && <label className="ops-field">Order or verification reference<input autoFocus required maxLength={200} value={reference} onChange={e => setReference(e.target.value)} placeholder="Order ID or verification reference"/></label>}{action === "paid" && <label className="ops-check"><input type="checkbox" checked={managed} onChange={e => setManaged(e.target.checked)}/>I verified AQUA can edit this profile through its own account.</label>}<label className="ops-check"><input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)}/>I reviewed the approved details and confirm this action.</label><footer><button type="button" disabled={busy} onClick={onClose}>Cancel</button><button className={action === "uphold" ? "ops-danger" : "ops-primary"} disabled={busy || !confirmed || (requiresReference && !reference.trim())}>{busy && <Loader2 size={16} className="spin"/>}{busy ? "Processing…" : "Confirm action"}</button></footer></form></dialog>;
 }

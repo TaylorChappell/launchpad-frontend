@@ -72,6 +72,8 @@ export type RuntimeConfig = {
 
 export type AdminDiagnostics = {
   generatedAt: number;
+  dexReservedLamports?: string;
+  alerts?: { configured: boolean; valid: boolean; lastDeliveredAt: number | null; failedDeliveries: number };
   flags: {
     feeKeeperEnabled: boolean;
     solFeeConversionEnabled: boolean;
@@ -130,6 +132,9 @@ export type MarketProposal = {
   noPowerRaw: string;
   eligibleVoters: number;
   openChallenges?: number;
+  challenges?: Array<{ id: string; wallet: string; reason: string; createdAt: number }>;
+  reservedLamports?: string;
+  submittedVotes?: { yesPowerRaw: string; noPowerRaw: string; voters: number };
   spendingPaused?: boolean;
   createdAt: number;
   marketName?: string;
