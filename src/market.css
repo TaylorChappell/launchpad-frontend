@@ -502,3 +502,16 @@
 .jackpot-state-note { margin: 0 0 14px; color: #57768a; font-size: 12px; line-height: 1.5; }
 
 .launch-dex-toggle{display:flex;align-items:flex-start;gap:12px;padding:18px;border:1px solid #b9dfea;border-radius:14px;background:#edfaff;margin-bottom:18px;cursor:pointer}.launch-dex-toggle input{width:18px;height:18px;accent-color:#078bb0;flex-shrink:0}.launch-dex-toggle span{display:grid;gap:6px}.launch-dex-toggle small{color:#547587;line-height:1.6}
+
+/* Creator locks share the compact status treatment used for DEX profiles. */
+.token-card-status { flex-wrap: wrap; gap: 6px; }
+.token-card-status .creator-lock-badge { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 7px; border: 1px solid #c3dfe9; border-radius: 5px; color: #286783; background: #edf7fb; font-size: 10px; font-weight: 650; white-space: nowrap; }
+.token-card-status .creator-lock-badge svg { width: 13px; height: 13px; }
+.token-identity .market-lock-control { display: inline-flex; align-items: center; min-height: 28px; padding: 0; border: 1px solid #c3dfe9; border-radius: 6px; color: #286783; background: #edf7fb; font: 500 11px/1.2 "Manrope", sans-serif; text-decoration: none; white-space: nowrap; transition: background .15s ease, border-color .15s ease; }
+.market-lock-control .market-lock-amount { display: inline-flex; align-items: center; gap: 4px; padding: 6px 8px; font-variant-numeric: tabular-nums; }
+.market-lock-control .market-lock-amount strong { font-weight: 750; }
+.market-lock-control .market-lock-amount svg { width: 13px; height: 13px; margin-right: 2px; }
+.market-lock-control .market-lock-view { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-left: 1px solid #c3dfe9; font-weight: 650; }
+.market-lock-control .market-lock-view svg { width: 11px; height: 11px; }
+.token-identity .market-lock-control:hover { color: #135873; background: #dff0f7; border-color: #90bfce; }
+.token-identity .market-lock-control:focus-visible { outline: 2px solid #1687bf; outline-offset: 3px; }

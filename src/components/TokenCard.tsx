@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { ArrowUpRight, ExternalLink, LockKeyhole } from "lucide-react";
+import { ArrowUpRight, LockKeyhole } from "lucide-react";
 import { Link } from "react-router-dom";
-import { activeCreatorLock, creatorLockPercentLabel, solscanAccountUrl } from "../creator-lock";
-import { useRuntime } from "../context";
+import { activeCreatorLock, creatorLockPercentLabel } from "../creator-lock";
 import type { Launch } from "../types";
 import { RewardModeIcon } from "./RewardModeIcon";
 import { DexScreenerIcon } from "./DexScreenerIcon";
@@ -42,7 +41,6 @@ function marketCapTone(value: number) {
 }
 
 export function TokenCard({ launch, featured = false, boosted = false }: { launch: Launch; sample?: boolean; featured?: boolean; boosted?: boolean }) {
-  const { config } = useRuntime();
   const indexed = launch.aquaIndexed;
   const burn = launch.burnSummary;
   const jackpot = launch.jackpotSummary;
@@ -51,7 +49,6 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
   prizeAmounts[0] += pot - prizeAmounts.reduce((sum, value) => sum + value, 0n);
   const prizes = prizeAmounts.map((value) => jackpot ? formatJackpotAmount(value.toString(), jackpot.rewardDecimals) : "—");
   const creatorLock = activeCreatorLock(launch.creatorLock);
-  const creatorLockUrl = creatorLock ? solscanAccountUrl(creatorLock.vaultTokenAccount, config.network) : null;
   const rewardMode = launch.rewardMode ?? "holder_rewards";
   return <article className={`token-card ${featured ? "featured" : ""} ${boosted ? "boosted" : ""}`}>
     <Link className="token-card-link" to={"/token/" + launch.id}>
@@ -65,9 +62,8 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
     {rewardMode === "holder_rewards" ? <div className="reward-card-focus"><span><RewardModeIcon mode="holder_rewards"/>HOLDER REWARD</span><strong>Earn {launch.stockSymbol}</strong><small>{"$" + compact.format(launch.rewardAccumulatedUsd)} accumulated · {"$" + compact.format(launch.rewardRedeemableUsd)} redeemable</small></div>
       : rewardMode === "buyback_burn" ? <div className="reward-card-focus mode-buyback"><span><RewardModeIcon mode="buyback_burn"/>BUYBACK &amp; BURN</span><strong>{burn ? new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 0 }).format(Number(burn.totalTokenRaw) / 10 ** launch.tokenDecimals) : "—"} tokens burned</strong><small>{burn ? new Intl.NumberFormat("en-US", { maximumFractionDigits: 9 }).format(burn.totalSol) : "—"} SOL used in buybacks</small></div>
       : <div className="reward-card-focus mode-jackpot"><span><RewardModeIcon mode="jackpot"/>HOURLY JACKPOT</span><strong>Current round rewards</strong><div className="card-jackpot-prizes">{prizes.map((amount, index) => <div key={index}><span>{["1st", "2nd", "3rd", "4th", "5th"][index]}</span><b>{amount}</b><small>{jackpot?.rewardSymbol ?? "SOL"}</small></div>)}</div></div>}
-    <div className="token-card-status">{launch.dexPaid && <span className="dex-paid-badge" title="DEX Screener profile paid" aria-label="DEX Screener profile paid"><DexScreenerIcon/></span>}</div><div className="token-stats"><Metric label="Market cap" value={indexed ? "$" + compact.format(launch.marketCapUsd) : "Indexing"} tone={indexed ? marketCapTone(launch.marketCapUsd) : ""}/><Metric label="24h volume" value={indexed ? "$" + compact.format(launch.volume24hUsd) : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
+    <div className="token-card-status">{launch.dexPaid && <span className="dex-paid-badge" title="DEX Screener profile paid" aria-label="DEX Screener profile paid"><DexScreenerIcon/></span>}{creatorLock && <span className="creator-lock-badge" title="Verified creator lock" aria-label={`${creatorLockPercentLabel(creatorLock)} of supply locked by the creator`}><LockKeyhole aria-hidden="true"/>{creatorLockPercentLabel(creatorLock)} locked</span>}</div><div className="token-stats"><Metric label="Market cap" value={indexed ? "$" + compact.format(launch.marketCapUsd) : "Indexing"} tone={indexed ? marketCapTone(launch.marketCapUsd) : ""}/><Metric label="24h volume" value={indexed ? "$" + compact.format(launch.volume24hUsd) : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
     </Link>
-    {creatorLock && creatorLockUrl && <div className="creator-lock-card"><span><i><LockKeyhole/></i><span><small>VERIFIED CREATOR LOCK</small><strong>{creatorLockPercentLabel(creatorLock)} locked</strong></span></span><a href={creatorLockUrl} target="_blank" rel="noreferrer">View lock <ExternalLink/></a></div>}
   </article>;
 }
 
