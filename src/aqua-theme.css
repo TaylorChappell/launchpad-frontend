@@ -1323,17 +1323,23 @@ body::before {
 
 .community-update-overlay { position: fixed; z-index: 260; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(35,86,118,.3); backdrop-filter: blur(13px); animation: modes-update-in .24s ease both; }
 .community-update-flash { position: relative; width: min(560px,100%); max-height: calc(100vh - 40px); overflow-y: auto; border: 1px solid rgba(23,122,181,.2); border-radius: 20px; color: #123e5a; background: #f7fcff; box-shadow: 0 30px 100px rgba(23,80,115,.26); }
-.community-update-art { width: 100%; height: auto; display: block; }
+.community-update-art { width: 100%; height: auto; display: block; border-bottom: 1px solid rgba(23,122,181,.1); }
 .community-update-close { position: absolute; z-index: 2; top: 14px; right: 14px; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba(24,126,190,.2); border-radius: 9px; color: #275a79; background: rgba(255,255,255,.82); }
 .community-update-close svg { width: 16px; }
 .community-update-copy { padding: 22px 24px 0; }
 .community-update-copy small { color: #1675ad; font: 800 .58rem/1 "Manrope",sans-serif; letter-spacing: .13em; }
 .community-update-copy h2 { margin: 7px 0 0; color: #123e5a; font: 800 clamp(1.55rem,5vw,2.15rem)/1.05 "Manrope",sans-serif; letter-spacing: -.045em; }
 .community-update-copy p { max-width: 470px; margin: 10px 0 0; color: #587e95; font-size: .76rem; line-height: 1.55; }
-.community-update-points { display: grid; gap: 8px; padding: 18px 24px 0; }
-.community-update-points span { display: flex; align-items: center; gap: 9px; color: #315d77; font-size: .7rem; }
-.community-update-points svg { width: 18px; height: 18px; padding: 3px; border-radius: 50%; color: #fff; background: #168fd3; }
-.community-update-points b { font-weight: 700; }
+.community-update-features { display: grid; gap: 8px; padding: 18px 24px 0; }
+.community-update-features article { display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 11px; align-items: start; padding: 11px 12px; border: 1px solid rgba(23,122,181,.12); border-radius: 10px; background: rgba(255,255,255,.72); }
+.community-update-features article > i { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid rgba(22,143,211,.14); border-radius: 8px; color: #176fae; background: #e8f6fd; font-style: normal; font-size: .72rem; font-weight: 850; }
+.community-update-features .dex-screener-icon { width: 20px; height: 20px; filter: invert(39%) sepia(53%) saturate(1103%) hue-rotate(159deg) brightness(91%); }
+.community-update-features article > span { min-width: 0; }
+.community-update-features b,.community-update-features small { display: block; }
+.community-update-features b { color: #234f68; font-size: .72rem; line-height: 1.35; }
+.community-update-features small { margin-top: 4px; color: #5b7e93; font-size: .64rem; line-height: 1.5; }
+.community-update-eligibility { margin: 14px 24px 0; padding: 11px 12px; border-left: 3px solid #168fd3; color: #52778d; background: #edf8fd; font-size: .66rem; line-height: 1.55; }
+.community-update-eligibility b { color: #234f68; }
 .community-update-flash > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; padding: 15px 24px 20px; border-top: 1px solid rgba(23,122,181,.11); }
 .community-update-flash > footer a { min-height: 39px; display: inline-flex; align-items: center; gap: 6px; color: #1675ad; font: 760 .65rem/1 "Manrope",sans-serif; text-decoration: none; }
 .community-update-flash > footer a svg { width: 14px; }
@@ -1382,7 +1388,10 @@ body::before {
   .governance-leaderboard-list .token-mark,.governance-leaderboard-list .governance-market-fallback { width: 34px; height: 34px; }
   .community-update-flash { border-radius: 15px; }
   .community-update-copy { padding: 18px 17px 0; }
-  .community-update-points { padding: 16px 17px 0; }
+  .community-update-features { padding: 16px 17px 0; }
+  .community-update-features article { grid-template-columns: 30px minmax(0,1fr); padding: 10px; }
+  .community-update-features article > i { width: 30px; height: 30px; }
+  .community-update-eligibility { margin-inline: 17px; }
   .community-update-flash > footer { align-items: stretch; flex-direction: column-reverse; padding: 14px 17px 17px; }
   .community-update-flash > footer a { width: 100%; justify-content: center; }
 }
