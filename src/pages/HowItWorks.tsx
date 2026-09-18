@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageBubbles } from "../components/PageBubbles";
+import { DexScreenerIcon } from "../components/DexScreenerIcon";
 import { RewardModeIcon } from "../components/RewardModeIcon";
 import { useRuntime } from "../context";
 
@@ -44,6 +45,14 @@ const navigation = [
       ["reward-modes", "The three reward modes"],
       ["holder-rewards", "How rewards are calculated"],
       ["claiming", "Claiming rewards"],
+    ],
+  },
+  {
+    label: "Market governance",
+    items: [
+      ["dex-funding", "DEX Funding Mode"],
+      ["market-proposals", "Proposals and voting"],
+      ["community-takeovers", "Community takeovers"],
     ],
   },
   {
@@ -106,7 +115,7 @@ export function HowItWorks() {
 
     <section className="aqua-docs-hero">
       <h1>How AQUA<br/><span>actually works.</span></h1>
-      <p>A detailed guide to launching, liquidity, trading fees, holder rewards and creator incentives. AQUA creates markets directly on Orca without a bonding curve or a separate token reserve.</p>
+      <p>A detailed guide to launching, liquidity, trading fees, holder rewards, market governance and creator incentives. AQUA creates markets directly on Orca without a bonding curve or a separate token reserve.</p>
       <div className="aqua-docs-actions">
         <Link className="primary" to="/create">Launch a coin <ArrowRight size={17}/></Link>
         <button className="secondary-button" onClick={() => scrollTo("launch-flow")}>Read the launch flow</button>
@@ -291,6 +300,61 @@ export function HowItWorks() {
           <Link className="aqua-docs-inline-link" to="/rewards">Open holder rewards <ArrowRight size={15}/></Link>
         </DocSection>
 
+        <DocSection id="dex-funding" eyebrow="MARKET GOVERNANCE" title="How DEX Funding Mode works">
+          <p className="lead">DEX Funding Mode lets a market pay for its DEX Screener profile from incoming market rewards instead of depending on one community member to cover the full cost.</p>
+          <p>A creator can enable the mode during launch and optionally prefill the description, banner and social links. Five minutes after launch, AQUA prepares the market’s default funding vote beneath the trading panel. Existing markets can also start a Fund Dex proposal after normal proposals unlock 15 minutes after launch.</p>
+          <div className="aqua-docs-timeline compact">
+            <TimelineStep number="01" title="Submit the exact profile" text="The proposal includes the description, banner, website, X and Telegram details holders are being asked to approve."/>
+            <TimelineStep number="02" title="Holders vote" text="Eligible holders vote yes or no from the market page. Approval applies only to the exact details displayed in that vote."/>
+            <TimelineStep number="03" title="The market funds it" text="After approval, 80% of incoming market rewards is reserved for the DEX target while the remaining 20% continues to holder rewards."/>
+            <TimelineStep number="04" title="AQUA submits it" text="Once the target is reached and checks are complete, AQUA uses the approved information for the external DEX Screener submission."/>
+          </div>
+          <div className="aqua-docs-definition">
+            <div><b>$300 initial target</b><span>The normal funding target for a market’s first paid DEX Screener token profile.</span></div>
+            <div><b>80% reserved</b><span>The funding share is held for the approved DEX action and is not marked spent before withdrawal and fulfillment.</span></div>
+            <div><b>20% continues</b><span>The remaining incoming holder-reward share continues through the market’s selected reward mode while funding is active.</span></div>
+          </div>
+          <Callout title="Funding approval is not profile approval in the abstract">
+            Holders see and approve the exact public profile. AQUA does not treat a vote as permission to publish different links or a different banner later. Any material replacement goes through another Update Dex vote.
+          </Callout>
+        </DocSection>
+
+        <DocSection id="market-proposals" eyebrow="MARKET GOVERNANCE" title="Who can propose, vote and update DEX details">
+          <p>Every holder-created proposal requires the connected wallet to currently own at least <strong>0.5% of that coin’s total supply</strong>. This applies to Fund Dex, Update Dex and Community Takeover proposals, including proposals created by the original developer. The button stays disabled below the threshold and shows the wallet’s current percentage.</p>
+          <p>Voting uses a separate eligibility check. A wallet needs at least 0.1% in both current and time-weighted holdings, preventing a brief last-second balance from carrying the same influence as a sustained holder.</p>
+          <table className="aqua-docs-table">
+            <thead><tr><th>Proposal</th><th>What holders approve</th><th>Normal vote rules</th></tr></thead>
+            <tbody>
+              <tr><td>Fund Dex</td><td>The funding campaign and exact first profile details.</td><td>15 minutes · 5% quorum · 60% approval</td></tr>
+              <tr><td>Update Dex</td><td>A replacement description, banner and set of public links.</td><td>15 minutes · 5% quorum · 60% approval</td></tr>
+              <tr><td>Community Takeover</td><td>A named community lead, new developer wallet, evidence and transition plan.</td><td>24 hours · 20% quorum · two-thirds approval</td></tr>
+            </tbody>
+          </table>
+          <h3>What an approved Update Dex proposal does</h3>
+          <div className="aqua-docs-flow">
+            <FlowCard icon={<DexScreenerIcon/>} label="Funding in progress" title="Replace the campaign details" text="The SOL already raised remains reserved. Spending pauses during the vote, then the approved profile replaces the prior details without restarting funding."/>
+            <ArrowRight className="aqua-docs-flow-arrow"/>
+            <FlowCard icon={<DexScreenerIcon/>} label="AQUA-managed profile" title="Submit an approved update" text="If AQUA already controls the paid profile, an approved update does not need another DEX funding target."/>
+            <ArrowRight className="aqua-docs-flow-arrow"/>
+            <FlowCard icon={<DexScreenerIcon/>} label="Externally controlled" title="Fund a profile takeover" text="If the profile is paid but AQUA cannot edit it, the approved change opens a $200 DEX Screener community-takeover funding route."/>
+          </div>
+          <p>Fund Dex, Update Dex and Community Takeover are separate proposal types, so different types can be active at the same time. A market cannot open a duplicate active Fund Dex or Update Dex proposal while one of the same type is already being processed.</p>
+        </DocSection>
+
+        <DocSection id="community-takeovers" eyebrow="MARKET GOVERNANCE" title="How community takeovers work">
+          <p>A Community Takeover proposal is for changing the recognised developer wallet when the original team has abandoned the market. The proposal identifies the person taking responsibility, their Solana wallet, public evidence and a transition plan. The wallet is the takeover developer’s wallet, not a community treasury.</p>
+          <div className="aqua-docs-checklist">
+            <CheckItem>Multiple takeover candidates may run at the same time.</CheckItem>
+            <CheckItem>The first candidate to secure an approved result becomes the winning mandate.</CheckItem>
+            <CheckItem>An approved takeover wallet can receive existing and future creator fees and create future developer locks after verified execution.</CheckItem>
+            <CheckItem>A seven-day protection period follows a rejected attempt only when the current developer submitted public evidence of active work during the vote.</CheckItem>
+          </div>
+          <Callout title="A vote records the mandate; execution changes authority">
+            Approval does not silently rewrite a wallet address in the database. AQUA records the holder decision, then wallet authority and fee destinations change only after the required on-chain execution is verified.
+          </Callout>
+          <p>Rejected DEX proposals are removed from the active market interface instead of leaving a permanent rejected panel. Completed DEX funding is shown with the green DEX badge on the market.</p>
+        </DocSection>
+
         <DocSection id="creator-locks" eyebrow="CREATORS" title="Creator locks">
           <p>Creators do not receive a free reserved allocation. They can buy their own coin through the live market, then voluntarily lock purchased tokens in an AQUA creator-lock PDA. A verified active lock can earn a share of the platform fee stream.</p>
           <p>The minimum lock is {minimumLock} and the maximum scoring duration is {maximumLock}. Tokens cannot be released before the recorded unlock time. Once a lock expires, its fee-share benefit stops and the creator can submit a release transaction.</p>
@@ -329,6 +393,10 @@ export function HowItWorks() {
               <ReferenceRow label="Reward epoch target" value={epochLength}/>
               <ReferenceRow label="Minimum reward conversion value" value="None at application level"/>
               <ReferenceRow label="Minimum claim value" value={`More than ${minimumClaim} after estimated Solana costs`}/>
+              <ReferenceRow label="Proposal creation requirement" value="0.5% of the market supply"/>
+              <ReferenceRow label="Proposal voting requirement" value="0.1% current and time-weighted holdings"/>
+              <ReferenceRow label="Initial DEX profile target" value="$300"/>
+              <ReferenceRow label="DEX profile takeover target" value="$200"/>
               <ReferenceRow label="Launch fee" value={launchFeeEnabled ? config.launchCost!.platformFeeSol.toFixed(2) + " SOL" : "Not enabled on current program"}/>
             </tbody>
           </table>
