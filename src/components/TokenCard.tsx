@@ -52,13 +52,13 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
       <TokenMark launch={launch}/>
       <div><div className="token-title"><b>{launch.name}</b><span>{"$" + launch.symbol} / {launch.pairSymbol}</span></div><div className="token-pair"><AssetMark launch={launch}/>{launch.pairSymbol} market · {launchAge(launch.launchedAt, launch.createdAt).replace("Launched ", "")}</div></div>
       {boosted && <span className="boosted-market-badge"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 2.1 4.7L17 8.5l-3.7 3.3.9 5L10 14.2l-4.2 2.6.9-5L3 8.5l4.9-1.8L10 2Z"/></svg>Boosted</span>}
-      {launch.dexPaid && <span className="dex-paid-badge" title="DEX Screener profile paid" aria-label="DEX Screener profile paid"><DexScreenerIcon/></span>}
+
       <ArrowUpRight className="card-arrow" size={17}/>
     </div>
     {rewardMode === "holder_rewards" ? <div className="reward-card-focus"><span><RewardModeIcon mode="holder_rewards"/>HOLDER REWARD</span><strong>Earn {launch.stockSymbol}</strong><small>{"$" + compact.format(launch.rewardAccumulatedUsd)} accumulated · {"$" + compact.format(launch.rewardRedeemableUsd)} redeemable</small></div>
       : rewardMode === "buyback_burn" ? <div className="reward-card-focus mode-buyback"><span><RewardModeIcon mode="buyback_burn"/>BUYBACK &amp; BURN</span><strong>Buy. Burn. Reduce supply.</strong><small>The reward share buys this coin and permanently burns it.</small></div>
       : <div className="reward-card-focus mode-jackpot"><span><RewardModeIcon mode="jackpot"/>HOURLY JACKPOT</span><strong>5 holder winners</strong><small>50% · 20% · 20% · 5% · 5% every draw</small></div>}
-    <div className="token-stats"><Metric label="Market cap" value={indexed ? "$" + compact.format(launch.marketCapUsd) : "Indexing"} tone={indexed ? marketCapTone(launch.marketCapUsd) : ""}/><Metric label="24h volume" value={indexed ? "$" + compact.format(launch.volume24hUsd) : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
+    <div className="token-card-status">{launch.dexPaid && <span className="dex-paid-badge" title="DEX Screener profile paid" aria-label="DEX Screener profile paid"><DexScreenerIcon/></span>}</div><div className="token-stats"><Metric label="Market cap" value={indexed ? "$" + compact.format(launch.marketCapUsd) : "Indexing"} tone={indexed ? marketCapTone(launch.marketCapUsd) : ""}/><Metric label="24h volume" value={indexed ? "$" + compact.format(launch.volume24hUsd) : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
     </Link>
     {creatorLock && creatorLockUrl && <div className="creator-lock-card"><span><i><LockKeyhole/></i><span><small>VERIFIED CREATOR LOCK</small><strong>{creatorLockPercentLabel(creatorLock)} locked</strong></span></span><a href={creatorLockUrl} target="_blank" rel="noreferrer">View lock <ExternalLink/></a></div>}
   </article>;

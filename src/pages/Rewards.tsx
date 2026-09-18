@@ -152,14 +152,14 @@ export function Rewards() {
   return <main className="page rewards-page rewards-vault-page">
     <PageBubbles count={14}/>
     <header className="rewards-vault-heading">
-      <div><h1>Your stock rewards.</h1></div>
+      <div><h1>Your rewards.</h1></div>
     </header>
 
     <GovernanceVote/>
 
     {!wallet.address ? <section className="rewards-connect-card">
       <span><WalletCards/></span>
-      <div><h2>Connect your wallet</h2><p>See every AQUA coin you hold and the stock rewards accumulating for it.</p></div>
+      <div><h2>Connect your wallet</h2><p>See every AQUA coin you hold and the rewards accumulating for it.</p></div>
       <button className="primary" onClick={() => wallet.setModalOpen(true)}>Connect wallet</button>
     </section> : <>
       {state === "loading" ? <div className="reward-card-skeletons rewards-list-spaced"><i/><i/><i/></div> : state === "offline" ? <section className="rewards-empty rewards-list-spaced"><RefreshCw/><h2>Rewards are temporarily unavailable</h2><p>Reconnect in a moment to refresh your balances.</p></section> : markets.length ? <section className="holder-reward-list rewards-list-spaced">
@@ -169,7 +169,7 @@ export function Rewards() {
           return <article className={`holder-reward-card ${market.canClaim ? "claimable" : "accruing"}`} key={market.launchId}>
             <div className="reward-market-identity">
               {launch ? <TokenMark launch={launch}/> : <span className="reward-market-fallback"><Coins/></span>}
-              <div><b>{launch?.name ?? market.launchId}</b><small>{launch ? `$${launch.symbol}` : "AQUA market"} · holder reward</small></div>
+              <div><b>{launch?.name ?? market.launchId}</b><small>{launch ? `$${launch.symbol}` : "AQUA market"} · reward</small></div>
               {launch && <AssetMark launch={launch} reward/>}
             </div>
             <div className="reward-amount">

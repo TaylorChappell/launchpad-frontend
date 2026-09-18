@@ -179,7 +179,7 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
         <button className="governance-view-more" onClick={() => setLeaderboardOpen(true)}>VIEW MORE <ChevronRight/></button>
       </div>}
 
-      {data.activeBonus && <div className="governance-active-boost"><Trophy/><span><b>${data.activeBonus.symbol}</b> is receiving this week’s 24-hour boost.</span></div>}
+      {data.activeBonus && <div className="governance-active-boost"><Trophy/><span><b>${data.activeBonus.symbol}</b> is receiving the current 24-hour boost.</span></div>}
     </section>
 
     {selectorOpen && createPortal(<div className="governance-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelectorOpen(false); }}>

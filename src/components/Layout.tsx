@@ -1,5 +1,5 @@
 import { ArrowRight, BarChart3, Check, CircleHelp, Compass, ExternalLink, Gift, Menu, Plus, Search, X } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRuntime, useWallet } from "../context";
 import { WalletModal } from "./WalletModal";
@@ -21,6 +21,7 @@ const COMMUNITY_POST_URL = "https://x.com/Aqua_Launchpad/status/2100283826693922
 
 export function Layout({ children }: { children: ReactNode }) {
   const wallet = useWallet();
+  const trading = useLocation().pathname.startsWith("/token/");
   const { config, error } = useRuntime();
   const [mobile, setMobile] = useState(false);
   const [opening, setOpening] = useState(true);
@@ -57,7 +58,7 @@ export function Layout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", openWithShortcut);
   }, [searchOpen, wallet.modalOpen]);
 
-  return <div className="app-shell">
+  return <div className={`app-shell ${trading ? "trading-shell" : ""}`}>
     {opening && <div className="opening-reveal" aria-hidden="true">
       <div className="opening-reveal-water" onAnimationEnd={(event) => {
         if (event.currentTarget === event.target && event.animationName === "opening-wave-down-slow") setOpening(false);
@@ -79,12 +80,12 @@ export function Layout({ children }: { children: ReactNode }) {
       </div>
       {mobile && <nav className="mobile-nav" aria-label="Mobile navigation">{links.map((link) => <NavLink key={link.to} to={link.to} onClick={() => setMobile(false)}>{link.label}</NavLink>)}</nav>}
     </header>
-    <a className="community-reward-banner" href={COMMUNITY_POST_URL} target="_blank" rel="noreferrer">
+    {!trading && <a className="community-reward-banner" href={COMMUNITY_POST_URL} target="_blank" rel="noreferrer">
       <CampaignBannerArt/>
       <span className="community-reward-banner-copy"><small>LAUNCH ON AQUA COMMUNITY PROGRAM</small><strong><em>$2,500</em> IN LAUNCH REWARDS</strong><span>Community and builder milestones are now live.</span></span>
       <span className="community-reward-prizes"><b>$1,250</b><i/> <b>$750</b><i/> <b>$500</b></span>
       <span className="community-reward-link">VIEW PROGRAM <ExternalLink/></span>
-    </a>
+    </a>}
     {error && <div className="system-banner"><b>Backend unavailable</b><span>Live data could not be loaded. Actions remain disabled until the connection recovers.</span></div>}
     {children}
     <footer className="site-footer">

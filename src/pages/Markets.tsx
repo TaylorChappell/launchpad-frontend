@@ -94,7 +94,7 @@ export function Markets() {
     <PageBubbles count={18}/>
     <section className="explore-intro">
       <span className="explore-aqua-logo"><AquaMark/><i/><i/></span>
-      <div className="explore-intro-copy"><h1>Coins that reward the people who hold.</h1><p><strong>AQUA is a token launchpad built directly on <a href="https://www.orca.so/" target="_blank" rel="noreferrer">Orca</a>.</strong> Markets trade against SOL or an xStock, while every coin keeps one permanent tokenized-stock reward asset.</p></div>
+      <div className="explore-intro-copy"><h1>Coins that reward the people who hold.</h1><p><strong>AQUA is a token launchpad built directly on <a href="https://www.orca.so/" target="_blank" rel="noreferrer">Orca</a>.</strong> Launch against SOL, ORCA or a supported xStock. Each coin has one permanent reward mode: holder rewards, buyback and burn, or jackpot.</p></div>
       <div className="explore-intro-actions">
         <Link to="/how-it-works"><span>How it works</span><ArrowRight size={16}/></Link>
         <a href="https://www.orca.so/" target="_blank" rel="noreferrer"><OrcaMark/><span>Visit Orca</span></a>

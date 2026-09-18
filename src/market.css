@@ -414,3 +414,78 @@
   .manage-active-lock > div { grid-template-columns: 1fr; }
   .manage-active-lock > footer { align-items: stretch; flex-direction: column; }
 }
+
+/* Trading workspace: readable inputs, stable search and separate status positions. */
+.trade-input input { color: #173e55; caret-color: #1687bf; }
+.trade-input input::placeholder { color: #6b8797; opacity: 1; }
+.aqua-search-overlay { position: fixed; inset: 0; z-index: 300; display: flex; align-items: flex-start; justify-content: center; padding: max(16px, 6dvh) 16px 16px; overflow: hidden; background: rgba(17, 51, 72, .4); backdrop-filter: blur(8px); animation: none; }
+.aqua-search-overlay::before,.aqua-search-overlay::after { display: none; }
+.aqua-search-overlay .search-modal { position: relative; display: flex; flex-direction: column; flex: 0 1 650px; width: min(650px,100%); min-height: 0; max-height: calc(94dvh - 16px); margin: 0; padding: 24px; overflow: hidden; color: #173e55; background: #f7fcff; border: 1px solid #c4dfea; border-radius: 16px; box-shadow: 0 24px 70px #173e5533; transform: none; animation: none; }
+.aqua-search-overlay .search-modal > :not(.search-results) { flex-shrink: 0; }
+.aqua-search-overlay .search-modal .modal-close { position: absolute; top: 16px; right: 16px; z-index: 2; width: 32px; height: 32px; color: #345a70; background: #e9f3f9; }
+.aqua-search-overlay .search-modal-heading { padding-right: 32px; }
+.aqua-search-overlay .search-modal-heading h2 { color: #173e55; }
+.aqua-search-overlay .search-results { min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; }
+.aqua-search-overlay .search-result { flex-shrink: 0; }
+.aqua-search-overlay .search-modal-input { margin-top: 18px; }
+.token-card-status:empty { display: none; }
+.token-card-status { display: flex; align-items: center; margin-top: 12px; min-height: 22px; }
+.token-card-status .dex-paid-badge { position: static; inset: auto; display: inline-flex; align-items: center; gap: 5px; width: auto; height: 22px; padding: 0 7px; color: #247754; background: #eef8f2; border: 1px solid #c8e5d6; border-radius: 5px; }
+.token-card-status .dex-paid-badge::after { content: "DEX paid"; font-size: 10px; font-weight: 650; }
+.token-card-status .dex-paid-badge img { width: 14px; height: 14px; }
+.trading-shell .token-page { padding-top: 20px; }
+.trading-shell .token-market-toolbar { margin-bottom: 14px; padding-bottom: 12px; }
+.trading-shell .token-hero { padding: 12px 0 22px; margin-bottom: 20px; }
+.trading-shell .token-identity h1 { font-size: 28px; }
+.trading-shell .token-layout { grid-template-columns: minmax(0,1fr) 350px; gap: 20px; }
+.trading-shell .chart-panel { background: #fcfeff; border: 1px solid #cbdfe9; box-shadow: none; overflow: hidden; }
+.trading-shell .market-line-shell { height: auto; min-height: 0; padding: 0; }
+.trading-shell .market-cap-line { width: 100%; }
+.chart-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 18px 14px; }
+.chart-controls > div { display: flex; gap: 4px; }
+.chart-controls button { padding: 7px 10px; border: 0; border-radius: 6px; background: transparent; color: #476a80; font-size: 12px; cursor: pointer; }
+.chart-controls button[aria-pressed="true"] { color: #12658c; background: #e0f1f9; font-weight: 700; }
+.chart-controls > span { color: #587688; font-size: 11px; }
+.chart-canvas { height: 350px; width: 100%; }
+.chart-no-data { min-height: 280px; display: grid; place-content: center; padding: 24px; color: #587688; font-size: 13px; }
+.chart-data-caption { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 12px 18px; border-top: 1px solid #e2edf2; color: #59798c; font-size: 11px; }
+.execution-panel { padding: 20px; border: 1px solid #cbdfe9; border-radius: 12px; background: #fcfeff; box-shadow: none; }
+.execution-panel > header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.execution-panel h2 { margin: 0; font-size: 18px; color: #163e55; }
+.execution-panel > header > span { color: #55788b; font-size: 11px; }
+.execution-panel fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+.execution-panel label { display: block; margin-top: 18px; color: #345d74; font-size: 13px; }
+.execution-panel .trade-tabs { margin-bottom: 16px; }
+.execution-panel .trade-tabs button { font-size: 14px; min-height: 38px; color: #486c81; }
+.execution-panel .trade-tabs button.active { background: #dceff9; color: #135d85; font-weight: 750; box-shadow: none; }
+.execution-panel .trade-input { margin: 8px 0 10px; background: #f1f7fb; border-color: #c8dde8; }
+.execution-panel .trade-input input { height: 62px; font-size: 26px; color: #173e55; font-variant-numeric: tabular-nums; }
+.trade-presets { display: flex; gap: 8px; }
+.trade-presets button { flex: 1; padding: 7px 8px; border: 1px solid #d5e5ed; border-radius: 6px; color: #345f78; background: #f5faff; font-size: 12px; cursor: pointer; }
+.execution-panel .trade-pay-route button[aria-pressed="true"] { background: #dceff9; color: #145f85; }
+.trade-receive { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; margin: 20px 0 14px; padding: 16px; border-radius: 8px; background: #edf7fc; }
+.trade-receive > span { grid-column: 1 / -1; color: #476d83; font-size: 12px; }
+.trade-receive strong { color: #173e55; font-size: 22px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.trade-receive > b { align-self: center; color: #477086; font-size: 12px; }
+.execution-detail,.slippage-control { display: flex !important; justify-content: space-between; align-items: center; gap: 12px; color: #56768a; font-size: 12px; }
+.execution-detail b { max-width: 65%; color: #254c64; text-align: right; overflow-wrap: anywhere; font-weight: 600; }
+.slippage-control select { width: auto; padding: 6px 8px; border: 1px solid #c8dde8; border-radius: 6px; background: #fff; color: #173e55; }
+.quote-status { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; margin: 6px 0; font-size: 11px; color: #57768a; }
+.quote-status > span { display: flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.quote-status svg { flex-shrink: 0; width: 14px; height: 14px; }
+.quote-status button { flex: 0 0 30px; height: 30px; border: 1px solid #d5e5ed; border-radius: 6px; background: #f3f9fc; color: #286386; }
+.quote-status .quote-error { color: #a43c46; }
+.trade-route-note,.trade-result { color: #456b81; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.trade-result { padding: 12px; border-radius: 6px; background: #edf6fb; }
+.trade-result a { display: flex; align-items: center; gap: 6px; margin-top: 6px; color: #126c98; }
+.execution-breakdown { margin-top: 16px; padding-top: 14px; border-top: 1px solid #dce9f0; }
+.execution-breakdown summary,.market-facts summary { color: #365f77; font-size: 12px; cursor: pointer; }
+.execution-breakdown dl > div,.market-facts dl > div { display: flex; justify-content: space-between; gap: 12px; margin: 12px 0; font-size: 12px; }
+.execution-breakdown dt,.market-facts dt { color: #54778a; }
+.execution-breakdown dd,.market-facts dd { margin: 0; text-align: right; color: #234c64; }
+.execution-breakdown p { color: #59798b; font-size: 11px; line-height: 1.6; }
+.market-facts { padding: 16px 18px; border: 1px solid #d4e3ec; border-radius: 10px; background: #f7fcff; }
+.execution-panel button:disabled { opacity: .55; cursor: not-allowed; }
+.execution-panel button:focus-visible,.chart-controls button:focus-visible,.search-modal button:focus-visible { outline: 2px solid #167cae; outline-offset: 3px; }
+@media(max-width:1100px) { .trading-shell .token-layout { display: flex; } .trading-shell .chart-panel { order: 1; } .trading-shell .trade-card { order: 2; } .trading-shell .default-dex-vote { order: 3; } .market-facts { order: 8; } }
+@media(max-width:600px) { .aqua-search-overlay { padding: 12px; } .aqua-search-overlay .search-modal { padding: 20px 16px; max-height: calc(100dvh - 24px); border-radius: 12px; } .chart-canvas { height: 270px; } .chart-controls { padding: 4px 10px 12px; } .chart-controls > span { display: none; } .trading-shell .token-identity h1 { font-size: 23px; } .execution-panel { padding: 18px; } }

@@ -10,26 +10,10 @@ const compactMoney = new Intl.NumberFormat("en-US", { style: "currency", currenc
 export function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [mounted, setMounted] = useState(open);
-  const [closing, setClosing] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
   const [query, setQuery] = useState("");
   const [launches, setLaunches] = useState<Launch[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "offline">("loading");
-
-  useEffect(() => {
-    if (open) {
-      setMounted(true);
-      setClosing(false);
-      return;
-    }
-    if (!mounted) return;
-    setClosing(true);
-    const timeout = window.setTimeout(() => {
-      setMounted(false);
-      setClosing(false);
-    }, 900);
-    return () => window.clearTimeout(timeout);
-  }, [open, mounted]);
 
   useEffect(() => {
     if (!open) return;
@@ -45,21 +29,31 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
       .catch(() => {
         if (active) setState("offline");
       });
-    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 720);
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    inputRef.current?.focus({ preventScroll: true });
     return () => {
       active = false;
-      window.clearTimeout(focusTimer);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus({ preventScroll: true });
     };
   }, [open]);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!open) return;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
+      if (event.key === "Tab") {
+        const items = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input') ?? []);
+        const first = items[0], last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [mounted, onClose]);
+  }, [open, onClose]);
 
   const results = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -76,13 +70,11 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
     navigate(`/token/${launch.id}`);
   }
 
-  if (!mounted) return null;
-  return <div className={`wallet-overlay wallet-connect-overlay aqua-search-overlay ${closing ? "closing" : ""}`} role="presentation" onMouseDown={onClose}>
-    <div className="wallet-transition-wave" aria-hidden="true"/>
-    <div className="wallet-transition-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
-    <section className="wallet-modal search-modal" role="dialog" aria-modal="true" aria-labelledby="search-title" onMouseDown={(event) => event.stopPropagation()}>
+  if (!open) return null;
+  return <div className="aqua-search-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section ref={dialogRef} className="search-modal" role="dialog" aria-modal="true" aria-labelledby="search-title">
       <button className="modal-close" onClick={onClose} aria-label="Close search"><X size={17}/></button>
-      <header className="search-modal-heading"><h2 id="search-title">Search AQUA</h2><p>Find a coin or its tokenized stock reward.</p></header>
+      <header className="search-modal-heading"><h2 id="search-title">Search AQUA</h2><p>Find a market by coin, asset or wallet.</p></header>
       <label className="search-modal-input">
         <Search size={18}/>
         <input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Coin, ticker, stock, or wallet" aria-label="Search AQUA markets"/>
@@ -96,7 +88,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
           <TokenMark launch={launch}/>
           <span className="search-result-main">
             <span className="search-result-name"><b>{launch.name}</b><small>${launch.symbol}</small></span>
-            <span className="search-result-tags"><em>{launch.symbol} / {launch.pairSymbol}</em>{launch.stockSymbol && <em className="reward-tag">{launch.stockSymbol} rewards</em>}</span>
+            <span className="search-result-tags"><em>{launch.symbol} / {launch.pairSymbol}</em><em className="reward-tag">{launch.rewardMode === "buyback_burn" ? "Buyback & burn" : launch.rewardMode === "jackpot" ? "SOL jackpot" : `${launch.stockSymbol} rewards`}</em></span>
           </span>
           <span className="search-result-value"><b>{launch.aquaIndexed ? compactMoney.format(launch.marketCapUsd) : "Indexing"}</b><small>market cap</small></span>
         </button>)}
