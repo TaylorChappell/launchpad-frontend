@@ -3,7 +3,6 @@ import { ArrowUpRight, LockKeyhole } from "lucide-react";
 import { Link } from "react-router-dom";
 import { activeCreatorLock, creatorLockPercentLabel } from "../creator-lock";
 import type { Launch } from "../types";
-import { RewardModeIcon } from "./RewardModeIcon";
 import { DexScreenerIcon } from "./DexScreenerIcon";
 import { formatJackpotAmount } from "../jackpot-format";
 import { launchAge } from "../time";
@@ -34,6 +33,14 @@ export function AssetMark({ launch, reward = false }: { launch: Launch; reward?:
   </span>;
 }
 
+function PayoutAssetMark({ launch, symbol, position }: { launch: Launch; symbol: string; position: number }) {
+  const normalized = symbol.toUpperCase();
+  const iconId = `jackpot-solana-${launch.id}-${position}`;
+  if (normalized === "SOL") return <span className="jackpot-asset-mark solana" aria-hidden="true"><svg viewBox="0 0 32 32"><defs><linearGradient id={iconId} x1="0" y1="1" x2="1" y2="0"><stop stopColor="#9945ff"/><stop offset=".52" stopColor="#19fb9b"/><stop offset="1" stopColor="#00d1ff"/></linearGradient></defs><path fill={`url(#${iconId})`} d="M8 6h19l-3 4H5l3-4Zm-3 9h19l3 4H8l-3-4Zm3 9h19l-3 4H5l3-4Z"/></svg></span>;
+  if (normalized === launch.stockSymbol.toUpperCase() && launch.stock.logoUrl) return <span className="jackpot-asset-mark" aria-hidden="true"><img src={launch.stock.logoUrl} alt=""/></span>;
+  return <span className="jackpot-asset-mark fallback" aria-hidden="true">{normalized.slice(0, 1)}</span>;
+}
+
 function marketCapTone(value: number) {
   if (value >= 1_000_000) return "cap-high";
   if (value >= 100_000) return "cap-warm";
@@ -59,9 +66,9 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
 
       <ArrowUpRight className="card-arrow" size={17}/>
     </div>
-    {rewardMode === "holder_rewards" ? <div className="reward-card-focus"><span><RewardModeIcon mode="holder_rewards"/>HOLDER REWARD</span><strong>Earn {launch.stockSymbol}</strong><small>{"$" + compact.format(launch.rewardAccumulatedUsd)} accumulated · {"$" + compact.format(launch.rewardRedeemableUsd)} redeemable</small></div>
-      : rewardMode === "buyback_burn" ? <div className="reward-card-focus mode-buyback"><span><RewardModeIcon mode="buyback_burn"/>BUYBACK &amp; BURN</span><strong>{burn ? new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 0 }).format(Number(burn.totalTokenRaw) / 10 ** launch.tokenDecimals) : "—"} tokens burned</strong><small>{burn ? new Intl.NumberFormat("en-US", { maximumFractionDigits: 9 }).format(burn.totalSol) : "—"} SOL used in buybacks</small></div>
-      : <div className="reward-card-focus mode-jackpot"><span><RewardModeIcon mode="jackpot"/>HOURLY JACKPOT</span><strong>Current round rewards</strong><div className="card-jackpot-prizes">{prizes.map((amount, index) => <div key={index}><span>{["1st", "2nd", "3rd", "4th", "5th"][index]}</span><b>{amount}</b><small>{jackpot?.rewardSymbol ?? "SOL"}</small></div>)}</div></div>}
+    {rewardMode === "holder_rewards" ? <div className="reward-card-focus"><span>HOLDER REWARDS</span><strong>Earn {launch.stockSymbol}</strong><small>{"$" + compact.format(launch.rewardAccumulatedUsd)} accumulated · {"$" + compact.format(launch.rewardRedeemableUsd)} redeemable</small></div>
+      : rewardMode === "buyback_burn" ? <div className="reward-card-focus mode-buyback"><span>BUYBACK &amp; BURN</span><strong>Burn {launch.symbol}</strong><small>{burn ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(burn.totalSol)} SOL spent · ${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(Number(burn.totalTokenRaw) / 10 ** launch.tokenDecimals)} ${launch.symbol} burned` : `— SOL spent · — ${launch.symbol} burned`}</small></div>
+      : <div className="reward-card-focus mode-jackpot"><span>HOURLY JACKPOT</span><div className="card-jackpot-prizes">{prizes.map((amount, index) => { const rewardSymbol = jackpot?.rewardSymbol ?? "SOL"; return <div key={index}><span>{["1st", "2nd", "3rd", "4th", "5th"][index]}</span><b aria-label={`${amount} ${rewardSymbol}`}><PayoutAssetMark launch={launch} symbol={rewardSymbol} position={index}/>{amount}</b></div>; })}</div></div>}
     <div className="token-card-status">{launch.dexPaid && <span className="dex-paid-badge" title="DEX Screener profile paid" aria-label="DEX Screener profile paid"><DexScreenerIcon/></span>}{creatorLock && <span className="creator-lock-badge" title="Verified creator lock" aria-label={`${creatorLockPercentLabel(creatorLock)} of supply locked by the creator`}><LockKeyhole aria-hidden="true"/>{creatorLockPercentLabel(creatorLock)} locked</span>}</div><div className="token-stats"><Metric label="Market cap" value={indexed ? "$" + compact.format(launch.marketCapUsd) : "Indexing"} tone={indexed ? marketCapTone(launch.marketCapUsd) : ""}/><Metric label="24h volume" value={indexed ? "$" + compact.format(launch.volume24hUsd) : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
     </Link>
   </article>;
