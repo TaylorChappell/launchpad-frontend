@@ -500,3 +500,5 @@
 .execution-panel > .primary { margin-top: 16px; }
 
 .jackpot-state-note { margin: 0 0 14px; color: #57768a; font-size: 12px; line-height: 1.5; }
+
+.launch-dex-toggle{display:flex;align-items:flex-start;gap:12px;padding:18px;border:1px solid #b9dfea;border-radius:14px;background:#edfaff;margin-bottom:18px;cursor:pointer}.launch-dex-toggle input{width:18px;height:18px;accent-color:#078bb0;flex-shrink:0}.launch-dex-toggle span{display:grid;gap:6px}.launch-dex-toggle small{color:#547587;line-height:1.6}

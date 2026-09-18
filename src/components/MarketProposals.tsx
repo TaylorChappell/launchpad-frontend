@@ -12,7 +12,7 @@ import { holdingPercent, MarketActionHint } from "./MarketActionHint";
 const labels: Record<MarketProposalType, string> = { dex_payment: "Fund Dex", dex_update: "Update Dex", cto: "Community Takeover" };
 const descriptions: Record<MarketProposalType, string> = {
   dex_payment: "Ask holders to fund this coin’s DEX Screener profile from incoming market rewards.",
-  dex_update: "Propose the exact description, banner and links for the coin’s DEX Screener profile.",
+  dex_update: "Propose the exact description, banner and links for holders to vote on. You can replace details during funding or request changes after payment. Existing funds stay with the campaign; DEX spending pauses during the vote.",
   cto: "Nominate a new developer wallet and put a clear handover plan to a holder vote.",
 };
 const liveStatuses = ["voting", "funding", "approved", "ready", "withdrawing", "withdrawn"];
@@ -66,7 +66,7 @@ export function MarketGovernanceProvider({ launch, children }: { launch: Launch;
     return { wallet: address, challenge: approval.challenge, ...signature };
   }
   async function vote(proposal: MarketProposal, choice: "yes" | "no") {
-    if (busy || !data?.votePower?.eligible || proposal.status !== "voting") return;
+    if (busy || (!data?.testingMode && !data?.votePower?.eligible) || proposal.status !== "voting") return;
     setBusy(true);
     try {
       const approval = await sign("vote", proposal.id, { choice });
@@ -100,9 +100,12 @@ export function MarketGovernanceProvider({ launch, children }: { launch: Launch;
     } catch (cause) { toast.error(cause instanceof Error ? cause.message : "Could not submit proposal."); }
     finally { setBusy(false); }
   }
+  const currentProfile = data?.proposals.find(item => item.type === "dex_payment" && item.payload.dexDetails)?.payload.dexDetails
+    ?? data?.proposals.filter(item => item.type === "dex_update" && ["approved", "completed"].includes(item.status)).sort((a,b) => b.createdAt - a.createdAt)[0]?.payload;
+  const surveyDraft = dialog?.kind === "create" && dialog.type === "dex_update" && currentProfile ? currentProfile as Partial<DexProfile> : data?.dexProfileDraft ?? {};
   return <GovernanceContext.Provider value={{ launch, data, now, busy, error, refresh, open: setDialog, vote }}>
     {children}
-    {dialog && <ProposalSurvey dialog={dialog} draft={data?.dexProfileDraft ?? {}} launch={launch} busy={busy} close={() => { if (!busy) setDialog(null); }} submit={submit}/>}
+    {dialog && <ProposalSurvey dialog={dialog} draft={surveyDraft} launch={launch} busy={busy} close={() => { if (!busy) setDialog(null); }} submit={submit}/>}
   </GovernanceContext.Provider>;
 }
 
@@ -122,7 +125,7 @@ export function MarketProposals() {
   const hint = !data ? error || "Checking proposal eligibility…" : !data.enabled ? data.disabledReason ?? "Unavailable."
     : !wallet.address ? "Connect a wallet. Creating a proposal requires 0.50% of " + launch.symbol + "."
     : !unlocked ? "Proposals unlock in " + countdown(data.proposalsOpenAt ?? now, now) + ", 15 minutes after launch."
-    : !data.createPower?.eligible ? "You hold " + holdingPercent(data.createPower?.currentRaw, data.totalSupplyRaw) + " of " + launch.symbol + ". Time-weighted: " + holdingPercent(data.createPower?.averageRaw, data.totalSupplyRaw) + ". Both must reach 0.50% to create a proposal."
+    : !data.createPower?.eligible ? "You hold " + holdingPercent(data.createPower?.currentRaw, data.totalSupplyRaw) + " of " + launch.symbol + ". You need 0.50% to create a proposal."
     : "Start a holder vote to fund DEX Screener, update the DEX profile or propose a community takeover.";
   return <div className="market-proposal-menu" ref={root}>
     <MarketActionHint text={hint} disabled={!eligible}><button className="market-corner-action proposal" disabled={!eligible} aria-expanded={eligible && expanded} aria-controls="market-proposal-options" onClick={() => setExpanded(!expanded)}>Proposals <ChevronDown/></button></MarketActionHint>
@@ -151,9 +154,9 @@ function ProposalCard({ proposal, compact = false }: { proposal: MarketProposal;
   const creator = wallet.address === data.creatorWallet;
   const detailsSubmitted = Boolean(proposal.payload.detailsSubmittedAt);
   const developerActivity = proposal.payload.developerActivity as { summary?: string; evidenceUrl?: string; wallet?: string } | undefined;
-  const canSubmitDetails = creator && proposal.type === "dex_payment" && ["voting", "funding", "ready"].includes(proposal.status) && !detailsSubmitted && Boolean(proposal.detailsDeadlineAt && now <= proposal.detailsDeadlineAt);
+  const canSubmitDetails = Boolean(data.testingMode || data.createPower?.eligible) && proposal.type === "dex_payment" && ["voting", "funding", "ready"].includes(proposal.status) && !detailsSubmitted && !proposal.payload.proposedProfile && Boolean(proposal.detailsDeadlineAt && now <= proposal.detailsDeadlineAt);
   const canSubmitActivity = creator && proposal.type === "cto" && proposal.status === "voting" && !developerActivity;
-  const profile = (proposal.type === "dex_update" ? proposal.payload : proposal.payload.dexDetails) as Partial<DexProfile> | undefined;
+  const profile = (proposal.type === "dex_update" ? proposal.payload : (proposal.status === "voting" ? proposal.payload.proposedProfile ?? proposal.payload.dexDetails : proposal.payload.dexDetails ?? proposal.payload.proposedProfile)) as Partial<DexProfile> | undefined;
   const voteHint = !wallet.address ? "Connect a wallet to vote. Requires 0.10% of " + launch.symbol + "."
     : "Current: " + holdingPercent(data.votePower?.currentRaw, data.totalSupplyRaw) + " · Time-weighted: " + holdingPercent(data.votePower?.averageRaw, data.totalSupplyRaw) + " · Both must reach 0.10%.";
   return <article className={"proposal-vote-card " + (compact ? "is-compact" : "")}>
@@ -163,7 +166,7 @@ function ProposalCard({ proposal, compact = false }: { proposal: MarketProposal;
     {proposal.type === "dex_payment" && <div className="proposal-funding-terms"><span>Funding target <b>${proposal.targetUsd.toFixed(0)}</b></span><span>From incoming rewards <b>80%</b></span></div>}
     {proposal.type === "cto" && <details className="proposal-public-details"><summary>Read the takeover plan</summary><dl><dt>Proposed lead</dt><dd>{String(proposal.payload.communityLead ?? "")}</dd><dt>Community takeover wallet</dt><dd>{String(proposal.payload.communityTakeoverWallet ?? proposal.payload.developerWallet ?? proposal.payload.multisig ?? "")}</dd><dt>Transition plan</dt><dd>{String(proposal.payload.plan ?? "")}</dd></dl>{validUrl(String(proposal.payload.evidenceUrl ?? "")) && <a href={String(proposal.payload.evidenceUrl)} target="_blank" rel="noreferrer">Community evidence <ExternalLink/></a>}</details>}
     {developerActivity && <details className="proposal-public-details developer-activity-proof" open><summary>Current developer activity evidence</summary><p>{developerActivity.summary}</p>{validUrl(String(developerActivity.evidenceUrl ?? "")) && <a href={developerActivity.evidenceUrl} target="_blank" rel="noreferrer">View public evidence <ExternalLink/></a>}</details>}
-    {profile && <details className="proposal-public-details"><summary>Review DEX profile details</summary><p>{profile.description}</p>{(["bannerUrl", "websiteUrl", "xUrl", "telegramUrl"] as const).map((key) => profile[key] && validUrl(profile[key]!) ? <a key={key} href={profile[key]} target="_blank" rel="noreferrer">{{ bannerUrl: "Banner", websiteUrl: "Website", xUrl: "X", telegramUrl: "Telegram" }[key]} <ExternalLink/></a> : null)}</details>}
+    {profile && <details className="proposal-public-details"><summary>Review DEX profile details</summary><p>{profile.description}</p>{(["bannerUrl", "websiteUrl", "xUrl", "telegramUrl"] as const).map((key) => profile[key] && validUrl(profile[key]!) ? <a key={key} href={profile[key]} target="_blank" rel="noreferrer">{{ bannerUrl: "Banner", websiteUrl: "Website", xUrl: "X", telegramUrl: "Telegram" }[key]} <ExternalLink/></a> : proposal.type === "dex_update" ? <p key={key}>{{ bannerUrl: "Banner", websiteUrl: "Website", xUrl: "X", telegramUrl: "Telegram" }[key]}: not provided / remove existing</p> : null)}</details>}
     {proposal.status === "voting" && <>
       <div className="proposal-vote-meta"><span>{proposal.eligibleVoters} eligible vote{proposal.eligibleVoters === 1 ? "" : "s"}</span><time>{countdown(proposal.endsAt, now)} left</time></div>
       <div className="proposal-tally"><span>Yes <b>{Math.round(percent)}%</b></span><span>No <b>{total ? 100 - Math.round(percent) : 0}%</b></span></div>
@@ -172,10 +175,13 @@ function ProposalCard({ proposal, compact = false }: { proposal: MarketProposal;
       {(!wallet.address || (!data.testingMode && !data.votePower?.eligible)) && <p className="proposal-eligibility">{voteHint}</p>}
       <details className="proposal-vote-rules"><summary>How this vote passes</summary><p>{proposal.type === "cto" ? "24-hour vote. Requires 20% of supply in eligible voting power and two-thirds approval. An early result needs 25% of supply on one side, 80% of votes and at least 3 eligible voters after 15 minutes." : "15-minute vote. Requires 5% of supply in eligible voting power and 60% approval. An early result needs 10% of supply on one side, 75% of votes and at least 3 eligible voters after 3 minutes."}</p></details>
     </>}
-    {proposal.type === "dex_payment" && ["funding", "ready", "withdrawing", "withdrawn", "completed"].includes(proposal.status) && <div className="proposal-funded"><div><span>Profile funding</span><b>${proposal.fundedUsd.toFixed(2)} / ${proposal.targetUsd.toFixed(0)}</b></div><progress value={proposal.fundedUsd} max={proposal.targetUsd}/></div>}
-    {canSubmitDetails && <button className="proposal-creator-action" disabled={busy} onClick={() => open({ kind: "details", proposal })}><DexScreenerIcon/>Submit DEX details <ArrowRight/></button>}
+    {(proposal.type === "dex_payment" || proposal.payload.dexService === "community_takeover") && ["funding", "ready", "withdrawing", "withdrawn", "completed"].includes(proposal.status) && <div className="proposal-funded"><div><span>Profile funding</span><b>${proposal.fundedUsd.toFixed(2)} / ${proposal.targetUsd.toFixed(0)}</b></div><progress value={proposal.fundedUsd} max={proposal.targetUsd}/></div>}
+    {proposal.spendingPaused && <p className="proposal-detail-note">Holders are voting on replacement DEX details. Funding continues and existing SOL stays reserved; spending is paused until the vote resolves.</p>}
+    {proposal.payload.dexService === "community_takeover" && <p className="proposal-detail-note">DEX profile takeover · $200 funding target from market fees. AQUA will submit the approved details after funding; DEX Screener reviews the request.</p>}
+    {proposal.type === "dex_update" && <p className="proposal-detail-note">{proposal.payload.targetFundingProposalId ? proposal.status === "completed" ? "Holder-approved details have been applied to the existing funding campaign. Funds raised are unchanged." : "This vote replaces the profile on the existing funding campaign. It does not transfer developer ownership or fees." : proposal.status === "approved" ? "Approved by holders. Awaiting submission to DEX Screener." : "Approval authorizes these exact details for submission to DEX Screener."}</p>}
+    {canSubmitDetails && <button className="proposal-creator-action" disabled={busy} onClick={() => open({ kind: "create", type: "dex_update" })}><DexScreenerIcon/>Propose DEX details <ArrowRight/></button>}
     {canSubmitActivity && <button className="proposal-creator-action" disabled={busy} onClick={() => open({ kind: "activity", proposal })}>Show active development <ArrowRight/></button>}
-    {proposal.type === "dex_payment" && !detailsSubmitted && ["voting", "funding", "ready"].includes(proposal.status) && <p className="proposal-detail-note">{creator ? "Only you can submit the profile." : "Waiting for the creator’s DEX profile."}{proposal.detailsDeadlineAt && <> Due in {countdown(proposal.detailsDeadlineAt, now)}.</>}</p>}
+    {proposal.type === "dex_payment" && !detailsSubmitted && !proposal.payload.proposedProfile && ["voting", "funding", "ready"].includes(proposal.status) && <p className="proposal-detail-note">{creator ? "Propose your profile through Update Dex for holders to approve." : "An eligible holder can propose profile details through Update Dex."}{proposal.detailsDeadlineAt && <> Due in {countdown(proposal.detailsDeadlineAt, now)}.</>}</p>}
     {["rejected", "cancelled"].includes(proposal.status) && <p className="proposal-detail-note">{proposal.outcome === "no_quorum" ? "The vote did not reach the required participation." : proposal.outcome === "details_expired" ? "The creator did not submit profile details before the deadline." : proposal.outcome === "paid_externally" ? "This profile was paid for externally." : proposal.status === "rejected" ? "Holders did not approve this proposal." : "This proposal was cancelled."}</p>}
     {["funding", "approved", "ready"].includes(proposal.status) && (data.testingMode || data.votePower?.eligible) && <button className="proposal-text-action" disabled={busy} onClick={() => open({ kind: "challenge", proposal })}>Challenge this proposal{proposal.openChallenges ? " (" + proposal.openChallenges + " open)" : ""}</button>}
     {proposal.withdrawalSignature && <a className="proposal-text-action" href={"https://solscan.io/tx/" + proposal.withdrawalSignature + (config.network === "devnet" ? "?cluster=devnet" : "")} target="_blank" rel="noreferrer">View funding transaction <ExternalLink/></a>}
@@ -190,7 +196,7 @@ export function DexFundingVote() {
   const proposal = defaultProposal && !["rejected", "cancelled"].includes(defaultProposal.status) ? defaultProposal : null;
   const opensAt = data?.defaultDexOpensAt ?? (launch.launchedAt ? launch.launchedAt + 300 : null);
   if (proposal) return <div className="default-dex-vote"><ProposalCard proposal={proposal} compact/></div>;
-  if (data?.dexPaid || defaultProposal) return null;
+  if (data?.dexPaid || defaultProposal || !(data?.dexFundingEnabled ?? launch.dexFundingEnabled)) return null;
   return <section className="default-dex-vote dex-vote-pending">
     <header><span>{!opensAt ? "Available after launch" : now < opensAt ? "DEX vote opens in" : "Preparing DEX vote"}</span>{opensAt && now < opensAt && <time>{countdown(opensAt, now)}</time>}</header>
     <div className="dex-vote-preview" aria-hidden="true"><div><DexScreenerIcon/><b>Fund DEX Screener</b></div><p>Fund the profile together.</p><div className="proposal-water-votes"><i/></div><div className="proposal-vote-buttons"><span>Yes</span><span>No</span></div></div>
@@ -210,6 +216,7 @@ export function CommunityProposalVotes() {
 }
 
 function ProposalSurvey({ dialog, draft, launch, busy, close, submit }: { dialog: Dialog; draft: Partial<DexProfile>; launch: Launch; busy: boolean; close: () => void; submit: (content: Record<string, unknown>) => Promise<void> }) {
+  const { data } = useProposals();
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const [accepted, setAccepted] = useState(false);
@@ -219,7 +226,7 @@ function ProposalSurvey({ dialog, draft, launch, busy, close, submit }: { dialog
   const kind = dialog.kind;
   const type = dialog.kind === "create" ? dialog.type : dialog.proposal.type;
   const title = kind === "details" ? "DEX profile details" : kind === "challenge" ? "Challenge this proposal" : kind === "activity" ? "Show active development" : labels[type];
-  const profileFields = kind === "details" || (kind === "create" && type === "dex_update");
+  const profileFields = kind === "details" || (kind === "create" && (type === "dex_update" || type === "dex_payment"));
   const set = (key: keyof typeof form, value: string) => setForm((previous) => ({ ...previous, [key]: value }));
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null;
@@ -240,7 +247,8 @@ function ProposalSurvey({ dialog, draft, launch, busy, close, submit }: { dialog
     const profile = Object.fromEntries(Object.keys(blankProfile).map((key) => [key, form[key as keyof DexProfile].trim()]));
     if (kind === "details") return profile;
     if (kind === "activity") return { summary: form.reason.trim(), evidenceUrl: form.evidenceUrl.trim() };
-    if (kind === "challenge" || type === "dex_payment") return { reason: form.reason.trim() };
+    if (kind === "challenge") return { reason: form.reason.trim() };
+    if (type === "dex_payment") return { reason: form.reason.trim(), proposedProfile: profile };
     if (type === "dex_update") return { reason: form.reason.trim(), ...profile };
     return { reason: form.reason.trim(), communityLead: form.communityLead.trim(), communityTakeoverWallet: form.communityTakeoverWallet.trim(), plan: form.plan.trim(), evidenceUrl: form.evidenceUrl.trim() };
   }
@@ -264,7 +272,8 @@ function ProposalSurvey({ dialog, draft, launch, busy, close, submit }: { dialog
       {!step ? <div className="survey-fields">
         {kind !== "details" && <label>{kind === "challenge" ? "What should be investigated?" : kind === "activity" ? "What are you actively working on?" : "Why should holders support this?"}<textarea required minLength={20} maxLength={1000} value={form.reason} onChange={(event) => set("reason", event.target.value)} placeholder={kind === "activity" ? "Describe recent work, current progress and what you are shipping next." : type === "dex_payment" ? "Explain how a DEX profile will help this coin and its holders." : "Describe the change, its purpose and the benefit to holders."}/><small>Be specific. This explanation will be visible on the market page.</small></label>}
         {kind === "activity" && <label>Public proof of work<input type="url" required maxLength={500} value={form.evidenceUrl} onChange={(event) => set("evidenceUrl", event.target.value)} placeholder="https://github.com/… or https://x.com/…"/><small>Link to recent, verifiable work or project updates.</small></label>}
-        {kind === "create" && type === "dex_payment" && <div className="survey-funding-summary"><b>A $300 profile, funded by the market</b><p>If holders approve, 80% of incoming market rewards is reserved until the target is met. The remaining 20% continues to holder rewards. Only the creator submits the DEX profile details.</p><span>15-minute vote · 5% quorum · 60% approval</span></div>}
+        {kind === "create" && type === "dex_update" && <div className="survey-funding-summary"><b>{!data?.dexPaid ? "Replace the existing campaign’s details" : data.dexManagedByAqua ? "Update a profile managed by AQUA" : "Fund a DEX profile takeover · $200"}</b><p>{!data?.dexPaid ? "Raised SOL stays in the campaign. Spending pauses during this vote and the approved details replace the current profile." : data.dexManagedByAqua ? "Once holders approve, AQUA submits these exact details using its existing profile access." : "After approval, 80% of incoming market rewards accumulates toward the $200 target. The remaining 20% continues to holder rewards. AQUA then submits the takeover request for DEX Screener review."}</p></div>}
+        {kind === "create" && type === "dex_payment" && <div className="survey-funding-summary"><b>A $300 profile, funded by the market</b><p>If holders approve, 80% of incoming market rewards is reserved until the target is met. The remaining 20% continues to holder rewards. Holders vote on the exact profile below. If approved, these details are used for the funded submission.</p><span>15-minute vote · 5% quorum · 60% approval</span></div>}
         {profileFields && <DexProfileFields profile={form} update={(key, value) => set(key, value)}/>} 
         {kind === "create" && type === "cto" && <><div className="survey-field-row"><label>Proposed community lead<input required minLength={2} maxLength={100} value={form.communityLead} onChange={(event) => set("communityLead", event.target.value)} placeholder="Name or public handle"/></label><label>Public evidence / community URL<input type="url" required maxLength={500} value={form.evidenceUrl} onChange={(event) => set("evidenceUrl", event.target.value)} placeholder="https://…"/></label></div><label>Community takeover wallet address<input required value={form.communityTakeoverWallet} onChange={(event) => set("communityTakeoverWallet", event.target.value)} placeholder="Takeover developer's Solana wallet"/><small>This is the wallet of the person taking over development. After an approved vote is executed on-chain, it receives existing and future creator fees and can create future developer locks. It is not a community treasury.</small></label><label>Transition plan<textarea required minLength={40} maxLength={2000} value={form.plan} onChange={(event) => set("plan", event.target.value)} placeholder="Who takes responsibility, what changes, and how will holders stay informed?"/></label><div className="survey-funding-summary"><p>24-hour vote · 20% quorum · two-thirds approval. Multiple takeover candidates may run at once; the first approved vote becomes the winner. A seven-day protection period only follows a rejected attempt when the current developer has submitted public activity evidence. Approval records the mandate; wallet authority changes only after verified on-chain execution.</p></div></>}
       </div> : <div className="survey-review"><small>CHECK BEFORE SIGNING</small><dl>{Object.entries(content()).filter(([, value]) => value).map(([key, value]) => <div key={key}><dt>{reviewLabels[key] ?? key}</dt><dd>{String(value)}</dd></div>)}</dl><label className="survey-consent"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)}/><span>I have checked these details and approve their publication for this market.</span></label><p>Your wallet signs a message. This approval does not spend funds.</p></div>}
@@ -279,7 +288,7 @@ export function DexProfileFields({ profile, update, optional = false }: { profil
   const [uploading, setUploading] = useState(false);
   async function uploadBanner(file: File | undefined) {
     if (!file) return;
-    if (!wallet.address) { wallet.setModalOpen(true); toast.error("Connect the creator wallet before uploading a banner."); return; }
+    if (!wallet.address) { wallet.setModalOpen(true); toast.error("Connect your wallet before uploading a banner."); return; }
     if (!["image/png", "image/jpeg"].includes(file.type)) { toast.error("Use a PNG or JPG banner."); return; }
     if (file.size > 3_000_000) { toast.error("Banner images must be 3 MB or smaller."); return; }
     setUploading(true);

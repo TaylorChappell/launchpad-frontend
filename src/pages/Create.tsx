@@ -66,6 +66,7 @@ export function Create() {
   const wizardSteps = dexProfileEnabled ? governanceWizardSteps : standardWizardSteps;
   const devBuyStep = dexProfileEnabled ? 4 : 3;
   const [form, setForm] = useState<Form>(empty);
+  const [dexFundingEnabled, setDexFundingEnabled] = useState(false);
   const [dexProfile, setDexProfile] = useState<DexProfile>({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" });
   const [step, setStep] = useState(0);
   const [stocks, setStocks] = useState<StockOption[]>([]);
@@ -378,7 +379,7 @@ export function Create() {
         devBuyStockRaw: "0", devBuyLamports: "0",
         devBuyCurrency: form.devBuyCurrency, devBuyAmountRaw: initialBuyRaw, rewardMode: form.rewardMode,
         sniperDefense: false, xUrl: normaliseUrl(form.xUrl), websiteUrl: normaliseUrl(form.websiteUrl), telegramUrl: normaliseTelegram(form.telegramUrl),
-        ...(dexProfileEnabled ? { dexProfile: Object.fromEntries(Object.entries(dexProfile).filter(([, value]) => value.trim()).map(([key, value]) => [key, value.trim()])) } : {}),
+        ...(dexProfileEnabled ? { dexFundingEnabled, dexProfile: Object.fromEntries(Object.entries(dexProfile).filter(([, value]) => value.trim()).map(([key, value]) => [key, value.trim()])) } : {}),
       });
       setStage("approval", "done");
       await continueLaunch({ envelope: intent, stage: "mint", launchId: intent.launchId });
@@ -470,8 +471,8 @@ export function Create() {
           {!config.rewardModes?.enabled && <div className="reward-mode-notice"><Info/> Alternative modes will unlock after the staged program upgrade is enabled. Holder Rewards remains available.</div>}
         </WizardSection>}
 
-        {dexProfileEnabled && step === 3 && <WizardSection title="Prepare your DEX profile" description="Optional. Save your DEX Screener information now and review it on your market after launch.">
-          <div className="launch-dex-intro"><DexScreenerIcon/><div><b>Ready when your holders are</b><p>The funding vote opens five minutes after launch. Only you can sign and submit the profile. This step saves a draft.</p></div></div>
+        {dexProfileEnabled && step === 3 && <WizardSection title="DEX Funding Mode" description="Optional. Fund your DEX Screener profile together using market fees.">
+          <label className="launch-dex-toggle"><input type="checkbox" checked={dexFundingEnabled} onChange={event => setDexFundingEnabled(event.target.checked)}/><span><b>Enable DEX Funding Mode</b><small>Open a holder vote five minutes after launch. If approved, 80% of incoming market rewards funds the $300 profile target; 20% continues to holder rewards.</small></span></label><div className="launch-dex-intro"><DexScreenerIcon/><div><b>Let holders decide</b><p>Save an optional initial profile below. Eligible holders can propose replacement information and vote on it. If disabled here, holders can propose funding later.</p></div></div>
           <div className="launch-dex-fields"><DexProfileFields profile={dexProfile} update={(key, value) => setDexProfile((current) => ({ ...current, [key]: value }))} optional/></div>
           {!dexDraftValid && <p className="survey-error">Use full https:// URLs, or leave these fields empty.</p>}
           <button className="proposal-text-action" onClick={() => { setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" }); setStep(devBuyStep); }}>Skip for now <ArrowRight/></button>

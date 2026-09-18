@@ -130,6 +130,7 @@ export type MarketProposal = {
   noPowerRaw: string;
   eligibleVoters: number;
   openChallenges?: number;
+  spendingPaused?: boolean;
   createdAt: number;
   marketName?: string;
   marketSymbol?: string;
@@ -142,6 +143,8 @@ export type MarketGovernanceResponse = {
   testingMode: boolean;
   disabledReason: string | null;
   dexPaid: boolean;
+  dexManagedByAqua?: boolean;
+  dexFundingEnabled?: boolean;
   dexCheckedAt: number;
   creatorWallet: string;
   totalSupplyRaw: string;
@@ -206,6 +209,7 @@ export type Launch = {
   burnSummary?: { totalSol: number; totalTokenRaw: string };
   jackpotSummary?: { currentPotRaw: string; rewardSymbol: string; rewardDecimals: number };
   dexPaid?: boolean;
+  dexFundingEnabled?: boolean;
   marketPolicyAddress?: string | null;
   pairVerified?: boolean;
   pairVerifiedAt?: number | null;
