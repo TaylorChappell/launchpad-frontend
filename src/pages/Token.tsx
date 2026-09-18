@@ -1,3 +1,4 @@
+import { formatJackpotAmount } from "../jackpot-format";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Copy, ExternalLink, Globe2, Loader2, LockKeyhole, Settings2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
@@ -46,7 +47,7 @@ function jackpotPrizeAmount(jackpot: RewardModeState["jackpot"] | undefined, pri
   const pot = BigInt(jackpot.currentPotRaw);
   const remainder = pot - [5000n, 2000n, 2000n, 500n, 500n].reduce((sum, bps) => sum + pot * bps / 10000n, 0n);
   const amountRaw = pot * BigInt(prizeBps) / 10_000n + (prizeBps === 5000 ? remainder : 0n);
-  return `${formatRaw(amountRaw.toString(), jackpot.rewardDecimals)} ${jackpot.rewardSymbol}`;
+  return `${formatJackpotAmount(amountRaw.toString(), jackpot.rewardDecimals)} ${jackpot.rewardSymbol}`;
 }
 
 function solscanTransactionUrl(signature: string, network: string) {
@@ -184,7 +185,7 @@ function JackpotHistory({ jackpot, network }: { jackpot: RewardModeState["jackpo
     {jackpot?.previousDraws.slice(0, visible).map((draw) => <article key={draw.id}>
       <header><small>{new Date(draw.endsAt * 1_000).toLocaleString()}</small></header>
       <div className="jackpot-winners">{draw.winners.map((winner) => <span key={`${draw.id}:${winner.wallet}`}>
-        <b>#{winner.place}</b><code>{winner.wallet.slice(0,4)}…{winner.wallet.slice(-4)}</code><strong>{formatRaw(winner.amountRaw, draw.rewardDecimals)} {draw.rewardSymbol}</strong>
+        <b>#{winner.place}</b><code>{winner.wallet.slice(0,4)}…{winner.wallet.slice(-4)}</code><strong>{formatJackpotAmount(winner.amountRaw, draw.rewardDecimals)} {draw.rewardSymbol}</strong>
         {winner.claimed && winner.claimedSignature ? <a className="jackpot-claim-status claimed" href={solscanTransactionUrl(winner.claimedSignature, network)} target="_blank" rel="noreferrer">Claimed <ExternalLink/></a> : <em className="jackpot-claim-status">Unclaimed</em>}
       </span>)}</div>
     </article>)}
@@ -204,7 +205,7 @@ function JackpotLeaderboard({ jackpot }: { jackpot: RewardModeState["jackpot"] |
     {winners.length ? <>
       <ol>{winners.slice(0, visible).map((winner, index) => <li key={winner.wallet}>
         <i>{index + 1}</i><div><code>{winner.wallet.slice(0,4)}…{winner.wallet.slice(-4)}</code><small>{winner.wins} win{winner.wins === 1 ? "" : "s"}</small></div>
-        <strong>{formatRaw(winner.totalAmountRaw, jackpot!.rewardDecimals)} <small>{jackpot!.rewardSymbol}</small></strong>
+        <strong>{formatJackpotAmount(winner.totalAmountRaw, jackpot!.rewardDecimals)} <small>{jackpot!.rewardSymbol}</small></strong>
         <em className={`jackpot-claim-status ${winner.unclaimedWins ? "" : "claimed"}`}>{winner.unclaimedWins ? `${winner.unclaimedWins} unclaimed` : "All claimed"}</em>
       </li>)}</ol>
       {visible < winners.length && <button className="jackpot-load-more" onClick={() => setVisible((count) => count + 5)}>Load more</button>}

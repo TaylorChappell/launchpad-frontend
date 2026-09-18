@@ -6,7 +6,7 @@ import { useRuntime } from "../context";
 import type { Launch } from "../types";
 import { RewardModeIcon } from "./RewardModeIcon";
 import { DexScreenerIcon } from "./DexScreenerIcon";
-import { displayTokenAmount } from "../trade-quote";
+import { formatJackpotAmount } from "../jackpot-format";
 import { launchAge } from "../time";
 
 const compact = new Intl.NumberFormat("en-US", { notation:"compact", maximumFractionDigits:1 });
@@ -49,7 +49,7 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
   const pot = BigInt(jackpot?.currentPotRaw ?? "0");
   const prizeAmounts = [5000n, 2000n, 2000n, 500n, 500n].map((bps) => pot * bps / 10000n);
   prizeAmounts[0] += pot - prizeAmounts.reduce((sum, value) => sum + value, 0n);
-  const prizes = prizeAmounts.map((value) => jackpot ? displayTokenAmount(value.toString(), jackpot.rewardDecimals) : "—");
+  const prizes = prizeAmounts.map((value) => jackpot ? formatJackpotAmount(value.toString(), jackpot.rewardDecimals) : "—");
   const creatorLock = activeCreatorLock(launch.creatorLock);
   const creatorLockUrl = creatorLock ? solscanAccountUrl(creatorLock.vaultTokenAccount, config.network) : null;
   const rewardMode = launch.rewardMode ?? "holder_rewards";
