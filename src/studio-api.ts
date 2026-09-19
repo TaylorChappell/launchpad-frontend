@@ -110,10 +110,12 @@ export async function studioRequest<T>(
   token = "",
   body?: unknown,
   method?: string,
+  signal?: AbortSignal,
 ): Promise<T> {
   const response = await fetch(`${API_URL}/studio${path}`, {
     method: method ?? (body === undefined ? "GET" : "POST"),
     cache: "no-store",
+    signal,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
@@ -130,6 +132,23 @@ export async function studioRequest<T>(
     );
   }
   return response.json();
+}
+export const studioConfigIsTransient = (value: StudioConfig) =>
+  !value.depositsEnabled && value.depositSetup?.issues.some(issue =>
+    ["aqua_mint_unavailable", "aqua_price_unavailable"].includes(issue.code));
+
+// Keep the initial screen in a checking state while short RPC/price outages recover.
+// Missing operator settings and a missing backend route are not retried here.
+export async function loadStudioConfig(): Promise<StudioConfig> {
+  for (let attempt=0; ; attempt++) {
+    try {
+      const value = await studioRequest<StudioConfig>("/config", "", undefined, undefined, AbortSignal.timeout(20000));
+      if (attempt >= 2 || !studioConfigIsTransient(value)) return value;
+    } catch (error) {
+      if (attempt >= 2 || (error instanceof StudioApiError && error.status < 500 && error.status !== 429)) throw error;
+    }
+    await new Promise(resolve => setTimeout(resolve,1000 * (attempt+1)));
+  }
 }
 export function studioAssetUrl(file: StudioFile) {
   const ext = file.path.split(".").pop()?.toLowerCase(),

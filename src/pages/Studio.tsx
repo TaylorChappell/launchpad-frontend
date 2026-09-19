@@ -55,6 +55,8 @@ import {
   usdCredit,
   studioAssetUrl,
   studioRequest,
+  loadStudioConfig,
+  studioConfigIsTransient,
   studioSession,
   studioSessionKey,
   StudioApiError,
@@ -133,6 +135,11 @@ function StudioWorkspace() {
   const [config, setConfig] = useState<StudioConfig | null>(null),
     [account, setAccount] = useState<Account>({ balanceMicroUsd: "0", ledger: [] });
   const [depositQuote,setDepositQuote] = useState<DepositQuote | null>(null);
+  const [configChecking,setConfigChecking] = useState(true);
+  const configRequest = useRef<Promise<StudioConfig> | null>(null);
+  const [depositChecking,setDepositChecking] = useState(false);
+  const [depositStatus,setDepositStatus] = useState("Waiting for Solana finalization. Checking automatically; do not send another deposit.");
+  const [depositRetry,setDepositRetry] = useState(0);
   const [projects, setProjects] = useState<Array<Omit<StudioProject, "state">>>(
       [],
     ),
@@ -246,10 +253,23 @@ function StudioWorkspace() {
     if (mounted.current) setAccount(value);
     return value;
   }
+  function refreshStudioConfig() {
+    if (configRequest.current) return configRequest.current;
+    setConfigChecking(true);
+    const promise = loadStudioConfig().then(value => {
+      if (mounted.current) setConfig(value);
+      return value;
+    }).finally(() => {
+      configRequest.current = null;
+      if (mounted.current) setConfigChecking(false);
+    });
+    configRequest.current = promise;
+    return promise;
+  }
   async function checkStudioSetup() {
     await task("Checking AI setup", async () => {
       const [latestConfig] = await Promise.all([
-        studioRequest<StudioConfig>("/config"),
+        refreshStudioConfig(),
         token ? refreshAccount() : Promise.resolve(account),
       ]);
       if (!mounted.current) return;
@@ -280,12 +300,13 @@ function StudioWorkspace() {
     if (projectId.current === id) setJobs(history);
   }
   useEffect(() => {
-    void studioRequest<StudioConfig>("/config")
-      .then((value) => {
-        if (mounted.current) setConfig(value);
-      })
-      .catch(fail);
+    void refreshStudioConfig().catch(fail);
   }, []);
+  useEffect(() => {
+    if (modal !== "credit" || configChecking || (config && !studioConfigIsTransient(config))) return;
+    const timer = window.setTimeout(() => void refreshStudioConfig().catch(fail),30000);
+    return () => window.clearTimeout(timer);
+  }, [modal,config,configChecking]);
   useEffect(() => {
     if (!token || busy || taskLock.current) return;
     if (workspaceSession.current === token && !params.get("github")) return;
@@ -467,7 +488,7 @@ function StudioWorkspace() {
   async function generateQuote() {
     await task("Estimating", async () => {
       const [latestConfig, latestAccount] = await Promise.all([
-        studioRequest<StudioConfig>("/config"),
+        refreshStudioConfig(),
         refreshAccount(),
       ]);
       if (!mounted.current) return;
@@ -813,6 +834,7 @@ function StudioWorkspace() {
     setInput("");
     setError("");
     setModal("credit");
+    void refreshStudioConfig().catch(fail);
   }
   function keepDeposit(value: { id: string; signature: string } | null) {
     setPendingDeposit(value);
@@ -823,21 +845,57 @@ function StudioWorkspace() {
       );
     else localStorage.removeItem(`aqua:studio-deposit:${wallet.address}`);
   }
-  async function confirmDeposit(value: { id: string; signature: string }) {
-    const result = await request<{creditMicroUsd:string|null}>(`/deposits/${value.id}/confirm`, {
-      signature: value.signature,
-    });
-    keepDeposit(null);
-    await refreshAccount();
-    setCreditGate(null);
-    setModal(null);
-    setDepositQuote(null);
-    setNotice(result.creditMicroUsd !== null ? `${usdCredit(result.creditMicroUsd)} added to your Studio credit.` : "Your previous deposit has been recorded. Check your credit balance.");
-  }
+  useEffect(() => {
+    if (!pendingDeposit || !token) {setDepositChecking(false);return;}
+    let cancelled=false, attempts=0;
+    let timer:ReturnType<typeof setTimeout>;
+    const controller = new AbortController();
+    const value = pendingDeposit;
+    async function check() {
+      setDepositChecking(true);
+      let retry = true;
+      try {
+        const result = await studioRequest<{credited:boolean;creditMicroUsd:string|null}>(`/deposits/${value.id}/confirm`,token,{signature:value.signature,poll:true},undefined,controller.signal);
+        if (cancelled) return;
+        if (result.credited) {
+          // Keep the saved reference until both crediting and account refresh succeed.
+          const latest = await studioRequest<Account>("/account",token,undefined,undefined,controller.signal);
+          if (cancelled) return;
+          setAccount(latest);
+          keepDeposit(null);
+          setCreditGate(null);
+          setDepositQuote(null);
+          setModal(current => current === "credit" ? null : current);
+          setNotice(result.creditMicroUsd != null ? `${usdCredit(result.creditMicroUsd)} added to your Studio credit.` : "Your previous deposit has been recorded. Check your credit balance.");
+          retry=false;
+        } else {
+          setDepositStatus("Waiting for Solana finalization. Checking automatically; do not send another deposit.");
+        }
+      } catch (reason) {
+        if (cancelled) return;
+        // Compatibility with a backend still deploying the pending-status response.
+        const pending = reason instanceof StudioApiError && reason.status === 409 && /awaiting finalization/i.test(reason.message);
+        if (pending) setDepositStatus("Waiting for Solana finalization. Checking automatically; do not send another deposit.");
+        else if (reason instanceof StudioApiError && reason.status < 500 && reason.status !== 429) {
+          retry=false;
+          setDepositStatus(reason.message);
+          if (reason.status === 401) fail(reason);
+        } else setDepositStatus("Confirmation service is temporarily unavailable. Your reference is saved and we’ll keep checking. Do not send another deposit.");
+      } finally {
+        if (!cancelled) {
+          setDepositChecking(false);
+          if (retry) timer=setTimeout(() => void check(),Math.min(30000,5000 * (1+Math.floor(attempts++/6))));
+        }
+      }
+    }
+    setDepositStatus("Waiting for Solana finalization. Checking automatically; do not send another deposit.");
+    void check();
+    return () => {cancelled=true;clearTimeout(timer);controller.abort();};
+  }, [pendingDeposit?.id,pendingDeposit?.signature,token,depositRetry]);
   async function previewDeposit() {
     await task("Getting live AQUA price", async () => {
       setDepositQuote(null);
-      const latest = await studioRequest<StudioConfig>("/config");
+      const latest = await refreshStudioConfig();
       setConfig(latest);
       if (!latest.depositsEnabled || latest.decimals === null) {
         const issues = latest.depositSetup?.issues ?? [];
@@ -857,13 +915,17 @@ function StudioWorkspace() {
         setDepositQuote(null);
         throw new Error("The deposit quote expired. Get a fresh price before approving.");
       }
-      const signature = await wallet.sendTransaction(tx, (signature) =>
-        keepDeposit({ id: tx.id, signature }),
-      );
-      const value = { id: tx.id, signature };
-      keepDeposit(value);
-      setBusy("Confirming deposit");
-      await confirmDeposit(value);
+      let submitted=false;
+      try {
+        await wallet.sendTransaction(tx, (signature) => {
+          submitted=true;
+          keepDeposit({ id: tx.id, signature });
+        });
+      } catch (reason) {
+        if (!submitted) throw reason;
+        // Submission succeeded; the saved signature is checked independently of
+        // wallet confirmation timeouts. Never ask the user to submit it again.
+      }
     });
   }
   async function exportZip() {
@@ -1027,6 +1089,9 @@ function StudioWorkspace() {
           )}
         </div>
       </header>
+      {pendingDeposit && modal !== "credit" && <div className="at-notice" role="status">
+        <span>{depositStatus}</span>{" "}<button onClick={openCredit}>View deposit</button>
+      </div>}
       {error && (
         <div className="at-alert" role="alert">
           <span>{error}</span>
@@ -2102,7 +2167,9 @@ function StudioWorkspace() {
                 deduct their USD usage cost. Credit is not withdrawable.
               </p>
               {account.legacyBalanceNotice && <p role="status" className="at-muted">{account.legacyBalanceNotice}</p>}
-              {config?.depositsEnabled ? (
+              {(configChecking && !config?.depositsEnabled) ? (
+                <p className="at-muted" role="status">Checking AQUA deposits and live price…</p>
+              ) : config?.depositsEnabled ? (
                 <>
                   <label className="at-field">
                     AQUA to deposit
@@ -2136,24 +2203,21 @@ function StudioWorkspace() {
                 <StudioSetupCard
                   compact
                   deposits
-                  issues={config?.depositSetup?.issues ?? setupIssues}
+                  issues={config?.depositSetup?.issues ?? (setupIssues.length ? setupIssues : [{code:"deposit_config_unavailable",title:"Deposit settings could not be loaded",detail:error || "Check the backend connection and try again.",variables:["VITE_API_URL"]}])}
                   busy={actionDisabled}
                   onRetry={() => void checkStudioSetup()}
                 />
               )}
               {pendingDeposit && (
-                <div className="at-pending">
-                  <strong>Deposit awaiting confirmation</strong>
+                <div className="at-pending" role="status">
+                  <strong>Deposit submitted</strong>
+                  <p>{depositStatus}</p>
                   <code>{pendingDeposit.signature}</code>
                   <button
-                    disabled={actionDisabled}
-                    onClick={() =>
-                      void task("Confirming deposit", () =>
-                        confirmDeposit(pendingDeposit),
-                      )
-                    }
+                    disabled={actionDisabled || depositChecking || !token}
+                    onClick={() => setDepositRetry(value => value+1)}
                   >
-                    Check confirmation
+                    {depositChecking ? "Checking confirmation…" : "Check now"}
                   </button>
                 </div>
               )}
