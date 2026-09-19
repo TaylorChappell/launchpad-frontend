@@ -199,9 +199,4 @@ export function aquaRaw(value: string, decimals: number) {
   if (raw <= 0n) throw new Error("Enter a positive AQUA amount.");
   return raw.toString();
 }
-export function usdCredit(microUsd: string) {
-  const negative = microUsd.startsWith("-");
-  const amount = aquaAmount(negative ? microUsd.slice(1) : microUsd,6);
-  const [whole,fraction=""] = amount.split(".");
-  return `${negative ? "-" : ""}$${whole}.${fraction.padEnd(2,"0")}`;
-}
+export { usdCredit } from "./studio-money";

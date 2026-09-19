@@ -11,6 +11,8 @@ import {
   isValidElement,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
+import { PageBubbles } from "../components/PageBubbles";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { StudioMessage } from "../components/StudioMessage";
 import {
@@ -830,6 +832,7 @@ function StudioWorkspace() {
     });
   }
   function openCredit() {
+    setCreditGate(null);
     setDepositQuote(null);
     setInput("");
     setError("");
@@ -1054,6 +1057,7 @@ function StudioWorkspace() {
       : null;
   return (
     <main className="at-studio">
+      <PageBubbles count={8} />
       <header className="at-heading">
         <div>
           <h1>
@@ -1472,32 +1476,10 @@ function StudioWorkspace() {
                       }}
                       rows={4}
                     />
-                    {creditGate ? (
-                      <div className="at-credit-gate" role="alert">
-                        <span className="at-credit-gate-icon">
-                          <Droplets size={20} />
-                        </span>
-                        <div>
-                          <strong>
-                            {creditShortfall
-                              ? "You don’t have enough credit"
-                              : "You have no Studio credit"}
-                          </strong>
-                          <small>
-                            {creditShortfall
-                              ? `${usdCredit(creditGate.balanceMicroUsd)} available · add at least ${usdCredit(creditShortfall)} more`
-                              : "Deposit AQUA to add USD credit and send this message."}
-                          </small>
-                        </div>
-                        <button className="at-primary" onClick={openCredit}>
-                          <Plus size={15} />
-                          Add credit
-                        </button>
-                      </div>
-                    ) : quote ? (
+                    {quote && !creditGate ? (
                       <div className="at-quote">
                         <strong>
-                          {quote.creditExempt ? "Admin access · No credits needed" : `Up to ${usdCredit(quote.maximumMicroUsd)} of credit`}
+                          {quote.creditExempt ? "Admin access · No credits needed" : `Up to ${usdCredit(quote.maximumMicroUsd,"up")} of credit`}
                         </strong>
                         <small>
                           {quote.creditExempt ? "AI usage is covered by the operator. The daily AI budget still applies." : `${quote.pricing}. Quote expires in 2 minutes.`}
@@ -2045,6 +2027,20 @@ function StudioWorkspace() {
           </button>
         </div>
       )}
+      {creditGate && !modal && !review && (
+        <Dialog title="Not enough credits" className="at-credit-dialog" onClose={() => setCreditGate(null)}>
+          <div className="at-credit-popup-icon" aria-hidden="true"><Droplets size={28} /></div>
+          <p>Top up your Studio wallet with AQUA to continue. Your message is saved here and won’t be sent until you confirm.</p>
+          <dl className="at-credit-summary">
+            <div><dt>Available credit</dt><dd>{usdCredit(creditGate.balanceMicroUsd)}</dd></div>
+            {creditShortfall && <div><dt>Top up at least</dt><dd>{usdCredit(creditShortfall,"up")}</dd></div>}
+          </dl>
+          <div className="at-credit-popup-actions">
+            <button onClick={() => setCreditGate(null)}>Not now</button>
+            <button className="at-primary" onClick={openCredit}>Top up wallet <ArrowRight size={16} /></button>
+          </div>
+        </Dialog>
+      )}
       {review && (
         <Dialog title="Review Atlantis changes" onClose={() => setReview(null)}>
           <StudioMessage text={review.result?.message ?? ""} />
@@ -2571,16 +2567,21 @@ function Dialog({
   title,
   onClose,
   children,
+  className = "",
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const old = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     ref.current?.focus();
     const trap = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
       if (e.key !== "Tab") return;
       const items = ref.current?.querySelectorAll<HTMLElement>(
         'button:not(:disabled),input,textarea,select,a[href],summary,[tabindex="0"]',
@@ -2603,10 +2604,11 @@ function Dialog({
     document.addEventListener("keydown", trap);
     return () => {
       document.removeEventListener("keydown", trap);
+      document.body.style.overflow = overflow;
       old?.focus();
     };
   }, []);
-  return (
+  return createPortal(
     <div
       className="at-dialog-overlay"
       onMouseDown={(e) => {
@@ -2614,7 +2616,7 @@ function Dialog({
       }}
     >
       <div
-        className="at-dialog"
+        className={`at-dialog ${className}`}
         ref={ref}
         role="dialog"
         aria-modal="true"
@@ -2629,7 +2631,8 @@ function Dialog({
         </header>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 function FileTree({

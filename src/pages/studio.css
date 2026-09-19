@@ -2388,28 +2388,21 @@
 
 /* Atlantis water system */
 .studio-shell {
-  background:
-    radial-gradient(circle at 8% 18%, #47c8ff1a 0 4px, transparent 5px),
-    radial-gradient(circle at 91% 36%, #48d6dc16 0 7px, transparent 8px),
-    linear-gradient(180deg, #f2fbff 0, #f8fcfe 38%, #edf8fc 100%);
+  background: linear-gradient(180deg, #f2f9ff, #f8fcff 45%, #edf6fd);
 }
 .at-studio {
+  --at-ocean-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 480 80' preserveAspectRatio='none'%3E%3Cpath fill='black' d='M0 20 C80 0 160 0 240 20 S400 40 480 20 V80 H0 Z'/%3E%3C/svg%3E");
   position: relative;
   isolation: isolate;
   background: transparent;
 }
-.at-studio::before {
-  content: "";
-  position: absolute;
+.at-studio > .page-bubbles {
   z-index: -1;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.72;
-  background:
-    radial-gradient(circle at 4% 72%, #2ec6ee12 0 5px, transparent 6px),
-    radial-gradient(circle at 97% 14%, #1ac8d91a 0 9px, transparent 10px),
-    radial-gradient(circle at 94% 81%, #218fcf10 0 4px, transparent 5px);
-  animation: at-bubble-drift 12s ease-in-out infinite alternate;
+  opacity: .45;
+}
+.at-studio > .page-bubbles i {
+  border-color: #1e8fe83b;
+  background: #d4edfc33;
 }
 .at-heading {
   position: relative;
@@ -2419,25 +2412,25 @@
   padding: 15px 18px 17px;
   border: 1px solid #cce9f3;
   border-radius: 15px;
-  background:
-    radial-gradient(circle at 74% 26%, #fff9 0 3px, transparent 4px),
-    radial-gradient(circle at 81% 63%, #fff8 0 6px, transparent 7px),
-    linear-gradient(115deg, #f6fdff 0%, #e3f7fd 58%, #d8f2f8 100%);
+  background: linear-gradient(115deg, #fff, #eaf6ff 65%, #dceffc);
   box-shadow: 0 10px 30px #177ca90d;
 }
 .at-heading::after {
   content: "";
   position: absolute;
-  left: -4%;
-  right: -4%;
+  left: 0;
   bottom: -12px;
-  height: 28px;
-  opacity: 0.52;
-  background: radial-gradient(46px 16px at 50% 0, transparent 72%, #42bddd 74% 78%, transparent 80%) 0 0 / 92px 28px repeat-x;
-  animation: at-tide-shift 10s linear infinite;
+  width: 200%;
+  height: 38px;
+  pointer-events: none;
+  background: linear-gradient(180deg, #94d4fb45, #5bb5ed40);
+  -webkit-mask: var(--at-ocean-mask) 0 0 / 50% 100% repeat-x;
+  mask: var(--at-ocean-mask) 0 0 / 50% 100% repeat-x;
+  animation: at-ocean-current 20s linear infinite;
 }
+.at-heading > * { position: relative; z-index: 1; }
 .at-heading h1 span {
-  color: #1c8ab0;
+  color: var(--aqua-blue, #1e8fe8);
 }
 .at-heading p {
   color: #5d8192;
@@ -2450,23 +2443,21 @@
 .at-sidebar {
   position: relative;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 18px 92%, #fff8 0 4px, transparent 5px),
-    radial-gradient(circle at 52px 84%, #fff5 0 7px, transparent 8px),
-    linear-gradient(180deg, #edfaff 0%, #e4f5fa 45%, #dff2f7 100%);
+  background: linear-gradient(180deg, #f4faff, #e7f3fc);
   border-right-color: #cfe5ed;
 }
 .at-sidebar::after {
   content: "";
   position: absolute;
-  left: -30px;
-  right: -30px;
-  bottom: -16px;
+  left: 0;
+  width: 200%;
+  bottom: -10px;
   height: 52px;
   pointer-events: none;
-  opacity: 0.48;
-  background: radial-gradient(55px 24px at 50% 0, transparent 68%, #44bfd8 70% 74%, transparent 76%) 0 0 / 110px 48px repeat-x;
-  animation: at-tide-shift 12s linear infinite reverse;
+  background: #6ebfec26;
+  -webkit-mask: var(--at-ocean-mask) 0 0 / 50% 100% repeat-x;
+  mask: var(--at-ocean-mask) 0 0 / 50% 100% repeat-x;
+  animation: at-ocean-current 24s linear infinite reverse;
 }
 .at-sidebar nav button {
   display: flex;
@@ -2527,23 +2518,13 @@
   border-bottom-color: #d8eaf0;
 }
 .at-conversation {
-  background:
-    radial-gradient(circle at 95% 12%, #42c7e80b 0 7px, transparent 8px),
-    radial-gradient(circle at 5% 67%, #3ec6e30a 0 4px, transparent 5px),
-    linear-gradient(180deg, #fff 0%, #fbfeff 100%);
+  background: linear-gradient(180deg, #fff, #fbfdff);
 }
 .at-panel-title {
   background: linear-gradient(90deg, #fff, #f5fcfe);
 }
 .at-panel-title > div::before {
-  content: "";
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-right: 7px;
-  border-radius: 50%;
-  background: #27b3d3;
-  box-shadow: 0 0 0 4px #27b3d319;
+  content: none;
 }
 .at-intro-message h3 {
   color: #215c76;
@@ -2561,23 +2542,11 @@
   position: relative;
   overflow: hidden;
   border-color: #bcdfea;
-  background:
-    radial-gradient(circle at 91% 18%, #56cfe419 0 4px, transparent 5px),
-    radial-gradient(circle at 85% 34%, #56cfe410 0 7px, transparent 8px),
-    linear-gradient(180deg, #fff 0%, #f8fdff 100%);
+  background: #fff;
   box-shadow: 0 9px 30px #0b789717, inset 0 1px #fff;
 }
 .at-compose::before {
-  content: "";
-  position: absolute;
-  left: -10%;
-  right: -10%;
-  bottom: -15px;
-  height: 25px;
-  pointer-events: none;
-  opacity: 0.4;
-  background: radial-gradient(36px 12px at 50% 0, transparent 68%, #2eb5d5 71% 76%, transparent 78%) 0 0 / 72px 24px repeat-x;
-  animation: at-tide-shift 8s linear infinite;
+  content: none;
 }
 .at-compose > * {
   position: relative;
@@ -2588,8 +2557,8 @@
   box-shadow: 0 10px 34px #1387aa1f, 0 0 0 3px #30b8d918;
 }
 .at-compose-footer .at-primary {
-  background: linear-gradient(145deg, #26a9cc, #1879a7);
-  box-shadow: 0 5px 12px #187fa52c;
+  background: #1577bd;
+  box-shadow: 0 4px 10px #1e8fe81f;
 }
 .at-setup-card {
   width: 100%;
@@ -2721,12 +2690,7 @@
   border-radius: 9px;
   font-size: 10px;
 }
-@keyframes at-tide-shift {
-  to { background-position-x: 184px; }
-}
-@keyframes at-bubble-drift {
-  to { transform: translate3d(0, -12px, 0); }
-}
+@keyframes at-ocean-current { to { transform: translate3d(-50%, 0, 0); } }
 @media (max-width: 980px) {
   .at-sidebar-credit { display: none; }
 }
@@ -2742,8 +2706,69 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .at-studio::before,
+  .at-studio > .page-bubbles i,
   .at-heading::after,
   .at-sidebar::after,
   .at-compose::before { animation: none; }
+}
+
+/* Match the site's liquid button interaction without moving the writing surface. */
+.at-studio .at-primary,
+.at-dialog .at-primary {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: #1577bd;
+  background: #1577bd;
+}
+.at-studio .at-primary::before,
+.at-dialog .at-primary::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -8%;
+  top: 110%;
+  width: 116%;
+  height: 110%;
+  background: linear-gradient(155deg, #1879ba, #095b9c);
+  -webkit-mask: var(--liquid-wave-mask) 0 0 / 110% 100%;
+  mask: var(--liquid-wave-mask) 0 0 / 110% 100%;
+  transition: top .5s ease;
+  pointer-events: none;
+}
+.at-studio .at-primary:not(:disabled):hover::before,
+.at-dialog .at-primary:not(:disabled):hover::before { top: 0; }
+.at-dialog-overlay { z-index: 1100; }
+.at-credit-dialog {
+  position: relative;
+  width: 440px;
+  padding: 26px;
+  background: linear-gradient(155deg, #fff 60%, #edf7ff);
+  border-color: #cce4f6;
+}
+.at-credit-dialog > header { margin-bottom: 18px; }
+.at-credit-popup-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  color: #1577bd;
+  background: #e1f2fe;
+  box-shadow: inset 0 0 0 1px #cce7f9;
+}
+.at-credit-dialog p { color: #54778d; line-height: 1.65; }
+.at-credit-summary { margin: 22px 0; padding: 14px 0; border-block: 1px solid #dfebf4; }
+.at-credit-summary > div { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; }
+.at-credit-summary dt { font-size: 12px; color: #54778d; }
+.at-credit-summary dd { margin: 0; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.at-credit-popup-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.at-credit-popup-actions button { min-height: 42px; }
+@media (max-width: 480px) {
+  .at-credit-dialog { padding: 22px; }
+  .at-credit-popup-actions { display: grid; grid-template-columns: 1fr 1.5fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .at-studio .at-primary::before,
+  .at-dialog .at-primary::before { transition: none; }
 }
