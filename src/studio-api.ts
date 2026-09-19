@@ -32,6 +32,7 @@ export type StudioState = {
   lockedFields: Array<keyof StudioLaunch>;
 };
 export type StudioProject = {
+  active_job?: { id: string; status: string; progress?: string } | null;
   id: string;
   name: string;
   revision: number;

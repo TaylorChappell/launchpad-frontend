@@ -38,11 +38,13 @@ import {
   History,
   ImagePlus,
   LockKeyhole,
+  LoaderCircle,
   Monitor,
   MoreHorizontal,
   Github,
   Gauge,
   Plus,
+  Pencil,
   RefreshCw,
   Save,
   Send,
@@ -50,6 +52,9 @@ import {
   Trash2,
   Unlock,
   Upload,
+  Wallet,
+  ShieldCheck,
+  Waves,
   X,
 } from "lucide-react";
 import { useWallet } from "../context";
@@ -146,6 +151,12 @@ function StudioWorkspace() {
   const handledResults = useRef(new Set<string>());
   const autoApplyJobs = useRef(new Set<string>());
   const pendingSend = useRef<{projectId:string;revision:number;prompt:string;effort:typeof effort;quote:Quote;autoApply:boolean} | null>(null);
+  const [sending, setSending] = useState<{projectId:string;prompt:string} | null>(null);
+  const projectListVersion = useRef(0);
+  const projectsCurrent = useRef<Array<Omit<StudioProject, "state">>>([]);
+  const jobsVersion = useRef(0);
+  const jobsCurrent = useRef<StudioJob[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
   const autoApplyCurrent = useRef(autoApply);
   autoApplyCurrent.current = autoApply;
   useEffect(() => {
@@ -242,10 +253,15 @@ function StudioWorkspace() {
     mounted = useRef(true),
     workspaceSession = useRef(""),
     taskLock = useRef(false);
-  const dirty = Boolean(
+  const dirty = useMemo(() => Boolean(
     state && project && JSON.stringify(state) !== JSON.stringify(project.state),
-  );
+  ), [state, project]);
   const active = jobs.some((job) => ["queued", "running"].includes(job.status));
+  jobsCurrent.current = jobs;
+  projectsCurrent.current = projects;
+  const workingProject = projects.find(item => item.active_job) ?? (active ? project : null);
+  const generationBusy = Boolean(sending || workingProject);
+  const visibleSending = sending?.projectId === project?.id ? sending : null;
   const blankWebsite = Boolean(
     state?.files
       .find((file) => file.path === "frontend/index.html")
@@ -256,12 +272,12 @@ function StudioWorkspace() {
       top: messages.current.scrollHeight,
       behavior: "auto",
     });
-  }, [jobs.length, jobs[0]?.status, project?.id, workspaceOpen]);
+  }, [jobs.length, jobs[0]?.status, visibleSending, project?.id, workspaceOpen]);
   const file = state?.files.find((f) => f.path === selected),
     decimals = config?.decimals ?? null;
   const preview = useMemo(
-    () => (state ? studioPreview(state.files) : ""),
-    [state?.files],
+    () => (workspaceOpen && tab === "preview" && state ? studioPreview(state.files) : ""),
+    [state?.files, workspaceOpen, tab],
   );
   useEffect(() => {
     mounted.current = true;
@@ -326,9 +342,14 @@ function StudioWorkspace() {
     });
   }
   async function refreshProjects() {
+    const version = ++projectListVersion.current;
     const value =
       await request<Array<Omit<StudioProject, "state">>>("/projects");
-    if (mounted.current) setProjects(value);
+    if (mounted.current && version === projectListVersion.current) {
+      const finishedElsewhere = projectsCurrent.current.some(old => old.id !== projectId.current && old.active_job && !value.find(item => item.id === old.id)?.active_job);
+      setProjects(value);
+      if (finishedElsewhere) void refreshAccount().catch(() => {});
+    }
     return value;
   }
   function takeProject(value: StudioProject) {
@@ -336,13 +357,16 @@ function StudioWorkspace() {
     setProject(value);
     setState(value.state);
     setReview(null);
+    try { sessionStorage.setItem(`aqua:studio-project:${wallet.address}`, value.id); } catch { /* Selection still works without storage. */ }
   }
   async function openProject(id: string) {
-    const value = await request<StudioProject>(`/projects/${id}`);
+    jobsVersion.current++;
+    const [value, history] = await Promise.all([
+      request<StudioProject>(`/projects/${id}`),
+      request<StudioJob[]>(`/projects/${id}/jobs`),
+    ]);
     if (!mounted.current) return;
     takeProject(value);
-    setJobs([]);
-    const history = await request<StudioJob[]>(`/projects/${id}/jobs`);
     if (projectId.current === id) {
       // Historical results remain available to review, but do not reopen old popups.
       for (const job of history) if (job.status === "complete") handledResults.current.add(job.id);
@@ -392,13 +416,17 @@ function StudioWorkspace() {
           }
         }
       }
-      await refreshAccount();
+      // Account and GitHub availability must not delay the project workspace.
+      void refreshAccount().catch(fail);
+      const connection = refreshGithub().catch(fail);
       const list = await refreshProjects();
+      let lastProject = "";
+      try { lastProject = sessionStorage.getItem(`aqua:studio-project:${wallet.address}`) ?? ""; } catch { /* Use the latest project. */ }
       const selectedProject =
-        list.find((item) => item.id === returning?.projectId) ?? list[0];
+        list.find((item) => item.id === returning?.projectId) ?? list.find(item => item.id === lastProject) ?? list[0];
       if (selectedProject) await openProject(selectedProject.id);
-      await refreshGithub();
       if (!mounted.current || !result) return;
+      await connection;
       const returnToExport = returning?.modal === "export" && selectedProject;
       if (returnToExport && returning) {
         setRepo(
@@ -428,23 +456,45 @@ function StudioWorkspace() {
               ? "GitHub connection cancelled."
               : "GitHub could not connect. Try again.",
         );
-    });
+    }).finally(() => { if (mounted.current) setProjectsLoading(false); });
   }, [token, params, busy]);
   useEffect(() => {
-    if (!token || !project) return;
-    const id = project.id;
-    const poll = window.setInterval(() => {
-      void request<StudioJob[]>(`/projects/${id}/jobs`)
-        .then((rows) => {
-          if (mounted.current && projectId.current === id) {
+    if (!token) return;
+    const id = project?.id;
+    let disposed = false, polling = false;
+    const sync = async () => {
+      if (disposed || polling || document.hidden) return;
+      polling = true;
+      const version = jobsVersion.current;
+      try {
+        await Promise.all([
+          refreshProjects(),
+          id ? request<StudioJob[]>(`/projects/${id}/jobs`).then(rows => {
+            if (disposed || !mounted.current || projectId.current !== id || version !== jobsVersion.current) return;
+            const finished = jobsCurrent.current.some(old => ["queued", "running"].includes(old.status) && rows.some(row => row.id === old.id && ["complete", "failed"].includes(row.status)));
+            const retry = pendingSend.current;
+            if (retry?.projectId === id && rows.some(row => row.id === retry.quote.id)) {
+              pendingSend.current = null;
+              setPrompt(old => old === retry.prompt ? "" : old);
+            }
             setJobs(rows);
-            void refreshAccount().catch(() => {});
-          }
-        })
-        .catch(() => {});
-    }, 5000);
-    return () => clearInterval(poll);
-  }, [token, project?.id]);
+            if (finished) void refreshAccount().catch(() => {});
+          }) : Promise.resolve(),
+        ]);
+      } catch { /* A transient polling failure must not interrupt server-side work. */ }
+      finally { polling = false; }
+    };
+    const poll = window.setInterval(() => void sync(), generationBusy ? 3000 : 12000);
+    const resume = () => void sync();
+    window.addEventListener("focus", resume);
+    document.addEventListener("visibilitychange", resume);
+    return () => {
+      disposed = true;
+      clearInterval(poll);
+      window.removeEventListener("focus", resume);
+      document.removeEventListener("visibilitychange", resume);
+    };
+  }, [token, project?.id, generationBusy]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => {
@@ -532,14 +582,19 @@ function StudioWorkspace() {
     }));
   }
   async function sendMessage() {
-    if (!prompt.trim() || taskLock.current || active || review) return;
-    const sendingProject = project?.id;
+    if (!project || !prompt.trim() || taskLock.current || generationBusy || review) return;
+    const sendingProject = project.id;
     const selectedEffort = effort;
     const submittedPrompt = prompt;
+    // Render the user's message before configuration, saving, or billing requests.
+    setSending({ projectId: sendingProject, prompt: submittedPrompt });
+    setPrompt("");
+    let accepted = false;
     await task("Starting generation", async () => {
+      try {
       const retry = pendingSend.current;
       if (retry && retry.projectId === sendingProject && retry.revision === project?.revision && retry.prompt === submittedPrompt && retry.effort === selectedEffort && !dirty) {
-        await submitGeneration(retry);
+        accepted = await submitGeneration(retry);
         return;
       }
       const [latestConfig, latestAccount] = await Promise.all([
@@ -577,11 +632,19 @@ function StudioWorkspace() {
       }
       const submission = {projectId:saved.id,revision:saved.revision,prompt:submittedPrompt,effort:selectedEffort,quote:estimate,autoApply};
       pendingSend.current = submission;
-      await submitGeneration(submission);
+      accepted = await submitGeneration(submission);
+      } finally {
+        if (mounted.current) {
+          setSending(null);
+          if (!accepted && projectId.current === sendingProject) setPrompt(submittedPrompt);
+        }
+      }
     });
   }
   async function submitGeneration(submission: NonNullable<typeof pendingSend.current>) {
       const id = submission.projectId, estimate = submission.quote;
+      // Remember the user's choice even when the start response is lost.
+      if (submission.autoApply) autoApplyJobs.current.add(estimate.id);
       try {
         await request(`/projects/${id}/jobs`, { quoteId: estimate.id });
       } catch (reason) {
@@ -593,17 +656,30 @@ function StudioWorkspace() {
             balanceMicroUsd: current.balanceMicroUsd,
             requiredMicroUsd: estimate.maximumMicroUsd,
           });
-          return;
+          return false;
         }
         throw reason;
       }
       pendingSend.current = null;
-      if (submission.autoApply) autoApplyJobs.current.add(estimate.id);
-      if (!mounted.current || projectId.current !== id) return;
+      if (!mounted.current || projectId.current !== id) return true;
+      jobsVersion.current++;
+      projectListVersion.current++;
+      setProjects(old => old.map(item => item.id === id ? { ...item, active_job: {id: estimate.id, status: "queued"} } : item));
       setCreditGate(null);
       setPrompt("");
-      setJobs(await request(`/projects/${id}/jobs`));
-      await refreshAccount();
+      setJobs(old => old.some(job => job.id === estimate.id) ? old : [{
+        id: estimate.id, project_id: id, revision: submission.revision, prompt: submission.prompt,
+        kind: "auto", status: "queued", effort: submission.effort, credit_exempt: estimate.creditExempt,
+        charged_raw: "0", reserved_raw: "0", charged_micro_usd: null,
+        reserved_micro_usd: estimate.maximumMicroUsd, created_at: Date.now(),
+      }, ...old]);
+      const version = jobsVersion.current;
+      void request<StudioJob[]>(`/projects/${id}/jobs`).then(rows => {
+        if (mounted.current && projectId.current === id && version === jobsVersion.current) setJobs(rows);
+      }).catch(() => {});
+      void refreshAccount().catch(() => {});
+      void refreshProjects().catch(() => {});
+      return true;
   }
   async function reviewJob(job: StudioJob) {
     await task("Loading changes", async () =>
@@ -632,6 +708,7 @@ function StudioWorkspace() {
       }
       if (!mounted.current || projectId.current !== saved.id) return;
       takeProject(updated);
+      jobsVersion.current++;
       setJobs(old=>old.map(item=>item.id===job.id ? {...item,applied_at:Date.now()} : item));
       if (job.kind === "code" || job.kind === "image") {
         setWorkspaceOpen(true);
@@ -1139,6 +1216,7 @@ function StudioWorkspace() {
     </div>
   );
   const creditLabel = account.creditExempt ? "Admin · No credits needed" : `${usdCredit(account.balanceMicroUsd)} credit`;
+  const coinImage = state?.files.find(item => item.path === state.launch.imagePath && imageFile(item));
   const setupIssues =
     config && !config.paidEnabled
       ? (config.setup?.issues ?? [
@@ -1181,16 +1259,7 @@ function StudioWorkspace() {
                 <Plus size={15} />
               </button>
             </>
-          ) : (
-            <button
-              className="at-primary"
-              disabled={actionDisabled}
-              onClick={() => void signIn()}
-            >
-              {wallet.address ? "Sign in to AQUA" : "Connect wallet"}
-              <ArrowRight size={16} />
-            </button>
-          )}
+          ) : null}
         </div>
       </header>
       {pendingDeposit && modal !== "credit" && <div className="at-notice" role="status">
@@ -1211,21 +1280,35 @@ function StudioWorkspace() {
         </div>
       )}
       {!token ? (
-        <section className="at-welcome">
-          <div>
-            <h2>What’s your memecoin idea?</h2>
-            <p>
-              Work through your concept with Atlantis. Create the artwork and
-              website, then bring everything into your AQUA launch.
-            </p>
-            <button
-              className="at-primary"
-              disabled={actionDisabled}
-              onClick={() => void signIn()}
-            >
-              Enter the studio <ArrowRight size={17} />
+        <section className="at-entry">
+          <div className="at-entry-story">
+            <span className="at-entry-mark" aria-hidden="true"><Waves size={32} strokeWidth={1.5} /></span>
+            <span className="at-eyebrow">YOUR NEXT IDEA STARTS HERE</span>
+            <h2>Make a little <br />wave of your own.</h2>
+            <p>Turn a rough idea into a memecoin with its own story, artwork, and website.</p>
+            <div className="at-entry-features">
+              <span><ImagePlus size={17} /> Original artwork</span>
+              <span><Monitor size={17} /> Your own website</span>
+              <span><Github size={17} /> Code you can export</span>
+            </div>
+          </div>
+          <div className="at-entry-card">
+            <div className="at-entry-card-icon" aria-hidden="true">{wallet.address ? <ShieldCheck size={25} /> : <Wallet size={25} />}</div>
+            <h3>{wallet.address ? "One quick verification." : "Your studio awaits."}</h3>
+            <p>{wallet.address ? "Sign a message in your wallet to open your saved projects." : "Connect your Solana wallet to create a project or pick up where you left off."}</p>
+            <ol className="at-entry-steps" aria-label="Sign-in steps">
+              <li className={wallet.address ? "complete" : "current"} aria-current={!wallet.address ? "step" : undefined}>
+                <span>{wallet.address ? <Check size={14} /> : "1"}</span><div><strong>Connect wallet</strong><small>{wallet.address ? `${wallet.address.slice(0,6)}…${wallet.address.slice(-4)}` : "Choose Phantom or MetaMask"}</small></div>
+              </li>
+              <li className={wallet.address ? "current" : ""} aria-current={wallet.address ? "step" : undefined}>
+                <span>2</span><div><strong>Verify it’s you</strong><small>A signature to sign in. No transaction fee.</small></div>
+              </li>
+            </ol>
+            <button className="at-primary at-entry-continue" disabled={actionDisabled || Boolean(wallet.connecting)} onClick={() => void signIn()}>
+              {busy ? <><LoaderCircle size={17} className="at-spin" /> Check your wallet</> : <>{wallet.address ? "Verify & open studio" : "Connect wallet"}<ArrowRight size={17} /></>}
             </button>
-            <small>Sign in with your wallet · Pay for AI with AQUA</small>
+            {wallet.address && <button className="at-entry-change" disabled={actionDisabled} onClick={() => void task("Changing wallet", async () => { await wallet.disconnect(); wallet.setModalOpen(true); })}>Use a different wallet</button>}
+            <small className="at-entry-note"><LockKeyhole size={13} /> Your projects are linked to your wallet.</small>
           </div>
         </section>
       ) : (
@@ -1240,6 +1323,7 @@ function StudioWorkspace() {
               New project
             </button>
             <span className="at-sidebar-label">Projects</span>
+            {projectsLoading && !projects.length && <div className="at-projects-loading" role="status"><LoaderCircle size={15} className="at-spin" /> Loading projects</div>}
             <nav aria-label="Your projects">
               {projects.map((p) => (
                 <div className="at-project-row" key={p.id}>
@@ -1255,7 +1339,8 @@ function StudioWorkspace() {
                       })
                     }
                   >
-                    {p.name}
+                    <span className="at-project-label">{p.name}</span>
+                    {(p.active_job || (p.id === project?.id && active) || p.id === sending?.projectId) && <span className="at-project-activity" role="status" aria-label={`${p.name} is working`} title="Keeps working when you leave Studio"><LoaderCircle size={14} className="at-spin" aria-hidden="true" /></span>}
                   </button>
                   <button
                     className="at-project-more"
@@ -1369,7 +1454,7 @@ function StudioWorkspace() {
                 </option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name}
+                    {p.name}{p.active_job || (p.id === project?.id && active) || p.id === sending?.projectId ? " · Working" : ""}
                   </option>
                 ))}
               </select>
@@ -1461,6 +1546,7 @@ function StudioWorkspace() {
           )}
           {!project ? (
             <div className="at-empty">
+              {projectsLoading ? <div className="at-projects-loading" role="status"><LoaderCircle size={22} className="at-spin" /> Opening your studio</div> : <>
               <h2>What are you launching?</h2>
               <p>
                 Start a project to work on your memecoin’s name, artwork,
@@ -1473,6 +1559,7 @@ function StudioWorkspace() {
               >
                 Create a project <Plus size={16} />
               </button>
+              </>}
             </div>
           ) : (
             <div
@@ -1482,8 +1569,13 @@ function StudioWorkspace() {
                 <aside className="at-conversation">
                   <div className="at-panel-title">
                     <div>Atlantis</div>
-                    <small>{active ? "Working" : "Memecoin studio"}</small>
+                    <small>{active ? "Runs in the background" : "Memecoin studio"}</small>
                   </div>
+                  {workingProject && workingProject.id !== project.id && <div className="at-other-project" role="status">
+                    <LoaderCircle size={16} className="at-spin" aria-hidden="true" />
+                    <span><strong>{workingProject.name}</strong> is working. One project can run at a time.</span>
+                    <button disabled={actionDisabled} onClick={() => void task("Opening project", async () => { await save(); await openProject(workingProject.id); })}>View <ArrowRight size={14} /></button>
+                  </div>}
                   <div className="at-messages" ref={messages}>
                     {setupIssues.length > 0 && (
                       <StudioSetupCard
@@ -1492,7 +1584,7 @@ function StudioWorkspace() {
                         onRetry={() => void checkStudioSetup()}
                       />
                     )}
-                    {!jobs.length && setupIssues.length === 0 && (
+                    {!jobs.length && !visibleSending && setupIssues.length === 0 && (
                       <div className="at-intro-message">
                         <h3>What’s your memecoin idea?</h3>
                         <p>
@@ -1543,15 +1635,15 @@ function StudioWorkspace() {
                           ) : job.status === "failed" ? (
                             <p className="at-failed">{job.error}</p>
                           ) : (
-                            <p className="at-working">
-                              {job.status === "queued"
-                                ? "Waiting to start…"
-                                : (job.progress ?? "Working on your project…")}
-                            </p>
+                            <StudioWorking label={job.status === "queued" ? "Queued" : (job.progress ?? "Thinking")} />
                           )}
                         </div>
                       </article>
                     ))}
+                    {visibleSending && <article className="at-message at-pending-message">
+                      <div className="at-user-message">{visibleSending.prompt}</div>
+                      <div className="at-answer"><span className="at-eyebrow">ATLANTIS</span><StudioWorking label="Sending your message" /></div>
+                    </article>}
                   </div>
                   <div className="at-composer-area">
                   <div className="at-compose">
@@ -1582,7 +1674,7 @@ function StudioWorkspace() {
                         <div className="at-compose-settings">
                           <label className="at-effort-picker" title={effortDetails}>
                             <Gauge className="at-effort-icon" size={14} aria-hidden="true" />
-                            <select aria-label="AI effort" aria-description={effortDetails} value={effort} disabled={actionDisabled || active} onChange={e=>{setEffort(e.target.value as typeof effort);setCreditGate(null);}}>
+                            <select aria-label="AI effort" aria-description={effortDetails} value={effort} disabled={actionDisabled || generationBusy} onChange={e=>{setEffort(e.target.value as typeof effort);setCreditGate(null);}}>
                               <option value="low">Low</option>
                               <option value="medium">Medium</option>
                               <option value="high">High</option>
@@ -1601,7 +1693,7 @@ function StudioWorkspace() {
                           disabled={
                             !prompt.trim() ||
                             actionDisabled ||
-                            active
+                            generationBusy
                           }
                           onClick={() => void sendMessage()}
                         >
@@ -1609,8 +1701,8 @@ function StudioWorkspace() {
                         </button>
                       </div>
                   </div>
-                  {(active || !account.creditExempt) && <div className="at-composer-hint">
-                    <span>{active ? "Atlantis is working…" : "Uses credits · Actual usage only"}</span>
+                  {!account.creditExempt && <div className="at-composer-hint">
+                    <span>Uses credits · Actual usage only</span>
                   </div>}
                   </div>
                 </aside>
@@ -1693,6 +1785,12 @@ function StudioWorkspace() {
                           Everything stays editable until you review and sign
                           your launch.
                         </p>
+                      </div>
+                      <div className="at-coin-identity">
+                        <div className="at-coin-icon">{coinImage ? <img src={studioAssetUrl(coinImage)} alt={`${state.launch.name || "Your coin"} icon`} /> : <ImagePlus size={28} aria-hidden="true" />}</div>
+                        <div><strong>{state.launch.name || "Your coin"}</strong><small>{state.launch.symbol ? `$${state.launch.symbol}` : "Add your coin name and ticker below"}</small>
+                          <button onClick={() => { setTab("assets"); setWorkspaceOpen(true); }}><ImagePlus size={14} /> {coinImage ? "Change icon" : "Choose coin icon"}</button>
+                        </div>
                       </div>
                       <label className="at-field">
                         Project name
@@ -2117,14 +2215,15 @@ function StudioWorkspace() {
             autoFocus
             onClick={() => projectAction("renameproject")}
           >
-            Rename project
+            <Pencil size={15} aria-hidden="true" /> Rename project
           </button>
           <button
             role="menuitem"
-            className="at-danger-link"
+            className="at-project-delete"
+            disabled={Boolean(projects.find(item => item.id === projectMenu.project.id)?.active_job) || (projectMenu.project.id === project?.id && active)}
             onClick={() => projectAction("remove")}
           >
-            Delete project
+            <Trash2 size={15} aria-hidden="true" /> Delete project
           </button>
         </div>
       )}
@@ -2564,11 +2663,11 @@ function StudioWorkspace() {
               <button
                 className="at-danger"
                 disabled={
-                  actionDisabled || (modalProject?.id === project?.id && active)
+                  actionDisabled || Boolean(projects.find(item => item.id === modalProject?.id)?.active_job) || (modalProject?.id === project?.id && active)
                 }
                 onClick={() => void submitModal()}
               >
-                Delete project
+                <Trash2 size={16} /> Delete project
               </button>
             </>
           ) : (
@@ -2614,6 +2713,12 @@ function StudioWorkspace() {
       )}
     </main>
   );
+}
+function StudioWorking({label}: {label: string}) {
+  return <div className="at-thinking" role="status" aria-live="polite">
+    <span className="at-thinking-dots" aria-hidden="true"><i /><i /><i /></span>
+    <span>{label}</span>
+  </div>;
 }
 function StudioSetupCard({
   issues,

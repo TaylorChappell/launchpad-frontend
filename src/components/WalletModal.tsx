@@ -1,10 +1,13 @@
-import { ExternalLink, X } from "lucide-react";
+import { ArrowRight, ExternalLink, LoaderCircle, LockKeyhole, Waves, X } from "lucide-react";
 import { WalletMetamask, WalletPhantom } from "@web3icons/react";
 import { useEffect, useState } from "react";
 import { useWallet } from "../context";
+import { useLocation } from "react-router-dom";
+import "./wallet-picker.css";
 
 export function WalletModal() {
   const wallet = useWallet();
+  const studio = useLocation().pathname === "/studio";
   const [mounted, setMounted] = useState(wallet.modalOpen);
   const [closing, setClosing] = useState(false);
 
@@ -36,15 +39,17 @@ export function WalletModal() {
   return <div className={`wallet-overlay wallet-connect-overlay ${closing ? "closing" : ""}`} role="presentation" onMouseDown={() => wallet.setModalOpen(false)}>
     <div className="wallet-transition-wave" aria-hidden="true"/>
     <div className="wallet-transition-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
-    <section className="wallet-modal" role="dialog" aria-modal="true" aria-labelledby="wallet-title" onMouseDown={(event) => event.stopPropagation()}>
+    <section className="wallet-modal aqua-wallet-picker" role="dialog" aria-modal="true" aria-labelledby="wallet-title" aria-describedby="wallet-description" onMouseDown={(event) => event.stopPropagation()}>
       <button className="modal-close" onClick={() => wallet.setModalOpen(false)} aria-label="Close wallet dialog"><X size={17}/></button>
-      <h2 id="wallet-title">Connect to AQUA</h2>
-      <p className="wallet-copy">Choose a wallet to explore rewards, check eligibility, or sign a transaction. AQUA cannot move funds without your approval.</p>
+      <div className="wallet-picker-mark" aria-hidden="true"><Waves size={27} strokeWidth={1.5}/></div>
+      <h2 id="wallet-title">Connect your wallet</h2>
+      <p className="wallet-copy" id="wallet-description">{studio ? "Your wallet is the key to your studio. Choose one to get started." : "Choose a Solana wallet to continue to AQUA."}</p>
       <div className="wallet-list">
         <WalletRow kind="phantom" name="Phantom" status={wallet.phantomInstalled ? "Detected" : "Install required"} action={wallet.phantomInstalled ? "Connect" : "Get"} icon={<span className="wallet-logo"><WalletPhantom variant="background" size={30}/></span>}/>
         <WalletRow kind="metamask" name="MetaMask" status="Solana account" icon={<span className="wallet-logo"><WalletMetamask variant="background" size={30}/></span>}/>
       </div>
       {!wallet.phantomInstalled && <p className="wallet-note">Need Phantom? <a href="https://phantom.com/download" target="_blank" rel="noreferrer">Install Phantom <ExternalLink size={11}/></a></p>}
+      <div className="wallet-picker-note"><LockKeyhole size={14}/><span>{studio ? "Next, sign a message to verify it’s you." : "You approve every transaction in your wallet."}</span></div>
     </section>
   </div>;
 }
@@ -52,6 +57,6 @@ export function WalletModal() {
 function WalletRow({ kind, name, status, icon, action="Connect" }: { kind: "phantom" | "metamask"; name: string; status: string; icon: React.ReactNode; action?: string }) {
   const wallet = useWallet();
   return <button className="wallet-row" disabled={Boolean(wallet.connecting)} onClick={() => void wallet.connect(kind)}>
-    {icon}<span className="wallet-name"><strong>{name}</strong><small>{status}</small></span><span className="wallet-connect">{wallet.connecting === kind ? "Connecting…" : action}</span>
+    {icon}<span className="wallet-name"><strong>{name}</strong><small>{status}</small></span><span className="wallet-connect">{wallet.connecting === kind ? <><LoaderCircle size={15} className="wallet-picker-spin"/>Connecting</> : <>{action}<ArrowRight size={15}/></>}</span>
   </button>;
 }

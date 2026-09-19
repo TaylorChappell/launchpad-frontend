@@ -1,0 +1,29 @@
+.wallet-connect-overlay .wallet-modal.aqua-wallet-picker {
+  width: min(420px, 100%);
+  padding: 32px;
+  border: 1px solid #cce5ef;
+  border-radius: 22px;
+  background: linear-gradient(160deg, #fff 60%, #f1faff);
+  box-shadow: 0 24px 90px #184d6b26;
+}
+.wallet-modal.aqua-wallet-picker::after { display: none; }
+.aqua-wallet-picker .wallet-picker-mark { display: grid; place-items: center; width: 54px; height: 54px; margin-bottom: 24px; border-radius: 17px; border: 1px solid #c5e6f0; background: #e8f7fc; color: #168bb4; }
+.aqua-wallet-picker h2 { font-size: 24px; font-weight: 600; letter-spacing: -.7px; line-height: 1.2; }
+.aqua-wallet-picker .wallet-copy { margin: 12px 0 24px; font-size: 13px; line-height: 1.75; color: #6b8798; }
+.aqua-wallet-picker .wallet-list { gap: 10px; }
+.aqua-wallet-picker .wallet-row { min-height: 76px; gap: 12px; padding: 16px; border-radius: 12px; border-color: #d9e8ef; background: white; box-shadow: none; }
+.aqua-wallet-picker .wallet-row::before { display: none; }
+.aqua-wallet-picker .wallet-row:hover { border-color: #96cfe2; background: #f6fcff; transform: none; }
+.aqua-wallet-picker .wallet-row:focus-visible { outline: 2px solid #168bb4; outline-offset: 3px; }
+.aqua-wallet-picker .wallet-name strong { font-size: 14px; }
+.aqua-wallet-picker .wallet-name small { font-size: 11px; margin-top: 4px; }
+.aqua-wallet-picker .wallet-connect { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; }
+.wallet-picker-note { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 24px; font-size: 11px; line-height: 1.6; color: #7c96a4; }
+.wallet-picker-note svg { flex: 0 0 auto; }
+.wallet-picker-spin { animation: wallet-picker-spin 1s linear infinite; }
+@keyframes wallet-picker-spin { to { transform: rotate(360deg); } }
+@media (max-width: 420px) {
+  .wallet-connect-overlay .wallet-modal.aqua-wallet-picker { padding: 26px 20px; }
+  .aqua-wallet-picker .wallet-row { padding: 14px 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .wallet-picker-spin { animation: none; } }
