@@ -1,5 +1,4 @@
 import {
-  lazy,
   Suspense,
   useEffect,
   useLayoutEffect,
@@ -79,7 +78,7 @@ import {
 import { studioPreview } from "../studio-preview";
 import { studioChangeList } from "../studio-changes";
 import type { TransactionEnvelope } from "../types";
-import "./studio.css";
+import { lazyWithRecovery as lazy } from "../components/LazyRecovery";
 const Editor = lazy(() => import("../components/StudioEditor"));
 type Account = {
   balanceMicroUsd: string;
@@ -580,11 +579,12 @@ function StudioWorkspace() {
         : [...old.lockedFields, key],
     }));
   }
-  async function sendMessage() {
-    if (!project || !prompt.trim() || taskLock.current || generationBusy || review) return;
+  async function sendMessage(retryMessage?: {prompt: string; effort?: typeof effort}) {
+    const submittedPrompt = retryMessage?.prompt ?? prompt;
+    if (!project || !submittedPrompt.trim() || taskLock.current || generationBusy || review) return;
     const sendingProject = project.id;
-    const selectedEffort = effort;
-    const submittedPrompt = prompt;
+    const selectedEffort = retryMessage?.effort ?? effort;
+    if (retryMessage?.effort) setEffort(retryMessage.effort);
     // Render the user's message before configuration, saving, or billing requests.
     setSending({ projectId: sendingProject, prompt: submittedPrompt });
     setPrompt("");
@@ -1631,9 +1631,9 @@ function StudioWorkspace() {
                               </div>
                             </>
                           ) : job.status === "failed" ? (
-                            <p className="at-failed">{job.error}</p>
+                            <><p className="at-failed">{job.error}</p><div className="at-message-actions"><button disabled={actionDisabled || generationBusy || Boolean(review) || Boolean(prompt.trim())} title={prompt.trim() ? "Send or clear your current draft before retrying" : "Retry this prompt with the same effort"} onClick={() => void sendMessage({prompt:job.prompt,effort:job.effort})}><RefreshCw size={13} /> Retry request</button></div></>
                           ) : (
-                            <StudioWorking label={job.status === "queued" ? "Queued" : (job.progress ?? "Thinking")} />
+                            <StudioWorking label={job.progress ?? (job.status === "queued" ? "Queued" : "Thinking")} />
                           )}
                         </div>
                       </article>
