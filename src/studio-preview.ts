@@ -73,13 +73,20 @@ export function studioPreview(
   const policy = doc.createElement("meta");
   policy.httpEquiv = "Content-Security-Policy";
   policy.content =
-    "default-src 'none'; script-src 'unsafe-inline' data: blob:; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none';";
+    "default-src 'none'; script-src 'unsafe-inline' data: blob:; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; form-action 'none'; base-uri about:;";
   if (options) {
     const bridge = doc.createElement("script");
     const config = JSON.stringify({channel:options.channel,location:options.location,storage:options.storage}).replace(/</g,"\\u003c");
     bridge.textContent = `(${studioPreviewBridge.toString()})(${config});`;
     doc.head.prepend(bridge);
   }
+  // srcdoc otherwise inherits AQUA's URL as its base. A native #section link
+  // then loads AQUA inside the sandbox and appears blank if the click bridge
+  // is unavailable or a page handler stops propagation. Keep native fragments
+  // in this document too, without rewriting authored hrefs or their selectors.
+  const base = doc.createElement("base");
+  base.href = "about:srcdoc";
+  doc.head.prepend(base);
   doc.head.prepend(policy);
   return "<!doctype html>" + doc.documentElement.outerHTML;
 }
