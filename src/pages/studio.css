@@ -2823,3 +2823,13 @@
   .at-studio .at-primary::before,
   .at-dialog .at-primary::before { transition: none; }
 }
+.at-export-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.at-export-actions > button { flex: 1; min-width: 170px; justify-content: center; }
+.at-export-setup { margin: 18px 0; padding: 14px 16px; border: 1px solid #cbe3ed; border-radius: 12px; background: #f7fcfe; }
+.at-export-setup summary, .at-railway-export summary { cursor: pointer; font-weight: 600; }
+.at-export-setup .at-chat-copy { margin-top: 12px; }
+.at-railway-export { display: grid; gap: 14px; }
+.at-railway-export textarea { width: 100%; resize: vertical; }
+.at-export-connection { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0; }
+.at-export-connection > span { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.at-dialog .at-field select { width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid #c5dfe9; border-radius: 8px; color: #24536b; background: white; font: inherit; }

@@ -8,6 +8,7 @@ export type GithubConnection = {
 };
 export type GithubExport = {
   id: string;
+  target?: "frontend" | "backend" | "all";
   name: string;
   private: boolean;
   status: string;

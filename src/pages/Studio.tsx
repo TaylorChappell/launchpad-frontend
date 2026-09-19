@@ -206,6 +206,14 @@ function StudioWorkspace() {
     [github, setGithub] = useState<GithubConnection | null>(null),
     [githubExports, setGithubExports] = useState<GithubExport[]>([]),
     [exportUrl, setExportUrl] = useState("");
+  const [railwayToken, setRailwayToken] = useState("");
+  const [railwayExportId, setRailwayExportId] = useState("");
+  const [railwayOrigin, setRailwayOrigin] = useState("");
+  const [railwayVariables, setRailwayVariables] = useState("");
+  const [railwayUrl, setRailwayUrl] = useState("");
+  useEffect(() => {
+    setRailwayToken(""); setRailwayVariables(""); setRailwayExportId(""); setRailwayUrl("");
+  }, [project?.id, modal]);
   const [modalProject, setModalProject] = useState<Omit<
     StudioProject,
     "state"
@@ -989,12 +997,12 @@ function StudioWorkspace() {
       }
     });
   }
-  async function exportZip() {
+  async function exportZip(target: "frontend" | "backend") {
     await task("Preparing ZIP", async () => {
       const saved = await save();
       if (!saved) return;
       const response = await fetch(
-        `${API_URL}/studio/projects/${saved.id}/zip`,
+        `${API_URL}/studio/projects/${saved.id}/zip?target=${target}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!response.ok)
@@ -1002,23 +1010,25 @@ function StudioWorkspace() {
       const url = URL.createObjectURL(await response.blob()),
         a = document.createElement("a");
       a.href = url;
-      a.download = `${saved.name.replace(/[^a-zA-Z0-9_-]/g, "-")}.zip`;
+      a.download = `${saved.name.replace(/[^a-zA-Z0-9_-]/g, "-")}-${target}.zip`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     });
   }
-  async function exportGithub(resume?: GithubExport) {
+  async function exportGithub(target: "frontend" | "backend" | "all", resume?: GithubExport) {
     await task("Exporting to GitHub", async () => {
       let id = project?.id;
       try {
         const saved = await save();
         if (!saved) return;
         id = saved.id;
-        const storageKey = `aqua:github-export:${wallet.address}:${id}`;
+        const storageKey = `aqua:github-export:${wallet.address}:${id}:${target}`;
+        const name = `${repo.trim()}${target === "all" ? "" : `-${target}`}`;
         let pending: {
           requestId: string;
           name: string;
           private: boolean;
+          target: "frontend" | "backend" | "all";
         } | null = null;
         try {
           pending = JSON.parse(localStorage.getItem(storageKey) ?? "null");
@@ -1026,13 +1036,14 @@ function StudioWorkspace() {
           /* A new intent will be created. */
         }
         const input = resume
-          ? { requestId: resume.id, name: resume.name, private: resume.private }
-          : pending?.name === repo.trim() && pending.private === privateRepo
+          ? { requestId: resume.id, name: resume.name, private: resume.private, target }
+          : pending?.name === name && pending.private === privateRepo && pending.target === target
             ? pending
             : {
                 requestId: crypto.randomUUID(),
-                name: repo.trim(),
+                name,
                 private: privateRepo,
+                target,
               };
         localStorage.setItem(storageKey, JSON.stringify(input));
         const result = await request<{ url: string }>(
@@ -1049,6 +1060,29 @@ function StudioWorkspace() {
             ),
           );
       }
+    });
+  }
+  async function sendToRailway() {
+    await task("Exporting backend to Railway", async () => {
+      if (!project) return;
+      let origin: URL;
+      try { origin = new URL(railwayOrigin.trim()); } catch { throw new Error("Enter your deployed frontend origin, such as https://your-user.github.io."); }
+      if (origin.protocol !== "https:" || origin.username || origin.password || origin.pathname !== "/" || origin.search || origin.hash)
+        throw new Error("Use the frontend HTTPS origin only, without a page path or repository name.");
+      const variables: Record<string,string> = { FRONTEND_ORIGIN:origin.origin };
+      for (const line of railwayVariables.split(/\r?\n/)) {
+        if (!line.trim() || line.trim().startsWith("#")) continue;
+        const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+        if (!match) throw new Error("Use KEY=value on each line for additional variables.");
+        const value = match[2].trim();
+        if (match[1] === "FRONTEND_ORIGIN" || match[1] === "PORT") throw new Error("Set the frontend origin above. Railway supplies PORT automatically.");
+        variables[match[1]] = /^(["']).*\1$/.test(value) ? value.slice(1,-1) : value;
+      }
+      const selected = railwayExportId || githubExports.find(item => item.target === "backend" && item.status === "complete")?.id;
+      if (!selected) throw new Error("Export the backend to GitHub first.");
+      const result = await request<{url:string}>(`/projects/${project.id}/railway`, {exportId:selected,token:railwayToken.trim(),variables});
+      setRailwayUrl(result.url); setRailwayToken(""); setRailwayVariables("");
+      setNotice("Backend sent to Railway. Open the project to check deployment logs and generate a public domain, then set that URL in frontend/config.js.");
     });
   }
   const actionDisabled = Boolean(busy);
@@ -2315,32 +2349,36 @@ function StudioWorkspace() {
           ) : modal === "export" ? (
             <>
               <p>
-                Your project contains a static frontend for GitHub Pages, a Node
-                backend for Railway, and deployment instructions. The included
-                Pages workflow is run manually from your GitHub account.
+                Export your website and API as separate projects. Each download
+                includes its own setup guide and deploys from the repository root.
               </p>
-              <button
-                className="at-primary"
-                disabled={actionDisabled}
-                onClick={() => void exportZip()}
-              >
-                <Download size={16} />
-                Download ZIP
-              </button>
+              <div className="at-export-actions">
+                <button disabled={actionDisabled} onClick={() => void exportZip("frontend")}><Download size={16} /> Frontend ZIP</button>
+                <button disabled={actionDisabled} onClick={() => void exportZip("backend")}><Download size={16} /> Backend ZIP</button>
+              </div>
+              <details className="at-export-setup">
+                <summary>Backend setup and environment variables</summary>
+                <StudioMessage text={state?.files.find(file => file.path === "backend/README.md")?.content ?? "Open backend/.env.example for your project's variables. Set FRONTEND_ORIGIN to your frontend HTTPS origin. Railway supplies PORT. Ask Atlantis to update this older project's backend setup guide for any additional variables."} />
+              </details>
               <hr />
               <h3>Export to GitHub</h3>
-              {githubControls}
+              {github?.connected ? (
+                <div className="at-export-connection">
+                  <span><Github size={18} /> Connected as <strong>{github.login}</strong></span>
+                  <button disabled={actionDisabled} onClick={() => void disconnectGithub()}>Disconnect</button>
+                </div>
+              ) : githubControls}
               {github?.connected && (
                 <>
                   <p className="at-muted">
-                    Create a new repository containing your frontend, backend
-                    and deployment files.
+                    Create one repository for each component. Exporting to GitHub
+                    saves the files; publishing the frontend is a separate step.
                   </p>
                   <label className="at-field">
-                    Repository name
+                    Project name
                     <input
                       placeholder="my-memecoin"
-                      maxLength={100}
+                      maxLength={90}
                       value={repo}
                       onChange={(e) => setRepo(e.target.value)}
                     />
@@ -2362,18 +2400,14 @@ function StudioWorkspace() {
                       ? "Only you and people you grant access can see this repository. GitHub Pages from a private repository may require a paid GitHub plan."
                       : "Anyone will be able to view the exported files. Public repositories can use GitHub Pages on GitHub Free."}
                   </p>
-                  <button
-                    className="at-primary"
-                    disabled={
-                      actionDisabled ||
-                      !repo.trim() ||
-                      githubExports.some((item) => item.status === "running")
-                    }
-                    onClick={() => void exportGithub()}
-                  >
-                    <Github size={16} />
-                    Create new repository
-                  </button>
+                  <p className="at-muted">{repo || "my-memecoin"}-frontend · {repo || "my-memecoin"}-backend</p>
+                  <div className="at-export-actions">
+                    {(["frontend","backend"] as const).map(target => (
+                      <button key={target} disabled={actionDisabled || !repo.trim() || githubExports.some(item => item.status === "running")} onClick={() => void exportGithub(target)}>
+                        <Github size={16} /> Export {target}
+                      </button>
+                    ))}
+                  </div>
                   {githubExports.length > 0 && (
                     <div className="at-github-exports">
                       {githubExports.map((item) => (
@@ -2391,7 +2425,7 @@ function StudioWorkspace() {
                           {item.status === "failed" ? (
                             <button
                               disabled={actionDisabled}
-                              onClick={() => void exportGithub(item)}
+                              onClick={() => void exportGithub(item.target ?? "all", item)}
                             >
                               Resume export
                             </button>
@@ -2436,6 +2470,34 @@ function StudioWorkspace() {
                   Open your GitHub export ↗
                 </a>
               )}
+              <hr />
+              <h3>Send backend to Railway</h3>
+              <p className="at-muted">Create a service in an existing Railway project's production environment. Railway must have GitHub access to your backend repository. Hosting uses your Railway plan.</p>
+              {githubExports.some(item => item.target === "backend" && item.status === "complete") ? (
+                <div className="at-railway-export">
+                  <label className="at-field">Backend repository
+                    <select value={railwayExportId || githubExports.find(item => item.target === "backend" && item.status === "complete")?.id || ""} onChange={e => setRailwayExportId(e.target.value)}>
+                      {githubExports.filter(item => item.target === "backend" && item.status === "complete").map(item => <option key={item.id} value={item.id}>{item.full_name}</option>)}
+                    </select>
+                  </label>
+                  <label className="at-field">Railway production project token
+                    <input type="password" autoComplete="off" value={railwayToken} onChange={e => setRailwayToken(e.target.value)} placeholder="From Railway project Settings → Tokens" />
+                  </label>
+                  <p className="at-muted">Choose the production environment when creating this token. It is used for this request and is never saved by AQUA. <a href="https://docs.railway.com/integrations/api#project-token" target="_blank" rel="noreferrer">Token instructions ↗</a></p>
+                  <label className="at-field">Frontend origin
+                    <input type="url" value={railwayOrigin} onChange={e => setRailwayOrigin(e.target.value)} placeholder="https://your-user.github.io" />
+                  </label>
+                  <details>
+                    <summary>Additional backend variables</summary>
+                    <p className="at-muted">Use the selected backend repository's README and .env.example. Enter any required custom variables here. PORT is automatic.</p>
+                    <label className="at-field">One KEY=value per line
+                      <textarea rows={4} value={railwayVariables} onChange={e => setRailwayVariables(e.target.value)} autoComplete="off" spellCheck={false} />
+                    </label>
+                  </details>
+                  <button className="at-primary" disabled={actionDisabled || !railwayToken.trim() || !railwayOrigin.trim()} onClick={() => void sendToRailway()}>Export backend to Railway <ArrowRight size={16} /></button>
+                  {railwayUrl && <a href={railwayUrl} target="_blank" rel="noreferrer">Open Railway project ↗</a>}
+                </div>
+              ) : <p className="at-muted">Export your backend to GitHub above to enable direct Railway export. You can also deploy the backend ZIP using the included setup guide.</p>}
             </>
           ) : modal === "history" ? (
             <>
