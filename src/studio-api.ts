@@ -58,7 +58,17 @@ export type StudioJob = {
   };
 };
 export type StudioConfig = {
+  enabled: boolean;
   paidEnabled: boolean;
+  setup: {
+    ready: boolean;
+    issues: Array<{
+      code: string;
+      title: string;
+      detail: string;
+      variables: string[];
+    }>;
+  };
   decimals: number | null;
   mint: string;
   rawPerUsd: string;

@@ -25,8 +25,10 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  CircleAlert,
   Code2,
   Download,
+  Droplets,
   FilePlus2,
   FolderPlus,
   History,
@@ -36,6 +38,7 @@ import {
   MoreHorizontal,
   Github,
   Plus,
+  RefreshCw,
   Save,
   Send,
   Smartphone,
@@ -80,6 +83,10 @@ type Quote = {
   maximumRaw: string;
   expiresAt: number;
   pricing: string;
+};
+type CreditGate = {
+  balanceRaw: string;
+  requiredRaw?: string;
 };
 type Version = {
   id: string;
@@ -134,7 +141,8 @@ function StudioWorkspace() {
   const messages = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState("frontend/index.html"),
     [prompt, setPrompt] = useState(""),
-    [quote, setQuote] = useState<Quote | null>(null);
+    [quote, setQuote] = useState<Quote | null>(null),
+    [creditGate, setCreditGate] = useState<CreditGate | null>(null);
   const [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -229,6 +237,19 @@ function StudioWorkspace() {
   async function refreshAccount() {
     const value = await request<Account>("/account");
     if (mounted.current) setAccount(value);
+    return value;
+  }
+  async function checkStudioSetup() {
+    await task("Checking AI setup", async () => {
+      const [latestConfig] = await Promise.all([
+        studioRequest<StudioConfig>("/config"),
+        token ? refreshAccount() : Promise.resolve(account),
+      ]);
+      if (!mounted.current) return;
+      setConfig(latestConfig);
+      if (latestConfig.paidEnabled)
+        setNotice("Studio AI and AQUA payments are ready.");
+    });
   }
   async function refreshProjects() {
     const value =
@@ -438,27 +459,44 @@ function StudioWorkspace() {
   }
   async function generateQuote() {
     await task("Estimating", async () => {
-      const latestConfig = await studioRequest<StudioConfig>("/config");
+      const [latestConfig, latestAccount] = await Promise.all([
+        studioRequest<StudioConfig>("/config"),
+        refreshAccount(),
+      ]);
       if (!mounted.current) return;
       setConfig(latestConfig);
-      if (!latestConfig.paidEnabled)
-        throw new Error(
-          "AI generation is currently unavailable. Studio's AI and AQUA payment setup must be completed before messages can run.",
-        );
+      if (!latestConfig.paidEnabled) {
+        setQuote(null);
+        setCreditGate(null);
+        setError("AI setup is incomplete. The exact missing settings are listed below.");
+        return;
+      }
+      if (BigInt(latestAccount.balanceRaw) <= 0n) {
+        setQuote(null);
+        setCreditGate({ balanceRaw: latestAccount.balanceRaw });
+        return;
+      }
       const saved = await save();
-      if (saved)
-        setQuote(
-          await request<Quote>(`/projects/${saved.id}/quote`, {
-            prompt,
-            kind: "auto",
-            revision: saved.revision,
-          }),
-        );
+      if (!saved) return;
+      const estimate = await request<Quote>(`/projects/${saved.id}/quote`, {
+        prompt,
+        kind: "auto",
+        revision: saved.revision,
+      });
+      setQuote(estimate);
+      setCreditGate(
+        BigInt(latestAccount.balanceRaw) < BigInt(estimate.maximumRaw)
+          ? {
+              balanceRaw: latestAccount.balanceRaw,
+              requiredRaw: estimate.maximumRaw,
+            }
+          : null,
+      );
     });
   }
   async function sendMessage() {
     if (!prompt.trim() || taskLock.current || active) return;
-    if (quote && quote.expiresAt > Date.now()) await generate();
+    if (quote && !creditGate && quote.expiresAt > Date.now()) await generate();
     else {
       setQuote(null);
       await generateQuote();
@@ -467,9 +505,30 @@ function StudioWorkspace() {
   async function generate() {
     if (!quote || !project) return;
     await task("Starting generation", async () => {
+      const latestAccount = await refreshAccount();
+      if (BigInt(latestAccount.balanceRaw) < BigInt(quote.maximumRaw)) {
+        setCreditGate({
+          balanceRaw: latestAccount.balanceRaw,
+          requiredRaw: quote.maximumRaw,
+        });
+        return;
+      }
       const id = project.id;
-      await request(`/projects/${id}/jobs`, { quoteId: quote.id });
+      try {
+        await request(`/projects/${id}/jobs`, { quoteId: quote.id });
+      } catch (reason) {
+        if (reason instanceof StudioApiError && reason.status === 402) {
+          const current = await refreshAccount();
+          setCreditGate({
+            balanceRaw: current.balanceRaw,
+            requiredRaw: quote.maximumRaw,
+          });
+          return;
+        }
+        throw reason;
+      }
       setQuote(null);
+      setCreditGate(null);
       setPrompt("");
       setJobs(await request(`/projects/${id}/jobs`));
       await refreshAccount();
@@ -742,6 +801,11 @@ function StudioWorkspace() {
       setModal(null);
     });
   }
+  function openCredit() {
+    setInput("");
+    setError("");
+    setModal("credit");
+  }
   function keepDeposit(value: { id: string; signature: string } | null) {
     setPendingDeposit(value);
     if (value)
@@ -757,6 +821,8 @@ function StudioWorkspace() {
     });
     keepDeposit(null);
     await refreshAccount();
+    setCreditGate(null);
+    setModal(null);
     setNotice("Your AQUA credit is ready.");
   }
   async function topUp() {
@@ -886,6 +952,22 @@ function StudioWorkspace() {
     decimals === null
       ? "AQUA credit"
       : `${aquaAmount(account.balanceRaw, decimals)} AQUA`;
+  const setupIssues =
+    config && !config.paidEnabled
+      ? (config.setup?.issues ?? [
+          {
+            code: "configuration_unavailable",
+            title: "AI payment setup is incomplete",
+            detail: "Deploy the latest backend to see the exact missing settings.",
+            variables: [] as string[],
+          },
+        ])
+      : [];
+  const creditShortfall =
+    creditGate?.requiredRaw &&
+    BigInt(creditGate.requiredRaw) > BigInt(creditGate.balanceRaw)
+      ? (BigInt(creditGate.requiredRaw) - BigInt(creditGate.balanceRaw)).toString()
+      : null;
   return (
     <main className="at-studio">
       <header className="at-heading">
@@ -906,7 +988,7 @@ function StudioWorkspace() {
                 <Github size={16} />
                 GitHub
               </button>
-              <button className="at-credit" onClick={() => openModal("credit")}>
+              <button className="at-credit" onClick={openCredit}>
                 {creditLabel}
                 <Plus size={15} />
               </button>
@@ -1008,6 +1090,7 @@ function StudioWorkspace() {
                       setWorkspaceOpen(false);
                     }}
                   >
+                    <Send size={15} />
                     Chat with Atlantis
                   </button>
                   {(
@@ -1028,12 +1111,39 @@ function StudioWorkspace() {
                         setWorkspaceOpen(true);
                       }}
                     >
+                      {value === "preview" ? (
+                        <Monitor size={15} />
+                      ) : value === "details" ? (
+                        <FilePlus2 size={15} />
+                      ) : value === "assets" ? (
+                        <ImagePlus size={15} />
+                      ) : (
+                        <Code2 size={15} />
+                      )}
                       {label}
                     </button>
                   ))}
                 </nav>
               </>
             )}
+            <div className="at-sidebar-credit">
+              <Droplets size={17} />
+              <div>
+                <small>Studio credit</small>
+                <strong>{creditLabel}</strong>
+              </div>
+              <button
+                onClick={() => {
+                  if (config?.paidEnabled) openCredit();
+                  else {
+                    setWorkspaceOpen(false);
+                    setError("AI setup is incomplete. Review the checklist in chat.");
+                  }
+                }}
+              >
+                {config?.paidEnabled ? "Add" : "Setup"}
+              </button>
+            </div>
           </aside>
           <div className="at-projectbar">
             <div>
@@ -1184,7 +1294,14 @@ function StudioWorkspace() {
                     <small>{active ? "Working" : "Memecoin studio"}</small>
                   </div>
                   <div className="at-messages" ref={messages}>
-                    {!jobs.length && (
+                    {setupIssues.length > 0 && (
+                      <StudioSetupCard
+                        issues={setupIssues}
+                        busy={actionDisabled}
+                        onRetry={() => void checkStudioSetup()}
+                      />
+                    )}
+                    {!jobs.length && setupIssues.length === 0 && (
                       <div className="at-intro-message">
                         <h3>What’s your memecoin idea?</h3>
                         <p>
@@ -1255,6 +1372,7 @@ function StudioWorkspace() {
                       onChange={(e) => {
                         setPrompt(e.target.value);
                         setQuote(null);
+                        setCreditGate(null);
                       }}
                       onKeyDown={(e) => {
                         if (
@@ -1268,7 +1386,29 @@ function StudioWorkspace() {
                       }}
                       rows={4}
                     />
-                    {quote ? (
+                    {creditGate ? (
+                      <div className="at-credit-gate" role="alert">
+                        <span className="at-credit-gate-icon">
+                          <Droplets size={20} />
+                        </span>
+                        <div>
+                          <strong>
+                            {creditShortfall
+                              ? "You need more AQUA credit"
+                              : "You have no Studio credit"}
+                          </strong>
+                          <small>
+                            {creditShortfall
+                              ? `${aquaAmount(creditGate.balanceRaw, decimals)} AQUA available · add at least ${aquaAmount(creditShortfall, decimals)} more`
+                              : "Add AQUA credit to send this message."}
+                          </small>
+                        </div>
+                        <button className="at-primary" onClick={openCredit}>
+                          <Plus size={15} />
+                          Add credit
+                        </button>
+                      </div>
+                    ) : quote ? (
                       <div className="at-quote">
                         <strong>
                           Up to {aquaAmount(quote.maximumRaw, decimals)} AQUA
@@ -1965,10 +2105,12 @@ function StudioWorkspace() {
                   </p>
                 </>
               ) : (
-                <p>
-                  AI payments are awaiting operator configuration. Editing and
-                  exports are available.
-                </p>
+                <StudioSetupCard
+                  compact
+                  issues={setupIssues}
+                  busy={actionDisabled}
+                  onRetry={() => void checkStudioSetup()}
+                />
               )}
               {pendingDeposit && (
                 <div className="at-pending">
@@ -2239,6 +2381,54 @@ function StudioWorkspace() {
         </Dialog>
       )}
     </main>
+  );
+}
+function StudioSetupCard({
+  issues,
+  onRetry,
+  busy,
+  compact = false,
+}: {
+  issues: StudioConfig["setup"]["issues"];
+  onRetry: () => void;
+  busy: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <section
+      className={`at-setup-card ${compact ? "compact" : ""}`}
+      aria-label="Studio AI setup"
+    >
+      <header>
+        <span><CircleAlert size={18} /></span>
+        <div>
+          <strong>AI setup incomplete</strong>
+          <small>Editing and exports still work.</small>
+        </div>
+      </header>
+      <div className="at-setup-list">
+        {issues.map((issue) => (
+          <div key={issue.code}>
+            <span aria-hidden="true" />
+            <div>
+              <strong>{issue.title}</strong>
+              <p>{issue.detail}</p>
+              {issue.variables.length > 0 && (
+                <div className="at-variable-list">
+                  {issue.variables.map((variable) => (
+                    <code key={variable}>{variable}</code>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      <button disabled={busy} onClick={onRetry}>
+        <RefreshCw size={14} />
+        Check again
+      </button>
+    </section>
   );
 }
 function Field({
