@@ -21,7 +21,6 @@
 .at-entry { position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 400px); align-items: center; gap: 70px; min-height: 590px; padding: 64px clamp(24px, 5vw, 84px) 82px; overflow: hidden; border: 1px solid #cde5ee; border-radius: 22px; background: linear-gradient(130deg, #f0fbff, #fff 70%); }
 .at-entry::after { content: ""; position: absolute; z-index: -1; bottom: -30px; left: 0; width: 200%; height: 130px; background: #85cbee22; -webkit-mask: var(--at-ocean-mask) 0 0 / 50% 100% repeat-x; mask: var(--at-ocean-mask) 0 0 / 50% 100% repeat-x; animation: at-ocean-current 30s linear infinite; pointer-events: none; }
 .at-entry-story { max-width: 470px; }
-.at-entry-mark { display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 30px; border: 1px solid #bbe3ee; border-radius: 20px; background: #dcf4fb; color: #168bb4; }
 .at-entry-story h2 { margin: 16px 0 20px; font-size: clamp(32px, 3.8vw, 52px); line-height: 1.1; letter-spacing: -1.8px; font-weight: 600; color: #224f65; }
 .at-entry-story > p { max-width: 350px; margin: 0; font-size: 15px; line-height: 1.8; color: #688697; }
 .at-entry-features { display: flex; flex-wrap: wrap; gap: 16px 22px; margin-top: 28px; color: #4d7b90; font-size: 12px; }
@@ -44,7 +43,6 @@
 @media (max-width: 800px) {
   .at-entry { grid-template-columns: minmax(0, 1fr); gap: 32px; padding: 34px 22px 52px; }
   .at-entry-story { max-width: 500px; }
-  .at-entry-mark { width: 48px; height: 48px; margin-bottom: 22px; border-radius: 15px; }
   .at-entry-story h2 br { display: none; }
   .at-entry-story h2 { letter-spacing: -1px; }
   .at-entry-card { width: 100%; padding: 24px; }

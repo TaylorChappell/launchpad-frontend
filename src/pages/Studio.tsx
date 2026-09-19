@@ -54,7 +54,6 @@ import {
   Upload,
   Wallet,
   ShieldCheck,
-  Waves,
   X,
 } from "lucide-react";
 import { useWallet } from "../context";
@@ -1282,7 +1281,6 @@ function StudioWorkspace() {
       {!token ? (
         <section className="at-entry">
           <div className="at-entry-story">
-            <span className="at-entry-mark" aria-hidden="true"><Waves size={32} strokeWidth={1.5} /></span>
             <span className="at-eyebrow">YOUR NEXT IDEA STARTS HERE</span>
             <h2>Make a little <br />wave of your own.</h2>
             <p>Turn a rough idea into a memecoin with its own story, artwork, and website.</p>
@@ -1573,7 +1571,7 @@ function StudioWorkspace() {
                   </div>
                   {workingProject && workingProject.id !== project.id && <div className="at-other-project" role="status">
                     <LoaderCircle size={16} className="at-spin" aria-hidden="true" />
-                    <span><strong>{workingProject.name}</strong> is working. One project can run at a time.</span>
+                    <span><strong>{workingProject.name}</strong> is working. You can run one project at a time.</span>
                     <button disabled={actionDisabled} onClick={() => void task("Opening project", async () => { await save(); await openProject(workingProject.id); })}>View <ArrowRight size={14} /></button>
                   </div>}
                   <div className="at-messages" ref={messages}>
