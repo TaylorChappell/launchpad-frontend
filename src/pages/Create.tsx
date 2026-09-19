@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft, ArrowRight, Check, Droplets, ImagePlus, Info, Rocket,
   Loader2, RefreshCw, Search, X,
 } from "lucide-react";
 import { NetworkSolana } from "@web3icons/react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { studioAssetFile, studioRequest, studioSession, type StudioProject } from "../studio-api";
+import "./studio.css";
 import { toast } from "sonner";
 import { ApiError, api } from "../api";
 import { useRuntime, useWallet } from "../context";
@@ -61,6 +63,9 @@ const amountPattern = /^(?:\d+(?:\.\d*)?|\.\d+)$/;
 
 export function Create() {
   const wallet = useWallet();
+  const [searchParams] = useSearchParams();
+  const importedStudio = useRef("");
+  const [studioImportMessage, setStudioImportMessage] = useState("");
   const { config } = useRuntime();
   const dexProfileEnabled = config.marketGovernanceEnabled;
   const wizardSteps = dexProfileEnabled ? governanceWizardSteps : standardWizardSteps;
@@ -85,6 +90,28 @@ export function Create() {
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [recoverableLaunch, setRecoverableLaunch] = useState<Launch | null>(null);
   const [completedLaunch, setCompletedLaunch] = useState<{ id: string; mint?: string } | null>(null);
+
+  useEffect(() => {
+    const id=searchParams.get("studio");
+    if(!id||!wallet.address||stockLoading||!stocks.length||importedStudio.current===`${wallet.address}:${id}`)return;
+    const token=studioSession(wallet.address);
+    if(!token){setStudioImportMessage("Open Studio and sign in with this wallet, then choose Review launch again.");return;}
+    let cancelled=false;
+    void studioRequest<StudioProject>(`/projects/${encodeURIComponent(id)}`,token).then(project=>{
+      if(cancelled)return;
+      const draft=project.state.launch;
+      setForm(old=>({...old,name:draft.name,symbol:draft.symbol,description:draft.description,xUrl:draft.xUrl,websiteUrl:draft.websiteUrl,telegramUrl:draft.telegramUrl,rewardMode:draft.rewardMode}));
+      const selected=stocks.find(item=>item.mint===draft.stockMint);
+      if(selected)setStock(selected);
+      setDexFundingEnabled(config.marketGovernanceEnabled&&draft.dexFundingEnabled);
+      if(config.marketGovernanceEnabled)setDexProfile(draft.dexProfile);
+      const artwork=project.state.files.find(item=>item.path===draft.imagePath);
+      if(artwork)chooseArtwork(studioAssetFile(artwork));
+      importedStudio.current=`${wallet.address}:${id}`;
+      setStudioImportMessage(`Imported ${project.name}. Review every detail before launching.${draft.stockMint&&!selected?" Your saved pair is unavailable; choose a supported pair.":""}`);
+    }).catch(reason=>{if(!cancelled)setStudioImportMessage(reason instanceof Error?reason.message:"Could not import Studio draft.");});
+    return()=>{cancelled=true;};
+  },[wallet.address,searchParams,stockLoading,stocks,config.marketGovernanceEnabled]);
 
   const update = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -390,6 +417,8 @@ export function Create() {
   }
 
   return <main className="page launch-wizard-page launch-wizard-only">
+    {!launching && !completedLaunch && <div className="at-launch-entry"><span><strong>Start with Atlantis Studio.</strong> Create your artwork, website and launch draft in one place.</span><Link to="/studio">Open Studio ↗</Link></div>}
+    {studioImportMessage && <div className="at-import-notice" role="status">{studioImportMessage}</div>}
     <PageBubbles count={22}/>
     {recoverableLaunch && <section className="launch-resume-banner"><span className="resume-coin-bubble"><TokenMark launch={recoverableLaunch}/></span><div><b>Continue ${recoverableLaunch.symbol}</b><small>A previous launch has a confirmed on-chain step waiting to continue.</small></div><button onClick={() => void resumeExistingLaunch()}><span className="resume-button-current" aria-hidden="true"/><span>Resume launch</span><ArrowRight/></button></section>}
     <section className={`wizard-shell ${launching ? "is-launching" : ""}`}>

@@ -62,7 +62,7 @@ type WalletValue = {
   connect: (kind: "phantom" | "metamask") => Promise<void>;
   disconnect: () => Promise<void>;
   signMessage: (message: string) => Promise<{ message: string; signature: string }>;
-  sendTransaction: (envelope: TransactionEnvelope) => Promise<string>;
+  sendTransaction: (envelope: TransactionEnvelope, onSubmitted?: (signature:string) => void) => Promise<string>;
   signTransactionBatch: (envelopes: LaunchBatchEnvelope[]) => Promise<SignedTransactionEnvelope[]>;
   submitSignedTransaction: (envelope: SignedTransactionEnvelope) => Promise<string>;
 };
@@ -178,6 +178,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [configLoading, connectWallet]);
 
   const disconnect = useCallback(async () => {
+    try { for (const key of Object.keys(sessionStorage)) if(key.startsWith("aqua:studio:")) sessionStorage.removeItem(key); } catch { /* Session storage can be unavailable. */ }
     ++connectionAttempt.current;
     const previous = adapter.current;
     adapter.current = null;
@@ -234,7 +235,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return { message, signature: base64(result.signature) };
   }, [address]);
 
-  const sendTransaction = useCallback(async (envelope: TransactionEnvelope) => {
+  const sendTransaction = useCallback(async (envelope: TransactionEnvelope, onSubmitted?: (signature:string) => void) => {
     try {
       if (!adapter.current || !address) throw new Error("Connect your wallet first.");
       const [{ Connection, Transaction, VersionedTransaction }, { default: bs58 }] = await Promise.all([import("@solana/web3.js"), import("bs58")]);
@@ -265,6 +266,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      onSubmitted?.(signature);
       await waitForConfirmation(connection, signature, envelope.lastValidBlockHeight);
       return signature;
     } catch (error) {

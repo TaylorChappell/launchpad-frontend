@@ -1,4 +1,4 @@
-import { ArrowRight, BarChart3, CircleHelp, Compass, ExternalLink, Gift, Menu, Plus, Search, X } from "lucide-react";
+import { ArrowRight, BarChart3, CircleHelp, Compass, ExternalLink, Gift, Menu, PanelsTopLeft, Plus, Search, X } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRuntime, useWallet } from "../context";
@@ -13,6 +13,7 @@ import { DexScreenerIcon } from "./DexScreenerIcon";
 const links = [
   { to: "/", label: "Explore", icon: Compass },
   { to: "/create", label: "Launch", icon: Plus },
+  { to: "/studio", label: "Studio", icon: PanelsTopLeft },
   { to: "/rewards", label: "Rewards", icon: Gift },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/how-it-works", label: "How it works", icon: CircleHelp },
@@ -23,7 +24,8 @@ const COMMUNITY_POST_URL = "https://x.com/Aqua_Launchpad/status/2100283826693922
 
 export function Layout({ children }: { children: ReactNode }) {
   const wallet = useWallet();
-  const trading = useLocation().pathname.startsWith("/token/");
+  const currentPath = useLocation().pathname;
+  const trading = currentPath.startsWith("/token/") || currentPath.startsWith("/studio");
   const { config, error } = useRuntime();
   const [mobile, setMobile] = useState(false);
   const [opening, setOpening] = useState(true);
