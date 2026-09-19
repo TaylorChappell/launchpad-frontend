@@ -438,6 +438,13 @@ function StudioWorkspace() {
   }
   async function generateQuote() {
     await task("Estimating", async () => {
+      const latestConfig = await studioRequest<StudioConfig>("/config");
+      if (!mounted.current) return;
+      setConfig(latestConfig);
+      if (!latestConfig.paidEnabled)
+        throw new Error(
+          "AI generation is currently unavailable. Studio's AI and AQUA payment setup must be completed before messages can run.",
+        );
       const saved = await save();
       if (saved)
         setQuote(
@@ -448,6 +455,14 @@ function StudioWorkspace() {
           }),
         );
     });
+  }
+  async function sendMessage() {
+    if (!prompt.trim() || taskLock.current || active) return;
+    if (quote && quote.expiresAt > Date.now()) await generate();
+    else {
+      setQuote(null);
+      await generateQuote();
+    }
   }
   async function generate() {
     if (!quote || !project) return;
@@ -1235,22 +1250,21 @@ function StudioWorkspace() {
                       aria-label="Message Atlantis"
                       placeholder="Ask Atlantis anything about your memecoin, artwork or website…"
                       value={prompt}
+                      readOnly={actionDisabled}
                       maxLength={12000}
-                      onChange={(e) => setPrompt(e.target.value)}
+                      onChange={(e) => {
+                        setPrompt(e.target.value);
+                        setQuote(null);
+                      }}
                       onKeyDown={(e) => {
                         if (
-                          e.key === "Enter" &&
-                          !e.shiftKey &&
-                          !e.nativeEvent.isComposing &&
-                          prompt.trim() &&
-                          config?.paidEnabled &&
-                          !actionDisabled &&
-                          !active &&
-                          !quote
-                        ) {
-                          e.preventDefault();
-                          void generateQuote();
-                        }
+                          e.key !== "Enter" ||
+                          e.shiftKey ||
+                          e.nativeEvent.isComposing ||
+                          e.nativeEvent.keyCode === 229
+                        ) return;
+                        e.preventDefault();
+                        if (!e.repeat) void sendMessage();
                       }}
                       rows={4}
                     />
@@ -1274,16 +1288,16 @@ function StudioWorkspace() {
                     ) : (
                       <div className="at-compose-footer">
                         {active && <small>Generation in progress</small>}
+                        {!active && <small>Enter to send · Shift+Enter for a new line</small>}
                         <button
                           className="at-primary"
-                          aria-label="Estimate generation cost"
+                          aria-label="Send message"
                           disabled={
                             !prompt.trim() ||
-                            !config?.paidEnabled ||
                             actionDisabled ||
                             active
                           }
-                          onClick={() => void generateQuote()}
+                          onClick={() => void sendMessage()}
                         >
                           <Send size={16} />
                         </button>
