@@ -12,7 +12,13 @@ import {
   type ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
+import { StudioMessage } from "../components/StudioMessage";
+import {
+  accountRequest,
+  signInAccount,
+  type GithubConnection,
+  type GithubExport,
+} from "../account-api";
 import { DexProfileFields } from "../components/MarketProposals";
 import {
   ArrowRight,
@@ -27,6 +33,8 @@ import {
   ImagePlus,
   LockKeyhole,
   Monitor,
+  MoreHorizontal,
+  Github,
   Plus,
   Save,
   Send,
@@ -87,6 +95,7 @@ type Modal =
   | "file"
   | "folder"
   | "rename"
+  | "renameproject"
   | "remove"
   | null;
 const imageFile = (f: StudioFile) =>
@@ -118,14 +127,11 @@ function StudioWorkspace() {
   const [tab, setTab] = useState<"preview" | "details" | "code" | "assets">(
       "preview",
     ),
-    [mobile, setMobile] = useState(false),
-    [chatOpen, setChatOpen] = useState(true);
+    [mobile, setMobile] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
-  const [websiteImages, setWebsiteImages] = useState(2);
   const messages = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState("frontend/index.html"),
     [prompt, setPrompt] = useState(""),
-    [kind, setKind] = useState<"chat" | "code" | "image">("chat"),
     [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
@@ -133,8 +139,19 @@ function StudioWorkspace() {
     [modal, setModal] = useState<Modal>(null),
     [input, setInput] = useState("");
   const [repo, setRepo] = useState(""),
-    [pat, setPat] = useState(""),
+    [privateRepo, setPrivateRepo] = useState(true),
+    [github, setGithub] = useState<GithubConnection | null>(null),
+    [githubExports, setGithubExports] = useState<GithubExport[]>([]),
     [exportUrl, setExportUrl] = useState("");
+  const [modalProject, setModalProject] = useState<Omit<
+    StudioProject,
+    "state"
+  > | null>(null);
+  const [projectMenu, setProjectMenu] = useState<{
+    project: Omit<StudioProject, "state">;
+    top: number;
+    left: number;
+  } | null>(null);
   const [versions, setVersions] = useState<Version[]>([]),
     [pendingDeposit, setPendingDeposit] = useState<{
       id: string;
@@ -167,7 +184,7 @@ function StudioWorkspace() {
       top: messages.current.scrollHeight,
       behavior: "auto",
     });
-  }, [jobs.length, jobs[0]?.status, project?.id]);
+  }, [jobs.length, jobs[0]?.status, project?.id, workspaceOpen]);
   const file = state?.files.find((f) => f.path === selected),
     decimals = config?.decimals ?? null;
   const preview = useMemo(
@@ -296,13 +313,12 @@ function StudioWorkspace() {
   }, [dirty]);
   useEffect(() => {
     setQuote(null);
-  }, [prompt, kind, state, websiteImages]);
+  }, [prompt, state]);
   useEffect(() => {
     if (!modal) return;
     const close = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !taskLock.current) {
         setModal(null);
-        setPat("");
       }
     };
     window.addEventListener("keydown", close);
@@ -314,24 +330,12 @@ function StudioWorkspace() {
         wallet.setModalOpen(true);
         return;
       }
-      const address = wallet.address;
-      const challenge = await studioRequest<{ id: string; message: string }>(
-        "/auth/challenge",
-        "",
-        { wallet: address },
-      );
-      const signed = await wallet.signMessage(challenge.message);
-      if (!mounted.current) return;
-      const session = await studioRequest<{ token: string; expiresAt: number }>(
-        "/auth/session",
-        "",
-        { id: challenge.id, wallet: address, signature: signed.signature },
+      const session = await signInAccount(
+        wallet.address,
+        wallet.signMessage,
+        () => mounted.current,
       );
       if (!mounted.current) return;
-      sessionStorage.setItem(
-        studioSessionKey(address),
-        JSON.stringify(session),
-      );
       setToken(session.token);
     });
   }
@@ -371,9 +375,8 @@ function StudioWorkspace() {
         setQuote(
           await request<Quote>(`/projects/${saved.id}/quote`, {
             prompt,
-            kind,
+            kind: "auto",
             revision: saved.revision,
-            websiteImages: kind === "code" ? websiteImages : 0,
           }),
         );
     });
@@ -410,7 +413,6 @@ function StudioWorkspace() {
       if (jobKind === "code" || jobKind === "image") {
         setWorkspaceOpen(true);
         setTab(jobKind === "code" ? "preview" : "assets");
-        setChatOpen(true);
       }
       setNotice("Changes applied. Your previous version is saved in History.");
       await refreshProjects();
@@ -446,12 +448,79 @@ function StudioWorkspace() {
     setExportUrl("");
     setModal(value);
     if (value === "rename") setInput(selected);
+    if (value === "export" && project) {
+      setRepo(
+        project.name
+          .toLowerCase()
+          .replace(/[^a-z0-9_.-]+/g, "-")
+          .replace(/^[^a-z0-9]+/, "")
+          .slice(0, 100) || "my-memecoin",
+      );
+      void task("Loading GitHub connection", async () => {
+        const [connections, exports] = await Promise.all([
+          accountRequest<{ github: GithubConnection }>("/integrations", token),
+          request<GithubExport[]>(`/projects/${project.id}/github`),
+        ]);
+        if (mounted.current) {
+          setGithub(connections.github);
+          setGithubExports(exports);
+        }
+      });
+    }
     if (value === "history" && project)
       void task("Loading history", async () =>
         setVersions(
           await request<Version[]>(`/projects/${project.id}/versions`),
         ),
       );
+  }
+  useEffect(() => {
+    if (!projectMenu) return;
+    const close = (event: Event) => {
+      if (event instanceof KeyboardEvent && event.key !== "Escape") return;
+      if (
+        event instanceof PointerEvent &&
+        (event.target as Element)?.closest("[data-project-menu]")
+      )
+        return;
+      setProjectMenu(null);
+    };
+    window.addEventListener("pointerdown", close);
+    window.addEventListener("keydown", close);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("keydown", close);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [projectMenu]);
+  function showProjectMenu(
+    value: Omit<StudioProject, "state">,
+    button: HTMLElement,
+  ) {
+    const rect = button.getBoundingClientRect();
+    setProjectMenu((old) =>
+      old?.project.id === value.id
+        ? null
+        : {
+            project: value,
+            top: Math.min(rect.bottom + 5, window.innerHeight - 100),
+            left: Math.max(
+              10,
+              Math.min(rect.right - 170, window.innerWidth - 180),
+            ),
+          },
+    );
+  }
+  function projectAction(value: "renameproject" | "remove") {
+    if (!projectMenu) return;
+    setModalProject(projectMenu.project);
+    setInput(projectMenu.project.name);
+    setModal(value);
+    setProjectMenu(null);
+    setError("");
   }
   async function submitModal() {
     await task("Saving", async () => {
@@ -463,14 +532,27 @@ function StudioWorkspace() {
         takeProject(value);
         setJobs([]);
         await refreshProjects();
-      } else if (modal === "remove" && project) {
-        await request(`/projects/${project.id}`, undefined, "DELETE");
-        setProject(null);
-        setState(null);
-        projectId.current = null;
-        setJobs([]);
+      } else if (modal === "renameproject" && modalProject) {
+        const current =
+          modalProject.id === project?.id ? await save() : modalProject;
+        if (!current) return;
+        const renamed = await request<StudioProject>(
+          `/projects/${current.id}/rename`,
+          { name: input, revision: current.revision },
+        );
+        if (project?.id === renamed.id) takeProject(renamed);
+        await refreshProjects();
+      } else if (modal === "remove" && modalProject) {
+        await request(`/projects/${modalProject.id}`, undefined, "DELETE");
+        const selectedProject = modalProject.id === project?.id;
+        if (selectedProject) {
+          setProject(null);
+          setState(null);
+          projectId.current = null;
+          setJobs([]);
+        }
         const list = await refreshProjects();
-        if (list[0]) await openProject(list[0].id);
+        if (selectedProject && list[0]) await openProject(list[0].id);
       } else if (state && ["file", "folder", "rename"].includes(modal ?? "")) {
         const path = input.trim();
         if (
@@ -580,18 +662,47 @@ function StudioWorkspace() {
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     });
   }
-  async function exportGithub() {
+  async function exportGithub(resume?: GithubExport) {
     await task("Exporting to GitHub", async () => {
+      let id = project?.id;
       try {
         const saved = await save();
         if (!saved) return;
+        id = saved.id;
+        const storageKey = `aqua:github-export:${wallet.address}:${id}`;
+        let pending: {
+          requestId: string;
+          name: string;
+          private: boolean;
+        } | null = null;
+        try {
+          pending = JSON.parse(localStorage.getItem(storageKey) ?? "null");
+        } catch {
+          /* A new intent will be created. */
+        }
+        const input = resume
+          ? { requestId: resume.id, name: resume.name, private: resume.private }
+          : pending?.name === repo.trim() && pending.private === privateRepo
+            ? pending
+            : {
+                requestId: crypto.randomUUID(),
+                name: repo.trim(),
+                private: privateRepo,
+              };
+        localStorage.setItem(storageKey, JSON.stringify(input));
         const result = await request<{ url: string }>(
           `/projects/${saved.id}/github`,
-          { repository: repo.trim(), token: pat.trim() },
+          input,
         );
         setExportUrl(result.url);
+        localStorage.removeItem(storageKey);
       } finally {
-        setPat("");
+        if (id)
+          setGithubExports(
+            await request<GithubExport[]>(`/projects/${id}/github`).catch(
+              () => [],
+            ),
+          );
       }
     });
   }
@@ -621,7 +732,7 @@ function StudioWorkspace() {
               disabled={actionDisabled}
               onClick={() => void signIn()}
             >
-              {wallet.address ? "Sign in to Studio" : "Connect wallet"}
+              {wallet.address ? "Sign in to AQUA" : "Connect wallet"}
               <ArrowRight size={16} />
             </button>
           )}
@@ -673,22 +784,33 @@ function StudioWorkspace() {
             <span className="at-sidebar-label">Projects</span>
             <nav aria-label="Your projects">
               {projects.map((p) => (
-                <button
-                  key={p.id}
-                  className={project?.id === p.id ? "selected" : ""}
-                  aria-current={project?.id === p.id ? "page" : undefined}
-                  disabled={actionDisabled}
-                  onClick={() =>
-                    void task("Opening project", async () => {
-                      await save();
-                      await openProject(p.id);
-                      setWorkspaceOpen(false);
-                      setChatOpen(true);
-                    })
-                  }
-                >
-                  {p.name}
-                </button>
+                <div className="at-project-row" key={p.id}>
+                  <button
+                    className={project?.id === p.id ? "selected" : ""}
+                    aria-current={project?.id === p.id ? "page" : undefined}
+                    disabled={actionDisabled}
+                    onClick={() =>
+                      void task("Opening project", async () => {
+                        await save();
+                        await openProject(p.id);
+                        setWorkspaceOpen(false);
+                      })
+                    }
+                  >
+                    {p.name}
+                  </button>
+                  <button
+                    className="at-project-more"
+                    data-project-menu
+                    aria-label={`Options for ${p.name}`}
+                    aria-haspopup="menu"
+                    aria-expanded={projectMenu?.project.id === p.id}
+                    disabled={actionDisabled}
+                    onClick={(e) => showProjectMenu(p, e.currentTarget)}
+                  >
+                    <MoreHorizontal size={17} />
+                  </button>
+                </div>
               ))}
             </nav>
             {project && (
@@ -699,7 +821,6 @@ function StudioWorkspace() {
                     className={!workspaceOpen ? "selected" : ""}
                     onClick={() => {
                       setWorkspaceOpen(false);
-                      setChatOpen(true);
                     }}
                   >
                     Chat with Atlantis
@@ -720,7 +841,6 @@ function StudioWorkspace() {
                       onClick={() => {
                         setTab(value);
                         setWorkspaceOpen(true);
-                        setChatOpen(true);
                       }}
                     >
                       {label}
@@ -743,6 +863,17 @@ function StudioWorkspace() {
               <strong className="at-project-name">
                 {project?.name ?? "Your studio"}
               </strong>
+              {project && (
+                <button
+                  className="at-mobile-project-menu"
+                  data-project-menu
+                  aria-label="Project options"
+                  aria-haspopup="menu"
+                  onClick={(e) => showProjectMenu(project, e.currentTarget)}
+                >
+                  <MoreHorizontal size={17} />
+                </button>
+              )}
               <select
                 className="at-mobile-projects"
                 aria-label="Choose project"
@@ -776,17 +907,6 @@ function StudioWorkspace() {
             </div>
             {project && (
               <div>
-                <button
-                  aria-pressed={workspaceOpen}
-                  className="at-workspace-switch"
-                  onClick={() => {
-                    setWorkspaceOpen(!workspaceOpen);
-                    setChatOpen(true);
-                  }}
-                >
-                  {workspaceOpen ? "Full chat" : "Open workspace"}
-                  <Monitor size={15} />
-                </button>
                 <span className="at-save-state">
                   {busy || (dirty ? "Unsaved changes" : "All changes saved")}
                 </span>
@@ -832,6 +952,35 @@ function StudioWorkspace() {
               </div>
             )}
           </div>
+          {project && (
+            <nav className="at-mobile-tools" aria-label="Studio tools">
+              <button
+                className={!workspaceOpen ? "selected" : ""}
+                onClick={() => setWorkspaceOpen(false)}
+              >
+                Chat
+              </button>
+              {(
+                [
+                  ["preview", "Website"],
+                  ["details", "Launch details"],
+                  ["code", "Code"],
+                  ["assets", "Assets"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  className={workspaceOpen && tab === value ? "selected" : ""}
+                  onClick={() => {
+                    setTab(value);
+                    setWorkspaceOpen(true);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </nav>
+          )}
           {!project ? (
             <div className="at-empty">
               <h2>What are you launching?</h2>
@@ -849,314 +998,340 @@ function StudioWorkspace() {
             </div>
           ) : (
             <div
-              className={`at-workspace ${workspaceOpen ? "at-with-canvas" : "at-chat-only"} ${chatOpen ? "" : "at-chat-hidden"}`}
+              className={`at-workspace ${workspaceOpen ? "at-tool-only" : "at-chat-only"}`}
             >
-              <aside className="at-conversation">
-                <div className="at-panel-title">
-                  <div>Atlantis</div>
-                  <small>{active ? "Working" : "Memecoin studio"}</small>
-                </div>
-                <div className="at-messages" ref={messages}>
-                  {!jobs.length && (
-                    <div className="at-intro-message">
-                      <h3>What’s your memecoin idea?</h3>
-                      <p>
-                        Start with a joke, a character, or a rough idea. We’ll
-                        make it your own.
-                      </p>
-                      {[
-                        "Help me find a memorable meme concept.",
-                        "Which pair and reward mode fit my coin?",
-                        "Build a website with custom artwork and animation.",
-                      ].map((text, i) => (
-                        <button
-                          key={text}
-                          onClick={() => {
-                            setPrompt(text);
-                            setKind(i === 2 ? "code" : "chat");
-                          }}
-                        >
-                          {text}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {[...jobs].reverse().map((job) => (
-                    <article className="at-message" key={job.id}>
-                      <div className="at-user-message">{job.prompt}</div>
-                      <div className="at-answer">
-                        <span className="at-eyebrow">
-                          ATLANTIS {job.kind === "image" ? "/ ARTWORK" : ""}
-                        </span>
-                        {job.status === "complete" ? (
-                          <>
-                            <div className="at-chat-copy">
-                              <ReactMarkdown
-                                skipHtml
-                                components={{
-                                  a: (props) => (
-                                    <a
-                                      {...props}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                    />
-                                  ),
-                                }}
-                              >
-                                {(
-                                  job.message ?? "Your result is ready."
-                                ).replace(/\u2014/g, " - ")}
-                              </ReactMarkdown>
-                            </div>
-                            <div className="at-message-actions">
-                              <button
-                                disabled={actionDisabled}
-                                onClick={() => void reviewJob(job)}
-                              >
-                                Review result <ArrowRight size={13} />
-                              </button>
-                              <small>
-                                {decimals !== null &&
-                                  `${aquaAmount(job.charged_raw, decimals)} AQUA`}
-                              </small>
-                            </div>
-                          </>
-                        ) : job.status === "failed" ? (
-                          <p className="at-failed">{job.error}</p>
-                        ) : (
-                          <p className="at-working">
-                            {job.status === "queued"
-                              ? "Waiting to start…"
-                              : (job.progress ?? "Working on your project…")}
-                          </p>
-                        )}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-                <div className="at-compose">
-                  {!config?.paidEnabled && (
-                    <p className="at-muted">
-                      AI is awaiting configuration. You can edit, save and
-                      export your project.
-                    </p>
-                  )}
-                  <div className="at-kind" role="group" aria-label="Task type">
-                    {(
-                      [
-                        ["chat", "Chat"],
-                        ["code", "Website"],
-                        ["image", "Image"],
-                      ] as const
-                    ).map(([value, label]) => (
-                      <button
-                        key={value}
-                        aria-pressed={kind === value}
-                        className={kind === value ? "selected" : ""}
-                        onClick={() => setKind(value)}
-                      >
-                        {label}
-                      </button>
-                    ))}
+              {!workspaceOpen && (
+                <aside className="at-conversation">
+                  <div className="at-panel-title">
+                    <div>Atlantis</div>
+                    <small>{active ? "Working" : "Memecoin studio"}</small>
                   </div>
-                  {kind === "code" && (
-                    <label className="at-image-allowance">
-                      Website artwork
-                      <select
-                        aria-label="Website image allowance"
-                        value={websiteImages}
-                        onChange={(e) =>
-                          setWebsiteImages(Number(e.target.value))
-                        }
-                      >
-                        <option value={0}>Use existing images</option>
-                        <option value={1}>Up to 1 new image</option>
-                        <option value={2}>Up to 2 new images</option>
-                      </select>
-                    </label>
-                  )}
-                  <textarea
-                    aria-label="Message Atlantis"
-                    placeholder={
-                      kind === "image"
-                        ? "Describe your coin artwork or meme…"
-                        : "What would you like to create or change?"
-                    }
-                    value={prompt}
-                    maxLength={12000}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (
-                        e.key === "Enter" &&
-                        !e.shiftKey &&
-                        !e.nativeEvent.isComposing &&
-                        prompt.trim() &&
-                        config?.paidEnabled &&
-                        !actionDisabled &&
-                        !active &&
-                        !quote
-                      ) {
-                        e.preventDefault();
-                        void generateQuote();
-                      }
-                    }}
-                    rows={4}
-                  />
-                  {quote ? (
-                    <div className="at-quote">
-                      <strong>
-                        Up to {aquaAmount(quote.maximumRaw, decimals)} AQUA
-                      </strong>
-                      <small>
-                        {quote.pricing}. Quote expires in 2 minutes.
-                      </small>
-                      <button
-                        className="at-primary"
-                        disabled={actionDisabled || active}
-                        onClick={() => void generate()}
-                      >
-                        Confirm & generate
-                        <ArrowRight size={15} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="at-compose-footer">
-                      <small>
-                        {active
-                          ? "Generation in progress"
-                          : "Review the price before spending"}
-                      </small>
-                      <button
-                        className="at-primary"
-                        aria-label="Estimate generation cost"
-                        disabled={
-                          !prompt.trim() ||
-                          !config?.paidEnabled ||
-                          actionDisabled ||
-                          active
-                        }
-                        onClick={() => void generateQuote()}
-                      >
-                        <Send size={16} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </aside>
-              <section className="at-canvas">
-                <div className="at-tabs">
-                  <div>
-                    <button
-                      className="at-chat-toggle"
-                      onClick={() => {
-                        setWorkspaceOpen(false);
-                        setChatOpen(true);
-                      }}
-                    >
-                      Chat
-                    </button>
-                    {(
-                      [
-                        ["preview", "Preview"],
-                        ["details", "Launch details"],
-                        ["code", "Code"],
-                        ["assets", "Assets"],
-                      ] as const
-                    ).map(([value, label]) => (
-                      <button
-                        key={value}
-                        className={tab === value ? "selected" : ""}
-                        onClick={() => setTab(value)}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  {tab === "preview" && (
-                    <div>
-                      <button
-                        aria-label="Desktop preview"
-                        aria-pressed={!mobile}
-                        onClick={() => setMobile(false)}
-                      >
-                        <Monitor size={16} />
-                      </button>
-                      <button
-                        aria-label="Mobile preview"
-                        aria-pressed={mobile}
-                        onClick={() => setMobile(true)}
-                      >
-                        <Smartphone size={16} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {tab === "preview" && (
-                  <>
-                    <div className={`at-preview ${mobile ? "mobile" : ""}`}>
-                      {blankWebsite ? (
-                        <div className="at-blank-preview">
-                          <h3>Your website starts here.</h3>
-                          <p>
-                            Describe your memecoin and the look you want.
-                            Atlantis can create the artwork and build the site
-                            together.
-                          </p>
+                  <div className="at-messages" ref={messages}>
+                    {!jobs.length && (
+                      <div className="at-intro-message">
+                        <h3>What’s your memecoin idea?</h3>
+                        <p>
+                          Start with a joke, a character, or a rough idea. We’ll
+                          make it your own.
+                        </p>
+                        {[
+                          "Help me find a memorable meme concept.",
+                          "Which pair and reward mode fit my coin?",
+                          "Build a website with custom artwork and animation.",
+                        ].map((text) => (
                           <button
+                            key={text}
                             onClick={() => {
-                              setKind("code");
-                              setWorkspaceOpen(false);
-                              setChatOpen(true);
+                              setPrompt(text);
                             }}
                           >
-                            Describe your website
-                            <ArrowRight size={15} />
+                            {text}
                           </button>
+                        ))}
+                      </div>
+                    )}
+                    {[...jobs].reverse().map((job) => (
+                      <article className="at-message" key={job.id}>
+                        <div className="at-user-message">{job.prompt}</div>
+                        <div className="at-answer">
+                          <span className="at-eyebrow">
+                            ATLANTIS {job.kind === "image" ? "/ ARTWORK" : ""}
+                          </span>
+                          {job.status === "complete" ? (
+                            <>
+                              <StudioMessage
+                                text={job.message ?? "Your result is ready."}
+                              />
+                              <div className="at-message-actions">
+                                <button
+                                  disabled={actionDisabled}
+                                  onClick={() => void reviewJob(job)}
+                                >
+                                  Review result <ArrowRight size={13} />
+                                </button>
+                                <small>
+                                  {decimals !== null &&
+                                    `${aquaAmount(job.charged_raw, decimals)} AQUA`}
+                                </small>
+                              </div>
+                            </>
+                          ) : job.status === "failed" ? (
+                            <p className="at-failed">{job.error}</p>
+                          ) : (
+                            <p className="at-working">
+                              {job.status === "queued"
+                                ? "Waiting to start…"
+                                : (job.progress ?? "Working on your project…")}
+                            </p>
+                          )}
                         </div>
-                      ) : (
-                        <iframe
-                          title="Isolated website preview"
-                          sandbox="allow-scripts"
-                          referrerPolicy="no-referrer"
-                          srcDoc={preview}
-                        />
-                      )}
-                    </div>
-                    <div className="at-preview-footer">
-                      Static frontend preview
-                      <span>
-                        External requests and backend execution are disabled
-                      </span>
-                    </div>
-                  </>
-                )}
-                {tab === "details" && state && (
-                  <div className="at-details">
-                    <div className="at-section-heading">
-                      <span className="at-eyebrow">LAUNCH DRAFT</span>
-                      <h2>The details make it yours.</h2>
-                      <p>
-                        Everything stays editable until you review and sign your
-                        launch.
+                      </article>
+                    ))}
+                  </div>
+                  <div className="at-compose">
+                    {!config?.paidEnabled && (
+                      <p className="at-muted">
+                        AI is awaiting configuration. You can edit, save and
+                        export your project.
                       </p>
-                    </div>
-                    <label className="at-field">
-                      Project name
-                      <input
-                        value={state.name}
-                        maxLength={80}
-                        onChange={(e) =>
-                          edit((old) => ({ ...old, name: e.target.value }))
+                    )}
+                    <textarea
+                      aria-label="Message Atlantis"
+                      placeholder="Ask Atlantis anything about your memecoin, artwork or website…"
+                      value={prompt}
+                      maxLength={12000}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === "Enter" &&
+                          !e.shiftKey &&
+                          !e.nativeEvent.isComposing &&
+                          prompt.trim() &&
+                          config?.paidEnabled &&
+                          !actionDisabled &&
+                          !active &&
+                          !quote
+                        ) {
+                          e.preventDefault();
+                          void generateQuote();
                         }
-                      />
-                    </label>
-                    <div className="at-field-grid">
+                      }}
+                      rows={4}
+                    />
+                    {quote ? (
+                      <div className="at-quote">
+                        <strong>
+                          Up to {aquaAmount(quote.maximumRaw, decimals)} AQUA
+                        </strong>
+                        <small>
+                          {quote.pricing}. Quote expires in 2 minutes.
+                        </small>
+                        <button
+                          className="at-primary"
+                          disabled={actionDisabled || active}
+                          onClick={() => void generate()}
+                        >
+                          Confirm & generate
+                          <ArrowRight size={15} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="at-compose-footer">
+                        <small>
+                          {active
+                            ? "Generation in progress"
+                            : "Review the price before spending"}
+                        </small>
+                        <button
+                          className="at-primary"
+                          aria-label="Estimate generation cost"
+                          disabled={
+                            !prompt.trim() ||
+                            !config?.paidEnabled ||
+                            actionDisabled ||
+                            active
+                          }
+                          onClick={() => void generateQuote()}
+                        >
+                          <Send size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </aside>
+              )}
+              {workspaceOpen && (
+                <section className="at-canvas">
+                  <div className="at-tabs">
+                    <strong className="at-tool-title">
+                      {
+                        {
+                          preview: "Website preview",
+                          details: "Launch details",
+                          code: "Code & files",
+                          assets: "Images & assets",
+                        }[tab]
+                      }
+                    </strong>
+                    {tab === "preview" && (
+                      <div>
+                        <button
+                          aria-label="Desktop preview"
+                          aria-pressed={!mobile}
+                          onClick={() => setMobile(false)}
+                        >
+                          <Monitor size={16} />
+                        </button>
+                        <button
+                          aria-label="Mobile preview"
+                          aria-pressed={mobile}
+                          onClick={() => setMobile(true)}
+                        >
+                          <Smartphone size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {tab === "preview" && (
+                    <>
+                      <div className={`at-preview ${mobile ? "mobile" : ""}`}>
+                        {blankWebsite ? (
+                          <div className="at-blank-preview">
+                            <h3>Your website starts here.</h3>
+                            <p>
+                              Describe your memecoin and the look you want.
+                              Atlantis can create the artwork and build the site
+                              together.
+                            </p>
+                            <button
+                              onClick={() => {
+                                setWorkspaceOpen(false);
+                              }}
+                            >
+                              Describe your website
+                              <ArrowRight size={15} />
+                            </button>
+                          </div>
+                        ) : (
+                          <iframe
+                            title="Isolated website preview"
+                            sandbox="allow-scripts"
+                            referrerPolicy="no-referrer"
+                            srcDoc={preview}
+                          />
+                        )}
+                      </div>
+                      <div className="at-preview-footer">
+                        Static frontend preview
+                        <span>
+                          External requests and backend execution are disabled
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {tab === "details" && state && (
+                    <div className="at-details">
+                      <div className="at-section-heading">
+                        <span className="at-eyebrow">LAUNCH DRAFT</span>
+                        <h2>The details make it yours.</h2>
+                        <p>
+                          Everything stays editable until you review and sign
+                          your launch.
+                        </p>
+                      </div>
+                      <label className="at-field">
+                        Project name
+                        <input
+                          value={state.name}
+                          maxLength={80}
+                          onChange={(e) =>
+                            edit((old) => ({ ...old, name: e.target.value }))
+                          }
+                        />
+                      </label>
+                      <div className="at-field-grid">
+                        {(
+                          [
+                            ["name", "Coin name", 32],
+                            ["symbol", "Ticker", 10],
+                          ] as const
+                        ).map(([key, label, max]) => (
+                          <Field
+                            key={key}
+                            label={label}
+                            locked={state.lockedFields.includes(key)}
+                            onLock={() => lockField(key)}
+                          >
+                            <input
+                              maxLength={max}
+                              value={state.launch[key]}
+                              onChange={(e) =>
+                                launchField(
+                                  key,
+                                  key === "symbol"
+                                    ? e.target.value
+                                        .replace(/[^a-zA-Z0-9]/g, "")
+                                        .toUpperCase()
+                                    : e.target.value,
+                                )
+                              }
+                            />
+                          </Field>
+                        ))}
+                      </div>
+                      <Field
+                        label="Description"
+                        locked={state.lockedFields.includes("description")}
+                        onLock={() => lockField("description")}
+                      >
+                        <textarea
+                          maxLength={500}
+                          rows={3}
+                          value={state.launch.description}
+                          onChange={(e) =>
+                            launchField("description", e.target.value)
+                          }
+                        />
+                      </Field>
+                      <div className="at-field-grid">
+                        <Field
+                          label="Pair asset"
+                          locked={state.lockedFields.includes("stockMint")}
+                          onLock={() => lockField("stockMint")}
+                        >
+                          <select
+                            value={state.launch.stockMint}
+                            onChange={(e) =>
+                              launchField("stockMint", e.target.value)
+                            }
+                          >
+                            <option value="">Choose at launch</option>
+                            {config?.knowledge.pairs.map((pair) => (
+                              <option key={pair.mint} value={pair.mint}>
+                                {pair.symbol} · {pair.name}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field
+                          label="Reward mode"
+                          locked={state.lockedFields.includes("rewardMode")}
+                          onLock={() => lockField("rewardMode")}
+                        >
+                          <select
+                            value={state.launch.rewardMode}
+                            onChange={(e) =>
+                              launchField(
+                                "rewardMode",
+                                e.target.value as StudioLaunch["rewardMode"],
+                              )
+                            }
+                          >
+                            <option value="holder_rewards">
+                              Holder rewards
+                            </option>
+                            <option
+                              value="buyback_burn"
+                              disabled={!config?.knowledge.burn}
+                            >
+                              Buyback & burn
+                            </option>
+                            <option
+                              value="jackpot"
+                              disabled={!config?.knowledge.jackpot}
+                            >
+                              Hourly jackpot
+                            </option>
+                          </select>
+                        </Field>
+                      </div>
                       {(
                         [
-                          ["name", "Coin name", 32],
-                          ["symbol", "Ticker", 10],
+                          ["websiteUrl", "Website"],
+                          ["xUrl", "X / Twitter"],
+                          ["telegramUrl", "Telegram"],
                         ] as const
-                      ).map(([key, label, max]) => (
+                      ).map(([key, label]) => (
                         <Field
                           key={key}
                           label={label}
@@ -1164,379 +1339,281 @@ function StudioWorkspace() {
                           onLock={() => lockField(key)}
                         >
                           <input
-                            maxLength={max}
+                            type="url"
+                            placeholder="https://"
+                            maxLength={300}
                             value={state.launch[key]}
-                            onChange={(e) =>
-                              launchField(
-                                key,
-                                key === "symbol"
-                                  ? e.target.value
-                                      .replace(/[^a-zA-Z0-9]/g, "")
-                                      .toUpperCase()
-                                  : e.target.value,
-                              )
-                            }
+                            onChange={(e) => launchField(key, e.target.value)}
                           />
                         </Field>
                       ))}
-                    </div>
-                    <Field
-                      label="Description"
-                      locked={state.lockedFields.includes("description")}
-                      onLock={() => lockField("description")}
-                    >
-                      <textarea
-                        maxLength={500}
-                        rows={3}
-                        value={state.launch.description}
-                        onChange={(e) =>
-                          launchField("description", e.target.value)
-                        }
-                      />
-                    </Field>
-                    <div className="at-field-grid">
-                      <Field
-                        label="Pair asset"
-                        locked={state.lockedFields.includes("stockMint")}
-                        onLock={() => lockField("stockMint")}
-                      >
-                        <select
-                          value={state.launch.stockMint}
-                          onChange={(e) =>
-                            launchField("stockMint", e.target.value)
-                          }
-                        >
-                          <option value="">Choose at launch</option>
-                          {config?.knowledge.pairs.map((pair) => (
-                            <option key={pair.mint} value={pair.mint}>
-                              {pair.symbol} · {pair.name}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-                      <Field
-                        label="Reward mode"
-                        locked={state.lockedFields.includes("rewardMode")}
-                        onLock={() => lockField("rewardMode")}
-                      >
-                        <select
-                          value={state.launch.rewardMode}
-                          onChange={(e) =>
-                            launchField(
-                              "rewardMode",
-                              e.target.value as StudioLaunch["rewardMode"],
-                            )
-                          }
-                        >
-                          <option value="holder_rewards">Holder rewards</option>
-                          <option
-                            value="buyback_burn"
-                            disabled={!config?.knowledge.burn}
+                      {config?.knowledge.governance && (
+                        <>
+                          <div className="at-section-heading">
+                            <span className="at-eyebrow">DEX SCREENER</span>
+                            <h3>Prepare your profile.</h3>
+                            <p>
+                              This is a draft. AQUA’s holder vote and funding
+                              process still apply.
+                            </p>
+                          </div>
+                          <Field
+                            label="DEX funding"
+                            locked={state.lockedFields.includes(
+                              "dexFundingEnabled",
+                            )}
+                            onLock={() => lockField("dexFundingEnabled")}
                           >
-                            Buyback & burn
-                          </option>
-                          <option
-                            value="jackpot"
-                            disabled={!config?.knowledge.jackpot}
+                            <label className="at-check">
+                              <input
+                                type="checkbox"
+                                checked={state.launch.dexFundingEnabled}
+                                onChange={(e) =>
+                                  launchField(
+                                    "dexFundingEnabled",
+                                    e.target.checked,
+                                  )
+                                }
+                              />
+                              Enable DEX Funding Mode at launch
+                            </label>
+                          </Field>
+                          <Field
+                            label="Profile details"
+                            locked={state.lockedFields.includes("dexProfile")}
+                            onLock={() => lockField("dexProfile")}
                           >
-                            Hourly jackpot
-                          </option>
-                        </select>
-                      </Field>
-                    </div>
-                    {(
-                      [
-                        ["websiteUrl", "Website"],
-                        ["xUrl", "X / Twitter"],
-                        ["telegramUrl", "Telegram"],
-                      ] as const
-                    ).map(([key, label]) => (
-                      <Field
-                        key={key}
-                        label={label}
-                        locked={state.lockedFields.includes(key)}
-                        onLock={() => lockField(key)}
-                      >
-                        <input
-                          type="url"
-                          placeholder="https://"
-                          maxLength={300}
-                          value={state.launch[key]}
-                          onChange={(e) => launchField(key, e.target.value)}
-                        />
-                      </Field>
-                    ))}
-                    {config?.knowledge.governance && (
-                      <>
-                        <div className="at-section-heading">
-                          <span className="at-eyebrow">DEX SCREENER</span>
-                          <h3>Prepare your profile.</h3>
-                          <p>
-                            This is a draft. AQUA’s holder vote and funding
-                            process still apply.
-                          </p>
-                        </div>
-                        <Field
-                          label="DEX funding"
-                          locked={state.lockedFields.includes(
-                            "dexFundingEnabled",
-                          )}
-                          onLock={() => lockField("dexFundingEnabled")}
-                        >
-                          <label className="at-check">
-                            <input
-                              type="checkbox"
-                              checked={state.launch.dexFundingEnabled}
-                              onChange={(e) =>
-                                launchField(
-                                  "dexFundingEnabled",
-                                  e.target.checked,
-                                )
+                            <DexProfileFields
+                              optional
+                              profile={state.launch.dexProfile}
+                              update={(key, value) =>
+                                launchField("dexProfile", {
+                                  ...state.launch.dexProfile,
+                                  [key]: value,
+                                })
                               }
                             />
-                            Enable DEX Funding Mode at launch
-                          </label>
-                        </Field>
-                        <Field
-                          label="Profile details"
-                          locked={state.lockedFields.includes("dexProfile")}
-                          onLock={() => lockField("dexProfile")}
-                        >
-                          <DexProfileFields
-                            optional
-                            profile={state.launch.dexProfile}
-                            update={(key, value) =>
-                              launchField("dexProfile", {
-                                ...state.launch.dexProfile,
-                                [key]: value,
-                              })
-                            }
-                          />
-                        </Field>
-                      </>
-                    )}
-                    <button
-                      className="at-danger-link"
-                      disabled={actionDisabled}
-                      onClick={() => openModal("remove")}
-                    >
-                      Delete project
-                    </button>
-                  </div>
-                )}
-                {tab === "code" && state && (
-                  <div className="at-code">
-                    <aside className="at-files">
-                      <div>
-                        <small>EXPLORER</small>
-                        <button
-                          aria-label="New file"
-                          title="New file"
-                          onClick={() => openModal("file")}
-                        >
-                          <FilePlus2 size={15} />
-                        </button>
-                        <button
-                          aria-label="New folder"
-                          title="New folder"
-                          onClick={() => openModal("folder")}
-                        >
-                          <FolderPlus size={15} />
-                        </button>
-                        <button
-                          aria-label="Upload files"
-                          title="Upload files"
-                          onClick={() => upload.current?.click()}
-                        >
-                          <Upload size={15} />
-                        </button>
-                      </div>
-                      <FileTree
-                        files={state.files}
-                        folders={state.folders}
-                        selected={selected}
-                        onSelect={setSelected}
-                      />
-                    </aside>
-                    <section className="at-code-main">
-                      {file ? (
-                        <>
-                          <div className="at-filebar">
-                            <span title={file.path}>{file.path}</span>
-                            <button
-                              title={
-                                file.locked
-                                  ? "Allow AI edits"
-                                  : "Keep this file unchanged by AI"
-                              }
-                              aria-label={
-                                file.locked ? "Unlock file" : "Lock file"
-                              }
-                              onClick={() =>
-                                edit((old) => ({
-                                  ...old,
-                                  files: old.files.map((f) =>
-                                    f.path === file.path
-                                      ? { ...f, locked: !f.locked }
-                                      : f,
-                                  ),
-                                }))
-                              }
-                            >
-                              {file.locked ? (
-                                <LockKeyhole size={14} />
-                              ) : (
-                                <Unlock size={14} />
-                              )}
-                            </button>
-                            <button onClick={() => openModal("rename")}>
-                              Rename
-                            </button>
-                            <button
-                              aria-label="Delete file"
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    `Remove ${file.path}? Save history lets you restore it.`,
-                                  )
-                                )
-                                  edit((old) => ({
-                                    ...old,
-                                    files: old.files.filter(
-                                      (f) => f.path !== file.path,
-                                    ),
-                                  }));
-                              }}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                          {file.encoding === "utf8" ? (
-                            <Suspense
-                              fallback={
-                                <div className="at-editor-loading">
-                                  Opening editor…
-                                </div>
-                              }
-                            >
-                              <Editor
-                                file={file}
-                                onChange={(content) =>
+                          </Field>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {tab === "code" && state && (
+                    <div className="at-code">
+                      <aside className="at-files">
+                        <div>
+                          <small>EXPLORER</small>
+                          <button
+                            aria-label="New file"
+                            title="New file"
+                            onClick={() => openModal("file")}
+                          >
+                            <FilePlus2 size={15} />
+                          </button>
+                          <button
+                            aria-label="New folder"
+                            title="New folder"
+                            onClick={() => openModal("folder")}
+                          >
+                            <FolderPlus size={15} />
+                          </button>
+                          <button
+                            aria-label="Upload files"
+                            title="Upload files"
+                            onClick={() => upload.current?.click()}
+                          >
+                            <Upload size={15} />
+                          </button>
+                        </div>
+                        <FileTree
+                          files={state.files}
+                          folders={state.folders}
+                          selected={selected}
+                          onSelect={setSelected}
+                        />
+                      </aside>
+                      <section className="at-code-main">
+                        {file ? (
+                          <>
+                            <div className="at-filebar">
+                              <span title={file.path}>{file.path}</span>
+                              <button
+                                title={
+                                  file.locked
+                                    ? "Allow AI edits"
+                                    : "Keep this file unchanged by AI"
+                                }
+                                aria-label={
+                                  file.locked ? "Unlock file" : "Lock file"
+                                }
+                                onClick={() =>
                                   edit((old) => ({
                                     ...old,
                                     files: old.files.map((f) =>
                                       f.path === file.path
-                                        ? { ...f, content }
+                                        ? { ...f, locked: !f.locked }
                                         : f,
                                     ),
                                   }))
                                 }
-                              />
-                            </Suspense>
-                          ) : (
-                            <div className="at-binary">
-                              {imageFile(file) ? (
-                                <img
-                                  src={studioAssetUrl(file)}
-                                  alt={file.path}
-                                />
-                              ) : (
-                                <p>
-                                  Binary asset ·{" "}
-                                  {Math.round(
-                                    (file.content.length * 0.75) / 1024,
-                                  )}{" "}
-                                  KB
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="at-empty">
-                          Choose a file from the explorer.
-                        </div>
-                      )}
-                    </section>
-                  </div>
-                )}
-                {tab === "assets" && state && (
-                  <div className="at-assets">
-                    <div className="at-section-heading">
-                      <span className="at-eyebrow">YOUR ASSETS</span>
-                      <h2>A world of your own.</h2>
-                      <p>
-                        Create artwork with Atlantis or upload your own files.
-                        Each file can be up to 3 MB.
-                      </p>
-                      <button onClick={() => upload.current?.click()}>
-                        <ImagePlus size={16} />
-                        Upload assets
-                      </button>
-                    </div>
-                    <div className="at-asset-grid">
-                      {state.files
-                        .filter((f) => f.encoding === "base64" || imageFile(f))
-                        .map((f) => (
-                          <article key={f.path}>
-                            {imageFile(f) ? (
-                              <img
-                                src={studioAssetUrl(f)}
-                                alt={f.path.split("/").pop()}
-                              />
-                            ) : (
-                              <div className="at-asset-generic">
-                                <Code2 />
-                              </div>
-                            )}
-                            <strong title={f.path}>
-                              {f.path.split("/").pop()}
-                            </strong>
-                            <div>
-                              {f.encoding === "base64" &&
-                                /\.(png|jpe?g|webp|gif)$/i.test(f.path) && (
-                                  <button
-                                    className={
-                                      state.launch.imagePath === f.path
-                                        ? "selected"
-                                        : ""
-                                    }
-                                    onClick={() =>
-                                      launchField("imagePath", f.path)
-                                    }
-                                  >
-                                    {state.launch.imagePath === f.path ? (
-                                      <>
-                                        <Check size={13} />
-                                        Coin image
-                                      </>
-                                    ) : (
-                                      "Use as coin image"
-                                    )}
-                                  </button>
+                              >
+                                {file.locked ? (
+                                  <LockKeyhole size={14} />
+                                ) : (
+                                  <Unlock size={14} />
                                 )}
+                              </button>
+                              <button onClick={() => openModal("rename")}>
+                                Rename
+                              </button>
                               <button
-                                aria-label={`Open ${f.path}`}
+                                aria-label="Delete file"
                                 onClick={() => {
-                                  setSelected(f.path);
-                                  setTab("code");
+                                  if (
+                                    window.confirm(
+                                      `Remove ${file.path}? Save history lets you restore it.`,
+                                    )
+                                  )
+                                    edit((old) => ({
+                                      ...old,
+                                      files: old.files.filter(
+                                        (f) => f.path !== file.path,
+                                      ),
+                                    }));
                                 }}
                               >
-                                <ArrowRight size={14} />
+                                <Trash2 size={14} />
                               </button>
                             </div>
-                          </article>
-                        ))}
+                            {file.encoding === "utf8" ? (
+                              <Suspense
+                                fallback={
+                                  <div className="at-editor-loading">
+                                    Opening editor…
+                                  </div>
+                                }
+                              >
+                                <Editor
+                                  file={file}
+                                  onChange={(content) =>
+                                    edit((old) => ({
+                                      ...old,
+                                      files: old.files.map((f) =>
+                                        f.path === file.path
+                                          ? { ...f, content }
+                                          : f,
+                                      ),
+                                    }))
+                                  }
+                                />
+                              </Suspense>
+                            ) : (
+                              <div className="at-binary">
+                                {imageFile(file) ? (
+                                  <img
+                                    src={studioAssetUrl(file)}
+                                    alt={file.path}
+                                  />
+                                ) : (
+                                  <p>
+                                    Binary asset ·{" "}
+                                    {Math.round(
+                                      (file.content.length * 0.75) / 1024,
+                                    )}{" "}
+                                    KB
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="at-empty">
+                            Choose a file from the explorer.
+                          </div>
+                        )}
+                      </section>
                     </div>
-                    {!state.files.some((f) => f.encoding === "base64") && (
-                      <div className="at-asset-empty">
-                        Ask Atlantis to create your first coin image, or drop in
-                        your own with Upload assets.
+                  )}
+                  {tab === "assets" && state && (
+                    <div className="at-assets">
+                      <div className="at-section-heading">
+                        <span className="at-eyebrow">YOUR ASSETS</span>
+                        <h2>A world of your own.</h2>
+                        <p>
+                          Create artwork with Atlantis or upload your own files.
+                          Each file can be up to 3 MB.
+                        </p>
+                        <button onClick={() => upload.current?.click()}>
+                          <ImagePlus size={16} />
+                          Upload assets
+                        </button>
                       </div>
-                    )}
-                  </div>
-                )}
-              </section>
+                      <div className="at-asset-grid">
+                        {state.files
+                          .filter(
+                            (f) => f.encoding === "base64" || imageFile(f),
+                          )
+                          .map((f) => (
+                            <article key={f.path}>
+                              {imageFile(f) ? (
+                                <img
+                                  src={studioAssetUrl(f)}
+                                  alt={f.path.split("/").pop()}
+                                />
+                              ) : (
+                                <div className="at-asset-generic">
+                                  <Code2 />
+                                </div>
+                              )}
+                              <strong title={f.path}>
+                                {f.path.split("/").pop()}
+                              </strong>
+                              <div>
+                                {f.encoding === "base64" &&
+                                  /\.(png|jpe?g|webp|gif)$/i.test(f.path) && (
+                                    <button
+                                      className={
+                                        state.launch.imagePath === f.path
+                                          ? "selected"
+                                          : ""
+                                      }
+                                      onClick={() =>
+                                        launchField("imagePath", f.path)
+                                      }
+                                    >
+                                      {state.launch.imagePath === f.path ? (
+                                        <>
+                                          <Check size={13} />
+                                          Coin image
+                                        </>
+                                      ) : (
+                                        "Use as coin image"
+                                      )}
+                                    </button>
+                                  )}
+                                <button
+                                  aria-label={`Open ${f.path}`}
+                                  onClick={() => {
+                                    setSelected(f.path);
+                                    setTab("code");
+                                  }}
+                                >
+                                  <ArrowRight size={14} />
+                                </button>
+                              </div>
+                            </article>
+                          ))}
+                      </div>
+                      {!state.files.some((f) => f.encoding === "base64") && (
+                        <div className="at-asset-empty">
+                          Ask Atlantis to create your first coin image, or drop
+                          in your own with Upload assets.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </section>
+              )}
             </div>
           )}
         </div>
@@ -1548,9 +1625,37 @@ function StudioWorkspace() {
         hidden
         onChange={(e) => void uploadFiles(e.target.files)}
       />
+      {projectMenu && (
+        <div
+          className="at-project-dropdown"
+          data-project-menu
+          role="menu"
+          aria-label="Project actions"
+          style={{
+            position: "fixed",
+            top: projectMenu.top,
+            left: projectMenu.left,
+          }}
+        >
+          <button
+            role="menuitem"
+            autoFocus
+            onClick={() => projectAction("renameproject")}
+          >
+            Rename project
+          </button>
+          <button
+            role="menuitem"
+            className="at-danger-link"
+            onClick={() => projectAction("remove")}
+          >
+            Delete project
+          </button>
+        </div>
+      )}
       {review && (
         <Dialog title="Review Atlantis changes" onClose={() => setReview(null)}>
-          <p className="at-review-message">{review.result?.message}</p>
+          <StudioMessage text={review.result?.message ?? ""} />
           {Object.keys(review.result?.launch ?? {}).length > 0 && (
             <div className="at-change-list">
               <h4>Launch details</h4>
@@ -1629,13 +1734,13 @@ function StudioWorkspace() {
               file: "Add a file",
               folder: "Add a folder",
               rename: "Rename file",
+              renameproject: "Rename project",
               remove: "Delete project",
             }[modal]
           }
           onClose={() => {
             if (!busy) {
               setModal(null);
-              setPat("");
             }
           }}
         >
@@ -1731,8 +1836,8 @@ function StudioWorkspace() {
             <>
               <p>
                 Your project contains a static frontend for GitHub Pages, a Node
-                backend for Railway, and deployment instructions. Exports don’t
-                deploy automatically.
+                backend for Railway, and deployment instructions. The included
+                Pages workflow is run manually from your GitHub account.
               </p>
               <button
                 className="at-primary"
@@ -1744,40 +1849,123 @@ function StudioWorkspace() {
               </button>
               <hr />
               <h3>Export to GitHub</h3>
-              <p className="at-muted">
-                Use an existing repository initialized with a README. Atlantis
-                creates a new branch containing this project; it leaves your
-                existing branches untouched.
-              </p>
-              <label className="at-field">
-                Repository
-                <input
-                  placeholder="your-name/your-project"
-                  value={repo}
-                  onChange={(e) => setRepo(e.target.value)}
-                />
-              </label>
-              <label className="at-field">
-                Fine-grained access token
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={pat}
-                  onChange={(e) => setPat(e.target.value)}
-                />
-              </label>
-              <p className="at-muted">
-                Grant this repository Contents and Workflows write access. Your
-                token is used for this export only, never saved or sent to
-                Atlantis’s AI.
-              </p>
-              <button
-                disabled={actionDisabled || !repo || !pat}
-                onClick={() => void exportGithub()}
-              >
-                Create export branch
-                <ArrowRight size={16} />
-              </button>
+              {!github?.connected ? (
+                <div className="at-github-connection">
+                  <Github size={24} />
+                  <p>
+                    Connect GitHub to your AQUA account, then export this
+                    project to a new repository.
+                  </p>
+                  <button
+                    disabled={actionDisabled}
+                    onClick={() =>
+                      void task("Opening integrations", async () => {
+                        await save();
+                        navigate("/settings/integrations");
+                      })
+                    }
+                  >
+                    Connect in Settings
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="at-muted">
+                    Connected as <strong>{github.login}</strong>. Atlantis will
+                    create a new repository containing your frontend, backend
+                    and deployment files.
+                  </p>
+                  <label className="at-field">
+                    Repository name
+                    <input
+                      placeholder="my-memecoin"
+                      maxLength={100}
+                      value={repo}
+                      onChange={(e) => setRepo(e.target.value)}
+                    />
+                  </label>
+                  <label className="at-field">
+                    Visibility
+                    <select
+                      value={privateRepo ? "private" : "public"}
+                      onChange={(e) =>
+                        setPrivateRepo(e.target.value === "private")
+                      }
+                    >
+                      <option value="private">Private</option>
+                      <option value="public">Public</option>
+                    </select>
+                  </label>
+                  <p className="at-muted">
+                    {privateRepo
+                      ? "Only you and people you grant access can see this repository. GitHub Pages from a private repository may require a paid GitHub plan."
+                      : "Anyone will be able to view the exported files. Public repositories can use GitHub Pages on GitHub Free."}
+                  </p>
+                  <button
+                    className="at-primary"
+                    disabled={
+                      actionDisabled ||
+                      !repo.trim() ||
+                      githubExports.some((item) => item.status === "running")
+                    }
+                    onClick={() => void exportGithub()}
+                  >
+                    <Github size={16} />
+                    Create new repository
+                  </button>
+                  {githubExports.length > 0 && (
+                    <div className="at-github-exports">
+                      {githubExports.map((item) => (
+                        <div key={item.id}>
+                          <span>
+                            <strong>{item.name}</strong>
+                            <small>
+                              {item.status === "complete"
+                                ? "Export complete"
+                                : item.status === "running"
+                                  ? "Export in progress"
+                                  : (item.error ?? "Export interrupted")}
+                            </small>
+                          </span>
+                          {item.status === "failed" ? (
+                            <button
+                              disabled={actionDisabled}
+                              onClick={() => void exportGithub(item)}
+                            >
+                              Resume export
+                            </button>
+                          ) : item.status === "complete" && item.full_name ? (
+                            <a
+                              href={`https://github.com/${item.full_name}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Open repository ↗
+                            </a>
+                          ) : (
+                            <button
+                              disabled={actionDisabled}
+                              onClick={() =>
+                                void task("Checking export", async () => {
+                                  if (project)
+                                    setGithubExports(
+                                      await request<GithubExport[]>(
+                                        `/projects/${project.id}/github`,
+                                      ),
+                                    );
+                                })
+                              }
+                            >
+                              Check status
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
               {exportUrl && (
                 <a
                   className="at-export-link"
@@ -1841,13 +2029,15 @@ function StudioWorkspace() {
           ) : modal === "remove" ? (
             <>
               <p>
-                Delete this project and its files, conversation and snapshots?
-                Export a copy first if you want to keep it. Your AQUA balance is
-                retained.
+                Delete {modalProject?.name} and its files, conversation and
+                snapshots? Export a copy first if you want to keep it. Your AQUA
+                balance is retained.
               </p>
               <button
                 className="at-danger"
-                disabled={actionDisabled || active}
+                disabled={
+                  actionDisabled || (modalProject?.id === project?.id && active)
+                }
                 onClick={() => void submitModal()}
               >
                 Delete project
@@ -1861,13 +2051,17 @@ function StudioWorkspace() {
               }}
             >
               <label className="at-field">
-                {modal === "project" ? "Project name" : "Relative path"}
+                {modal === "project" || modal === "renameproject"
+                  ? "Project name"
+                  : "Relative path"}
                 <input
                   autoFocus
                   value={input}
-                  maxLength={modal === "project" ? 80 : 180}
+                  maxLength={
+                    modal === "project" || modal === "renameproject" ? 80 : 180
+                  }
                   placeholder={
-                    modal === "project"
+                    modal === "project" || modal === "renameproject"
                       ? "My next idea"
                       : modal === "folder"
                         ? "frontend/assets"
@@ -1881,7 +2075,9 @@ function StudioWorkspace() {
                 disabled={actionDisabled || !input.trim()}
                 type="submit"
               >
-                {modal === "rename" ? "Rename" : "Create"}
+                {modal === "rename" || modal === "renameproject"
+                  ? "Rename"
+                  : "Create"}
                 <ArrowRight size={16} />
               </button>
             </form>

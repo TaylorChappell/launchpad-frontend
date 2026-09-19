@@ -25,6 +25,7 @@ const COMMUNITY_POST_URL = "https://x.com/Aqua_Launchpad/status/2100283826693922
 export function Layout({ children }: { children: ReactNode }) {
   const wallet = useWallet();
   const currentPath = useLocation().pathname;
+  const accountPage=currentPath.startsWith("/settings")||currentPath.startsWith("/profile/");
   const trading = currentPath.startsWith("/token/") || currentPath.startsWith("/studio");
   const { config, error } = useRuntime();
   const [mobile, setMobile] = useState(false);
@@ -69,7 +70,7 @@ export function Layout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", openWithShortcut);
   }, [searchOpen, wallet.modalOpen]);
 
-  return <div className={`app-shell ${trading ? "trading-shell" : ""} ${currentPath.startsWith("/studio")?"studio-shell":""}`}>
+  return <div className={`app-shell ${trading ? "trading-shell" : ""} ${currentPath.startsWith("/studio")?"studio-shell":""} ${accountPage?"account-shell":""}`}>
     {opening && <div className="opening-reveal" aria-hidden="true">
       <div className="opening-reveal-water" onAnimationEnd={(event) => {
         if (event.currentTarget === event.target && event.animationName === "opening-wave-down-slow") setOpening(false);
@@ -92,7 +93,7 @@ export function Layout({ children }: { children: ReactNode }) {
       </div>
       {mobile && <nav className="mobile-nav" aria-label="Mobile navigation">{links.map((link) => <NavLink key={link.to} to={link.to} onClick={() => setMobile(false)}>{link.label}</NavLink>)}</nav>}
     </header>
-    {!trading && <a className="community-reward-banner" href={COMMUNITY_POST_URL} target="_blank" rel="noreferrer">
+    {!trading && !accountPage && <a className="community-reward-banner" href={COMMUNITY_POST_URL} target="_blank" rel="noreferrer">
       <CampaignBannerArt/>
       <span className="community-reward-banner-copy"><small>LAUNCH ON AQUA COMMUNITY PROGRAM</small><strong><em>$2,500</em> IN LAUNCH REWARDS</strong><span>Community and builder milestones are now live.</span></span>
       <span className="community-reward-prizes"><b>$1,250</b><i/> <b>$750</b><i/> <b>$500</b></span>

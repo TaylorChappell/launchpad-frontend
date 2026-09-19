@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { SolanaClient } from "@metamask/connect-solana";
 import { toast } from "sonner";
-import { api } from "./api";
+import { api, API_URL } from "./api";
 import type { LaunchBatchEnvelope, RuntimeConfig, SignedTransactionEnvelope, TransactionEnvelope } from "./types";
 
 type PhantomProvider = {
@@ -178,7 +178,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [configLoading, connectWallet]);
 
   const disconnect = useCallback(async () => {
-    try { for (const key of Object.keys(sessionStorage)) if(key.startsWith("aqua:studio:")) sessionStorage.removeItem(key); } catch { /* Session storage can be unavailable. */ }
+    const revoke:Promise<unknown>[]=[];
+    try { for (const key of Object.keys(sessionStorage)) if(key.startsWith("aqua:studio:")) {const session=JSON.parse(sessionStorage.getItem(key)??"null");sessionStorage.removeItem(key);if(session?.token)revoke.push(fetch(`${API_URL}/account/sign-out`,{method:"POST",headers:{Authorization:`Bearer ${session.token}`},signal:AbortSignal.timeout(3000)}).catch(()=>{}));} } catch { /* Session storage can be unavailable. */ }
     ++connectionAttempt.current;
     const previous = adapter.current;
     adapter.current = null;
@@ -191,6 +192,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (previous?.kind === "phantom") await previous.provider.disconnect();
       if (previous?.kind === "metamask") await previous.value.client.disconnect();
     } catch { /* AQUA remains signed out even if the extension is unavailable. */ }
+    await Promise.allSettled(revoke);
   }, []);
 
   useEffect(() => {
