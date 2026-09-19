@@ -39,6 +39,10 @@ export type StudioProject = {
   updated_at: number;
 };
 export type StudioJob = {
+  revision?: number;
+  applied_at?: number | null;
+  has_changes?: boolean;
+  effort?: "low" | "medium" | "high";
   credit_exempt?: boolean;
   progress?: string;
   id: string;
@@ -61,6 +65,7 @@ export type StudioJob = {
   };
 };
 export type StudioConfig = {
+  efforts?: Array<{id: "low" | "medium" | "high";model:string;imageModel:string;imageQuality:string}>;
   enabled: boolean;
   paidEnabled: boolean;
   setup: {

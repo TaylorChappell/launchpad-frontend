@@ -70,6 +70,7 @@ import {
   type StudioState,
 } from "../studio-api";
 import { studioPreview } from "../studio-preview";
+import { studioChangeList } from "../studio-changes";
 import type { TransactionEnvelope } from "../types";
 import "./studio.css";
 const Editor = lazy(() => import("../components/StudioEditor"));
@@ -88,6 +89,7 @@ type Account = {
 };
 type DepositQuote = TransactionEnvelope & {id:string;maximumCreditMicroUsd:string;expiresAt:number;price:{usdPrice:string;quotedAt:number}};
 type Quote = {
+  effort?: "low" | "medium" | "high";
   creditExempt?: boolean;
   id: string;
   maximumMicroUsd: string;
@@ -131,6 +133,21 @@ function StudioWorkspace() {
   const wallet = useWallet(),
     navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const preferenceKey = `aqua:studio-preferences:${wallet.address ?? "visitor"}`;
+  const [effort, setEffort] = useState<"low" | "medium" | "high">(() => {
+    try { const value=JSON.parse(localStorage.getItem(preferenceKey) ?? "{}").effort; return ["low","medium","high"].includes(value) ? value : "low"; } catch { return "low"; }
+  });
+  const [autoApply,setAutoApply] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(preferenceKey) ?? "{}").autoApply === true; } catch { return false; }
+  });
+  const handledResults = useRef(new Set<string>());
+  const autoApplyJobs = useRef(new Set<string>());
+  const pendingSend = useRef<{projectId:string;revision:number;prompt:string;effort:typeof effort;quote:Quote;autoApply:boolean} | null>(null);
+  const autoApplyCurrent = useRef(autoApply);
+  autoApplyCurrent.current = autoApply;
+  useEffect(() => {
+    try { localStorage.setItem(preferenceKey,JSON.stringify({effort,autoApply})); } catch { /* Preferences still work for this session. */ }
+  }, [preferenceKey,effort,autoApply]);
   const [token, setToken] = useState(() =>
     wallet.address ? studioSession(wallet.address) : "",
   );
@@ -157,7 +174,6 @@ function StudioWorkspace() {
   const messages = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState("frontend/index.html"),
     [prompt, setPrompt] = useState(""),
-    [quote, setQuote] = useState<Quote | null>(null),
     [creditGate, setCreditGate] = useState<CreditGate | null>(null);
   const [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
@@ -290,7 +306,6 @@ function StudioWorkspace() {
     projectId.current = value.id;
     setProject(value);
     setState(value.state);
-    setQuote(null);
     setReview(null);
   }
   async function openProject(id: string) {
@@ -299,7 +314,11 @@ function StudioWorkspace() {
     takeProject(value);
     setJobs([]);
     const history = await request<StudioJob[]>(`/projects/${id}/jobs`);
-    if (projectId.current === id) setJobs(history);
+    if (projectId.current === id) {
+      // Historical results remain available to review, but do not reopen old popups.
+      for (const job of history) if (job.status === "complete") handledResults.current.add(job.id);
+      setJobs(history);
+    }
   }
   useEffect(() => {
     void refreshStudioConfig().catch(fail);
@@ -431,9 +450,6 @@ function StudioWorkspace() {
     };
   }, [dirty]);
   useEffect(() => {
-    setQuote(null);
-  }, [prompt, state]);
-  useEffect(() => {
     if (!modal) return;
     const close = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !taskLock.current) {
@@ -471,7 +487,6 @@ function StudioWorkspace() {
   }
   function edit(fn: (old: StudioState) => StudioState) {
     setState((old) => (old ? fn(old) : old));
-    setQuote(null);
   }
   function launchField<K extends keyof StudioLaunch>(
     key: K,
@@ -487,8 +502,17 @@ function StudioWorkspace() {
         : [...old.lockedFields, key],
     }));
   }
-  async function generateQuote() {
-    await task("Estimating", async () => {
+  async function sendMessage() {
+    if (!prompt.trim() || taskLock.current || active || review) return;
+    const sendingProject = project?.id;
+    const selectedEffort = effort;
+    const submittedPrompt = prompt;
+    await task("Starting generation", async () => {
+      const retry = pendingSend.current;
+      if (retry && retry.projectId === sendingProject && retry.revision === project?.revision && retry.prompt === submittedPrompt && retry.effort === selectedEffort && !dirty) {
+        await submitGeneration(retry);
+        return;
+      }
       const [latestConfig, latestAccount] = await Promise.all([
         refreshStudioConfig(),
         refreshAccount(),
@@ -496,100 +520,113 @@ function StudioWorkspace() {
       if (!mounted.current) return;
       setConfig(latestConfig);
       if (!latestConfig.paidEnabled) {
-        setQuote(null);
         setCreditGate(null);
         setError("AI setup is incomplete. The exact missing settings are listed below.");
         return;
       }
       if (!latestAccount.creditExempt && BigInt(latestAccount.balanceMicroUsd) <= 0n) {
-        setQuote(null);
         setCreditGate({ balanceMicroUsd: latestAccount.balanceMicroUsd });
         return;
       }
       const saved = await save();
-      if (!saved) return;
+      if (!saved || saved.id !== sendingProject || projectId.current !== sendingProject) return;
       const estimate = await request<Quote>(`/projects/${saved.id}/quote`, {
-        prompt,
+        prompt: submittedPrompt,
         kind: "auto",
         revision: saved.revision,
+        effort: selectedEffort,
       });
-      setQuote(estimate);
-      setCreditGate(
-        !latestAccount.creditExempt && BigInt(latestAccount.balanceMicroUsd) < BigInt(estimate.maximumMicroUsd)
-          ? {
-              balanceMicroUsd: latestAccount.balanceMicroUsd,
-              requiredMicroUsd: estimate.maximumMicroUsd,
-            }
-          : null,
-      );
-    });
-  }
-  async function sendMessage() {
-    if (!prompt.trim() || taskLock.current || active) return;
-    if (quote && !creditGate && quote.expiresAt > Date.now()) await generate();
-    else {
-      setQuote(null);
-      await generateQuote();
-    }
-  }
-  async function generate() {
-    if (!quote || !project) return;
-    await task("Starting generation", async () => {
-      const latestAccount = await refreshAccount();
-      if (!latestAccount.creditExempt && BigInt(latestAccount.balanceMicroUsd) < BigInt(quote.maximumMicroUsd)) {
+      if (estimate.effort !== selectedEffort)
+        throw new Error("This backend does not support effort selection yet. Deploy the updated Studio backend before sending.");
+      if (!mounted.current || projectId.current !== saved.id) return;
+      if (!latestAccount.creditExempt && BigInt(latestAccount.balanceMicroUsd) < BigInt(estimate.maximumMicroUsd)) {
         setCreditGate({
           balanceMicroUsd: latestAccount.balanceMicroUsd,
-          requiredMicroUsd: quote.maximumMicroUsd,
+          requiredMicroUsd: estimate.maximumMicroUsd,
         });
         return;
       }
-      const id = project.id;
+      const submission = {projectId:saved.id,revision:saved.revision,prompt:submittedPrompt,effort:selectedEffort,quote:estimate,autoApply};
+      pendingSend.current = submission;
+      await submitGeneration(submission);
+    });
+  }
+  async function submitGeneration(submission: NonNullable<typeof pendingSend.current>) {
+      const id = submission.projectId, estimate = submission.quote;
       try {
-        await request(`/projects/${id}/jobs`, { quoteId: quote.id });
+        await request(`/projects/${id}/jobs`, { quoteId: estimate.id });
       } catch (reason) {
+        if (reason instanceof StudioApiError && reason.status < 500 && reason.status !== 429)
+          pendingSend.current = null;
         if (reason instanceof StudioApiError && reason.status === 402) {
           const current = await refreshAccount();
           setCreditGate({
             balanceMicroUsd: current.balanceMicroUsd,
-            requiredMicroUsd: quote.maximumMicroUsd,
+            requiredMicroUsd: estimate.maximumMicroUsd,
           });
           return;
         }
         throw reason;
       }
-      setQuote(null);
+      pendingSend.current = null;
+      if (submission.autoApply) autoApplyJobs.current.add(estimate.id);
+      if (!mounted.current || projectId.current !== id) return;
       setCreditGate(null);
       setPrompt("");
       setJobs(await request(`/projects/${id}/jobs`));
       await refreshAccount();
-    });
   }
   async function reviewJob(job: StudioJob) {
     await task("Loading changes", async () =>
       setReview(await request<StudioJob>(`/jobs/${job.id}`)),
     );
   }
-  async function applyChanges() {
-    if (!review || !project) return;
-    const jobId = review.id,
-      jobKind = review.kind;
-    await task("Applying changes", async () => {
+  async function applyJobChanges(job: StudioJob, automatic = false) {
+    if (!project || job.project_id !== project.id) return;
+    if (automatic && (!autoApplyCurrent.current || dirty || job.revision !== project.revision)) {
+      setReview(job);
+      setNotice("Your project changed while Atlantis was working. Review the edits before applying them.");
+      return;
+    }
       const saved = await save();
       if (!saved) return;
-      takeProject(
-        await request<StudioProject>(`/projects/${saved.id}/apply`, {
-          jobId,
+      let updated: StudioProject;
+      try {
+        updated = await request<StudioProject>(`/projects/${saved.id}/apply`, {
+          jobId: job.id,
           revision: saved.revision,
-        }),
-      );
-      if (jobKind === "code" || jobKind === "image") {
+          autoApply: automatic,
+        });
+      } catch (reason) {
+        setReview(job);
+        throw reason;
+      }
+      if (!mounted.current || projectId.current !== saved.id) return;
+      takeProject(updated);
+      setJobs(old=>old.map(item=>item.id===job.id ? {...item,applied_at:Date.now()} : item));
+      if (job.kind === "code" || job.kind === "image") {
         setWorkspaceOpen(true);
-        setTab(jobKind === "code" ? "preview" : "assets");
+        setTab(job.kind === "code" ? "preview" : "assets");
       }
       setNotice("Changes applied. Your previous version is saved in History.");
       await refreshProjects();
-    });
   }
+  async function applyChanges() {
+    if (review) await task("Applying changes",()=>applyJobChanges(review));
+  }
+  useEffect(() => {
+    if (!project || !state || busy || review || modal || creditGate || taskLock.current) return;
+    const candidate = [...jobs].reverse().find(job=>job.status === "complete" && !job.applied_at && job.has_changes !== false && !handledResults.current.has(job.id));
+    if (!candidate) return;
+    handledResults.current.add(candidate.id);
+    const id = project.id;
+    void task("Checking changes",async()=>{
+      const completed = await request<StudioJob>(`/jobs/${candidate.id}`);
+      if (!mounted.current || projectId.current !== id || completed.applied_at || !studioChangeList(state,completed.result).length) return;
+      if (autoApplyCurrent.current && autoApplyJobs.current.has(completed.id)) await applyJobChanges(completed,true);
+      else setReview(completed);
+    });
+  }, [jobs,project,state,busy,review,modal,creditGate,autoApply]);
   async function uploadFiles(list: FileList | null) {
     if (!list) return;
     await task("Adding assets", async () => {
@@ -994,6 +1031,12 @@ function StudioWorkspace() {
     });
   }
   const actionDisabled = Boolean(busy);
+  const reviewChanges = state ? studioChangeList(state,review?.result) : [];
+  const effortDetails = {
+    low: "Quick drafts · Lowest cost",
+    medium: "Stronger ideas, code and artwork · Higher cost",
+    high: "Most capable models and detailed artwork · Highest cost",
+  }[effort];
   const githubControls = (
     <div className="at-github-connection">
       <Github size={24} />
@@ -1428,12 +1471,13 @@ function StudioWorkspace() {
                                 text={job.message ?? "Your result is ready."}
                               />
                               <div className="at-message-actions">
-                                <button
+                                {job.has_changes !== false && !job.applied_at && <button
                                   disabled={actionDisabled}
                                   onClick={() => void reviewJob(job)}
                                 >
-                                  Review result <ArrowRight size={13} />
-                                </button>
+                                  Review changes <ArrowRight size={13} />
+                                </button>}
+                                {job.applied_at && <small>Changes applied</small>}
                                 <small>
                                   {job.credit_exempt ? "Admin · No credit charged" : job.charged_micro_usd != null ? `${usdCredit(job.charged_micro_usd)} used` : decimals !== null ? `${aquaAmount(job.charged_raw, decimals)} AQUA (legacy)` : "Legacy usage"}
                                 </small>
@@ -1453,6 +1497,21 @@ function StudioWorkspace() {
                     ))}
                   </div>
                   <div className="at-compose">
+                    <div className="at-compose-settings">
+                      <label className="at-effort-picker">
+                        <span>Effort</span>
+                        <select aria-label="AI effort" value={effort} disabled={actionDisabled || active} onChange={e=>{setEffort(e.target.value as typeof effort);setCreditGate(null);}}>
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                        </select>
+                      </label>
+                      <label className="at-auto-apply" title="Apply generated project edits without asking. Never launches, publishes, or signs wallet transactions.">
+                        <input type="checkbox" role="switch" checked={autoApply} disabled={actionDisabled} onChange={e=>setAutoApply(e.target.checked)} />
+                        <span>Auto-apply edits</span>
+                      </label>
+                    </div>
+                    <small className="at-effort-description">{effortDetails}</small>
                     <textarea
                       aria-label="Message Atlantis"
                       placeholder="Ask Atlantis anything about your memecoin, artwork or website…"
@@ -1461,7 +1520,6 @@ function StudioWorkspace() {
                       maxLength={12000}
                       onChange={(e) => {
                         setPrompt(e.target.value);
-                        setQuote(null);
                         setCreditGate(null);
                       }}
                       onKeyDown={(e) => {
@@ -1476,24 +1534,6 @@ function StudioWorkspace() {
                       }}
                       rows={4}
                     />
-                    {quote && !creditGate ? (
-                      <div className="at-quote">
-                        <strong>
-                          {quote.creditExempt ? "Admin access · No credits needed" : `Up to ${usdCredit(quote.maximumMicroUsd,"up")} of credit`}
-                        </strong>
-                        <small>
-                          {quote.creditExempt ? "AI usage is covered by the operator. The daily AI budget still applies." : `${quote.pricing}. Quote expires in 2 minutes.`}
-                        </small>
-                        <button
-                          className="at-primary"
-                          disabled={actionDisabled || active}
-                          onClick={() => void generate()}
-                        >
-                          Confirm & generate
-                          <ArrowRight size={15} />
-                        </button>
-                      </div>
-                    ) : (
                       <div className="at-compose-footer">
                         {active && <small>Generation in progress</small>}
                         {!active && <small>Enter to send · Shift+Enter for a new line</small>}
@@ -1510,7 +1550,7 @@ function StudioWorkspace() {
                           <Send size={16} />
                         </button>
                       </div>
-                    )}
+                    <small className="at-billing-note">{account.creditExempt ? "Admin access · No credits charged" : "Sending uses credits. Only actual AI usage is charged."}</small>
                   </div>
                 </aside>
               )}
@@ -2030,7 +2070,7 @@ function StudioWorkspace() {
       {creditGate && !modal && !review && (
         <Dialog title="Not enough credits" className="at-credit-dialog" onClose={() => setCreditGate(null)}>
           <div className="at-credit-popup-icon" aria-hidden="true"><Droplets size={28} /></div>
-          <p>Top up your Studio wallet with AQUA to continue. Your message is saved here and won’t be sent until you confirm.</p>
+          <p>Top up your Studio wallet with AQUA to continue. Your message will stay in the chat box. Send it again when you’re ready.</p>
           <dl className="at-credit-summary">
             <div><dt>Available credit</dt><dd>{usdCredit(creditGate.balanceMicroUsd)}</dd></div>
             {creditShortfall && <div><dt>Top up at least</dt><dd>{usdCredit(creditShortfall,"up")}</dd></div>}
@@ -2042,8 +2082,15 @@ function StudioWorkspace() {
         </Dialog>
       )}
       {review && (
-        <Dialog title="Review Atlantis changes" onClose={() => setReview(null)}>
-          <StudioMessage text={review.result?.message ?? ""} />
+        <Dialog title="Apply these changes?" className="at-changes-dialog" onClose={() => { if (!taskLock.current) setReview(null); }}>
+          <p>Atlantis has finished. {reviewChanges.length ? "Review the proposed edits below. Nothing has been changed yet." : "There are no new unlocked changes to apply."}</p>
+          {error && <p className="at-review-warning">{error}</p>}
+          {dirty && <p className="at-review-warning">You have unsaved edits. Applying this result can replace edits to the same files or fields.</p>}
+          {review.revision !== undefined && project?.revision !== review.revision && <p className="at-review-warning">This result was created from an older project version. Check it against your latest work before applying.</p>}
+          <ul className="at-change-summary">
+            {reviewChanges.map(change=><li key={change.key}><strong>{change.label}</strong><span>{change.detail}</span></li>)}
+          </ul>
+          <details className="at-change-detail"><summary>Inspect proposed content</summary>
           {Object.keys(review.result?.launch ?? {}).length > 0 && (
             <div className="at-change-list">
               <h4>Launch details</h4>
@@ -2091,24 +2138,27 @@ function StudioWorkspace() {
                 : ""}
             </p>
           ))}
+          </details>
           <p className="at-muted">
             Review the proposed files before applying. Locked details and files
             are preserved. History keeps your previous version.
           </p>
+          <label className="at-auto-apply at-review-auto"><input type="checkbox" role="switch" checked={autoApply} disabled={actionDisabled} onChange={e=>setAutoApply(e.target.checked)} /><span>Auto-apply future edits without asking</span></label>
+          <small className="at-muted">Only project edits. Launches, exports and wallet transactions still need your approval.</small>
+          <div className="at-change-actions">
+          <button disabled={actionDisabled} onClick={()=>setReview(null)}>Not now</button>
           <button
             className="at-primary"
             disabled={
               actionDisabled ||
-              !review.result ||
-              (!review.result.files.length &&
-                !review.result.deletePaths.length &&
-                !Object.keys(review.result.launch ?? {}).length)
+              !review.result || !reviewChanges.length || Boolean(review.applied_at)
             }
             onClick={() => void applyChanges()}
           >
             Apply changes
             <Check size={16} />
           </button>
+          </div>
         </Dialog>
       )}
       {modal && (
