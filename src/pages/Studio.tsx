@@ -75,7 +75,7 @@ import {
   type StudioProject,
   type StudioState,
 } from "../studio-api";
-import { studioPreview } from "../studio-preview";
+import { StudioSitePreview } from "../components/StudioSitePreview";
 import { studioChangeList } from "../studio-changes";
 import type { TransactionEnvelope } from "../types";
 import { lazyWithRecovery as lazy } from "../components/LazyRecovery";
@@ -273,10 +273,6 @@ function StudioWorkspace() {
   }, [jobs.length, jobs[0]?.status, visibleSending, project?.id, workspaceOpen]);
   const file = state?.files.find((f) => f.path === selected),
     decimals = config?.decimals ?? null;
-  const preview = useMemo(
-    () => (workspaceOpen && tab === "preview" && state ? studioPreview(state.files) : ""),
-    [state?.files, workspaceOpen, tab],
-  );
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -1758,12 +1754,7 @@ function StudioWorkspace() {
                             </button>
                           </div>
                         ) : (
-                          <iframe
-                            title="Isolated website preview"
-                            sandbox="allow-scripts"
-                            referrerPolicy="no-referrer"
-                            srcDoc={preview}
-                          />
+                          <StudioSitePreview key={project?.id} files={state?.files ?? []}/>
                         )}
                       </div>
                       <div className="at-preview-footer">

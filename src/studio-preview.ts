@@ -1,20 +1,16 @@
 import { studioAssetUrl, type StudioFile } from "./studio-api";
-// Never execute project code in the parent window. The caller must use sandbox="allow-scripts".
+import { studioPreviewPath } from "./studio-preview-paths";
+import { studioPreviewBridge, type PreviewBridgeOptions } from "./studio-preview-bridge";
+// Project code runs only in an opaque sandbox; form-action CSP blocks network submissions.
 export function studioPreview(
   files: StudioFile[],
   entry = "frontend/index.html",
+  options?: PreviewBridgeOptions & {onIssue?:(message:string)=>void},
 ) {
   const map = new Map(files.map((f) => [f.path, f]));
   const resolve = (base: string, path: string) => {
-    if (/^(data:|https?:|\/\/|#)/i.test(path)) return null;
-    const parts = path.startsWith("/")
-      ? ["frontend"]
-      : base.split("/").slice(0, -1);
-    for (const p of path.split(/[?#]/)[0].split("/")) {
-      if (p === "..") parts.pop();
-      else if (p && p !== ".") parts.push(p);
-    }
-    return map.get(parts.join("/")) ?? null;
+    const resolved = studioPreviewPath(path,base);
+    return resolved ? map.get(resolved.path) ?? null : null;
   };
   const source =
     map.get(entry)?.content ??
@@ -33,6 +29,7 @@ export function studioPreview(
     .querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')
     .forEach((link) => {
       const f = resolve(entry, link.getAttribute("href") ?? "");
+      if (!f) options?.onIssue?.("Missing stylesheet: " + link.getAttribute("href"));
       const style = doc.createElement("style");
       style.textContent = f ? css(f.content, f.path) : "";
       link.replaceWith(style);
@@ -46,17 +43,26 @@ export function studioPreview(
       el.setAttribute("style", css(el.getAttribute("style") ?? "", entry)),
     );
   doc.querySelectorAll<HTMLScriptElement>("script[src]").forEach((script) => {
-    const f = resolve(entry, script.getAttribute("src") ?? "");
-    script.removeAttribute("src");
+    const src = script.getAttribute("src") ?? "";
+    const f = resolve(entry, src);
     script.removeAttribute("integrity");
-    script.textContent = f?.encoding === "utf8" ? f.content : "";
+    script.removeAttribute("crossorigin");
+    // A classic inline script ignores defer. Keep a real script source so DOM
+    // readiness and the ordering of config, deferred and module scripts survive.
+    if (f?.encoding === "utf8") script.src = "data:text/javascript;charset=utf-8,"+encodeURIComponent(f.content);
+    else {
+      options?.onIssue?.("Missing script: " + src);
+      script.remove();
+    }
   });
-  doc.querySelectorAll<HTMLElement>("[src],[poster]").forEach((el) => {
+  doc.querySelectorAll<HTMLElement>("[src]:not(script),[poster]").forEach((el) => {
     for (const attr of ["src", "poster"]) {
       const path = el.getAttribute(attr);
       if (path) {
+        if (/^data:(image|audio|video)\//i.test(path)) continue;
         const f = resolve(entry, path);
-        el.setAttribute(attr, f ? studioAssetUrl(f) : "");
+        const hash = studioPreviewPath(path,entry)?.hash ?? "";
+        el.setAttribute(attr, f ? studioAssetUrl(f)+hash : "");
       }
     }
     el.removeAttribute("srcset");
@@ -67,7 +73,13 @@ export function studioPreview(
   const policy = doc.createElement("meta");
   policy.httpEquiv = "Content-Security-Policy";
   policy.content =
-    "default-src 'none'; script-src 'unsafe-inline' blob:; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none';";
+    "default-src 'none'; script-src 'unsafe-inline' data: blob:; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none';";
+  if (options) {
+    const bridge = doc.createElement("script");
+    const config = JSON.stringify({channel:options.channel,location:options.location,storage:options.storage}).replace(/</g,"\\u003c");
+    bridge.textContent = `(${studioPreviewBridge.toString()})(${config});`;
+    doc.head.prepend(bridge);
+  }
   doc.head.prepend(policy);
   return "<!doctype html>" + doc.documentElement.outerHTML;
 }
