@@ -849,14 +849,6 @@ function StudioWorkspace() {
                 </nav>
               </>
             )}
-            <div className="at-sidebar-bottom">
-              <span>Built for AQUA</span>
-              <p>
-                Plan, create and launch.
-                <br />
-                Your work stays yours.
-              </p>
-            </div>
           </aside>
           <div className="at-projectbar">
             <div>
@@ -1069,12 +1061,6 @@ function StudioWorkspace() {
                     ))}
                   </div>
                   <div className="at-compose">
-                    {!config?.paidEnabled && (
-                      <p className="at-muted">
-                        AI is awaiting configuration. You can edit, save and
-                        export your project.
-                      </p>
-                    )}
                     <textarea
                       aria-label="Message Atlantis"
                       placeholder="Ask Atlantis anything about your memecoin, artwork or website…"
@@ -1117,11 +1103,7 @@ function StudioWorkspace() {
                       </div>
                     ) : (
                       <div className="at-compose-footer">
-                        <small>
-                          {active
-                            ? "Generation in progress"
-                            : "Review the price before spending"}
-                        </small>
+                        {active && <small>Generation in progress</small>}
                         <button
                           className="at-primary"
                           aria-label="Estimate generation cost"
@@ -1853,7 +1835,7 @@ function StudioWorkspace() {
                 <div className="at-github-connection">
                   <Github size={24} />
                   <p>
-                    Connect GitHub to your AQUA account, then export this
+                    Connect GitHub to your wallet, then export this
                     project to a new repository.
                   </p>
                   <button
@@ -1861,11 +1843,11 @@ function StudioWorkspace() {
                     onClick={() =>
                       void task("Opening integrations", async () => {
                         await save();
-                        navigate("/settings/integrations");
+                        navigate("/integrations");
                       })
                     }
                   >
-                    Connect in Settings
+                    Connect GitHub
                     <ArrowRight size={16} />
                   </button>
                 </div>

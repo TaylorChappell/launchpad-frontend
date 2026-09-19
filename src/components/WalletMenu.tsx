@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Copy, LogOut, Plus, Settings2, ShieldCheck, WalletCards, UserRound } from "lucide-react";
-import { accountRequest,type AquaProfile } from "../account-api";
+import { ChevronDown, Copy, LogOut, Plus, Settings2, ShieldCheck, WalletCards, Plug } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
@@ -16,8 +15,6 @@ export function WalletMenu() {
   const location = useLocation();
   const root = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const [profile,setProfile]=useState<AquaProfile|null>(null);
-  useEffect(()=>{let active=true;setProfile(null);const refresh=()=>{if(wallet.address)void accountRequest<AquaProfile>(`/profiles/${wallet.address}`).then(value=>{if(active)setProfile(value);}).catch(()=>{});};refresh();window.addEventListener("aqua:profile-updated",refresh);return()=>{active=false;window.removeEventListener("aqua:profile-updated",refresh);};},[wallet.address]);
   const [coins, setCoins] = useState<Launch[]>([]);
   const [loading, setLoading] = useState(false);
   const [visibleCoins, setVisibleCoins] = useState(COINS_PER_PAGE);
@@ -50,9 +47,8 @@ export function WalletMenu() {
   return <div className="wallet-menu" ref={root}>
     <button className="wallet-button connected wallet-menu-trigger" onClick={() => setOpen((value) => !value)} aria-haspopup="menu" aria-expanded={open}><span>{short}</span><ChevronDown size={14}/></button>
     {open && <div className="wallet-dropdown" role="menu">
-      <header><div className="wallet-identity">{profile?.logo?<img src={profile.logo} alt="Your logo" style={{width:32,height:32,objectFit:"cover",borderRadius:"50%"}}/>:<span className="wallet-connected-mark"><WalletCards size={16}/></span>}<div><small>{profile?.username?short:"Connected wallet"}</small><b>{profile?.username?`@${profile.username}`:short}</b></div></div><button aria-label="Copy wallet address" title="Copy wallet address" onClick={() => { void navigator.clipboard.writeText(address); toast.success("Wallet copied"); }}><Copy size={14}/></button></header>
-      <Link className="wallet-launch-link" to={`/profile/${address}`} role="menuitem"><UserRound size={15}/>Your profile</Link>
-      <Link className="wallet-launch-link" to="/settings/profile" role="menuitem"><Settings2 size={15}/>Account settings</Link>
+      <header><div className="wallet-identity"><span className="wallet-connected-mark"><WalletCards size={16}/></span><div><small>Connected wallet</small><b>{short}</b></div></div><button aria-label="Copy wallet address" title="Copy wallet address" onClick={() => { void navigator.clipboard.writeText(address); toast.success("Wallet copied"); }}><Copy size={14}/></button></header>
+      <Link className="wallet-launch-link" to="/integrations" role="menuitem"><Plug size={15}/>Integrations</Link>
       <section>
         <div className="wallet-dropdown-title"><span><WalletCards size={14}/>Your coins</span><b>{coins.length}</b></div>
         <div className="wallet-coins">

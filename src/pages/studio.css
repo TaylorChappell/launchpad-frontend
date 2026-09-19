@@ -334,6 +334,7 @@
   color: #718c99;
 }
 .at-compose-footer button {
+  margin-left: auto;
   width: 33px;
   height: 31px;
   min-height: 31px;
@@ -1652,21 +1653,6 @@
 .at-sidebar nav button.selected {
   background: #e7eef3;
   color: #214f68;
-}
-.at-sidebar-bottom {
-  margin: auto 12px 2px;
-  border-top: 1px solid #dfe6eb;
-  padding-top: 17px;
-}
-.at-sidebar-bottom span {
-  font-size: 10px;
-  color: #778c99;
-}
-.at-sidebar-bottom p {
-  font-size: 11px;
-  line-height: 1.7;
-  color: #91a0a9;
-  margin: 7px 0 0;
 }
 .at-projectbar {
   grid-column: 2;

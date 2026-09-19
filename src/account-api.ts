@@ -1,12 +1,5 @@
 import { API_URL } from "./api";
 import { StudioApiError, studioSessionKey } from "./studio-api";
-export type AquaProfile = {
-  wallet: string;
-  username: string;
-  description: string;
-  logo: string;
-  revision: number;
-};
 export type GithubConnection = {
   enabled: boolean;
   connected: boolean;
