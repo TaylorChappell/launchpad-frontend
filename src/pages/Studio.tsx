@@ -11,7 +11,7 @@ import {
   isValidElement,
   type ReactNode,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { StudioMessage } from "../components/StudioMessage";
 import {
   accountRequest,
@@ -90,6 +90,7 @@ type Version = {
 type Modal =
   | "credit"
   | "export"
+  | "github"
   | "history"
   | "project"
   | "file"
@@ -112,6 +113,7 @@ export function Studio() {
 function StudioWorkspace() {
   const wallet = useWallet(),
     navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const [token, setToken] = useState(() =>
     wallet.address ? studioSession(wallet.address) : "",
   );
@@ -169,6 +171,7 @@ function StudioWorkspace() {
   const upload = useRef<HTMLInputElement>(null),
     projectId = useRef<string | null>(null),
     mounted = useRef(true),
+    workspaceSession = useRef(""),
     taskLock = useRef(false);
   const dirty = Boolean(
     state && project && JSON.stringify(state) !== JSON.stringify(project.state),
@@ -256,13 +259,78 @@ function StudioWorkspace() {
       .catch(fail);
   }, []);
   useEffect(() => {
-    if (!token) return;
+    if (!token || busy || taskLock.current) return;
+    if (workspaceSession.current === token && !params.get("github")) return;
+    workspaceSession.current = token;
     void task("Opening workspace", async () => {
+      const result = params.get("github");
+      let connectionError: unknown;
+      let returning: {
+        projectId?: string;
+        modal?: string;
+        repo?: string;
+        privateRepo?: boolean;
+      } | null = null;
+      if (result) {
+        try {
+          const key = `aqua:studio-github-return:${wallet.address}`;
+          returning = JSON.parse(sessionStorage.getItem(key) ?? "null");
+          sessionStorage.removeItem(key);
+        } catch {
+          /* Reopen GitHub without a project preference. */
+        }
+        const oauthState = params.get("state"),
+          code = params.get("code");
+        setParams({}, { replace: true });
+        if (result === "callback") {
+          try {
+            await accountRequest("/integrations/github/complete", token, {
+              state: oauthState,
+              code,
+            });
+          } catch (error) {
+            connectionError = error;
+          }
+        }
+      }
       await refreshAccount();
       const list = await refreshProjects();
-      if (list[0]) await openProject(list[0].id);
+      const selectedProject =
+        list.find((item) => item.id === returning?.projectId) ?? list[0];
+      if (selectedProject) await openProject(selectedProject.id);
+      await refreshGithub();
+      if (!mounted.current || !result) return;
+      const returnToExport = returning?.modal === "export" && selectedProject;
+      if (returnToExport && returning) {
+        setRepo(
+          typeof returning.repo === "string"
+            ? returning.repo
+            : repositoryName(selectedProject.name),
+        );
+        setPrivateRepo(
+          typeof returning.privateRepo === "boolean"
+            ? returning.privateRepo
+            : true,
+        );
+        setGithubExports(
+          await request<GithubExport[]>(
+            `/projects/${selectedProject.id}/github`,
+          ),
+        );
+      }
+      if (!mounted.current) return;
+      setModal(returnToExport ? "export" : "github");
+      if (connectionError) fail(connectionError);
+      else
+        setNotice(
+          result === "callback"
+            ? "GitHub connected. This wallet will remember your connection."
+            : result === "cancelled"
+              ? "GitHub connection cancelled."
+              : "GitHub could not connect. Try again.",
+        );
     });
-  }, [token]);
+  }, [token, params, busy]);
   useEffect(() => {
     if (!token || !project) return;
     const id = project.id;
@@ -443,27 +511,75 @@ function StudioWorkspace() {
     });
     if (upload.current) upload.current.value = "";
   }
+  const repositoryName = (name: string) =>
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9_.-]+/g, "-")
+      .replace(/^[^a-z0-9]+/, "")
+      .slice(0, 100) || "my-memecoin";
+  async function refreshGithub() {
+    const connection = await accountRequest<{ github: GithubConnection }>(
+      "/integrations",
+      token,
+    );
+    if (mounted.current) setGithub(connection.github);
+  }
+  async function connectGithub() {
+    await task("Connecting GitHub", async () => {
+      const saved = await save();
+      if (!mounted.current) return;
+      sessionStorage.setItem(
+        `aqua:studio-github-return:${wallet.address}`,
+        JSON.stringify({
+          projectId: saved?.id,
+          modal: modal === "export" ? "export" : "github",
+          repo,
+          privateRepo,
+        }),
+      );
+      const { url } = await accountRequest<{ url: string }>(
+        "/integrations/github/connect",
+        token,
+        {},
+      );
+      if (mounted.current) location.assign(url);
+    });
+  }
+  async function disconnectGithub() {
+    await task("Disconnecting GitHub", async () => {
+      const result = await accountRequest<{ revoked: boolean }>(
+        "/integrations/github",
+        token,
+        undefined,
+        "DELETE",
+      );
+      if (!mounted.current) return;
+      setGithub((old) =>
+        old
+          ? { ...old, connected: false, login: null, connectedAt: null }
+          : old,
+      );
+      setNotice(
+        result.revoked
+          ? "GitHub disconnected."
+          : "Disconnected from AQUA. You can also revoke AQUA in your GitHub account settings.",
+      );
+    });
+  }
   function openModal(value: Modal) {
     setInput("");
     setExportUrl("");
     setModal(value);
     if (value === "rename") setInput(selected);
-    if (value === "export" && project) {
-      setRepo(
-        project.name
-          .toLowerCase()
-          .replace(/[^a-z0-9_.-]+/g, "-")
-          .replace(/^[^a-z0-9]+/, "")
-          .slice(0, 100) || "my-memecoin",
-      );
+    if (value === "export" && project) setRepo(repositoryName(project.name));
+    if (value === "github" || value === "export") {
       void task("Loading GitHub connection", async () => {
-        const [connections, exports] = await Promise.all([
-          accountRequest<{ github: GithubConnection }>("/integrations", token),
-          request<GithubExport[]>(`/projects/${project.id}/github`),
-        ]);
-        if (mounted.current) {
-          setGithub(connections.github);
-          setGithubExports(exports);
+        await refreshGithub();
+        if (value === "export" && project) {
+          const exports = await request<GithubExport[]>(
+            `/projects/${project.id}/github`,
+          );
+          if (mounted.current) setGithubExports(exports);
         }
       });
     }
@@ -707,6 +823,50 @@ function StudioWorkspace() {
     });
   }
   const actionDisabled = Boolean(busy);
+  const githubControls = (
+    <div className="at-github-connection">
+      <Github size={24} />
+      {github?.connected ? (
+        <>
+          <p>
+            Connected as <strong>{github.login}</strong>.
+          </p>
+          <p className="at-muted">
+            Saved to this wallet for all your Studio projects.
+          </p>
+          <button
+            disabled={actionDisabled}
+            onClick={() => void disconnectGithub()}
+          >
+            Disconnect GitHub
+          </button>
+        </>
+      ) : (
+        <>
+          <p>
+            Connect GitHub to export Studio projects to new repositories. Your
+            connection is saved to this wallet.
+          </p>
+          <button
+            disabled={actionDisabled || !github?.enabled}
+            onClick={() => void connectGithub()}
+          >
+            Connect GitHub
+            <ArrowRight size={16} />
+          </button>
+          {github && !github.enabled && (
+            <p className="at-muted">
+              GitHub connection is not enabled yet. You can still export a ZIP.
+            </p>
+          )}
+          <p className="at-muted">
+            GitHub requests repository and workflow access to create your
+            repositories and include deployment files.
+          </p>
+        </>
+      )}
+    </div>
+  );
   const creditLabel =
     decimals === null
       ? "AQUA credit"
@@ -722,10 +882,20 @@ function StudioWorkspace() {
         </div>
         <div className="at-heading-actions">
           {token ? (
-            <button className="at-credit" onClick={() => openModal("credit")}>
-              {creditLabel}
-              <Plus size={15} />
-            </button>
+            <>
+              <button
+                disabled={actionDisabled}
+                onClick={() => openModal("github")}
+                aria-label="GitHub connection"
+              >
+                <Github size={16} />
+                GitHub
+              </button>
+              <button className="at-credit" onClick={() => openModal("credit")}>
+                {creditLabel}
+                <Plus size={15} />
+              </button>
+            </>
           ) : (
             <button
               className="at-primary"
@@ -746,7 +916,7 @@ function StudioWorkspace() {
           </button>
         </div>
       )}
-      {notice && (
+      {notice && !modal && (
         <div className="at-notice" role="status">
           <Check size={16} />
           {notice}
@@ -1711,6 +1881,7 @@ function StudioWorkspace() {
             {
               credit: "Your AQUA credit",
               export: "Take your project with you",
+              github: "GitHub connection",
               history: "Project history",
               project: "Create a project",
               file: "Add a file",
@@ -1736,7 +1907,14 @@ function StudioWorkspace() {
               {busy}…
             </p>
           )}
-          {modal === "credit" ? (
+          {notice && (modal === "github" || modal === "export") && (
+            <p className="at-notice" role="status">
+              {notice}
+            </p>
+          )}
+          {modal === "github" ? (
+            githubControls
+          ) : modal === "credit" ? (
             <>
               <div className="at-balance">
                 <small>AVAILABLE TO SPEND</small>
@@ -1831,31 +2009,11 @@ function StudioWorkspace() {
               </button>
               <hr />
               <h3>Export to GitHub</h3>
-              {!github?.connected ? (
-                <div className="at-github-connection">
-                  <Github size={24} />
-                  <p>
-                    Connect GitHub to your wallet, then export this
-                    project to a new repository.
-                  </p>
-                  <button
-                    disabled={actionDisabled}
-                    onClick={() =>
-                      void task("Opening integrations", async () => {
-                        await save();
-                        navigate("/integrations");
-                      })
-                    }
-                  >
-                    Connect GitHub
-                    <ArrowRight size={16} />
-                  </button>
-                </div>
-              ) : (
+              {githubControls}
+              {github?.connected && (
                 <>
                   <p className="at-muted">
-                    Connected as <strong>{github.login}</strong>. Atlantis will
-                    create a new repository containing your frontend, backend
+                    Create a new repository containing your frontend, backend
                     and deployment files.
                   </p>
                   <label className="at-field">
