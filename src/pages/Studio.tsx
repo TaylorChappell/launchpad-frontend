@@ -1573,10 +1573,9 @@ function StudioWorkspace() {
                         </button>
                       </div>
                   </div>
-                  <div className="at-composer-hint">
-                    <span>{active ? "Atlantis is working…" : account.creditExempt ? "" : "Uses credits · Actual usage only"}</span>
-                    <span className="at-keyboard-hint">Enter to send <span aria-hidden="true">·</span> Shift+Enter for a new line</span>
-                  </div>
+                  {(active || !account.creditExempt) && <div className="at-composer-hint">
+                    <span>{active ? "Atlantis is working…" : "Uses credits · Actual usage only"}</span>
+                  </div>}
                   </div>
                 </aside>
               )}

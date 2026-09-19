@@ -2781,15 +2781,12 @@
 .at-composer-area .at-compose-footer .at-send-message { flex: 0 0 36px; width: 36px; height: 36px; min-height: 36px; margin-left: auto; border-radius: 11px; box-shadow: none; background: #1577bd; }
 .at-composer-area .at-compose-footer .at-send-message:disabled { opacity: 1; background: #eaf1f6; color: #8da5b6; border-color: transparent; box-shadow: none; }
 .at-composer-hint { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 6px 0; min-height: 21px; color: #768c9c; font-size: 10px; line-height: 14px; }
-.at-keyboard-hint { margin-left: auto; }
 @media (max-width: 760px) {
   .at-composer-area { width: calc(100% - 24px); margin-bottom: 10px; }
   .at-composer-area .at-compose { padding: 10px; border-radius: 17px; }
   .at-composer-area .at-compose > textarea { font-size: 16px; }
   .at-compose-settings { gap: 12px; }
   .at-effort-picker select { width: 112px; }
-  .at-keyboard-hint { display: none; }
-  .at-composer-hint:has(> span:first-child:empty) { display: none; }
 }
 @media (max-width: 360px) {
   .at-compose-settings { gap: 8px; }
