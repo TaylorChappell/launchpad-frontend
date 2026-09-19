@@ -2,6 +2,7 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -24,6 +25,7 @@ import {
 import { DexProfileFields } from "../components/MarketProposals";
 import {
   ArrowRight,
+  ArrowUp,
   Check,
   ChevronDown,
   ChevronRight,
@@ -39,6 +41,7 @@ import {
   Monitor,
   MoreHorizontal,
   Github,
+  Gauge,
   Plus,
   RefreshCw,
   Save,
@@ -175,6 +178,24 @@ function StudioWorkspace() {
   const [selected, setSelected] = useState("frontend/index.html"),
     [prompt, setPrompt] = useState(""),
     [creditGate, setCreditGate] = useState<CreditGate | null>(null);
+  const composerInput = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const input = composerInput.current;
+    if (!input) return;
+    const resize = () => {
+      input.style.height = "0px";
+      const height = input.scrollHeight;
+      input.style.height = `${Math.min(180, Math.max(52, height))}px`;
+      input.style.overflowY = height > 180 ? "auto" : "hidden";
+    };
+    resize();
+    let width = input.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (input.clientWidth !== width) { width = input.clientWidth; resize(); }
+    });
+    observer.observe(input);
+    return () => observer.disconnect();
+  }, [prompt, workspaceOpen, project?.id]);
   const [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -1496,25 +1517,12 @@ function StudioWorkspace() {
                       </article>
                     ))}
                   </div>
+                  <div className="at-composer-area">
                   <div className="at-compose">
-                    <div className="at-compose-settings">
-                      <label className="at-effort-picker">
-                        <span>Effort</span>
-                        <select aria-label="AI effort" value={effort} disabled={actionDisabled || active} onChange={e=>{setEffort(e.target.value as typeof effort);setCreditGate(null);}}>
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                        </select>
-                      </label>
-                      <label className="at-auto-apply" title="Apply generated project edits without asking. Never launches, publishes, or signs wallet transactions.">
-                        <input type="checkbox" role="switch" checked={autoApply} disabled={actionDisabled} onChange={e=>setAutoApply(e.target.checked)} />
-                        <span>Auto-apply edits</span>
-                      </label>
-                    </div>
-                    <small className="at-effort-description">{effortDetails}</small>
                     <textarea
+                      ref={composerInput}
                       aria-label="Message Atlantis"
-                      placeholder="Ask Atlantis anything about your memecoin, artwork or website…"
+                      placeholder="What do you want to create?"
                       value={prompt}
                       readOnly={actionDisabled}
                       maxLength={12000}
@@ -1532,14 +1540,28 @@ function StudioWorkspace() {
                         e.preventDefault();
                         if (!e.repeat) void sendMessage();
                       }}
-                      rows={4}
+                      rows={1}
                     />
                       <div className="at-compose-footer">
-                        {active && <small>Generation in progress</small>}
-                        {!active && <small>Enter to send · Shift+Enter for a new line</small>}
+                        <div className="at-compose-settings">
+                          <label className="at-effort-picker" title={effortDetails}>
+                            <Gauge className="at-effort-icon" size={14} aria-hidden="true" />
+                            <select aria-label="AI effort" aria-description={effortDetails} value={effort} disabled={actionDisabled || active} onChange={e=>{setEffort(e.target.value as typeof effort);setCreditGate(null);}}>
+                              <option value="low">Low</option>
+                              <option value="medium">Medium</option>
+                              <option value="high">High</option>
+                            </select>
+                            <ChevronDown size={13} aria-hidden="true" />
+                          </label>
+                          <label className="at-auto-apply" title="Apply generated project edits without asking. Never launches, publishes, or signs wallet transactions.">
+                            <input type="checkbox" role="switch" aria-label="Auto-apply edits" checked={autoApply} disabled={actionDisabled} onChange={e=>setAutoApply(e.target.checked)} />
+                            <span>Auto-apply</span>
+                          </label>
+                        </div>
                         <button
-                          className="at-primary"
+                          className="at-primary at-send-message"
                           aria-label="Send message"
+                          title="Send message (Enter)"
                           disabled={
                             !prompt.trim() ||
                             actionDisabled ||
@@ -1547,10 +1569,14 @@ function StudioWorkspace() {
                           }
                           onClick={() => void sendMessage()}
                         >
-                          <Send size={16} />
+                          <ArrowUp size={19} strokeWidth={2} />
                         </button>
                       </div>
-                    <small className="at-billing-note">{account.creditExempt ? "Admin access · No credits charged" : "Sending uses credits. Only actual AI usage is charged."}</small>
+                  </div>
+                  <div className="at-composer-hint">
+                    <span>{active ? "Atlantis is working…" : account.creditExempt ? "" : "Uses credits · Actual usage only"}</span>
+                    <span className="at-keyboard-hint">Enter to send <span aria-hidden="true">·</span> Shift+Enter for a new line</span>
+                  </div>
                   </div>
                 </aside>
               )}
