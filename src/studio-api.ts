@@ -49,6 +49,8 @@ export type StudioJob = {
   error?: string;
   charged_raw: string;
   reserved_raw: string;
+  charged_micro_usd: string | null;
+  reserved_micro_usd: string | null;
   created_at: number;
   result?: {
     message: string;
@@ -71,7 +73,9 @@ export type StudioConfig = {
   };
   decimals: number | null;
   mint: string;
-  rawPerUsd: string;
+  depositsEnabled: boolean;
+  depositSetup: StudioConfig["setup"];
+  depositPrice: {usdPrice:string;observedAt:number} | null;
   model: string;
   imageModel: string;
   knowledge: {
@@ -172,4 +176,10 @@ export function aquaRaw(value: string, decimals: number) {
     BigInt(fraction.padEnd(decimals, "0") || "0");
   if (raw <= 0n) throw new Error("Enter a positive AQUA amount.");
   return raw.toString();
+}
+export function usdCredit(microUsd: string) {
+  const negative = microUsd.startsWith("-");
+  const amount = aquaAmount(negative ? microUsd.slice(1) : microUsd,6);
+  const [whole,fraction=""] = amount.split(".");
+  return `${negative ? "-" : ""}$${whole}.${fraction.padEnd(2,"0")}`;
 }

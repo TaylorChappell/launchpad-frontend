@@ -52,6 +52,7 @@ import { API_URL } from "../api";
 import {
   aquaAmount,
   aquaRaw,
+  usdCredit,
   studioAssetUrl,
   studioRequest,
   studioSession,
@@ -69,24 +70,27 @@ import type { TransactionEnvelope } from "../types";
 import "./studio.css";
 const Editor = lazy(() => import("../components/StudioEditor"));
 type Account = {
-  balanceRaw: string;
+  balanceMicroUsd: string;
+  legacyBalanceNotice?: string | null;
   ledger: Array<{
     id: string;
     kind: string;
     amount_raw: string;
+    amount_micro_usd: string | null;
     created_at: number;
     details: { chargedRaw?: string };
   }>;
 };
+type DepositQuote = TransactionEnvelope & {id:string;maximumCreditMicroUsd:string;expiresAt:number;price:{usdPrice:string;quotedAt:number}};
 type Quote = {
   id: string;
-  maximumRaw: string;
+  maximumMicroUsd: string;
   expiresAt: number;
   pricing: string;
 };
 type CreditGate = {
-  balanceRaw: string;
-  requiredRaw?: string;
+  balanceMicroUsd: string;
+  requiredMicroUsd?: string;
 };
 type Version = {
   id: string;
@@ -125,7 +129,8 @@ function StudioWorkspace() {
     wallet.address ? studioSession(wallet.address) : "",
   );
   const [config, setConfig] = useState<StudioConfig | null>(null),
-    [account, setAccount] = useState<Account>({ balanceRaw: "0", ledger: [] });
+    [account, setAccount] = useState<Account>({ balanceMicroUsd: "0", ledger: [] });
+  const [depositQuote,setDepositQuote] = useState<DepositQuote | null>(null);
   const [projects, setProjects] = useState<Array<Omit<StudioProject, "state">>>(
       [],
     ),
@@ -248,7 +253,7 @@ function StudioWorkspace() {
       if (!mounted.current) return;
       setConfig(latestConfig);
       if (latestConfig.paidEnabled)
-        setNotice("Studio AI and AQUA payments are ready.");
+        setNotice(latestConfig.depositsEnabled ? "Studio AI and AQUA deposits are ready." : "Studio AI is ready. AQUA deposits still need attention; existing USD credit can be used.");
     });
   }
   async function refreshProjects() {
@@ -471,9 +476,9 @@ function StudioWorkspace() {
         setError("AI setup is incomplete. The exact missing settings are listed below.");
         return;
       }
-      if (BigInt(latestAccount.balanceRaw) <= 0n) {
+      if (BigInt(latestAccount.balanceMicroUsd) <= 0n) {
         setQuote(null);
-        setCreditGate({ balanceRaw: latestAccount.balanceRaw });
+        setCreditGate({ balanceMicroUsd: latestAccount.balanceMicroUsd });
         return;
       }
       const saved = await save();
@@ -485,10 +490,10 @@ function StudioWorkspace() {
       });
       setQuote(estimate);
       setCreditGate(
-        BigInt(latestAccount.balanceRaw) < BigInt(estimate.maximumRaw)
+        BigInt(latestAccount.balanceMicroUsd) < BigInt(estimate.maximumMicroUsd)
           ? {
-              balanceRaw: latestAccount.balanceRaw,
-              requiredRaw: estimate.maximumRaw,
+              balanceMicroUsd: latestAccount.balanceMicroUsd,
+              requiredMicroUsd: estimate.maximumMicroUsd,
             }
           : null,
       );
@@ -506,10 +511,10 @@ function StudioWorkspace() {
     if (!quote || !project) return;
     await task("Starting generation", async () => {
       const latestAccount = await refreshAccount();
-      if (BigInt(latestAccount.balanceRaw) < BigInt(quote.maximumRaw)) {
+      if (BigInt(latestAccount.balanceMicroUsd) < BigInt(quote.maximumMicroUsd)) {
         setCreditGate({
-          balanceRaw: latestAccount.balanceRaw,
-          requiredRaw: quote.maximumRaw,
+          balanceMicroUsd: latestAccount.balanceMicroUsd,
+          requiredMicroUsd: quote.maximumMicroUsd,
         });
         return;
       }
@@ -520,8 +525,8 @@ function StudioWorkspace() {
         if (reason instanceof StudioApiError && reason.status === 402) {
           const current = await refreshAccount();
           setCreditGate({
-            balanceRaw: current.balanceRaw,
-            requiredRaw: quote.maximumRaw,
+            balanceMicroUsd: current.balanceMicroUsd,
+            requiredMicroUsd: quote.maximumMicroUsd,
           });
           return;
         }
@@ -802,6 +807,7 @@ function StudioWorkspace() {
     });
   }
   function openCredit() {
+    setDepositQuote(null);
     setInput("");
     setError("");
     setModal("credit");
@@ -816,22 +822,34 @@ function StudioWorkspace() {
     else localStorage.removeItem(`aqua:studio-deposit:${wallet.address}`);
   }
   async function confirmDeposit(value: { id: string; signature: string }) {
-    await request(`/deposits/${value.id}/confirm`, {
+    const result = await request<{creditMicroUsd:string|null}>(`/deposits/${value.id}/confirm`, {
       signature: value.signature,
     });
     keepDeposit(null);
     await refreshAccount();
     setCreditGate(null);
     setModal(null);
-    setNotice("Your AQUA credit is ready.");
+    setDepositQuote(null);
+    setNotice(result.creditMicroUsd !== null ? `${usdCredit(result.creditMicroUsd)} added to your Studio credit.` : "Your previous deposit has been recorded. Check your credit balance.");
   }
-  async function topUp() {
-    await task("Waiting for wallet", async () => {
+  async function previewDeposit() {
+    await task("Getting live AQUA price", async () => {
       if (decimals === null) throw new Error("AQUA deposits are unavailable.");
-      const tx = await request<TransactionEnvelope & { id: string }>(
+      setDepositQuote(null);
+      const tx = await request<DepositQuote>(
         "/deposits",
         { raw: aquaRaw(input, decimals) },
       );
+      setDepositQuote(tx);
+    });
+  }
+  async function topUp() {
+    await task("Waiting for wallet", async () => {
+      const tx = depositQuote;
+      if (!tx || Date.now() >= tx.expiresAt) {
+        setDepositQuote(null);
+        throw new Error("The deposit quote expired. Get a fresh price before approving.");
+      }
       const signature = await wallet.sendTransaction(tx, (signature) =>
         keepDeposit({ id: tx.id, signature }),
       );
@@ -948,10 +966,7 @@ function StudioWorkspace() {
       )}
     </div>
   );
-  const creditLabel =
-    decimals === null
-      ? "AQUA credit"
-      : `${aquaAmount(account.balanceRaw, decimals)} AQUA`;
+  const creditLabel = `${usdCredit(account.balanceMicroUsd)} credit`;
   const setupIssues =
     config && !config.paidEnabled
       ? (config.setup?.issues ?? [
@@ -964,9 +979,9 @@ function StudioWorkspace() {
         ])
       : [];
   const creditShortfall =
-    creditGate?.requiredRaw &&
-    BigInt(creditGate.requiredRaw) > BigInt(creditGate.balanceRaw)
-      ? (BigInt(creditGate.requiredRaw) - BigInt(creditGate.balanceRaw)).toString()
+    creditGate?.requiredMicroUsd &&
+    BigInt(creditGate.requiredMicroUsd) > BigInt(creditGate.balanceMicroUsd)
+      ? (BigInt(creditGate.requiredMicroUsd) - BigInt(creditGate.balanceMicroUsd)).toString()
       : null;
   return (
     <main className="at-studio">
@@ -1344,8 +1359,7 @@ function StudioWorkspace() {
                                   Review result <ArrowRight size={13} />
                                 </button>
                                 <small>
-                                  {decimals !== null &&
-                                    `${aquaAmount(job.charged_raw, decimals)} AQUA`}
+                                  {job.charged_micro_usd != null ? `${usdCredit(job.charged_micro_usd)} used` : decimals !== null ? `${aquaAmount(job.charged_raw, decimals)} AQUA (legacy)` : "Legacy usage"}
                                 </small>
                               </div>
                             </>
@@ -1394,13 +1408,13 @@ function StudioWorkspace() {
                         <div>
                           <strong>
                             {creditShortfall
-                              ? "You need more AQUA credit"
+                              ? "You don’t have enough credit"
                               : "You have no Studio credit"}
                           </strong>
                           <small>
                             {creditShortfall
-                              ? `${aquaAmount(creditGate.balanceRaw, decimals)} AQUA available · add at least ${aquaAmount(creditShortfall, decimals)} more`
-                              : "Add AQUA credit to send this message."}
+                              ? `${usdCredit(creditGate.balanceMicroUsd)} available · add at least ${usdCredit(creditShortfall)} more`
+                              : "Deposit AQUA to add USD credit and send this message."}
                           </small>
                         </div>
                         <button className="at-primary" onClick={openCredit}>
@@ -1411,7 +1425,7 @@ function StudioWorkspace() {
                     ) : quote ? (
                       <div className="at-quote">
                         <strong>
-                          Up to {aquaAmount(quote.maximumRaw, decimals)} AQUA
+                          Up to {usdCredit(quote.maximumMicroUsd)} of credit
                         </strong>
                         <small>
                           {quote.pricing}. Quote expires in 2 minutes.
@@ -2033,7 +2047,7 @@ function StudioWorkspace() {
         <Dialog
           title={
             {
-              credit: "Your AQUA credit",
+              credit: "Your Studio credit",
               export: "Take your project with you",
               github: "GitHub connection",
               history: "Project history",
@@ -2075,12 +2089,12 @@ function StudioWorkspace() {
                 <strong>{creditLabel}</strong>
               </div>
               <p className="at-muted">
-                Deposited AQUA buys prepaid Studio usage. It is not a
-                withdrawable wallet balance. Any token transfer fee is deducted
-                before credit is added. Each AI request shows a spending limit
-                first.
+                AQUA is valued in USD at deposit time. That value becomes prepaid
+                Studio credit and stays fixed when AQUA’s price changes. AI requests
+                deduct their USD usage cost. Credit is not withdrawable.
               </p>
-              {config?.paidEnabled ? (
+              {account.legacyBalanceNotice && <p role="status" className="at-muted">{account.legacyBalanceNotice}</p>}
+              {config?.depositsEnabled ? (
                 <>
                   <label className="at-field">
                     AQUA to deposit
@@ -2088,17 +2102,23 @@ function StudioWorkspace() {
                       inputMode="decimal"
                       value={input}
                       placeholder="0.00"
-                      onChange={(e) => setInput(e.target.value)}
+                      onChange={(e) => {setInput(e.target.value);setDepositQuote(null);}}
                     />
                   </label>
                   <button
                     className="at-primary"
                     disabled={actionDisabled || Boolean(pendingDeposit)}
-                    onClick={() => void topUp()}
+                    onClick={() => void previewDeposit()}
                   >
-                    Deposit AQUA
+                    {depositQuote ? "Refresh price" : "Preview USD credit"}
                     <ArrowRight size={16} />
                   </button>
+                  {depositQuote && <div className="at-pending" role="status">
+                    <strong>Up to {usdCredit(depositQuote.maximumCreditMicroUsd)} of credit</strong>
+                    <p>1 AQUA = ${depositQuote.price.usdPrice}. Any token transfer fee reduces the amount credited. The final credit uses the AQUA actually received.</p>
+                    <small>This live price is locked for this transaction only. Approve promptly; expired transactions need a new quote.</small>
+                    <button className="at-primary" disabled={actionDisabled || Boolean(pendingDeposit)} onClick={() => void topUp()}>Confirm deposit in wallet</button>
+                  </div>}
                   <p className="at-muted">
                     Your wallet will show the transfer and SOL network fee
                     before you approve.
@@ -2107,7 +2127,8 @@ function StudioWorkspace() {
               ) : (
                 <StudioSetupCard
                   compact
-                  issues={setupIssues}
+                  deposits
+                  issues={config?.depositSetup?.issues ?? setupIssues}
                   busy={actionDisabled}
                   onRetry={() => void checkStudioSetup()}
                 />
@@ -2133,12 +2154,12 @@ function StudioWorkspace() {
                 {account.ledger.map((row) => (
                   <div key={row.id}>
                     <span>
-                      {row.kind}
+                      {{deposit:"Deposit",reserve:"Reserved for AI",settlement:"Unused credit returned",refund:"Reservation refunded",legacy_conversion:"Previous credit converted"}[row.kind] ?? row.kind}
                       <small>
                         {new Date(Number(row.created_at)).toLocaleString()}
                       </small>
                     </span>
-                    <strong>{aquaAmount(row.amount_raw, decimals)} AQUA</strong>
+                    <strong>{row.amount_micro_usd != null ? usdCredit(row.amount_micro_usd) : `${aquaAmount(row.amount_raw, decimals)} AQUA (legacy)`}</strong>
                   </div>
                 ))}
                 {!account.ledger.length && (
@@ -2326,8 +2347,8 @@ function StudioWorkspace() {
             <>
               <p>
                 Delete {modalProject?.name} and its files, conversation and
-                snapshots? Export a copy first if you want to keep it. Your AQUA
-                balance is retained.
+                snapshots? Export a copy first if you want to keep it. Your Studio
+                credit balance is retained.
               </p>
               <button
                 className="at-danger"
@@ -2388,22 +2409,24 @@ function StudioSetupCard({
   onRetry,
   busy,
   compact = false,
+  deposits = false,
 }: {
   issues: StudioConfig["setup"]["issues"];
   onRetry: () => void;
   busy: boolean;
   compact?: boolean;
+  deposits?: boolean;
 }) {
   return (
     <section
       className={`at-setup-card ${compact ? "compact" : ""}`}
-      aria-label="Studio AI setup"
+      aria-label={deposits ? "AQUA deposit setup" : "Studio AI setup"}
     >
       <header>
         <span><CircleAlert size={18} /></span>
         <div>
-          <strong>AI setup incomplete</strong>
-          <small>Editing and exports still work.</small>
+          <strong>{deposits ? "AQUA deposits unavailable" : "AI setup incomplete"}</strong>
+          <small>{deposits ? "Existing USD credit is unaffected." : "Editing and exports still work."}</small>
         </div>
       </header>
       <div className="at-setup-list">
