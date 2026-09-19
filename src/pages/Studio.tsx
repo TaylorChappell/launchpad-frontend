@@ -1082,10 +1082,12 @@ function StudioWorkspace() {
       if (!selected) throw new Error("Export the backend to GitHub first.");
       const result = await request<{url:string}>(`/projects/${project.id}/railway`, {exportId:selected,token:railwayToken.trim(),variables});
       setRailwayUrl(result.url); setRailwayToken(""); setRailwayVariables("");
-      setNotice("Backend sent to Railway. Open the project to check deployment logs and generate a public domain, then set that URL in frontend/config.js.");
+      setNotice("Backend sent to Railway. Generate a public domain there, add it as API_BASE_URL in your frontend GitHub Variables, then run Publish website again.");
     });
   }
   const actionDisabled = Boolean(busy);
+  const hasBackend = Boolean(state?.files.some(file => file.path.startsWith("backend/") && /(?:\.(?:m?js|ts)|\/package\.json)$/.test(file.path)));
+  const exportTargets: Array<"frontend" | "backend"> = hasBackend ? ["frontend","backend"] : ["frontend"];
   const reviewChanges = state ? studioChangeList(state,review?.result) : [];
   const effortDetails = {
     low: "Quick drafts · Lowest cost",
@@ -2349,17 +2351,20 @@ function StudioWorkspace() {
           ) : modal === "export" ? (
             <>
               <p>
-                Export your website and API as separate projects. Each download
-                includes its own setup guide and deploys from the repository root.
+                {hasBackend ? "Export your website and backend as separate projects." : "This website runs entirely on the frontend."} Each download includes its setup steps.
               </p>
               <div className="at-export-actions">
                 <button disabled={actionDisabled} onClick={() => void exportZip("frontend")}><Download size={16} /> Frontend ZIP</button>
-                <button disabled={actionDisabled} onClick={() => void exportZip("backend")}><Download size={16} /> Backend ZIP</button>
+                {hasBackend && <button disabled={actionDisabled} onClick={() => void exportZip("backend")}><Download size={16} /> Backend ZIP</button>}
               </div>
-              <details className="at-export-setup">
-                <summary>Backend setup and environment variables</summary>
-                <StudioMessage text={state?.files.find(file => file.path === "backend/README.md")?.content ?? "Open backend/.env.example for your project's variables. Set FRONTEND_ORIGIN to your frontend HTTPS origin. Railway supplies PORT. Ask Atlantis to update this older project's backend setup guide for any additional variables."} />
+              <details className="at-export-setup" open>
+                <summary>GitHub setup and frontend variables</summary>
+                <StudioMessage text={state?.files.find(file => file.path === "frontend/README.md")?.content.split("## Local or ZIP setup")[0].replace(/^# Publish your website\s*/, "") ?? "1. Export the frontend to GitHub.\n2. Choose GitHub Actions in Settings → Pages.\n3. Run Actions → Publish website.\n\nAsk Atlantis to add TOKEN_CA as a frontend variable if this older project does not have public-env.json and scripts/configure.mjs yet."} />
               </details>
+              {hasBackend && <details className="at-export-setup">
+                <summary>Backend setup</summary>
+                <StudioMessage text={state?.files.find(file => file.path === "backend/README.md")?.content ?? "Open backend/.env.example for your project's variables. Set FRONTEND_ORIGIN to your frontend HTTPS origin. Railway supplies PORT. Ask Atlantis to update this older project's backend setup guide for any additional variables."} />
+              </details>}
               <hr />
               <h3>Export to GitHub</h3>
               {github?.connected ? (
@@ -2371,8 +2376,7 @@ function StudioWorkspace() {
               {github?.connected && (
                 <>
                   <p className="at-muted">
-                    Create one repository for each component. Exporting to GitHub
-                    saves the files; publishing the frontend is a separate step.
+                    {hasBackend ? "Create one repository for each component." : "Create a repository for your website."} Follow the setup steps above to publish it.
                   </p>
                   <label className="at-field">
                     Project name
@@ -2400,9 +2404,9 @@ function StudioWorkspace() {
                       ? "Only you and people you grant access can see this repository. GitHub Pages from a private repository may require a paid GitHub plan."
                       : "Anyone will be able to view the exported files. Public repositories can use GitHub Pages on GitHub Free."}
                   </p>
-                  <p className="at-muted">{repo || "my-memecoin"}-frontend · {repo || "my-memecoin"}-backend</p>
+                  <p className="at-muted">{exportTargets.map(target => `${repo || "my-memecoin"}-${target}`).join(" · ")}</p>
                   <div className="at-export-actions">
-                    {(["frontend","backend"] as const).map(target => (
+                    {exportTargets.map(target => (
                       <button key={target} disabled={actionDisabled || !repo.trim() || githubExports.some(item => item.status === "running")} onClick={() => void exportGithub(target)}>
                         <Github size={16} /> Export {target}
                       </button>
@@ -2470,6 +2474,7 @@ function StudioWorkspace() {
                   Open your GitHub export ↗
                 </a>
               )}
+              {hasBackend && <>
               <hr />
               <h3>Send backend to Railway</h3>
               <p className="at-muted">Create a service in an existing Railway project's production environment. Railway must have GitHub access to your backend repository. Hosting uses your Railway plan.</p>
@@ -2498,6 +2503,7 @@ function StudioWorkspace() {
                   {railwayUrl && <a href={railwayUrl} target="_blank" rel="noreferrer">Open Railway project ↗</a>}
                 </div>
               ) : <p className="at-muted">Export your backend to GitHub above to enable direct Railway export. You can also deploy the backend ZIP using the included setup guide.</p>}
+              </>}
             </>
           ) : modal === "history" ? (
             <>
