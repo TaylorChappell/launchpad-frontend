@@ -39,6 +39,7 @@ export type StudioProject = {
   updated_at: number;
 };
 export type StudioJob = {
+  progress?: string;
   id: string;
   project_id: string;
   kind: string;

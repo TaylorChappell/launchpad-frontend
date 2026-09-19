@@ -69,7 +69,7 @@ export function Layout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", openWithShortcut);
   }, [searchOpen, wallet.modalOpen]);
 
-  return <div className={`app-shell ${trading ? "trading-shell" : ""}`}>
+  return <div className={`app-shell ${trading ? "trading-shell" : ""} ${currentPath.startsWith("/studio")?"studio-shell":""}`}>
     {opening && <div className="opening-reveal" aria-hidden="true">
       <div className="opening-reveal-water" onAnimationEnd={(event) => {
         if (event.currentTarget === event.target && event.animationName === "opening-wave-down-slow") setOpening(false);

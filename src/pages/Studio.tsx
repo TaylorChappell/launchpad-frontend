@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
 import { DexProfileFields } from "../components/MarketProposals";
 import {
   ArrowRight,
@@ -119,6 +120,9 @@ function StudioWorkspace() {
     ),
     [mobile, setMobile] = useState(false),
     [chatOpen, setChatOpen] = useState(true);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [websiteImages, setWebsiteImages] = useState(2);
+  const messages = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState("frontend/index.html"),
     [prompt, setPrompt] = useState(""),
     [kind, setKind] = useState<"chat" | "code" | "image">("chat"),
@@ -153,6 +157,17 @@ function StudioWorkspace() {
     state && project && JSON.stringify(state) !== JSON.stringify(project.state),
   );
   const active = jobs.some((job) => ["queued", "running"].includes(job.status));
+  const blankWebsite = Boolean(
+    state?.files
+      .find((file) => file.path === "frontend/index.html")
+      ?.content.includes('<main id="app"></main>'),
+  );
+  useEffect(() => {
+    messages.current?.scrollTo({
+      top: messages.current.scrollHeight,
+      behavior: "auto",
+    });
+  }, [jobs.length, jobs[0]?.status, project?.id]);
   const file = state?.files.find((f) => f.path === selected),
     decimals = config?.decimals ?? null;
   const preview = useMemo(
@@ -281,7 +296,7 @@ function StudioWorkspace() {
   }, [dirty]);
   useEffect(() => {
     setQuote(null);
-  }, [prompt, kind, state]);
+  }, [prompt, kind, state, websiteImages]);
   useEffect(() => {
     if (!modal) return;
     const close = (e: KeyboardEvent) => {
@@ -358,6 +373,7 @@ function StudioWorkspace() {
             prompt,
             kind,
             revision: saved.revision,
+            websiteImages: kind === "code" ? websiteImages : 0,
           }),
         );
     });
@@ -380,7 +396,8 @@ function StudioWorkspace() {
   }
   async function applyChanges() {
     if (!review || !project) return;
-    const jobId = review.id;
+    const jobId = review.id,
+      jobKind = review.kind;
     await task("Applying changes", async () => {
       const saved = await save();
       if (!saved) return;
@@ -390,6 +407,11 @@ function StudioWorkspace() {
           revision: saved.revision,
         }),
       );
+      if (jobKind === "code" || jobKind === "image") {
+        setWorkspaceOpen(true);
+        setTab(jobKind === "code" ? "preview" : "assets");
+        setChatOpen(true);
+      }
       setNotice("Changes applied. Your previous version is saved in History.");
       await refreshProjects();
     });
@@ -414,6 +436,7 @@ function StudioWorkspace() {
       }
       edit((old) => ({ ...old, files: [...old.files, ...files] }));
       setTab("assets");
+      setWorkspaceOpen(true);
       setNotice("Assets added. Save to keep them in your project.");
     });
     if (upload.current) upload.current.value = "";
@@ -581,16 +604,14 @@ function StudioWorkspace() {
     <main className="at-studio">
       <header className="at-heading">
         <div>
-          <span className="at-eyebrow">AQUA / CREATIVE WORKSPACE</span>
           <h1>
             Atlantis<span>Studio</span>
           </h1>
-          <p>From the first idea to your next launch.</p>
+          <p>Your memecoin, from idea to launch.</p>
         </div>
         <div className="at-heading-actions">
           {token ? (
             <button className="at-credit" onClick={() => openModal("credit")}>
-              <span className="at-credit-dot" />
               {creditLabel}
               <Plus size={15} />
             </button>
@@ -622,22 +643,11 @@ function StudioWorkspace() {
       )}
       {!token ? (
         <section className="at-welcome">
-          <div className="at-water" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </div>
           <div>
-            <span className="at-eyebrow">AN IDEA IS ALL YOU NEED</span>
-            <h2>
-              Give your next
-              <br />
-              coin a world.
-            </h2>
+            <h2>What’s your memecoin idea?</h2>
             <p>
-              Shape its identity. Create the artwork. Build its website.
-              <br />
-              Atlantis keeps every part of your launch together.
+              Work through your concept with Atlantis. Create the artwork and
+              website, then bring everything into your AQUA launch.
             </p>
             <button
               className="at-primary"
@@ -648,29 +658,93 @@ function StudioWorkspace() {
             </button>
             <small>Sign in with your wallet · Pay for AI with AQUA</small>
           </div>
-          <aside>
-            <div>
-              <span>01</span>
-              <strong>Create with Atlantis</strong>
-              <p>A conversation, a coin, a complete direction.</p>
-            </div>
-            <div>
-              <span>02</span>
-              <strong>Make it yours</strong>
-              <p>Edit every detail, asset and line of code.</p>
-            </div>
-            <div>
-              <span>03</span>
-              <strong>Take it anywhere</strong>
-              <p>Launch on AQUA. Export for GitHub Pages and Railway.</p>
-            </div>
-          </aside>
         </section>
       ) : (
-        <>
+        <div className="at-studio-shell">
+          <aside className="at-sidebar" aria-label="Studio navigation">
+            <button
+              className="at-new-project"
+              disabled={actionDisabled}
+              onClick={() => openModal("project")}
+            >
+              <Plus size={16} />
+              New project
+            </button>
+            <span className="at-sidebar-label">Projects</span>
+            <nav aria-label="Your projects">
+              {projects.map((p) => (
+                <button
+                  key={p.id}
+                  className={project?.id === p.id ? "selected" : ""}
+                  aria-current={project?.id === p.id ? "page" : undefined}
+                  disabled={actionDisabled}
+                  onClick={() =>
+                    void task("Opening project", async () => {
+                      await save();
+                      await openProject(p.id);
+                      setWorkspaceOpen(false);
+                      setChatOpen(true);
+                    })
+                  }
+                >
+                  {p.name}
+                </button>
+              ))}
+            </nav>
+            {project && (
+              <>
+                <span className="at-sidebar-label">This project</span>
+                <nav aria-label="Project workspace">
+                  <button
+                    className={!workspaceOpen ? "selected" : ""}
+                    onClick={() => {
+                      setWorkspaceOpen(false);
+                      setChatOpen(true);
+                    }}
+                  >
+                    Chat with Atlantis
+                  </button>
+                  {(
+                    [
+                      ["preview", "Website preview"],
+                      ["details", "Launch details"],
+                      ["assets", "Images & assets"],
+                      ["code", "Code & files"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      className={
+                        workspaceOpen && tab === value ? "selected" : ""
+                      }
+                      onClick={() => {
+                        setTab(value);
+                        setWorkspaceOpen(true);
+                        setChatOpen(true);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </nav>
+              </>
+            )}
+            <div className="at-sidebar-bottom">
+              <span>Built for AQUA</span>
+              <p>
+                Plan, create and launch.
+                <br />
+                Your work stays yours.
+              </p>
+            </div>
+          </aside>
           <div className="at-projectbar">
             <div>
+              <strong className="at-project-name">
+                {project?.name ?? "Your studio"}
+              </strong>
               <select
+                className="at-mobile-projects"
                 aria-label="Choose project"
                 value={project?.id ?? ""}
                 disabled={actionDisabled}
@@ -691,6 +765,7 @@ function StudioWorkspace() {
                 ))}
               </select>
               <button
+                className="at-mobile-new"
                 title="New project"
                 aria-label="New project"
                 disabled={actionDisabled}
@@ -701,6 +776,17 @@ function StudioWorkspace() {
             </div>
             {project && (
               <div>
+                <button
+                  aria-pressed={workspaceOpen}
+                  className="at-workspace-switch"
+                  onClick={() => {
+                    setWorkspaceOpen(!workspaceOpen);
+                    setChatOpen(true);
+                  }}
+                >
+                  {workspaceOpen ? "Full chat" : "Open workspace"}
+                  <Monitor size={15} />
+                </button>
                 <span className="at-save-state">
                   {busy || (dirty ? "Unsaved changes" : "All changes saved")}
                 </span>
@@ -748,11 +834,10 @@ function StudioWorkspace() {
           </div>
           {!project ? (
             <div className="at-empty">
-              <span className="at-eyebrow">YOUR WORKSPACE</span>
-              <h2>Start with a blank canvas.</h2>
+              <h2>What are you launching?</h2>
               <p>
-                Every project includes a website, a Railway backend starter and
-                a launch draft.
+                Start a project to work on your memecoin’s name, artwork,
+                website and launch details together.
               </p>
               <button
                 className="at-primary"
@@ -763,40 +848,39 @@ function StudioWorkspace() {
               </button>
             </div>
           ) : (
-            <div className={`at-workspace ${chatOpen ? "" : "at-chat-hidden"}`}>
+            <div
+              className={`at-workspace ${workspaceOpen ? "at-with-canvas" : "at-chat-only"} ${chatOpen ? "" : "at-chat-hidden"}`}
+            >
               <aside className="at-conversation">
                 <div className="at-panel-title">
-                  <div>
-                    <span className="at-online" />
-                    Atlantis
-                  </div>
-                  <small>Your launch partner</small>
+                  <div>Atlantis</div>
+                  <small>{active ? "Working" : "Memecoin studio"}</small>
                 </div>
-                <div className="at-messages">
-                  <div className="at-intro-message">
-                    <span className="at-eyebrow">LET’S MAKE SOMETHING</span>
-                    <h3>Where should we begin?</h3>
-                    <p>
-                      Tell me about your coin, or bring an idea and we’ll
-                      develop it together.
-                    </p>
-                    {[
-                      "Help me find a coin concept, name and ticker.",
-                      "Explain which pair and reward mode fit my project.",
-                      "Build a complete website for my coin.",
-                    ].map((text, i) => (
-                      <button
-                        key={text}
-                        onClick={() => {
-                          setPrompt(text);
-                          setKind(i === 2 ? "code" : "chat");
-                        }}
-                      >
-                        {text}
-                        <ArrowRight size={14} />
-                      </button>
-                    ))}
-                  </div>
+                <div className="at-messages" ref={messages}>
+                  {!jobs.length && (
+                    <div className="at-intro-message">
+                      <h3>What’s your memecoin idea?</h3>
+                      <p>
+                        Start with a joke, a character, or a rough idea. We’ll
+                        make it your own.
+                      </p>
+                      {[
+                        "Help me find a memorable meme concept.",
+                        "Which pair and reward mode fit my coin?",
+                        "Build a website with custom artwork and animation.",
+                      ].map((text, i) => (
+                        <button
+                          key={text}
+                          onClick={() => {
+                            setPrompt(text);
+                            setKind(i === 2 ? "code" : "chat");
+                          }}
+                        >
+                          {text}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {[...jobs].reverse().map((job) => (
                     <article className="at-message" key={job.id}>
                       <div className="at-user-message">{job.prompt}</div>
@@ -806,7 +890,24 @@ function StudioWorkspace() {
                         </span>
                         {job.status === "complete" ? (
                           <>
-                            <p>{job.message ?? "Your result is ready."}</p>
+                            <div className="at-chat-copy">
+                              <ReactMarkdown
+                                skipHtml
+                                components={{
+                                  a: (props) => (
+                                    <a
+                                      {...props}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                    />
+                                  ),
+                                }}
+                              >
+                                {(
+                                  job.message ?? "Your result is ready."
+                                ).replace(/\u2014/g, " - ")}
+                              </ReactMarkdown>
+                            </div>
                             <div className="at-message-actions">
                               <button
                                 disabled={actionDisabled}
@@ -824,10 +925,9 @@ function StudioWorkspace() {
                           <p className="at-failed">{job.error}</p>
                         ) : (
                           <p className="at-working">
-                            <span />
                             {job.status === "queued"
                               ? "Waiting to start…"
-                              : "Working on your project…"}
+                              : (job.progress ?? "Working on your project…")}
                           </p>
                         )}
                       </div>
@@ -844,9 +944,9 @@ function StudioWorkspace() {
                   <div className="at-kind" role="group" aria-label="Task type">
                     {(
                       [
-                        ["chat", "Plan"],
-                        ["code", "Build"],
-                        ["image", "Create image"],
+                        ["chat", "Chat"],
+                        ["code", "Website"],
+                        ["image", "Image"],
                       ] as const
                     ).map(([value, label]) => (
                       <button
@@ -859,6 +959,22 @@ function StudioWorkspace() {
                       </button>
                     ))}
                   </div>
+                  {kind === "code" && (
+                    <label className="at-image-allowance">
+                      Website artwork
+                      <select
+                        aria-label="Website image allowance"
+                        value={websiteImages}
+                        onChange={(e) =>
+                          setWebsiteImages(Number(e.target.value))
+                        }
+                      >
+                        <option value={0}>Use existing images</option>
+                        <option value={1}>Up to 1 new image</option>
+                        <option value={2}>Up to 2 new images</option>
+                      </select>
+                    </label>
+                  )}
                   <textarea
                     aria-label="Message Atlantis"
                     placeholder={
@@ -869,6 +985,21 @@ function StudioWorkspace() {
                     value={prompt}
                     maxLength={12000}
                     onChange={(e) => setPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (
+                        e.key === "Enter" &&
+                        !e.shiftKey &&
+                        !e.nativeEvent.isComposing &&
+                        prompt.trim() &&
+                        config?.paidEnabled &&
+                        !actionDisabled &&
+                        !active &&
+                        !quote
+                      ) {
+                        e.preventDefault();
+                        void generateQuote();
+                      }
+                    }}
                     rows={4}
                   />
                   {quote ? (
@@ -917,9 +1048,12 @@ function StudioWorkspace() {
                   <div>
                     <button
                       className="at-chat-toggle"
-                      onClick={() => setChatOpen(!chatOpen)}
+                      onClick={() => {
+                        setWorkspaceOpen(false);
+                        setChatOpen(true);
+                      }}
                     >
-                      {chatOpen ? "Hide chat" : "Atlantis"}
+                      Chat
                     </button>
                     {(
                       [
@@ -960,15 +1094,35 @@ function StudioWorkspace() {
                 {tab === "preview" && (
                   <>
                     <div className={`at-preview ${mobile ? "mobile" : ""}`}>
-                      <iframe
-                        title="Isolated website preview"
-                        sandbox="allow-scripts"
-                        referrerPolicy="no-referrer"
-                        srcDoc={preview}
-                      />
+                      {blankWebsite ? (
+                        <div className="at-blank-preview">
+                          <h3>Your website starts here.</h3>
+                          <p>
+                            Describe your memecoin and the look you want.
+                            Atlantis can create the artwork and build the site
+                            together.
+                          </p>
+                          <button
+                            onClick={() => {
+                              setKind("code");
+                              setWorkspaceOpen(false);
+                              setChatOpen(true);
+                            }}
+                          >
+                            Describe your website
+                            <ArrowRight size={15} />
+                          </button>
+                        </div>
+                      ) : (
+                        <iframe
+                          title="Isolated website preview"
+                          sandbox="allow-scripts"
+                          referrerPolicy="no-referrer"
+                          srcDoc={preview}
+                        />
+                      )}
                     </div>
                     <div className="at-preview-footer">
-                      <span className="at-online" />
                       Static frontend preview
                       <span>
                         External requests and backend execution are disabled
@@ -1055,7 +1209,7 @@ function StudioWorkspace() {
                           <option value="">Choose at launch</option>
                           {config?.knowledge.pairs.map((pair) => (
                             <option key={pair.mint} value={pair.mint}>
-                              {pair.symbol} — {pair.name}
+                              {pair.symbol} · {pair.name}
                             </option>
                           ))}
                         </select>
@@ -1385,7 +1539,7 @@ function StudioWorkspace() {
               </section>
             </div>
           )}
-        </>
+        </div>
       )}
       <input
         ref={upload}
