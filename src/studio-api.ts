@@ -39,6 +39,7 @@ export type StudioProject = {
   updated_at: number;
 };
 export type StudioJob = {
+  credit_exempt?: boolean;
   progress?: string;
   id: string;
   project_id: string;
@@ -122,7 +123,9 @@ export async function studioRequest<T>(
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     throw new StudioApiError(
-      data.error ?? `Studio returned ${response.status}`,
+      data.error ?? (path === "/config" && response.status === 404
+        ? "Studio is missing on the configured backend (HTTP 404). Check VITE_API_URL and deploy the Studio backend to the matching environment."
+        : `Studio returned ${response.status}`),
       response.status,
     );
   }

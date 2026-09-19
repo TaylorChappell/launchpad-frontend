@@ -71,6 +71,7 @@ import "./studio.css";
 const Editor = lazy(() => import("../components/StudioEditor"));
 type Account = {
   balanceMicroUsd: string;
+  creditExempt?: boolean;
   legacyBalanceNotice?: string | null;
   ledger: Array<{
     id: string;
@@ -83,6 +84,7 @@ type Account = {
 };
 type DepositQuote = TransactionEnvelope & {id:string;maximumCreditMicroUsd:string;expiresAt:number;price:{usdPrice:string;quotedAt:number}};
 type Quote = {
+  creditExempt?: boolean;
   id: string;
   maximumMicroUsd: string;
   expiresAt: number;
@@ -476,7 +478,7 @@ function StudioWorkspace() {
         setError("AI setup is incomplete. The exact missing settings are listed below.");
         return;
       }
-      if (BigInt(latestAccount.balanceMicroUsd) <= 0n) {
+      if (!latestAccount.creditExempt && BigInt(latestAccount.balanceMicroUsd) <= 0n) {
         setQuote(null);
         setCreditGate({ balanceMicroUsd: latestAccount.balanceMicroUsd });
         return;
@@ -490,7 +492,7 @@ function StudioWorkspace() {
       });
       setQuote(estimate);
       setCreditGate(
-        BigInt(latestAccount.balanceMicroUsd) < BigInt(estimate.maximumMicroUsd)
+        !latestAccount.creditExempt && BigInt(latestAccount.balanceMicroUsd) < BigInt(estimate.maximumMicroUsd)
           ? {
               balanceMicroUsd: latestAccount.balanceMicroUsd,
               requiredMicroUsd: estimate.maximumMicroUsd,
@@ -511,7 +513,7 @@ function StudioWorkspace() {
     if (!quote || !project) return;
     await task("Starting generation", async () => {
       const latestAccount = await refreshAccount();
-      if (BigInt(latestAccount.balanceMicroUsd) < BigInt(quote.maximumMicroUsd)) {
+      if (!latestAccount.creditExempt && BigInt(latestAccount.balanceMicroUsd) < BigInt(quote.maximumMicroUsd)) {
         setCreditGate({
           balanceMicroUsd: latestAccount.balanceMicroUsd,
           requiredMicroUsd: quote.maximumMicroUsd,
@@ -834,11 +836,16 @@ function StudioWorkspace() {
   }
   async function previewDeposit() {
     await task("Getting live AQUA price", async () => {
-      if (decimals === null) throw new Error("AQUA deposits are unavailable.");
       setDepositQuote(null);
+      const latest = await studioRequest<StudioConfig>("/config");
+      setConfig(latest);
+      if (!latest.depositsEnabled || latest.decimals === null) {
+        const issues = latest.depositSetup?.issues ?? [];
+        throw new Error(issues.length ? issues.map(issue => `${issue.title}: ${issue.detail}`).join(" ") : "The backend has not returned valid deposit configuration. Deploy the matching Studio backend and check its /studio/config response.");
+      }
       const tx = await request<DepositQuote>(
         "/deposits",
-        { raw: aquaRaw(input, decimals) },
+        { raw: aquaRaw(input, latest.decimals) },
       );
       setDepositQuote(tx);
     });
@@ -966,7 +973,7 @@ function StudioWorkspace() {
       )}
     </div>
   );
-  const creditLabel = `${usdCredit(account.balanceMicroUsd)} credit`;
+  const creditLabel = account.creditExempt ? "Admin · No credits needed" : `${usdCredit(account.balanceMicroUsd)} credit`;
   const setupIssues =
     config && !config.paidEnabled
       ? (config.setup?.issues ?? [
@@ -1156,7 +1163,7 @@ function StudioWorkspace() {
                   }
                 }}
               >
-                {config?.paidEnabled ? "Add" : "Setup"}
+                {account.creditExempt ? "Details" : config?.paidEnabled ? "Add" : "Setup"}
               </button>
             </div>
           </aside>
@@ -1359,7 +1366,7 @@ function StudioWorkspace() {
                                   Review result <ArrowRight size={13} />
                                 </button>
                                 <small>
-                                  {job.charged_micro_usd != null ? `${usdCredit(job.charged_micro_usd)} used` : decimals !== null ? `${aquaAmount(job.charged_raw, decimals)} AQUA (legacy)` : "Legacy usage"}
+                                  {job.credit_exempt ? "Admin · No credit charged" : job.charged_micro_usd != null ? `${usdCredit(job.charged_micro_usd)} used` : decimals !== null ? `${aquaAmount(job.charged_raw, decimals)} AQUA (legacy)` : "Legacy usage"}
                                 </small>
                               </div>
                             </>
@@ -1425,10 +1432,10 @@ function StudioWorkspace() {
                     ) : quote ? (
                       <div className="at-quote">
                         <strong>
-                          Up to {usdCredit(quote.maximumMicroUsd)} of credit
+                          {quote.creditExempt ? "Admin access · No credits needed" : `Up to ${usdCredit(quote.maximumMicroUsd)} of credit`}
                         </strong>
                         <small>
-                          {quote.pricing}. Quote expires in 2 minutes.
+                          {quote.creditExempt ? "AI usage is covered by the operator. The daily AI budget still applies." : `${quote.pricing}. Quote expires in 2 minutes.`}
                         </small>
                         <button
                           className="at-primary"
@@ -2088,6 +2095,7 @@ function StudioWorkspace() {
                 <small>AVAILABLE TO SPEND</small>
                 <strong>{creditLabel}</strong>
               </div>
+              {account.creditExempt && <p className="at-notice">Your verified admin wallet can use AI without depositing AQUA. Any existing credit remains untouched. OpenAI configuration and the daily AI budget still apply.</p>}
               <p className="at-muted">
                 AQUA is valued in USD at deposit time. That value becomes prepaid
                 Studio credit and stays fixed when AQUA’s price changes. AI requests
