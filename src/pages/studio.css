@@ -51,6 +51,98 @@
 }
 @media (max-width: 380px) { .at-entry { padding: 24px 14px 42px; } .at-entry-card { padding: 20px 16px; } }
 @media (prefers-reduced-motion: reduce) { .at-spin, .at-thinking-dots i, .at-entry::after { animation: none !important; } }
+
+/* Logged-out Studio gate. Keep the actual workspace shape visible so users
+   know what they are opening without exposing account data. */
+.at-locked-stage {
+  position: relative;
+  min-height: 650px;
+  overflow: hidden;
+  border: 1px solid #c9e6f0;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #eaf8fd 0%, #f9fdff 48%, #e7f4fb 100%);
+  box-shadow: 0 20px 55px #155b7d12;
+}
+.at-locked-stage::before,
+.at-locked-stage::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 50%;
+  border: 1px solid #63bfe84f;
+  background: radial-gradient(circle at 34% 28%, #fff9 0 8%, #a9def033 11% 48%, transparent 51%);
+}
+.at-locked-stage::before { width: 110px; height: 110px; left: 7%; bottom: 8%; }
+.at-locked-stage::after { width: 58px; height: 58px; right: 9%; top: 12%; }
+.at-locked-preview {
+  position: absolute;
+  inset: 0;
+  padding: 18px;
+  filter: blur(5px);
+  opacity: .47;
+  transform: scale(1.018);
+  transform-origin: center;
+  pointer-events: none;
+  user-select: none;
+}
+.at-locked-preview .at-studio-shell { min-height: 614px; }
+.at-locked-preview i,
+.at-locked-preview .at-locked-new,
+.at-locked-preview .at-locked-compose {
+  display: block;
+  border-radius: 7px;
+  background: linear-gradient(100deg, #d4e5eb, #edf5f8, #d4e5eb);
+  background-size: 220% 100%;
+  animation: at-locked-shimmer 3.2s ease-in-out infinite;
+}
+.at-locked-preview .at-locked-new { width: 100%; height: 38px; margin-bottom: 21px; }
+.at-locked-preview .at-sidebar nav { gap: 9px; }
+.at-locked-preview .at-sidebar nav i { width: 100%; height: 34px; }
+.at-locked-preview .at-projectbar > i { width: 140px; height: 22px; }
+.at-locked-preview .at-projectbar > span { display: flex; gap: 8px; margin-left: auto; }
+.at-locked-preview .at-projectbar > span i { width: 38px; height: 28px; }
+.at-locked-preview .at-panel-title i { width: 112px; height: 14px; }
+.at-locked-chat { display: grid; gap: 16px; padding: 30px 24px; }
+.at-locked-chat i { width: 72%; height: 46px; }
+.at-locked-chat i:nth-child(2) { width: 58%; margin-left: auto; }
+.at-locked-chat i:nth-child(3) { width: 80%; }
+.at-locked-compose { height: 74px; margin: auto 18px 18px; }
+.at-locked-canvas { display: grid; gap: 20px; padding: 34px; }
+.at-locked-canvas i:first-child { height: 225px; }
+.at-locked-canvas i:last-child { width: 72%; height: 130px; }
+.at-access-card {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  width: min(410px, calc(100% - 36px));
+  padding: 34px;
+  transform: translate(-50%, -50%);
+  border-color: #b9dfed;
+  box-shadow: 0 24px 70px #125d7b28, 0 0 0 8px #e9f8fd99;
+  text-align: center;
+}
+.at-access-card .at-entry-card-icon { margin: 0 auto 18px; background: linear-gradient(145deg, #e6f7fd, #d8f0fa); color: #147fa9; }
+.at-access-card h2 { margin: 0 0 10px; color: #204f65; font-size: 24px; letter-spacing: -.7px; }
+.at-access-card > p { margin: 0 auto; max-width: 315px; color: #688796; font-size: 13px; line-height: 1.7; }
+.at-access-card .at-entry-continue { margin-top: 25px; background: linear-gradient(135deg, #1688be, #126f9f); border-color: #126f9f; box-shadow: 0 8px 22px #147ea42e; }
+.at-access-card .at-entry-continue:hover { background: linear-gradient(135deg, #117bad, #0c638d); }
+@keyframes at-locked-shimmer { 0%,100% { background-position: 100% 0; } 50% { background-position: 0 0; } }
+@media (max-width: 760px) {
+  .at-locked-stage { min-height: 600px; }
+  .at-locked-preview { padding: 10px; }
+  .at-locked-preview .at-studio-shell { min-height: 580px; grid-template-columns: 92px minmax(0, 1fr); }
+  .at-locked-preview .at-sidebar { padding: 14px 9px; }
+  .at-locked-preview .at-projectbar { grid-column: 2; }
+  .at-locked-preview .at-workspace { grid-column: 2; display: grid; height: auto; grid-template-columns: 42% 58%; }
+  .at-locked-preview .at-conversation { height: auto; order: initial; border-right: 1px solid #d4e5eb; border-top: 0; }
+  .at-locked-preview .at-canvas { height: auto; }
+  .at-locked-canvas { padding: 18px; }
+  .at-access-card { padding: 28px 22px; }
+  .at-access-card h2 { font-size: 22px; }
+}
+@media (prefers-reduced-motion: reduce) { .at-locked-preview i, .at-locked-preview .at-locked-new, .at-locked-preview .at-locked-compose { animation: none !important; } }
 .at-studio {
   --at-ink: #153f52;
   --at-muted: #617f8e;

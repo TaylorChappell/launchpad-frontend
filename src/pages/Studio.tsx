@@ -52,7 +52,6 @@ import {
   Unlock,
   Upload,
   Wallet,
-  ShieldCheck,
   X,
 } from "lucide-react";
 import { useWallet } from "../context";
@@ -66,7 +65,7 @@ import {
   loadStudioConfig,
   studioConfigIsTransient,
   studioSession,
-  studioSessionKey,
+  clearStudioSession,
   StudioApiError,
   type StudioConfig,
   type StudioFile,
@@ -82,6 +81,7 @@ import { lazyWithRecovery as lazy } from "../components/LazyRecovery";
 const Editor = lazy(() => import("../components/StudioEditor"));
 type Account = {
   balanceMicroUsd: string;
+  creditExempt?: boolean;
   legacyBalanceNotice?: string | null;
   ledger: Array<{
     id: string;
@@ -95,6 +95,7 @@ type Account = {
 type DepositQuote = TransactionEnvelope & {id:string;maximumCreditMicroUsd:string;expiresAt:number;price:{usdPrice:string;quotedAt:number}};
 type Quote = {
   effort?: "low" | "medium" | "high";
+  creditExempt: boolean;
   id: string;
   maximumMicroUsd: string;
   expiresAt: number;
@@ -161,6 +162,7 @@ function StudioWorkspace() {
   const [token, setToken] = useState(() =>
     wallet.address ? studioSession(wallet.address) : "",
   );
+  const autoSignInWallet = useRef("");
   const [config, setConfig] = useState<StudioConfig | null>(null),
     [account, setAccount] = useState<Account>({ balanceMicroUsd: "0", ledger: [] });
   const [depositQuote,setDepositQuote] = useState<DepositQuote | null>(null);
@@ -282,8 +284,7 @@ function StudioWorkspace() {
     setError(errorText(reason));
     if (reason instanceof StudioApiError && reason.status === 401) {
       setToken("");
-      if (wallet.address)
-        sessionStorage.removeItem(studioSessionKey(wallet.address));
+      if (wallet.address) clearStudioSession(wallet.address);
     }
   }
   async function task(label: string, fn: () => Promise<void>) {
@@ -545,6 +546,11 @@ function StudioWorkspace() {
       setToken(session.token);
     });
   }
+  useEffect(() => {
+    if (!wallet.address || token || wallet.connecting || taskLock.current || autoSignInWallet.current === wallet.address) return;
+    autoSignInWallet.current = wallet.address;
+    void signIn();
+  }, [wallet.address, wallet.connecting, token]);
   async function save() {
     if (!project || !state) return null;
     if (!dirty) return project;
@@ -601,10 +607,6 @@ function StudioWorkspace() {
         setError("AI setup is incomplete. The exact missing settings are listed below.");
         return;
       }
-      if (BigInt(latestAccount.balanceMicroUsd) <= 0n) {
-        setCreditGate({ balanceMicroUsd: latestAccount.balanceMicroUsd });
-        return;
-      }
       const saved = await save();
       if (!saved || saved.id !== sendingProject || projectId.current !== sendingProject) return;
       const estimate = await request<Quote>(`/projects/${saved.id}/quote`, {
@@ -616,7 +618,7 @@ function StudioWorkspace() {
       if (estimate.effort !== selectedEffort)
         throw new Error("This backend does not support effort selection yet. Deploy the updated Studio backend before sending.");
       if (!mounted.current || projectId.current !== saved.id) return;
-      if (BigInt(latestAccount.balanceMicroUsd) < BigInt(estimate.maximumMicroUsd)) {
+      if (!estimate.creditExempt && BigInt(latestAccount.balanceMicroUsd) < BigInt(estimate.maximumMicroUsd)) {
         setCreditGate({
           balanceMicroUsd: latestAccount.balanceMicroUsd,
           requiredMicroUsd: estimate.maximumMicroUsd,
@@ -662,7 +664,7 @@ function StudioWorkspace() {
       setPrompt("");
       setJobs(old => old.some(job => job.id === estimate.id) ? old : [{
         id: estimate.id, project_id: id, revision: submission.revision, prompt: submission.prompt,
-        kind: "auto", status: "queued", effort: submission.effort, credit_exempt: false,
+        kind: "auto", status: "queued", effort: submission.effort, credit_exempt: estimate.creditExempt,
         charged_raw: "0", reserved_raw: "0", charged_micro_usd: null,
         reserved_micro_usd: estimate.maximumMicroUsd, created_at: Date.now(),
       }, ...old]);
@@ -1208,7 +1210,8 @@ function StudioWorkspace() {
       )}
     </div>
   );
-  const creditLabel = `${usdCredit(account.balanceMicroUsd)} credit`;
+  const freeAccess = Boolean(config?.promotion?.active || account.creditExempt);
+  const creditLabel = freeAccess ? "Free access" : `${usdCredit(account.balanceMicroUsd)} credit`;
   const coinImage = state?.files.find(item => item.path === state.launch.imagePath && imageFile(item));
   const setupIssues =
     config && !config.paidEnabled
@@ -1273,34 +1276,30 @@ function StudioWorkspace() {
         </div>
       )}
       {!token ? (
-        <section className="at-entry">
-          <div className="at-entry-story">
-            <span className="at-eyebrow">YOUR NEXT IDEA STARTS HERE</span>
-            <h2>Make a little <br />wave of your own.</h2>
-            <p>Turn a rough idea into a memecoin with its own story, artwork, and website.</p>
-            <div className="at-entry-features">
-              <span><ImagePlus size={17} /> Original artwork</span>
-              <span><Monitor size={17} /> Your own website</span>
-              <span><Github size={17} /> Code you can export</span>
+        <section className="at-locked-stage" aria-label="Connect wallet to open Atlantis Studio">
+          <div className="at-locked-preview" aria-hidden="true" inert>
+            <div className="at-studio-shell">
+              <aside className="at-sidebar">
+                <div className="at-locked-new" />
+                <span className="at-sidebar-label">Projects</span>
+                <nav><i /><i /><i /></nav>
+              </aside>
+              <div className="at-projectbar"><i /><span><i /><i /><i /></span></div>
+              <div className="at-workspace">
+                <section className="at-conversation"><div className="at-panel-title"><i /></div><div className="at-locked-chat"><i /><i /><i /></div><div className="at-locked-compose" /></section>
+                <section className="at-canvas"><div className="at-tabs"><i /><i /><i /></div><div className="at-locked-canvas"><i /><i /></div></section>
+              </div>
             </div>
           </div>
-          <div className="at-entry-card">
-            <div className="at-entry-card-icon" aria-hidden="true">{wallet.address ? <ShieldCheck size={25} /> : <Wallet size={25} />}</div>
-            <h3>{wallet.address ? "One quick verification." : "Your studio awaits."}</h3>
-            <p>{wallet.address ? "Sign a message in your wallet to open your saved projects." : "Connect your Solana wallet to create a project or pick up where you left off."}</p>
-            <ol className="at-entry-steps" aria-label="Sign-in steps">
-              <li className={wallet.address ? "complete" : "current"} aria-current={!wallet.address ? "step" : undefined}>
-                <span>{wallet.address ? <Check size={14} /> : "1"}</span><div><strong>Connect wallet</strong><small>{wallet.address ? `${wallet.address.slice(0,6)}…${wallet.address.slice(-4)}` : "Choose Phantom or MetaMask"}</small></div>
-              </li>
-              <li className={wallet.address ? "current" : ""} aria-current={wallet.address ? "step" : undefined}>
-                <span>2</span><div><strong>Verify it’s you</strong><small>A signature to sign in. No transaction fee.</small></div>
-              </li>
-            </ol>
-            <button className="at-primary at-entry-continue" disabled={actionDisabled || Boolean(wallet.connecting)} onClick={() => void signIn()}>
-              {busy ? <><LoaderCircle size={17} className="at-spin" /> Check your wallet</> : <>{wallet.address ? "Verify & open studio" : "Connect wallet"}<ArrowRight size={17} /></>}
+          <div className="at-entry-card at-access-card">
+            <div className="at-entry-card-icon" aria-hidden="true"><Wallet size={25} /></div>
+            <h2>{wallet.address ? "Opening your studio" : "Open Atlantis Studio"}</h2>
+            <p>{wallet.address ? "Opening your saved projects. Future visits will open automatically while this login remains valid." : "Connect your Solana wallet to access your projects, artwork and websites."}</p>
+            <button className="at-primary at-entry-continue" disabled={actionDisabled || Boolean(wallet.connecting)} onClick={() => wallet.address ? void signIn() : wallet.setModalOpen(true)}>
+              {busy || wallet.connecting ? <><LoaderCircle size={17} className="at-spin" /> Opening Studio</> : wallet.address ? <>Try opening again<ArrowRight size={17} /></> : <>Connect wallet<ArrowRight size={17} /></>}
             </button>
             {wallet.address && <button className="at-entry-change" disabled={actionDisabled} onClick={() => void task("Changing wallet", async () => { await wallet.disconnect(); wallet.setModalOpen(true); })}>Use a different wallet</button>}
-            <small className="at-entry-note"><LockKeyhole size={13} /> Your projects are linked to your wallet.</small>
+            <small className="at-entry-note"><LockKeyhole size={13} /> Your projects stay linked to your wallet.</small>
           </div>
         </section>
       ) : (

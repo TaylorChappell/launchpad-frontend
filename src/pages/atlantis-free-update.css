@@ -1,0 +1,103 @@
+.atlantis-update {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  min-height: calc(100vh - 170px);
+  padding: 70px 24px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #f6fcff 0%, #eaf7fd 100%);
+}
+.atlantis-update > .page-bubbles { z-index: -1; opacity: .55; }
+.atlantis-update-card {
+  position: relative;
+  width: min(850px, 100%);
+  padding: clamp(42px, 7vw, 82px);
+  overflow: hidden;
+  border: 1px solid #bfe2ef;
+  border-radius: 26px;
+  background: linear-gradient(145deg, #ffffffed, #e9f8ffed);
+  box-shadow: 0 28px 80px #145d7c1c;
+  text-align: center;
+}
+.atlantis-update-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #187ba1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .14em;
+}
+.atlantis-update h1 {
+  max-width: 660px;
+  margin: 22px auto 18px;
+  color: #173f53;
+  font-size: clamp(38px, 6vw, 67px);
+  line-height: 1.02;
+  letter-spacing: -.045em;
+}
+.atlantis-update-card > p {
+  max-width: 570px;
+  margin: 0 auto;
+  color: #608092;
+  font-size: 15px;
+  line-height: 1.75;
+}
+.atlantis-update-countdown {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(10px, 3vw, 25px);
+  margin: 38px auto 12px;
+}
+.atlantis-update-countdown > span { padding-top: 13px; color: #81aabe; font-size: 30px; }
+.atlantis-update-countdown div { min-width: clamp(72px, 13vw, 112px); }
+.atlantis-update-countdown strong {
+  display: block;
+  padding: 12px 9px;
+  border: 1px solid #c7e5ef;
+  border-radius: 14px;
+  color: #116f97;
+  background: #fff;
+  box-shadow: 0 10px 25px #1967830e;
+  font-size: clamp(29px, 5vw, 46px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.04em;
+}
+.atlantis-update-countdown small { display: block; margin-top: 8px; color: #7a98a6; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
+.atlantis-update-live { display: inline-flex; align-items: center; gap: 7px; color: #6d8e9e; font-size: 10px; }
+.atlantis-update-live i { width: 7px; height: 7px; border-radius: 50%; background: #2bb884; box-shadow: 0 0 0 5px #2bb88418; }
+.atlantis-update-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 49px;
+  margin-top: 30px;
+  padding: 12px 24px;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(135deg, #178bc1, #106d9c);
+  box-shadow: 0 12px 28px #137ba837;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: transform .18s, box-shadow .18s;
+}
+.atlantis-update-button:hover { transform: translateY(-2px); box-shadow: 0 16px 34px #137ba846; }
+.atlantis-update-ended,
+.atlantis-update-loading { display: flex; align-items: center; justify-content: center; gap: 9px; margin: 36px auto 5px; color: #557b8e; }
+.atlantis-update-water { position: absolute; inset: auto 0 0; height: 105px; pointer-events: none; opacity: .62; }
+.atlantis-update-water::before { content: ""; position: absolute; inset: 18px -10% -35px; background: #70c5ec2a; border-radius: 50% 50% 0 0 / 26% 26% 0 0; transform: rotate(-2deg); }
+.atlantis-update-water i { position: absolute; border: 1px solid #7fcce75e; border-radius: 50%; }
+.atlantis-update-water i:nth-child(1) { width: 42px; height: 42px; left: 12%; top: 26px; }
+.atlantis-update-water i:nth-child(2) { width: 19px; height: 19px; left: 22%; top: 1px; }
+.atlantis-update-water i:nth-child(3) { width: 31px; height: 31px; right: 15%; top: 20px; }
+@media (max-width: 520px) {
+  .atlantis-update { padding: 35px 14px; }
+  .atlantis-update-card { padding: 42px 17px 56px; border-radius: 20px; }
+  .atlantis-update-countdown { gap: 7px; }
+  .atlantis-update-countdown > span { padding-top: 10px; font-size: 21px; }
+  .atlantis-update-countdown div { min-width: 65px; }
+}
