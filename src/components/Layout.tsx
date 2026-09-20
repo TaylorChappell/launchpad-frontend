@@ -1,4 +1,4 @@
-import { ArrowRight, BarChart3, CircleHelp, Compass, ExternalLink, Gamepad2, Gift, Globe2, Image as ImageIcon, Menu, PanelsTopLeft, Plus, Search, Sparkles, X } from "lucide-react";
+import { ArrowRight, BarChart3, CircleHelp, Compass, ExternalLink, Gamepad2, Gift, Globe2, Image as ImageIcon, Menu, PanelsTopLeft, Plus, Search, X } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRuntime, useWallet } from "../context";
@@ -136,7 +136,7 @@ function AtlantisLaunchArt() {
   return <div className="atlantis-launch-art" aria-hidden="true">
     <div className="atlantis-launch-orbit"><i/><i/><i/></div>
     <span className="atlantis-launch-mark"><AquaMark/></span>
-    <div><small>ATLANTIS</small><b>STUDIO</b><span><Sparkles/> Create inside Aqua</span></div>
+    <div><small>ATLANTIS</small><b>STUDIO</b></div>
     <div className="atlantis-launch-tools"><Globe2/><Gamepad2/><ImageIcon/><PanelsTopLeft/></div>
   </div>;
 }

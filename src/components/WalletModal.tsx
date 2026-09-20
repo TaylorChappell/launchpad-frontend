@@ -1,4 +1,4 @@
-import { ArrowRight, ExternalLink, LoaderCircle, LockKeyhole, Waves, X } from "lucide-react";
+import { ArrowRight, ExternalLink, LoaderCircle, LockKeyhole, X } from "lucide-react";
 import { WalletMetamask, WalletPhantom } from "@web3icons/react";
 import { useEffect, useState } from "react";
 import { useWallet } from "../context";
@@ -41,7 +41,6 @@ export function WalletModal() {
     <div className="wallet-transition-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
     <section className="wallet-modal aqua-wallet-picker" role="dialog" aria-modal="true" aria-labelledby="wallet-title" aria-describedby="wallet-description" onMouseDown={(event) => event.stopPropagation()}>
       <button className="modal-close" onClick={() => wallet.setModalOpen(false)} aria-label="Close wallet dialog"><X size={17}/></button>
-      <div className="wallet-picker-mark" aria-hidden="true"><Waves size={27} strokeWidth={1.5}/></div>
       <h2 id="wallet-title">Connect your wallet</h2>
       <p className="wallet-copy" id="wallet-description">{studio ? "Your wallet is the key to your studio. Choose one to get started." : "Choose a Solana wallet to continue to AQUA."}</p>
       <div className="wallet-list">
