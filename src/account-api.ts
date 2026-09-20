@@ -60,7 +60,7 @@ export async function signInAccount(
     { id: challenge.id, wallet: address, signature: signed.signature },
   );
   if (!isCurrent()) throw new Error("Wallet changed. Sign in again.");
-  sessionStorage.setItem(studioSessionKey(address), JSON.stringify(session));
+  localStorage.setItem(studioSessionKey(address), JSON.stringify(session));
   window.dispatchEvent(new Event("aqua:account-session"));
   return session;
 }

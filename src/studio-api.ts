@@ -85,6 +85,12 @@ export type StudioConfig = {
   depositPrice: {usdPrice:string;observedAt:number} | null;
   model: string;
   imageModel: string;
+  promotion?: {
+    active: boolean;
+    startsAt: number | null;
+    endsAt: number | null;
+    serverNow: number;
+  };
   knowledge: {
     governance: boolean;
     burn: boolean;
@@ -101,13 +107,27 @@ export class StudioApiError extends Error {
   }
 }
 export const studioSessionKey = (wallet: string) => `aqua:studio:${wallet}`;
+export function clearStudioSession(wallet: string) {
+  const key = studioSessionKey(wallet);
+  try { localStorage.removeItem(key); } catch { /* Storage can be unavailable. */ }
+  try { sessionStorage.removeItem(key); } catch { /* Storage can be unavailable. */ }
+}
 export function studioSession(wallet: string) {
+  const key = studioSessionKey(wallet);
   try {
-    const session = JSON.parse(
-      sessionStorage.getItem(studioSessionKey(wallet)) ?? "null",
-    );
-    return session?.expiresAt > Date.now() ? String(session.token) : "";
+    const stored = localStorage.getItem(key) ?? sessionStorage.getItem(key);
+    const session = JSON.parse(stored ?? "null");
+    if (session?.expiresAt > Date.now() && session?.token) {
+      // Move older tab-only sessions into persistent storage so a valid login
+      // survives reloads and future browser sessions until its real expiry.
+      localStorage.setItem(key, JSON.stringify(session));
+      sessionStorage.removeItem(key);
+      return String(session.token);
+    }
+    clearStudioSession(wallet);
+    return "";
   } catch {
+    clearStudioSession(wallet);
     return "";
   }
 }
