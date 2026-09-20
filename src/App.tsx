@@ -16,6 +16,7 @@ const Privacy = lazy(() => import("./pages/Legal").then(module => ({ default: mo
 const CreatorManage = lazy(() => import("./pages/CreatorManage").then(module => ({ default: module.CreatorManage })));
 const Admin = lazy(() => import("./pages/Admin").then(module => ({ default: module.Admin })));
 const Developers = lazy(() => import("./pages/Developers").then(module => ({ default: module.Developers })));
+const AtlantisFreeUpdate = lazy(() => import("./pages/AtlantisFreeUpdate").then(module => ({ default: module.AtlantisFreeUpdate })));
 
 function LegacyStudioRedirect() {
   const { search } = useLocation();
@@ -23,5 +24,5 @@ function LegacyStudioRedirect() {
 }
 
 export function App() {
-  return <HashRouter><Layout><Suspense fallback={<main className="page"><div className="page-loading">Loading AQUA…</div></main>}><Routes><Route path="/" element={<Markets/>}/><Route path="/studio" element={<Studio/>}/><Route path="/integrations" element={<LegacyStudioRedirect/>}/><Route path="/settings/*" element={<LegacyStudioRedirect/>}/><Route path="/profile/:wallet" element={<LegacyStudioRedirect/>}/><Route path="/create" element={<Create/>}/><Route path="/token/:id" element={<Token/>}/><Route path="/manage/:id" element={<CreatorManage/>}/><Route path="/portfolio" element={<Portfolio/>}/><Route path="/rewards" element={<Rewards/>}/><Route path="/analytics" element={<Analytics/>}/><Route path="/how-it-works" element={<HowItWorks/>}/><Route path="/developers" element={<Developers/>}/><Route path="/terms" element={<Terms/>}/><Route path="/privacy" element={<Privacy/>}/><Route path="/admin" element={<Admin/>}/></Routes></Suspense></Layout></HashRouter>;
+  return <HashRouter><Layout><Suspense fallback={<main className="page"><div className="page-loading">Loading AQUA…</div></main>}><Routes><Route path="/" element={<Markets/>}/><Route path="/studio" element={<Studio/>}/><Route path="/updates/atlantis-free" element={<AtlantisFreeUpdate/>}/><Route path="/integrations" element={<LegacyStudioRedirect/>}/><Route path="/settings/*" element={<LegacyStudioRedirect/>}/><Route path="/profile/:wallet" element={<LegacyStudioRedirect/>}/><Route path="/create" element={<Create/>}/><Route path="/token/:id" element={<Token/>}/><Route path="/manage/:id" element={<CreatorManage/>}/><Route path="/portfolio" element={<Portfolio/>}/><Route path="/rewards" element={<Rewards/>}/><Route path="/analytics" element={<Analytics/>}/><Route path="/how-it-works" element={<HowItWorks/>}/><Route path="/developers" element={<Developers/>}/><Route path="/terms" element={<Terms/>}/><Route path="/privacy" element={<Privacy/>}/><Route path="/admin" element={<Admin/>}/></Routes></Suspense></Layout></HashRouter>;
 }
