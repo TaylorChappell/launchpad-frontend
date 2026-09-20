@@ -9,7 +9,7 @@ test.beforeEach(async({page})=>{
 test("market controls are visible, bookmarkable and do not overflow",async({page})=>{
   await page.goto("/#/");
   await expect(page.getByRole("heading",{name:"Find your next community."})).toBeVisible();
-  await page.getByLabel("Pair",{exact:true}).selectOption("ORCA");
+  await page.getByRole("combobox",{name:"Pair",exact:true}).selectOption("ORCA");
   await expect(page).toHaveURL(/pair=ORCA/);
   await page.getByRole("button",{name:"Watchlist",exact:true}).click();
   await expect(page.getByRole("heading",{name:"Your watchlist is empty"})).toBeVisible();

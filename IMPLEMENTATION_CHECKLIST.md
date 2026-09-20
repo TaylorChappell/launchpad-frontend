@@ -43,6 +43,6 @@ Backend snapshot files were verified against GitHub blob hashes before editing.
 - [ ] Operator deployment of worker services, alert thresholds and the public-domain social-share proxy. The backend share URL works once this backend is deployed; pretty frontend-domain links require the proxy first.
 - [ ] Verified migration/recreation of legacy IP-owned webhook endpoints. They are not assigned to an arbitrary wallet.
 - [ ] Independent deployed-program and signer-custody assessment, session-storage hardening review, and claim-floor economics review.
-- [ ] Verify the staging deployment against the published commits. Production promotion requires a separate release decision.
+- [x] Verify frontend Cloudflare and backend Railway staging deployment against the published implementation commits. Production promotion requires a separate release decision.
 
 See RELEASE_VALIDATION.md and the backend OPERATIONS_OVERHAUL.md before publishing.
