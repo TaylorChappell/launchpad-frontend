@@ -49,7 +49,7 @@ export function WalletModal() {
         <WalletRow kind="metamask" name="MetaMask" status="Solana account" icon={<span className="wallet-logo"><WalletMetamask variant="background" size={30}/></span>}/>
       </div>
       {!wallet.phantomInstalled && <p className="wallet-note">Need Phantom? <a href="https://phantom.com/download" target="_blank" rel="noreferrer">Install Phantom <ExternalLink size={11}/></a></p>}
-      <div className="wallet-picker-note"><LockKeyhole size={14}/><span>{studio ? "Next, sign a message to verify it’s you." : "You approve every transaction in your wallet."}</span></div>
+      <div className="wallet-picker-note"><LockKeyhole size={14}/><span>{studio ? "A valid login opens your Studio immediately." : "You approve every transaction in your wallet."}</span></div>
     </section>
   </div>;
 }

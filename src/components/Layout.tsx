@@ -26,6 +26,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const wallet = useWallet();
   const currentPath = useLocation().pathname;
   const trading = currentPath.startsWith("/token/") || currentPath.startsWith("/studio");
+  const updatePage = currentPath.startsWith("/updates/");
   const { config, error } = useRuntime();
   const [mobile, setMobile] = useState(false);
   const [opening, setOpening] = useState(true);
@@ -92,7 +93,7 @@ export function Layout({ children }: { children: ReactNode }) {
       </div>
       {mobile && <nav className="mobile-nav" aria-label="Mobile navigation">{links.map((link) => <NavLink key={link.to} to={link.to} onClick={() => setMobile(false)}>{link.label}</NavLink>)}</nav>}
     </header>
-    {!trading && <a className="community-reward-banner" href={COMMUNITY_POST_URL} target="_blank" rel="noreferrer">
+    {!trading && !updatePage && <a className="community-reward-banner" href={COMMUNITY_POST_URL} target="_blank" rel="noreferrer">
       <CampaignBannerArt/>
       <span className="community-reward-banner-copy"><small>LAUNCH ON AQUA COMMUNITY PROGRAM</small><strong><em>$2,500</em> IN LAUNCH REWARDS</strong><span>Community and builder milestones are now live.</span></span>
       <span className="community-reward-prizes"><b>$1,250</b><i/> <b>$750</b><i/> <b>$500</b></span>
