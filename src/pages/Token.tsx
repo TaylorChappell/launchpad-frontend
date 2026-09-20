@@ -1,7 +1,7 @@
+import { MarketInformationTabs } from "../components/MarketProposals";
 import { WalletRewards } from "../components/WalletRewards";
 import {marketShareUrl} from "../share-market";
 import { MarketHolders,MarketPosition } from "../components/MarketHolders";
-import { TradeCandles } from "../components/TradeCandles";
 import { mergeTrades, tradeTime } from "../trade-history";
 import { formatJackpotAmount } from "../jackpot-format";
 import { useEffect, useMemo, useState } from "react";
@@ -20,7 +20,7 @@ import { MarketProposals, MarketGovernanceProvider, CommunityProposalVotes, DexF
 import { DexScreenerIcon } from "../components/DexScreenerIcon";
 import { launchAge } from "../time";
 import { useMarketPrices } from "../useMarketPrices";
-import { mergeMarketPrice, isPriceLive, withLatestMarketPoint } from "../market-prices";
+import { mergeMarketPrice, withLatestMarketPoint } from "../market-prices";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 4 });
@@ -80,7 +80,6 @@ export function Token() {
   const [loadError, setLoadError] = useState("");
   const [range, setRange] = useState("24h");
   const [section,setSection]=useState("Transactions");
-  const [chartKind,setChartKind] = useState("line");
   const [nowSeconds, setNowSeconds] = useState(() => Math.floor(Date.now() / 1_000));
 
   useEffect(() => {
@@ -174,36 +173,37 @@ export function Token() {
     </section>
 
     <div className="token-layout"><section className="token-main">
-      <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div><span className={`index-badge ${isPriceLive(launch,nowSeconds*1000) ? "indexed" : "pending_indexing"}`} title={launch.priceUpdatedAt ? `Last price update: ${new Date(launch.priceUpdatedAt).toLocaleString()}` : "Waiting for a current pool price"}>{isPriceLive(launch,nowSeconds*1000) ? "LIVE · 5s" : "PRICE DELAYED"}</span></header><div className="segmented"><button aria-pressed={chartKind==="line"} onClick={()=>setChartKind("line")}>USD snapshots</button><button aria-pressed={chartKind==="candles"} onClick={()=>setChartKind("candles")}>Trade candles</button></div>{chartKind==="candles"?<TradeCandles id={id} range={range} onRangeChange={setRange}/>:<div className="chart market-line-shell"><MarketCapLine snapshots={withLatestMarketPoint(snapshots,launch)} range={range} onRangeChange={setRange}/></div>}</div>
+      <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div></header><div className="chart market-line-shell"><MarketCapLine snapshots={withLatestMarketPoint(snapshots,launch)} range={range} onRangeChange={setRange}/></div></div>
 
-      <p className="status-inline">Price: {launch.priceUpdatedAt?new Date(launch.priceUpdatedAt).toLocaleTimeString():"Unavailable"} · Activity, liquidity and holders indexed: {launch.lastIndexedAt?new Date(launch.lastIndexedAt).toLocaleTimeString():"Unavailable"}</p>
-      <div className="workspace-tabs market-information-tabs" aria-label="Market information">{["Transactions","Holders","Your position","Rewards","Project","Governance"].map(label=><button key={label} aria-pressed={section===label} onClick={()=>setSection(label)}>{label}</button>)}</div>
+      <MarketInformationTabs section={section} onChange={setSection}/>
       {section==="Holders"&&<MarketHolders key={launch.id} launch={launch} creatorLock={creatorLock}/>}
       {section==="Your position"&&<MarketPosition launch={launch}/>}
       {section==="Project"&&<section className="dashboard-section"><h2>Project information</h2><p>{launch.description}</p><p>Opening LP lock: {launch.liquidityLockedPermanently?"Permanently locked":"Not verified"}{launch.lockConfig&&<> · <a href={solscanAccountUrl(launch.lockConfig,config.network)} target="_blank" rel="noreferrer">Verify LP lock ↗</a></>}</p><p>Creator token lock: {creatorLock?.status==="active"?"Active until "+new Date(creatorLock.unlockAt*1000).toLocaleString():"No active verified creator lock"}.</p><p>DEX profile payment is not an endorsement or security assessment.</p><a href={solscanAccountUrl(launch.mint,config.network)} target="_blank" rel="noreferrer">Inspect mint and authority state ↗</a></section>}
-      {section==="Rewards"&&<><section className="workspace-panel market-wallet-rewards"><header><h2>Your rewards</h2><Link to="/portfolio?tab=rewards">All rewards →</Link></header><WalletRewards launch={launch}/></section><details className="workspace-disclosure"><summary>Market reward activity</summary><div className="info-grid single reward-mode-market-panel">
+      {section==="Rewards"&&<>{rewardMode==="holder_rewards"&&<><section className="workspace-panel market-wallet-rewards"><header><h2>Your rewards</h2><Link to="/portfolio?tab=rewards">All rewards →</Link></header><WalletRewards launch={launch}/></section><details className="workspace-disclosure"><summary>Market reward activity</summary><div className="info-grid single reward-mode-market-panel">
         {rewardMode === "holder_rewards" && <section className="market-reward-panel"><header><div><small>HOLDER REWARDS</small><h2>Earn {launch.stockSymbol}</h2></div><span className="reward-live-label">Accumulating</span></header><div className="reward-stat-row"><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Available to all holders" value={money.format(launch.rewardRedeemableUsd)}/></div><footer>Rewards follow your balance and time held. Your personal allocation and claim button are above.</footer></section>}
+      </div></details></>}
+      <div className="info-grid single reward-mode-market-panel">
         {rewardMode === "buyback_burn" && <section className="market-reward-panel"><header><div><small>BUYBACK &amp; BURN</small><h2>Reducing the supply</h2></div><span className="reward-live-label">Market buybacks</span></header><div className="reward-stat-row"><Metric label="SOL spent on buybacks" value={`${compact.format(rewardModeState?.buybackBurn.totalSol ?? 0)} SOL`}/><Metric label={`${launch.symbol} permanently burned`} value={formatCompactRaw(rewardModeState?.buybackBurn.totalTokenRaw, launch.tokenDecimals)}/></div><footer>{rewardModeState?.buybackBurn.lastBurnAt ? "Last burn · " + new Date(rewardModeState.buybackBurn.lastBurnAt).toLocaleString() : "The reward share buys this coin through its pool and burns the purchased tokens."}</footer></section>}
         {rewardMode === "jackpot" && <section className="market-reward-panel market-jackpot">
-          <header><div><small>HOURLY JACKPOT</small><h2>Five places. One draw.</h2></div><div className="jackpot-next-draw"><span>{jackpot?.status === "rolling_over" ? "Next attempt" : "Next draw"}</span><strong>{!jackpot ? "Loading…" : jackpot.status === "blocked" ? "Delayed" : jackpot.status === "drawing" ? "Drawing…" : jackpot.status === "publishing" ? "Funding prizes…" : jackpotSeconds === 0 ? "Awaiting draw" : formatCountdown(jackpotSeconds)}</strong></div></header>
+          <header><div><small>HOURLY JACKPOT</small><h2>Current payouts</h2></div><div className="jackpot-next-draw"><span>{jackpot?.status === "rolling_over" ? "Next attempt" : "Next draw"}</span><strong>{!jackpot ? "Loading…" : jackpot.status === "blocked" ? "Delayed" : jackpot.status === "drawing" ? "Drawing…" : jackpot.status === "publishing" ? "Funding prizes…" : jackpotSeconds === 0 ? "Awaiting draw" : formatCountdown(jackpotSeconds)}</strong></div></header>
           {jackpot?.status === "rolling_over" && <p className="jackpot-state-note">{jackpot.reason === "eligible_holders" ? `Waiting for five eligible holders${jackpot.eligibleWallets !== null ? ` (${jackpot.eligibleWallets} currently eligible)` : ""}. Prizes carry forward.` : "Waiting for the minimum funding. Prizes carry forward."}</p>}
           {jackpot?.status === "blocked" && <p className="jackpot-state-note">Settlement is delayed. Prizes remain pending until funding is confirmed.</p>}
           <div className="jackpot-podium" aria-label="Prize amounts for the next five winners">
             {[["1ST", 5_000], ["2ND", 2_000], ["3RD", 2_000], ["4TH", 500], ["5TH", 500]].map(([place, bps]) => {
               const amount = jackpotPrizeAmount(jackpot, Number(bps));
-              return <div key={place} className={"podium-place place-" + String(place).toLowerCase()}><div><small>{place}</small><b title={amount}>{amount}</b></div><span className="podium-column"><em>{place}</em></span></div>;
+              return <div key={place} className={"podium-place place-" + String(place).toLowerCase()}><div><small>{place}</small><b title={amount}>{amount}</b><small className="payout-pending">Awaiting draw</small></div><span className="podium-column"><em>{place}</em></span></div>;
             })}
           </div>
         </section>}
       </div>
 
-      </details></>}
+      {rewardMode==="jackpot"&&<><WalletRewards launch={launch}/><JackpotHistory jackpot={jackpot} network={config.network}/></>}</>}
       {section==="Governance"&&<><CommunityProposalVotes/><DexFundingVote/></>}
 
       {section==="Transactions"&&<div className="activity"><header><div><b>Market activity</b><span>Newest transactions first</span>{incomingTrades.some(t=>!trades.some(old=>old.id===t.id))&&<button className="soft-button" onClick={()=>{setTrades(current=>mergeTrades(current,incomingTrades));setIncomingTrades([]);}}>Show new transactions</button>}</div><strong>{launch.txCount.toLocaleString()} total</strong></header><div className="activity-scroll"><table><thead><tr><th>Type</th><th>Wallet</th><th>Time</th><th>{launch.pairSymbol}</th><th>Tokens</th></tr></thead><tbody>{sortedTrades.length ? sortedTrades.map((item) => <tr key={item.id}><td className={item.side}>{item.side.toUpperCase()}</td><td><a href={solscanAccountUrl(item.wallet, config.network)} target="_blank" rel="noreferrer" title={item.wallet}>{item.wallet.slice(0,4)}…{item.wallet.slice(-4)}</a></td><td>{item.signature ? <a href={solscanTransactionUrl(item.signature, config.network)} target="_blank" rel="noreferrer">{new Date(tradeTime(item)).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})} ↗</a> : "—"}</td><td>{formatRaw(item.gross_quote_raw, pairDecimals)}</td><td title={formatRaw(item.token_amount_raw, launch.tokenDecimals)}>{compact.format(Number(item.token_amount_raw) / 10 ** launch.tokenDecimals)}</td></tr>) : <tr><td colSpan={5} className="no-activity">No indexed trades yet.</td></tr>}</tbody></table></div>{tradesHaveMore && <button className="activity-load-more" disabled={loadingTrades} onClick={() => void loadMoreTrades()}>{loadingTrades ? <><Loader2 className="spin"/>Loading</> : "Load more"}</button>}</div>}
     </section>
 
-    <aside className="token-side"><TradePanel key={[launch.id,wallet.address,config.network].join(":")} launch={launch} pairDecimals={launch.pairType === "sol" ? 9 : stock?.decimals ?? null}/><details className="market-facts"><summary>Market details</summary><dl><div><dt>Creator</dt><dd><a href={solscanAccountUrl(launch.creatorWallet, config.network)} target="_blank" rel="noreferrer">{launch.creatorWallet.slice(0, 5)}…{launch.creatorWallet.slice(-4)} <ExternalLink size={12}/></a></dd></div><div><dt>Developer buy</dt><dd>{launch.pairType === "sol" ? launch.devBuySol > 0 ? `${launch.devBuySol} SOL` : "None" : BigInt(launch.devBuyStockRaw || "0") > 0n ? `${formatRaw(launch.devBuyStockRaw, stockDecimals)} ${launch.pairSymbol}` : "None"}</dd></div><div><dt>Holders</dt><dd>{compact.format(launch.holderCount)}</dd></div><div><dt>Pool</dt><dd><a href={explorerUrl} target="_blank" rel="noreferrer">View on explorer <ExternalLink size={12}/></a></dd></div></dl></details><DexFundingVote/>{rewardMode === "jackpot" && <><JackpotHistory jackpot={jackpot} network={config.network}/><JackpotLeaderboard jackpot={jackpot}/></>}</aside></div>
+    <aside className="token-side"><TradePanel key={[launch.id,wallet.address,config.network].join(":")} launch={launch} pairDecimals={launch.pairType === "sol" ? 9 : stock?.decimals ?? null}/><details className="market-facts"><summary>Market details</summary><dl><div><dt>Creator</dt><dd><a href={solscanAccountUrl(launch.creatorWallet, config.network)} target="_blank" rel="noreferrer">{launch.creatorWallet.slice(0, 5)}…{launch.creatorWallet.slice(-4)} <ExternalLink size={12}/></a></dd></div><div><dt>Developer buy</dt><dd>{launch.pairType === "sol" ? launch.devBuySol > 0 ? `${launch.devBuySol} SOL` : "None" : BigInt(launch.devBuyStockRaw || "0") > 0n ? `${formatRaw(launch.devBuyStockRaw, stockDecimals)} ${launch.pairSymbol}` : "None"}</dd></div><div><dt>Holders</dt><dd>{compact.format(launch.holderCount)}</dd></div><div><dt>Pool</dt><dd><a href={explorerUrl} target="_blank" rel="noreferrer">View on explorer <ExternalLink size={12}/></a></dd></div></dl></details><DexFundingVote/>{rewardMode === "jackpot" && <JackpotLeaderboard jackpot={jackpot}/>}</aside></div>
   </main></MarketGovernanceProvider>;
 }
 
@@ -216,7 +216,7 @@ function JackpotHistory({ jackpot, network }: { jackpot: RewardModeState["jackpo
       <header><small>{new Date(draw.endsAt * 1_000).toLocaleString()}</small></header>
       <div className="jackpot-winners">{draw.winners.map((winner) => <span key={`${draw.id}:${winner.wallet}`}>
         <b>#{winner.place}</b><code>{winner.wallet.slice(0,4)}…{winner.wallet.slice(-4)}</code><strong>{formatJackpotAmount(winner.amountRaw, draw.rewardDecimals)} {draw.rewardSymbol}</strong>
-        {winner.claimed && winner.claimedSignature ? <a className="jackpot-claim-status claimed" href={solscanTransactionUrl(winner.claimedSignature, network)} target="_blank" rel="noreferrer">Claimed <ExternalLink/></a> : <em className="jackpot-claim-status">Unclaimed</em>}
+        {winner.claimed ? winner.claimedSignature ? <a className="jackpot-claim-status claimed" href={solscanTransactionUrl(winner.claimedSignature, network)} target="_blank" rel="noreferrer">Claimed <ExternalLink/></a> : <em className="jackpot-claim-status claimed">Claimed</em> : <em className="jackpot-claim-status">Unclaimed</em>}
       </span>)}</div>
     </article>)}
     {jackpot && visible < jackpot.previousDraws.length && <button className="jackpot-load-more" onClick={() => setVisible((count) => count + 1)}>Earlier draws</button>}
@@ -231,7 +231,7 @@ function JackpotLeaderboard({ jackpot }: { jackpot: RewardModeState["jackpot"] |
     return amountA === amountB ? b.wins - a.wins : amountA > amountB ? -1 : 1;
   }), [jackpot?.allTimeWinners]);
   return <section className="jackpot-leaderboard">
-    <header><span>ALL-TIME WINNERS</span><b>Highest payouts</b></header>
+    <header><span>ALL-TIME</span><b>Top payout recipients</b></header>
     {winners.length ? <>
       <ol>{winners.slice(0, visible).map((winner, index) => <li key={winner.wallet}>
         <i>{index + 1}</i><div><code>{winner.wallet.slice(0,4)}…{winner.wallet.slice(-4)}</code><small>{winner.wins} win{winner.wins === 1 ? "" : "s"}</small></div>

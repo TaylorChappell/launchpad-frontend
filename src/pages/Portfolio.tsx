@@ -4,6 +4,7 @@ import { ArrowRight, ArrowUpRight, Coins, Gift, Layers3, RefreshCw, Wallet } fro
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { TokenMark } from "../components/TokenCard";
+import { CreatorFeeClaim } from "../components/CreatorFeeClaim";
 import { WalletRewards } from "../components/WalletRewards";
 import { HoldingUpdates } from "../components/HoldingUpdates";
 import { displayTokenAmount } from "../trade-quote";
@@ -21,7 +22,7 @@ function PortfolioContent({address}:{address:string|null}){
   const tab=tabs.find(t=>t.toLowerCase()===params.get("tab"))??"Holdings";
   const [holdings,setHoldings]=useState<Holdings|null>(null),[rewards,setRewards]=useState<WalletRewardsResponse|null>(null);
   const [history,setHistory]=useState<History|null>(null),[created,setCreated]=useState<Launch[]|null>(null);
-  const [errors,setErrors]=useState<Record<string,string>>({}),[updated,setUpdated]=useState(0),[revision,setRevision]=useState(0);
+  const [errors,setErrors]=useState<Record<string,string>>({}),[revision,setRevision]=useState(0);
   const [more,setMore]=useState(false),[offset,setOffset]=useState(0),[loadingMore,setLoadingMore]=useState(false);
   useEffect(()=>{
     if(!address)return;
@@ -35,7 +36,6 @@ function PortfolioContent({address}:{address:string|null}){
         if(r.status==="fulfilled")setRewards(r.value);else next.rewards="Rewards could not refresh.";
         if(c.status==="fulfilled")setHistory(c.value);else next.activity="Claim history could not refresh.";
         setErrors(old=>({...old,holdings:"",rewards:"",activity:"",...next}));
-        setUpdated(Date.now());
       }pending=false;
     };
     void load();const refresh=()=>{if(document.visibilityState==="visible")void load();};
@@ -44,7 +44,7 @@ function PortfolioContent({address}:{address:string|null}){
   },[address,revision]);
   useEffect(()=>{
     if(!address||tab!=="Created")return;let active=true;
-    api.launches({creator:address,status:"all",limit:24,sort:"recent"}).then(d=>{if(active){setCreated(d.launches);setMore(d.hasMore);setOffset(d.nextOffset);setErrors(e=>({...e,created:""}));}}).catch(()=>{if(active)setErrors(e=>({...e,created:"Your created markets could not load."}));});
+    api.launches({creator:address,status:"all",limit:24,sort:"creator_claims"}).then(d=>{if(active){setCreated(d.launches);setMore(d.hasMore);setOffset(d.nextOffset);setErrors(e=>({...e,created:""}));}}).catch(()=>{if(active)setErrors(e=>({...e,created:"Your created markets could not load."}));});
     return()=>{active=false;};
   },[address,tab,revision]);
   const selectTab=(name:string)=>setParams(name==="Holdings"?{}:{tab:name.toLowerCase()});
@@ -65,21 +65,21 @@ function PortfolioContent({address}:{address:string|null}){
     {Object.values(errors).some(Boolean)&&<p className="danger-note" role="alert">{Object.values(errors).filter(Boolean).join(" ")} Previous values may be stale. <button className="text-button" onClick={refresh}>Try again</button></p>}
     <section className="portfolio-overview">
       <article className="portfolio-value"><span className="workspace-eyebrow">HOLDINGS VALUE</span><strong>{value===undefined?"—":usd.format(value)}</strong><span>{holdings===null?"Loading positions…":holdings.length+" positions"}{unpriced>0?" · "+unpriced+" awaiting price":""}</span><Link to="/">Explore markets <ArrowUpRight size={15}/></Link></article>
-      <article className="portfolio-reward-summary"><span className="workspace-icon"><Gift size={21}/></span><small>Ready to claim · after estimated costs</small><strong>{claimable===undefined?"—":usd.format(claimable)}</strong><div><span>Pending allocation <b>{pending===undefined?"—":usd.format(pending)}</b></span><button className="primary" onClick={()=>selectTab("Rewards")}>View rewards <ArrowRight size={16}/></button></div></article>
+      <article className="portfolio-reward-summary"><img className="rewards-gift-art" src={import.meta.env.BASE_URL+"aqua-gift.webp"} alt=""/><small>Ready to claim</small><strong>{claimable===undefined?"—":usd.format(claimable)}</strong><div><span>Pending allocation <b>{pending===undefined?"—":usd.format(pending)}</b></span><button className="primary" onClick={()=>selectTab("Rewards")}>View rewards <ArrowRight size={16}/></button></div></article>
     </section>
     <nav className="workspace-tabs" aria-label="Portfolio sections">{tabs.map(t=><button key={t} aria-current={tab===t?"page":undefined} onClick={()=>selectTab(t)}>{t}{t==="Holdings"&&holdings&&<span>{holdings.length}</span>}{t==="Rewards"&&rewards?.markets.some(m=>m.canClaim)&&<i/>}</button>)}</nav>
     {tab==="Holdings"&&<section className="workspace-panel">
-      <header><h2>Your positions</h2><span>{updated?"Updated "+new Date(updated).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"Loading…"}</span></header>
+      <header><h2>Your positions</h2></header>
       {holdings===null?<div className="workspace-loading">{errors.holdings?"Positions unavailable":"Loading your positions…"}</div>:holdings.length?<div className="table-scroll"><table className="market-table position-table"><thead><tr><th>Token</th><th>Balance</th><th>Value</th><th>Rewards</th><th/></tr></thead><tbody>{holdings.map(h=>{
         const reward=rewards?.markets.find(m=>m.launchId===h.launch.id);
         return <tr key={h.launch.id}><td><Link className="market-identity" to={"/token/"+h.launch.id}><TokenMark launch={h.launch}/><span><b>{h.launch.name}</b><small>{h.launch.symbol}</small></span></Link></td><td>{displayTokenAmount(h.balanceRaw,h.launch.tokenDecimals)}</td><td><b>{h.valueUsd===null?"Price delayed":usd.format(h.valueUsd)}</b></td><td>{reward?.canClaim?<button className="reward-amount-link" onClick={()=>selectTab("Rewards")}>{usd.format(reward.netClaimableUsdCents/100)} claimable <ArrowUpRight size={12}/></button>:reward?usd.format(reward.accumulatingUsdCents/100):"—"}</td><td><Link className="row-open" aria-label={"Open "+h.launch.name} to={"/token/"+h.launch.id}><ArrowUpRight size={18}/></Link></td></tr>;
       })}</tbody></table></div>:<div className="workspace-empty"><Coins/><h3>Your first position starts here.</h3><p>Coins held in this wallet appear once they’re indexed.</p><Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link></div>}
     </section>}
-    {tab==="Rewards"&&<><div className="workspace-section-title"><div><h2>Your rewards</h2><p>Review your allocation. Claim directly to your wallet.</p></div></div><WalletRewards data={rewards} launches={(holdings??[]).map(h=>h.launch)} onClaimed={refresh}/></>}
-    {tab==="Activity"&&<><section className="workspace-panel"><header><h2>Claim history</h2><span>{history?.hasMore?"Latest 200 receipts":"Confirmed on-chain"}</span></header>
+    {tab==="Rewards"&&<section className="workspace-panel portfolio-rewards-panel"><header><h2>Your rewards</h2></header><WalletRewards data={rewards} launches={(holdings??[]).map(h=>h.launch)} onClaimed={refresh}/></section>}
+    {tab==="Activity"&&<><section className="workspace-panel"><header><h2>Claim history</h2>{history?.hasMore&&<span>Latest 200 receipts</span>}</header>
       {history?.lifetime.length?<div className="lifetime-rewards">{history.lifetime.map(t=><div key={t.stock_mint}><small>Total {t.symbol} claimed</small><strong>{displayTokenAmount(t.amount_raw,t.decimals)} <span>{t.symbol}</span></strong></div>)}</div>:null}
       {history===null?<div className="workspace-loading">{errors.activity?"History unavailable":"Loading claim receipts…"}</div>:history.claims.length?<div className="table-scroll"><table className="market-table"><thead><tr><th>Market</th><th>Claimed</th><th>Date</th><th>Receipt</th></tr></thead><tbody>{history.claims.map(c=><tr key={c.signature+c.launch_id}><td><Link to={"/token/"+c.launch_id}>{c.name}</Link></td><td>{displayTokenAmount(c.amount_raw,Number(c.stock_decimals))} {c.reward_symbol}</td><td>{new Date(Number(c.claimed_at)).toLocaleDateString()}</td><td><a href={"https://solscan.io/tx/"+c.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View <ArrowUpRight size={13}/></a></td></tr>)}</tbody></table></div>:<div className="workspace-empty"><Gift/><h3>No claims yet.</h3><p>Your confirmed reward claims will appear here.</p></div>}
     </section>{config.marketGovernanceEnabled&&<HoldingUpdates wallet={address}/>}</>}
-    {tab==="Created"&&<section className="workspace-panel"><header><h2>Your coins</h2><Link to="/studio">Atlantis Studio <ArrowUpRight size={14}/></Link></header><div className="creator-market-list">{created?.map(l=><article key={l.id}><Link className="market-identity" to={"/token/"+l.id}><TokenMark launch={l}/><span><b>{l.name}</b><small>{l.status==="live"?"Live market":"Launch in progress"}</small></span></Link><div><Link to={l.status==="live"?"/manage/"+l.id:"/create"}>{l.status==="live"?"Manage":"Resume launch"} <ArrowUpRight size={13}/></Link><Link to={"/studio?token="+encodeURIComponent(l.mint)}>Build <ArrowUpRight size={13}/></Link></div></article>)}</div>{created===null?<div className="workspace-loading">{errors.created?"Markets unavailable":"Loading your coins…"}</div>:!created.length&&<div className="workspace-empty"><Layers3/><h3>Build your own community.</h3><p>Launch a coin, then create its website or experience in Atlantis Studio.</p><Link className="primary" to="/create">Launch a coin <ArrowRight size={15}/></Link></div>}{more&&<button className="soft-button" disabled={loadingMore} onClick={async()=>{setLoadingMore(true);try{const d=await api.launches({creator:address,status:"all",limit:24,sort:"recent",offset});setCreated(c=>[...(c??[]),...d.launches]);setMore(d.hasMore);setOffset(d.nextOffset);}catch{setErrors(e=>({...e,created:"Could not load more coins."}));}finally{setLoadingMore(false);}}}>Load more</button>}</section>}
+    {tab==="Created"&&<section className="workspace-panel"><header><h2>Your coins</h2><Link to="/studio">Atlantis Studio <ArrowUpRight size={14}/></Link></header><div className="creator-market-list">{created?.map(l=><article key={l.id}><Link className="market-identity" to={"/token/"+l.id}><TokenMark launch={l}/><span><b>{l.name}</b><small>{l.status==="live"?"Live market":"Launch in progress"}</small></span></Link><div><CreatorFeeClaim launch={l} onClaimed={refresh}/><Link to={l.status==="live"?"/manage/"+l.id:"/create"}>{l.status==="live"?"Manage":"Resume launch"} <ArrowUpRight size={13}/></Link><Link to={"/studio?token="+encodeURIComponent(l.mint)}>Build <ArrowUpRight size={13}/></Link></div></article>)}</div>{created===null?<div className="workspace-loading">{errors.created?"Markets unavailable":"Loading your coins…"}</div>:!created.length&&<div className="workspace-empty"><Layers3/><h3>Build your own community.</h3><p>Launch a coin, then create its website or experience in Atlantis Studio.</p><Link className="primary" to="/create">Launch a coin <ArrowRight size={15}/></Link></div>}{more&&<button className="soft-button" disabled={loadingMore} onClick={async()=>{setLoadingMore(true);try{const d=await api.launches({creator:address,status:"all",limit:24,sort:"creator_claims",offset});setCreated(c=>[...(c??[]),...d.launches]);setMore(d.hasMore);setOffset(d.nextOffset);}catch{setErrors(e=>({...e,created:"Could not load more coins."}));}finally{setLoadingMore(false);}}}>Load more</button>}</section>}
   </main>;
 }

@@ -115,14 +115,23 @@ export function Create() {
     const token=studioSession(wallet.address);
     if(!token){setStudioImportMessage("Open Studio and sign in with this wallet, then choose Review launch again.");return;}
     let cancelled=false;
-    void studioRequest<StudioProject>(`/projects/${encodeURIComponent(id)}`,token).then(project=>{
+    void studioRequest<StudioProject>(`/projects/${encodeURIComponent(id)}`,token).then(async project=>{
       if(cancelled)return;
       const draft=project.state.launch;
       setForm(old=>({...old,name:draft.name,symbol:draft.symbol,description:draft.description,xUrl:draft.xUrl,websiteUrl:draft.websiteUrl,telegramUrl:draft.telegramUrl,rewardMode:draft.rewardMode}));
       const selected=stocks.find(item=>item.mint===draft.stockMint);
       if(selected)setStock(selected);
       setDexFundingEnabled(config.marketGovernanceEnabled&&draft.dexFundingEnabled);
-      if(config.marketGovernanceEnabled)setDexProfile(draft.dexProfile);
+      let importedProfile={...draft.dexProfile};
+      if(draft.dexProfile.bannerPath){
+        const banner=project.state.files.find(item=>item.path===draft.dexProfile.bannerPath);
+        if(!banner)throw Error("The assigned DEX banner is missing. Choose another image in Studio before reviewing the launch.");
+        const body=new FormData();body.set("file",studioAssetFile(banner));body.set("creatorWallet",wallet.address!);body.set("clientRequestId",crypto.randomUUID());
+        const upload=await api.upload(body,await ensureAccountSession(wallet.address!,wallet.signMessage));
+        if(cancelled)return;
+        importedProfile={...importedProfile,bannerUrl:upload.imageUrl};
+      }
+      setDexProfile(importedProfile);
       const artwork=project.state.files.find(item=>item.path===draft.imagePath);
       if(artwork)chooseArtwork(studioAssetFile(artwork));
       importedStudio.current=`${wallet.address}:${id}`;

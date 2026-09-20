@@ -26,6 +26,12 @@ type GovernanceContextValue = {
 };
 const GovernanceContext = createContext<GovernanceContextValue | null>(null);
 function useProposals() { const value = useContext(GovernanceContext); if (!value) throw new Error("Missing market governance provider."); return value; }
+export function MarketInformationTabs({section,onChange}:{section:string;onChange:(value:string)=>void}){
+  const {data}=useProposals();
+  const hasGovernance=Boolean(data?.enabled&&data.proposals.some(p=>p.isDefault?!["rejected","cancelled"].includes(p.status):p.type==="cto"||!["rejected","cancelled"].includes(p.status)));
+  useEffect(()=>{if(section==="Governance"&&data&&!hasGovernance)onChange("Transactions");},[section,data,hasGovernance,onChange]);
+  return <div className="workspace-tabs market-information-tabs" aria-label="Market information">{["Transactions","Holders","Your position","Rewards","Project",...(hasGovernance?["Governance"]:[])].map(label=><button key={label} aria-pressed={section===label} onClick={()=>onChange(label)}>{label}</button>)}</div>;
+}
 function countdown(at: number, now: number) {
   const seconds = Math.max(0, at - now);
   const hours = Math.floor(seconds / 3600);

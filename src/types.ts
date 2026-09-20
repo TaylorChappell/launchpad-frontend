@@ -267,6 +267,7 @@ export type Launch = {
   priceUpdatedAt?: number | null;
   priceStatus?: "live" | "delayed";
   creatorFeesAccruedRaw: string;
+  creatorFeesPaidRaw: string;
   rewardFeesAccruedRaw: string;
   buybackFeesAccruedRaw: string;
   treasuryFeesAccruedRaw: string;

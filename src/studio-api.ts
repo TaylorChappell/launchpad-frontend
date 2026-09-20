@@ -19,6 +19,7 @@ export type StudioLaunch = {
   dexProfile: {
     description: string;
     bannerUrl: string;
+    bannerPath?: string;
     websiteUrl: string;
     xUrl: string;
     telegramUrl: string;

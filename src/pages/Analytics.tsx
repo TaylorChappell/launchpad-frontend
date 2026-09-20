@@ -12,17 +12,18 @@ const compactUsd=new Intl.NumberFormat("en",{style:"currency",currency:"USD",not
 const sol=new Intl.NumberFormat("en",{maximumFractionDigits:4});
 export function Analytics(){
   const {config}=useRuntime(),[data,setData]=useState<AnalyticsResponse|null>(null),[offline,setOffline]=useState(false);
-  const [metric,setMetric]=useState<"rewards"|"buybacks">("rewards"),[visible,setVisible]=useState(8),[revision,setRevision]=useState(0);
+  const [chosenMetric,setMetric]=useState<"rewards"|"buybacks"|null>(null),[visible,setVisible]=useState(8),[revision,setRevision]=useState(0);
   useEffect(()=>{
     let active=true,pending=false;const load=async()=>{if(pending)return;pending=true;try{const value=await api.analytics();if(active){setData(value);setOffline(false);}}catch{if(active)setOffline(true);}finally{pending=false;}};
     void load();const timer=window.setInterval(()=>{if(document.visibilityState==="visible")void load();},15_000);
     return()=>{active=false;window.clearInterval(timer);};
   },[revision]);
+  const metric=chosenMetric??(data?.rewardHistory.length?"rewards":"buybacks");
   const series=metric==="rewards"?data?.rewardHistory.map(p=>({time:p.time,value:p.allocatedUsd})):data?.buybackHistory.map(p=>({time:p.time,value:p.sol}));
   const chartData=(series??[]).filter(p=>Number.isFinite(p.time)&&Number.isFinite(p.value)).sort((a,b)=>a.time-b.time);
   const chartTotal=chartData.reduce((sum,p)=>sum+p.value,0);
   return <main className="page holder-workspace analytics-workspace">
-    <header className="workspace-heading"><div><small className="workspace-eyebrow">THE AQUA NETWORK</small><h1>Activity that gives back.</h1><p>Markets, holder rewards and buybacks. All in one view.</p></div><span className={"workspace-live"+(offline?" delayed":"")}><i/>{offline?"Updates delayed":data?"Updated "+new Date(data.generatedAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"Loading…"}</span></header>
+    <header className="workspace-heading"><div><small className="workspace-eyebrow">THE AQUA NETWORK</small><h1>Activity that gives back.</h1><p>Markets, holder rewards and buybacks. All in one view.</p></div></header>
     {offline&&<p className="danger-note" role="alert">Analytics could not refresh. {data?"Showing the last received data.":""} <button className="text-button" onClick={()=>setRevision(n=>n+1)}>Try again</button></p>}
     {!data?<div className="workspace-loading">{offline?"Analytics unavailable":"Loading AQUA activity…"}</div>:<>
       <section className="network-metrics">

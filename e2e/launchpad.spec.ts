@@ -84,3 +84,47 @@ test("holdings asks for a wallet rather than inventing zero balances",async({pag
   await expect(page.getByRole("heading",{name:"Your holdings. Your rewards."})).toBeVisible();
   await expect(page.getByText("Priced holdings")).toHaveCount(0);
 });
+
+test("claim all confirms coins sequentially and stops safely at an unconfirmed receipt",async({page})=>{
+  const {Transaction,SystemProgram,PublicKey}=await import("@solana/web3.js");
+  const address="11111111111111111111111111111111";
+  const tx=new Transaction({feePayer:new PublicKey(address),recentBlockhash:address}).add(SystemProgram.transfer({fromPubkey:new PublicKey(address),toPubkey:new PublicKey(address),lamports:1}));
+  const transactionBase64=tx.serialize({requireAllSignatures:false,verifySignatures:false}).toString("base64");
+  await page.addInitScript(address=>{
+    localStorage.setItem("aqua:wallet","phantom");let sent=0;
+    Object.assign(window,{phantom:{solana:{isPhantom:true,connect:async()=>({publicKey:{toString:()=>address}}),on:()=>{},removeListener:()=>{},signAndSendTransaction:async()=>({signature:"mock-signature-"+(++sent)})}}});
+  },address);
+  await page.route("https://rpc.invalid/**",r=>{const req=r.request().postDataJSON();return r.fulfill({json:{jsonrpc:"2.0",id:req.id,result:req.method==="getSignatureStatuses"?{context:{slot:1},value:[{slot:1,confirmations:1,err:null,confirmationStatus:"confirmed"}]}:1}});});
+  const confirmed:string[]=[],prepared:string[]=[];
+  const markets=["m1","m2","m3"].map((launchId,i)=>({launchId,canClaim:true,claimMode:"cumulative",claimableEpochIds:[],claimableUsdCents:300-i,netClaimableUsdCents:280-i,accumulatingUsdCents:300-i,grossRedeemableUsdCents:300-i,pendingUsdCents:0,estimatedClaimFeeUsdCents:20,minimumClaimUsdCents:100}));
+  await page.route("**/api/wallets/*/holdings",r=>r.fulfill({json:{holdings:[]}}));
+  await page.route("**/api/wallets/*/claim-history",r=>r.fulfill({json:{claims:[],lifetime:[],hasMore:false}}));
+  await page.route("**/api/rewards/"+address,r=>r.fulfill({json:{rewards:[],holdings:[],markets:markets.filter(m=>!confirmed.includes(m.launchId))}}));
+  await page.route("**/api/rewards/markets/*/claim-transaction",r=>{
+    const id=r.request().url().split("/").at(-2)!;prepared.push(id);
+    if(id==="m2")expect(confirmed).toEqual(["m1"]);
+    return r.fulfill({json:{transactionBase64,transactionVersion:"legacy",lastValidBlockHeight:100,sequence:"1"}});
+  });
+  await page.route("**/api/rewards/markets/*/confirm",r=>{
+    const id=r.request().url().split("/").at(-2)!;
+    if(id==="m2")return r.fulfill({status:409,json:{error:"Still finalizing"}});
+    confirmed.push(id);return r.fulfill({json:{amountRaw:"3000000",stockDecimals:6,stockSymbol:"ORCA"}});
+  });
+  await page.goto("/#/portfolio?tab=rewards");
+  await expect(page.locator(".portfolio-value > strong")).toHaveCSS("color","rgb(255, 255, 255)");
+  await expect(page.locator(".rewards-gift-art")).toBeVisible();
+  await page.getByRole("button",{name:"Claim all",exact:true}).click();
+  await expect(page.getByText("Claim submitted. Confirmation is pending; you can safely retry confirmation.")).toBeVisible();
+  expect(prepared).toEqual(["m1","m2"]);expect(confirmed).toEqual(["m1"]);
+  await expect(page.getByRole("button",{name:"Claim all",exact:true})).toBeDisabled();
+  const receipt=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)??"null"),"aqua:pending-reward:mainnet-beta:"+address);
+  expect(receipt.launchId).toBe("m2");expect(receipt.signature).toBe("mock-signature-2");
+});
+
+test("promotions has both programs, working Studio link and no horizontal overflow",async({page})=>{
+  await page.goto("/#/promotions");
+  await expect(page.getByRole("heading",{name:"$2,500 in launch rewards"})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"$250 for standout creations"})).toBeVisible();
+  await expect(page.getByRole("link",{name:"Build in Atlantis"})).toHaveAttribute("href","#/studio");
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
+});

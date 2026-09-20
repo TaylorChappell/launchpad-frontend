@@ -1,3 +1,4 @@
+import { StudioLaunchKit } from "../components/StudioLaunchKit";
 import "./studio.css";
 import { usePromotion } from "../usePromotion";
 import { StudioExamples } from "../components/StudioExamples";
@@ -970,6 +971,7 @@ function StudioWorkspace() {
               ...old.launch,
               imagePath:
                 old.launch.imagePath === selected ? path : old.launch.imagePath,
+              dexProfile:{...old.launch.dexProfile,bannerPath:old.launch.dexProfile.bannerPath===selected?path:old.launch.dexProfile.bannerPath},
             },
             files: old.files.map((f) =>
               f.path === selected ? { ...f, path } : f,
@@ -1766,7 +1768,7 @@ function StudioWorkspace() {
                             </button>
                           </div>
                         ) : (
-                          <StudioSitePreview key={project?.id} files={state?.files ?? []}/>
+                          <StudioSitePreview key={project?.id} files={state?.files ?? []} mobile={mobile}/>
                         )}
                       </div>
                       <div className="at-preview-footer">
@@ -1957,6 +1959,7 @@ function StudioWorkspace() {
                             locked={state.lockedFields.includes("dexProfile")}
                             onLock={() => lockField("dexProfile")}
                           >
+                            {state.files.some(f=>f.path===state.launch.dexProfile.bannerPath)&&<><img className="at-launch-banner" src={studioAssetUrl(state.files.find(f=>f.path===state.launch.dexProfile.bannerPath)!)} alt="Assigned DEX banner"/><small>This banner will upload when you review your launch.</small></>}
                             <DexProfileFields
                               optional
                               profile={state.launch.dexProfile}
@@ -1964,6 +1967,7 @@ function StudioWorkspace() {
                                 launchField("dexProfile", {
                                   ...state.launch.dexProfile,
                                   [key]: value,
+                                  ...(key==="bannerUrl"?{bannerPath:""}:{}),
                                 })
                               }
                             />
@@ -2122,6 +2126,8 @@ function StudioWorkspace() {
                           Upload assets
                         </button>
                       </div>
+                      <div className="at-launch-kit-actions"><button onClick={()=>{setPrompt("Generate a DEX Screener banner for this coin and assign it to the launch draft.");setWorkspaceOpen(false);}}>Create DEX banner</button><button onClick={()=>{setPrompt("Plan a teaser, launch and follow-up X post for this coin, with matching launch pictures. Save the drafts and pictures in my launch kit.");setWorkspaceOpen(false);}}>Plan X launch posts</button></div>
+                      <StudioLaunchKit files={state.files}/>
                       <div className="at-asset-grid">
                         {state.files
                           .filter(
@@ -2165,6 +2171,7 @@ function StudioWorkspace() {
                                       )}
                                     </button>
                                   )}
+                                {f.encoding==="base64"&&/\.(png|jpe?g|webp)$/i.test(f.path)&&<button disabled={state.lockedFields.includes("dexProfile")} className={state.launch.dexProfile.bannerPath===f.path?"selected":""} onClick={()=>launchField("dexProfile",{...state.launch.dexProfile,bannerPath:f.path,bannerUrl:""})}>{state.launch.dexProfile.bannerPath===f.path?"DEX banner":"Use as DEX banner"}</button>}
                                 <button
                                   aria-label={`Open ${f.path}`}
                                   onClick={() => {
