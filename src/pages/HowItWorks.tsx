@@ -7,9 +7,13 @@ import {
   Coins,
   ExternalLink,
   Gift,
+  Gamepad2,
+  Globe2,
+  Image as ImageIcon,
   Landmark,
   Layers3,
   LockKeyhole,
+  PanelsTopLeft,
   RefreshCw,
   ShieldCheck,
   Waves,
@@ -35,6 +39,12 @@ const navigation = [
       ["liquidity", "How liquidity works"],
       ["launch-cost", "What launching costs"],
       ["pair-choice", "Pairs and first buys"],
+    ],
+  },
+  {
+    label: "Atlantis Studio",
+    items: [
+      ["atlantis-studio", "Building with Atlantis"],
     ],
   },
   {
@@ -225,6 +235,22 @@ export function HowItWorks() {
           <Callout title="Optional creator first buy">
             A first buy is a normal market purchase after the pool exists. It is not a free allocation. The creator provides SOL or USDC, receives the quoted launch tokens and accepts the same price impact and transfer-fee rules as other buyers.
           </Callout>
+        </DocSection>
+
+        <DocSection id="atlantis-studio" eyebrow="ATLANTIS STUDIO" title="Build the experience around your token">
+          <p>Atlantis Studio is Aqua&apos;s creation workspace for turning a token idea into a complete community experience. It keeps the conversation, project files, artwork and live website preview together, so creators do not need to move between separate AI, design and coding tools.</p>
+          <div className="aqua-docs-principles">
+            <Principle icon={<Globe2/>} title="Websites" text="Create and refine a responsive token website, then preview it directly inside the Studio."/>
+            <Principle icon={<Gamepad2/>} title="Apps and mini-games" text="Build interactive community tools, lightweight games and meme generators when the idea calls for them."/>
+            <Principle icon={<ImageIcon/>} title="Artwork and assets" text="Develop the token identity, imagery and shareable assets in the same project as the code."/>
+          </div>
+          <p>Atlantis adds a backend only when the project genuinely needs one. When it does, the Studio provides separate frontend and backend exports with short setup steps and the required environment variables. Simpler details such as a token address stay in the frontend configuration.</p>
+          <Callout title="You remain in control of edits">
+            Atlantis can list proposed file changes before applying them, or you can enable automatic application for the current project. Every project remains linked to the wallet that created it and can be exported for independent hosting.
+          </Callout>
+          <div className="aqua-docs-actions atlantis-docs-action">
+            <Link className="primary" to="/studio">Open Atlantis Studio <PanelsTopLeft size={17}/></Link>
+          </div>
         </DocSection>
 
         <DocSection id="trading-fees" eyebrow="FEES AND REWARDS" title={"The " + formatBps(config.fees.transferFeeBps) + " SOL-settled fee"}>
