@@ -11,8 +11,8 @@
 .atlantis-update > .page-bubbles { z-index: -1; opacity: .55; }
 .atlantis-update-card {
   position: relative;
-  width: min(850px, 100%);
-  padding: clamp(42px, 7vw, 82px);
+  width: min(960px, 100%);
+  padding: clamp(42px, 6vw, 72px);
   overflow: hidden;
   border: 1px solid #bfe2ef;
   border-radius: 26px;
@@ -30,26 +30,71 @@
   letter-spacing: .14em;
 }
 .atlantis-update h1 {
-  max-width: 660px;
+  max-width: 760px;
   margin: 22px auto 18px;
   color: #173f53;
-  font-size: clamp(38px, 6vw, 67px);
+  font-size: clamp(38px, 6vw, 64px);
   line-height: 1.02;
   letter-spacing: -.045em;
 }
 .atlantis-update-card > p {
-  max-width: 570px;
+  max-width: 650px;
   margin: 0 auto;
   color: #608092;
   font-size: 15px;
   line-height: 1.75;
 }
+.atlantis-update-features {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 11px;
+  margin: 34px auto 0;
+  text-align: left;
+}
+.atlantis-update-features article {
+  display: grid;
+  grid-template-columns: 40px minmax(0,1fr);
+  gap: 12px;
+  padding: 17px;
+  border: 1px solid #c9e6f1;
+  border-radius: 14px;
+  background: #ffffffb8;
+  box-shadow: 0 8px 25px #1967830a;
+}
+.atlantis-update-features i {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #bce1ef;
+  border-radius: 11px;
+  color: #147fae;
+  background: #eaf8fe;
+}
+.atlantis-update-features i svg { width: 19px; }
+.atlantis-update-features b,
+.atlantis-update-features small { display: block; }
+.atlantis-update-features b { color: #244f65; font-size: 13px; }
+.atlantis-update-features small { margin-top: 5px; color: #688697; font-size: 11px; line-height: 1.55; }
+.atlantis-update-free {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 30px;
+  padding: 8px 12px 8px 9px;
+  border: 1px solid #b9e2d5;
+  border-radius: 999px;
+  color: #3d7161;
+  background: #f3fcf8;
+  font-size: 11px;
+}
+.atlantis-update-free b { padding: 5px 8px; border-radius: 999px; color: #fff; background: #27a87f; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
 .atlantis-update-countdown {
   display: flex;
   align-items: flex-start;
   justify-content: center;
   gap: clamp(10px, 3vw, 25px);
-  margin: 38px auto 12px;
+  margin: 22px auto 12px;
 }
 .atlantis-update-countdown > span { padding-top: 13px; color: #81aabe; font-size: 30px; }
 .atlantis-update-countdown div { min-width: clamp(72px, 13vw, 112px); }
@@ -86,6 +131,7 @@
   transition: transform .18s, box-shadow .18s;
 }
 .atlantis-update-button:hover { transform: translateY(-2px); box-shadow: 0 16px 34px #137ba846; }
+.atlantis-update-signoff { display: block; margin-top: 17px; color: #6d8e9e; font-size: 11px; font-weight: 650; }
 .atlantis-update-ended,
 .atlantis-update-loading { display: flex; align-items: center; justify-content: center; gap: 9px; margin: 36px auto 5px; color: #557b8e; }
 .atlantis-update-water { position: absolute; inset: auto 0 0; height: 105px; pointer-events: none; opacity: .62; }
@@ -100,4 +146,7 @@
   .atlantis-update-countdown { gap: 7px; }
   .atlantis-update-countdown > span { padding-top: 10px; font-size: 21px; }
   .atlantis-update-countdown div { min-width: 65px; }
+  .atlantis-update-features { grid-template-columns: 1fr; margin-top: 27px; }
+  .atlantis-update-features article { padding: 13px; }
+  .atlantis-update-free { align-items: flex-start; flex-direction: column; border-radius: 13px; text-align: left; }
 }
