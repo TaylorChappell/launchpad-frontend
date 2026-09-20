@@ -14,6 +14,8 @@ import { GovernanceVote } from "../components/GovernanceVote";
 import { MarketProposals, MarketGovernanceProvider, CommunityProposalVotes, DexFundingVote } from "../components/MarketProposals";
 import { DexScreenerIcon } from "../components/DexScreenerIcon";
 import { launchAge } from "../time";
+import { useMarketPrices } from "../useMarketPrices";
+import { mergeMarketPrice, isPriceLive, withLatestMarketPoint } from "../market-prices";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 4 });
@@ -58,7 +60,9 @@ export function Token() {
   const { id = "" } = useParams();
   const wallet = useWallet();
   const { config } = useRuntime();
-  const [launch, setLaunch] = useState<Launch | null>(null);
+  const [storedLaunch, setLaunch] = useState<Launch | null>(null);
+  const prices = useMarketPrices();
+  const launch = storedLaunch ? mergeMarketPrice(storedLaunch,prices.get(id)) : null;
   const [creatorLock, setCreatorLock] = useState<CreatorLock | null>(null);
   const [rewardModeState, setRewardModeState] = useState<RewardModeState | null>(null);
   const [stock, setStock] = useState<StockOption | null>(null);
@@ -150,7 +154,7 @@ export function Token() {
     </section>
 
     <div className="token-layout"><section className="token-main">
-      <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div><span className={`index-badge ${launch.indexingStatus}`}>{launch.indexingStatus === "indexed" ? "INDEXED" : launch.indexingStatus === "orca_indexed" ? "ORCA INDEXED" : "PENDING INDEXING"}</span></header><div className="chart market-line-shell"><MarketCapLine snapshots={snapshots}/></div></div>
+      <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div><span className={`index-badge ${isPriceLive(launch,nowSeconds*1000) ? "indexed" : "pending_indexing"}`} title={launch.priceUpdatedAt ? `Last price update: ${new Date(launch.priceUpdatedAt).toLocaleString()}` : "Waiting for a current pool price"}>{isPriceLive(launch,nowSeconds*1000) ? "LIVE · 5s" : "PRICE DELAYED"}</span></header><div className="chart market-line-shell"><MarketCapLine snapshots={withLatestMarketPoint(snapshots,launch)}/></div></div>
 
       <div className="info-grid single reward-mode-market-panel">
         {rewardMode === "holder_rewards" && <section className="market-reward-panel"><header><div><small>HOLDER REWARDS</small><h2>Earn {launch.stockSymbol}</h2></div><span className="reward-live-label">Accumulating</span></header><div className="reward-stat-row"><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Available to all holders" value={money.format(launch.rewardRedeemableUsd)}/></div><footer>Rewards follow your balance and time held. Claim them together on the Rewards page.</footer></section>}

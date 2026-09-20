@@ -264,6 +264,8 @@ export type Launch = {
   orcaIndexed: boolean;
   externalIndexed: boolean;
   lastIndexedAt: number | null;
+  priceUpdatedAt?: number | null;
+  priceStatus?: "live" | "delayed";
   creatorFeesAccruedRaw: string;
   rewardFeesAccruedRaw: string;
   buybackFeesAccruedRaw: string;

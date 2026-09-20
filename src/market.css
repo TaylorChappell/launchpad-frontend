@@ -536,3 +536,4 @@
   .manage-page .score-bars > div > span { flex-wrap: wrap; gap: 5px; }
   .rewards-empty { padding: 30px 20px; }
 }
+.market-price-delayed { display:block; color:#856338; font-size:11px; padding:0 18px 10px; }

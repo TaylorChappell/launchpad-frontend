@@ -7,6 +7,8 @@ import { TokenCard } from "../components/TokenCard";
 import { PageBubbles } from "../components/PageBubbles";
 import { AquaMark } from "../components/AquaMark";
 import { OrcaMark } from "../components/OrcaMark";
+import { useMarketPrices } from "../useMarketPrices";
+import { mergeMarketPrice } from "../market-prices";
 
 type DataState = "loading" | "live" | "empty" | "offline";
 type SortMode = "popular" | "recent" | "market_cap" | "upcoming";
@@ -30,6 +32,7 @@ export function Markets() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const filterRoot = useRef<HTMLDivElement>(null);
+  const prices = useMarketPrices();
 
   useEffect(() => {
     let active = true;
@@ -49,7 +52,7 @@ export function Markets() {
     void refresh().catch(() => { if (active) setState("offline"); });
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void refresh().catch(() => undefined);
-    }, 5_000);
+    }, 30_000);
 
     return () => {
       active = false;
@@ -77,13 +80,13 @@ export function Markets() {
       }
       return Number(b.volume24hUsd || 0) - Number(a.volume24hUsd || 0);
     };
-    return launches
+    return launches.map(launch=>mergeMarketPrice(launch,prices.get(launch.id)))
       .filter((launch) => (!modeFiltersActive.size || modeFiltersActive.has(launch.rewardMode)))
       .filter((launch) => (!pairFilters.size || pairFilters.has(launch.pairType)))
       .filter((launch) => !dexOnly || launch.dexPaid)
       .slice()
       .sort((a, b) => (pinFeatured ? priority(a) - priority(b) : 0) || compare(a, b));
-  }, [boostedMint, dexOnly, governance?.governanceMint, launches, modeFiltersActive, pairFilters, sortMode]);
+  }, [boostedMint, dexOnly, governance?.governanceMint, launches, prices, modeFiltersActive, pairFilters, sortMode]);
   const visible = filtered.slice(0, visibleCount);
   const activeFilterCount = modeFiltersActive.size + pairFilters.size + Number(dexOnly);
   const toggle = <T,>(set: Set<T>, value: T, update: (next: Set<T>) => void) => { const next = new Set(set); if (next.has(value)) next.delete(value); else next.add(value); update(next); };

@@ -28,6 +28,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 const json = (body: unknown): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 export const api = {
+  marketPrices: (signal?:AbortSignal) => request<{prices:import("./market-prices").MarketPrice[]}>("/api/market-prices",{signal}),
   notifications: (wallet: string) => request<{ notifications: WalletNotification[] }>(`/api/notifications/${encodeURIComponent(wallet)}`),
   config: () => request<RuntimeConfig>("/api/config"),
   analytics: () => request<AnalyticsResponse>("/api/analytics"),

@@ -6,6 +6,7 @@ import type { Launch } from "../types";
 import { DexScreenerIcon } from "./DexScreenerIcon";
 import { formatJackpotAmount } from "../jackpot-format";
 import { launchAge } from "../time";
+import { isPriceLive } from "../market-prices";
 
 const compact = new Intl.NumberFormat("en-US", { notation:"compact", maximumFractionDigits:1 });
 
@@ -70,6 +71,7 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
       : rewardMode === "buyback_burn" ? <div className="reward-card-focus mode-buyback"><span>BUYBACK &amp; BURN</span><strong>Burn {launch.symbol}</strong><small>{burn ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(burn.totalSol)} SOL spent · ${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(Number(burn.totalTokenRaw) / 10 ** launch.tokenDecimals)} ${launch.symbol} burned` : `— SOL spent · — ${launch.symbol} burned`}</small></div>
       : <div className="reward-card-focus mode-jackpot"><span>HOURLY JACKPOT</span><div className="card-jackpot-prizes">{prizes.map((amount, index) => { const rewardSymbol = jackpot?.rewardSymbol ?? "SOL"; return <div key={index}><span>{["1st", "2nd", "3rd", "4th", "5th"][index]}</span><b aria-label={`${amount} ${rewardSymbol}`}><PayoutAssetMark launch={launch} symbol={rewardSymbol} position={index}/>{amount}</b></div>; })}</div></div>}
     <div className="token-card-status">{launch.dexPaid && <span className="dex-paid-badge" title="DEX Screener profile paid" aria-label="DEX Screener profile paid"><DexScreenerIcon/></span>}{creatorLock && <span className="creator-lock-badge" title="Verified creator lock" aria-label={`${creatorLockPercentLabel(creatorLock)} of supply locked by the creator`}><LockKeyhole aria-hidden="true"/>{creatorLockPercentLabel(creatorLock)} locked</span>}</div><div className="token-stats"><Metric label="Market cap" value={indexed ? "$" + compact.format(launch.marketCapUsd) : "Indexing"} tone={indexed ? marketCapTone(launch.marketCapUsd) : ""}/><Metric label="24h volume" value={indexed ? "$" + compact.format(launch.volume24hUsd) : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
+    {launch.priceStatus && !isPriceLive(launch) && <small className="market-price-delayed" title={launch.priceUpdatedAt ? `Last price update: ${new Date(launch.priceUpdatedAt).toLocaleString()}` : "Waiting for a current price"}>Price delayed · showing last known value</small>}
     </Link>
   </article>;
 }
