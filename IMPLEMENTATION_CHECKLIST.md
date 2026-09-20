@@ -10,7 +10,7 @@ Backend snapshot files were verified against GitHub blob hashes before editing.
 - [x] Live data: merge paginated history, chain-time ordering and cursor pagination, transaction links, runtime configuration retries, honest price freshness, backend-selected history ranges.
 - [x] Discovery: server pagination/search/creator queries, ORCA and reward filters, visible sorts, URL state, local watchlist, table/cards, explicit featured and boost labels, stable rankings between manual refreshes.
 - [x] Trading workspace: actual indexed-trade OHLC/volume, quote-asset labeling, interval/range/zoom/paging controls, own-trade markers, price/cap snapshot switching, information tabs.
-- [x] Design foundation: restrained ocean palette, solid financial surfaces, shared tokens, optional navy theme, responsive rules, removed opening/wallet delays.
+- [x] Design foundation: original AQUA daylight palette and reward cards, shared dashboard controls, responsive rules, removed opening/wallet delays. The incomplete navy theme and table-first visual overhaul were removed after staging review.
 - [x] Accessibility: shared dialog focus trap/return, keyboard handling, route error recovery and 404.
 - [x] Holders: indexed positions/value, claimable/pending, grouped receipts and lifetime totals, allocation definitions, governance funding/withdrawal evidence, creator lock dates, periodic/manual refresh.
 - [x] Creator: three-step wizard, optional advanced section, local draft restore/save, early cost visibility, permanent-choice review, visible execution stages, pending launch recovery, dedicated creator dashboard and post-launch actions.

@@ -1,7 +1,7 @@
-import { Compass, Menu, PanelsTopLeft, Plus, Search, X, WalletCards, Sun, Moon } from "lucide-react";
+import { Compass, Menu, PanelsTopLeft, Plus, Search, X, WalletCards, ChevronDown } from "lucide-react";
 import { StudioAnnouncement } from "./StudioAnnouncement";
 import { NavLink, useLocation } from "react-router-dom";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRuntime, useWallet } from "../context";
 import { WalletModal } from "./WalletModal";
 import { AquaMark } from "./AquaMark";
@@ -17,6 +17,14 @@ const links = [
   { to: "/portfolio", label: "My holdings", icon: WalletCards },
 ];
 const bottomLinks = links;
+const moreLinks = [
+  { to: "/rewards", label: "Rewards" },
+  { to: "/analytics", label: "Analytics" },
+  { to: "/how-it-works", label: "How it works" },
+  { to: "/developers", label: "Developers" },
+  { to: "/updates/atlantis-free", label: "Updates" },
+  { to: "/status", label: "Status & support" },
+];
 const COMMUNITY_UPDATE_KEY = "aqua:update:atlantis-launch-v1";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -25,8 +33,15 @@ export function Layout({ children }: { children: ReactNode }) {
   const trading = currentPath.startsWith("/token/") || currentPath.startsWith("/studio");
   const { config, error, loading } = useRuntime();
   const [mobile, setMobile] = useState(false);
-  const [theme,setTheme]=useState(()=>{try{return localStorage.getItem("aqua:theme")==="navy"?"navy":"light";}catch{return "light";}});
-  useEffect(()=>{document.documentElement.dataset.theme=theme;try{localStorage.setItem("aqua:theme",theme);}catch{}},[theme]);
+  const moreMenu = useRef<HTMLDetailsElement>(null);
+  useEffect(() => { document.documentElement.dataset.theme = "light"; }, []);
+  useEffect(() => { if (moreMenu.current) moreMenu.current.open = false; setMobile(false); }, [currentPath]);
+  useEffect(() => {
+    const close = (event: PointerEvent) => { if (moreMenu.current && !moreMenu.current.contains(event.target as Node)) moreMenu.current.open = false; };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape" && moreMenu.current?.open) { moreMenu.current.open = false; moreMenu.current.querySelector("summary")?.focus(); } };
+    document.addEventListener("pointerdown", close); document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", escape); };
+  }, []);
   const [searchOpen, setSearchOpen] = useState(false);
   const [showCommunityUpdate, setShowCommunityUpdate] = useState(false);
   const isPreview = !loading && (config.useTestnet || !config.transactionsEnabled);
@@ -68,18 +83,16 @@ export function Layout({ children }: { children: ReactNode }) {
     <header className="site-header">
       <div className="header-inner">
         <NavLink to="/" className="brand" aria-label="AQUA home"><AquaMark /><b>AQUA</b></NavLink>
-        <nav aria-label="Primary navigation">{links.map((link) => <NavLink key={link.to} to={link.to} end={link.to === "/"}>{link.label}</NavLink>)}</nav>
+        <nav aria-label="Primary navigation">{links.map((link) => <NavLink key={link.to} to={link.to} end={link.to === "/"}>{link.label}</NavLink>)}<details className="site-more" ref={moreMenu}><summary>More <ChevronDown size={13}/></summary><div className="site-more-panel">{moreLinks.map(link => <NavLink key={link.to} to={link.to}>{link.label}</NavLink>)}</div></details></nav>
         <div className="header-actions">
           <button className="header-search" onClick={() => { setMobile(false); setSearchOpen(true); }} aria-label="Search AQUA markets"><Search size={17}/><span>Search coins, stocks...</span><kbd>/</kbd></button>
           {wallet.address && <Notifications key={wallet.address} wallet={wallet.address}/>}
-          <button className="theme-toggle" aria-label={theme==="navy"?"Use light theme":"Use navy theme"} onClick={()=>setTheme(t=>t==="navy"?"light":"navy")}>{theme==="navy"?<Sun size={17}/>:<Moon size={17}/>}</button>
           <WalletMenu/>
           <button className="mobile-menu" onClick={() => setMobile(!mobile)} aria-label="Toggle navigation" aria-expanded={mobile}>{mobile ? <X /> : <Menu />}</button>
         </div>
       </div>
-      {mobile && <nav className="mobile-nav" aria-label="Mobile navigation">{links.map((link) => <NavLink key={link.to} to={link.to} onClick={() => setMobile(false)}>{link.label}</NavLink>)}</nav>}
+      {mobile && <nav className="mobile-nav" aria-label="Mobile navigation">{[...links,...moreLinks].map((link) => <NavLink key={link.to} to={link.to} onClick={() => setMobile(false)}>{link.label}</NavLink>)}</nav>}
     </header>
-    <nav className="secondary-nav" aria-label="More AQUA"><NavLink to="/analytics">Analytics</NavLink><NavLink to="/how-it-works">How it works</NavLink><NavLink to="/developers">Developers</NavLink><NavLink to="/updates/atlantis-free">Updates</NavLink><NavLink to="/status">Status &amp; support</NavLink></nav>
     {error && <div className="system-banner"><b>Backend unavailable</b><span>Live data could not be loaded. Actions remain disabled until the connection recovers.</span></div>}
     {children}
     <footer className="site-footer">

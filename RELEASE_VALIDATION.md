@@ -4,6 +4,8 @@ Staging deployment verified on 2026-09-20: frontend implementation 6d2c866930533
 
 ## Automated checks
 
+Visual correction after staging review: restore the AQUA background, hero spacing and reward-first cards; move secondary navigation into More; keep table view optional and filters collapsible. Restore the shared light-surface rule accidentally extracted into guide-only CSS. Existing backend and data improvements remain intact. Browser tests now also check card-view default, hidden filters, preserved filter URLs and hero/background styling.
+
 - Frontend: TypeScript passed, 18 utility tests passed, production build passed.
 - Backend: TypeScript passed, 383 tests across 54 files passed. vitest.config.ts supplies dummy local secrets, not production credentials.
 - Browser journeys: npm run test:e2e. Eight cases cover desktop/mobile discovery, filter URLs, wallet focus recovery, missing routes and truthful disconnected holdings.

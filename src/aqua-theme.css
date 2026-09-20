@@ -110,6 +110,26 @@ body::before {
 .system-banner { color: #805912; background: #fff7df; }
 
 /* Shared surfaces */
+:where(
+  .token-card, .form-panel, .launch-summary, .chart-panel, .info-panel,
+  .activity, .trade-card, .wallet-card, .reward-ledger, .reward-explainer,
+  .system-map, .detail-panel, .mode-card, .empty-card, .simple-stats > div,
+  .liquidity-flow, .data-badge, .search-modal, .wallet-dropdown,
+  .rewards-connect-card, .rewards-empty, .holder-reward-card, .reward-claim-card,
+  .manage-hero, .manage-builder, .manage-quote, .manage-active-lock,
+  .manage-gate, .admin-access, .admin-hero, .admin-panel,
+  .admin-stat-grid article, .aqua-docs-callout, .aqua-docs-cost-card,
+  .aqua-docs-definition, .aqua-docs-flow-card, .aqua-docs-formula,
+  .aqua-docs-principle, .aqua-docs-summary, .aqua-docs-timeline-step,
+  .launch-cost-card, .launch-final-summary, .launch-resume-banner,
+  .wizard-shell, .how-foundation article, .analytics-live,
+  .analytics-metrics article, .analytics-panel
+) {
+  color: var(--aqua-ink) !important;
+  border-color: var(--line) !important;
+  background: rgba(255, 255, 255, .68) !important;
+  box-shadow: 0 18px 50px rgba(38, 107, 150, .08) !important;
+}
 
 
 :where(

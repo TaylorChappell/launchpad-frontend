@@ -8,8 +8,17 @@ test.beforeEach(async({page})=>{
 });
 test("market controls are visible, bookmarkable and do not overflow",async({page})=>{
   await page.goto("/#/");
-  await expect(page.getByRole("heading",{name:"Find your next community."})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Coins that reward the people who hold."})).toBeVisible();
+  await expect(page.getByRole("button",{name:"Card view",exact:true})).toHaveAttribute("aria-pressed","true");
+  await expect(page.getByRole("combobox",{name:"Pair",exact:true})).toHaveCount(0);
+  const surface=await page.locator(".explore-intro").evaluate(el=>({padding:parseFloat(getComputedStyle(el).paddingLeft),background:getComputedStyle(document.body).backgroundImage}));
+  expect(surface.padding).toBeGreaterThan(12);
+  expect(surface.background).toContain("gradient");
+  await page.getByRole("button",{name:"Filters",exact:true}).click();
   await page.getByRole("combobox",{name:"Pair",exact:true}).selectOption("ORCA");
+  await expect(page).toHaveURL(/pair=ORCA/);
+  await page.getByRole("button",{name:"Table view",exact:true}).click();
+  await expect(page).toHaveURL(/view=table/);
   await expect(page).toHaveURL(/pair=ORCA/);
   await page.getByRole("button",{name:"Watchlist",exact:true}).click();
   await expect(page.getByRole("heading",{name:"Your watchlist is empty"})).toBeVisible();
@@ -26,7 +35,7 @@ test("unknown routes recover instead of showing a blank shell",async({page})=>{
   await page.goto("/#/missing-market-page");
   await expect(page.getByRole("heading",{name:"Page not found"})).toBeVisible();
   await page.getByRole("link",{name:"Explore markets",exact:true}).click();
-  await expect(page.getByRole("heading",{name:"Find your next community."})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Coins that reward the people who hold."})).toBeVisible();
 });
 test("holdings asks for a wallet rather than inventing zero balances",async({page})=>{
   await page.goto("/#/portfolio");
