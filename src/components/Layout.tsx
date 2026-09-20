@@ -1,4 +1,4 @@
-import { ArrowRight, BarChart3, CircleHelp, Compass, ExternalLink, Gift, Menu, PanelsTopLeft, Plus, Search, X } from "lucide-react";
+import { ArrowRight, BarChart3, CircleHelp, Compass, ExternalLink, Gamepad2, Gift, Globe2, Image as ImageIcon, Menu, PanelsTopLeft, Plus, Search, Sparkles, X } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRuntime, useWallet } from "../context";
@@ -8,7 +8,6 @@ import { SearchModal } from "./SearchModal";
 import { OrcaMark } from "./OrcaMark";
 import { Notifications } from "./Notifications";
 import { WalletMenu } from "./WalletMenu";
-import { DexScreenerIcon } from "./DexScreenerIcon";
 
 const links = [
   { to: "/", label: "Explore", icon: Compass },
@@ -19,7 +18,7 @@ const links = [
   { to: "/how-it-works", label: "How it works", icon: CircleHelp },
 ];
 const bottomLinks = links.filter((link) => link.to !== "/how-it-works");
-const COMMUNITY_UPDATE_KEY = "aqua:update:dex-governance-v1";
+const COMMUNITY_UPDATE_KEY = "aqua:update:atlantis-launch-v1";
 const COMMUNITY_POST_URL = "https://x.com/Aqua_Launchpad/status/2100283826693922893";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -110,17 +109,17 @@ export function Layout({ children }: { children: ReactNode }) {
       </div>
     </footer>
     {showCommunityUpdate && <div className="community-update-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowCommunityUpdate(false); }}>
-      <section className="community-update-flash dex-governance-update" role="dialog" aria-modal="true" aria-labelledby="community-update-title" aria-describedby="community-update-description">
+      <section className="community-update-flash atlantis-launch-update" role="dialog" aria-modal="true" aria-labelledby="community-update-title" aria-describedby="community-update-description">
         <button className="community-update-close" aria-label="Close update" onClick={() => setShowCommunityUpdate(false)}><X/></button>
-        <CommunityUpdateArt/>
-        <div className="community-update-copy"><small>NEW MARKET GOVERNANCE</small><h2 id="community-update-title">DEX funding and holder proposals are live.</h2><p id="community-update-description">Communities can fund a DEX Screener profile, vote on exact profile details and organise a transparent takeover directly from the market.</p></div>
+        <AtlantisLaunchArt/>
+        <div className="community-update-copy"><small>NOW LIVE · 24 HOURS FREE</small><h2 id="community-update-title">Introducing Atlantis Studio.</h2><p id="community-update-description">Aqua&apos;s all-in-one creation toolbox lets you build the experience around your token without leaving the launchpad.</p></div>
         <div className="community-update-features">
-          <article><i><DexScreenerIcon/></i><span><b>Fund DEX from market rewards</b><small>After approval, 80% of incoming rewards is reserved until the profile is funded. Holder rewards continue with the remaining 20%.</small></span></article>
-          <article><i><DexScreenerIcon/></i><span><b>Propose and approve profile updates</b><small>Eligible holders submit the description, banner and links. The market votes on the exact information before AQUA uses it.</small></span></article>
-          <article><i className="community-takeover-mark">C</i><span><b>Community takeover votes</b><small>Communities can nominate a new developer wallet when a project is abandoned, with competing proposals handled publicly.</small></span></article>
+          <article><i><Globe2/></i><span><b>Websites and apps</b><small>Build a complete home for your token, from a landing page to a richer community app.</small></span></article>
+          <article><i><Gamepad2/></i><span><b>Mini-games and generators</b><small>Create interactive ideas, meme generators and experiences your community can share.</small></span></article>
+          <article><i><ImageIcon/></i><span><b>Artwork, code and assets together</b><small>Develop the identity and the experience in one Aqua workspace, then export your work.</small></span></article>
         </div>
-        <p className="community-update-eligibility"><b>0.5% of the coin supply is required to create any proposal.</b> Eligible holders can vote from the market page.</p>
-        <footer><NavLink to="/how-it-works" onClick={() => setShowCommunityUpdate(false)}>HOW IT WORKS <ArrowRight/></NavLink><NavLink to="/" onClick={() => setShowCommunityUpdate(false)}>EXPLORE MARKETS <ArrowRight/></NavLink></footer>
+        <p className="community-update-eligibility"><b>Launch your token. Build the experience around it. Grow your community.</b> Atlantis Studio is free for the first 24 hours of launch.</p>
+        <footer><NavLink to="/updates/atlantis-free" onClick={() => setShowCommunityUpdate(false)}>READ THE UPDATE <ArrowRight/></NavLink><NavLink to="/studio" onClick={() => setShowCommunityUpdate(false)}>OPEN ATLANTIS STUDIO <ArrowRight/></NavLink></footer>
       </section>
     </div>}
     <nav className="bottom-nav" aria-label="Mobile navigation">{bottomLinks.map((link) => { const Icon = link.icon; return <NavLink key={link.to} to={link.to} end={link.to === "/"}><Icon size={18} />{link.label}</NavLink>; })}</nav>
@@ -133,8 +132,13 @@ function CampaignBannerArt() {
   return <svg className="campaign-banner-art" viewBox="0 0 104 64" aria-hidden="true"><defs><linearGradient id="campaign-water" x1="14" y1="5" x2="64" y2="59"><stop stopColor="#9fe7ff"/><stop offset=".52" stopColor="#2bacef"/><stop offset="1" stopColor="#0870c9"/></linearGradient><linearGradient id="campaign-gold" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#ffe7a0"/><stop offset="1" stopColor="#d99b16"/></linearGradient></defs><path d="M37 5C29 17 19 28 19 40a18 18 0 1 0 36 0C55 28 45 17 37 5Z" fill="url(#campaign-water)"/><path d="M29 28c2-5 5-9 8-13" fill="none" stroke="#fff" strokeOpacity=".62" strokeWidth="3" strokeLinecap="round"/><path d="M69 15h22v8c0 8-4 13-11 14v7h7v5H68v-5h7v-7c-7-1-11-6-11-14v-8h5Zm0 6v2c0 4 2 7 6 8V21h-6Zm17 0h-6v10c4-1 6-4 6-8v-2Z" fill="url(#campaign-gold)"/><circle cx="92" cy="48" r="7" fill="#ffe7a0"/><path d="m90 48 2 2 4-5" fill="none" stroke="#9b6710" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 
-function CommunityUpdateArt() {
-  return <svg className="community-update-art" viewBox="0 0 520 150" aria-hidden="true"><defs><linearGradient id="update-sky" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#e6f7ff"/><stop offset="1" stopColor="#a6ddf7"/></linearGradient><linearGradient id="update-water" x1="0" y1="0" x2="1" y2="0"><stop stopColor="#64c8f3"/><stop offset="1" stopColor="#1889cf"/></linearGradient><filter id="update-shadow"><feDropShadow dx="0" dy="6" stdDeviation="7" floodColor="#1f76a8" floodOpacity=".16"/></filter></defs><rect width="520" height="150" rx="20" fill="url(#update-sky)"/><path d="M0 116c79-24 137 14 211-5 83-21 152 17 221 3 31-6 60-7 88-1v37H0v-34Z" fill="url(#update-water)" fillOpacity=".24"/><g filter="url(#update-shadow)" fill="#fff" stroke="#70badd" strokeWidth="2"><rect x="72" y="34" width="112" height="76" rx="12"/><rect x="336" y="34" width="112" height="76" rx="12"/><circle cx="260" cy="72" r="32"/></g><path d="M91 55h52M91 70h74M91 85h61" stroke="#78a9c0" strokeWidth="5" strokeLinecap="round"/><path d="m244 73 11 11 23-26" fill="none" stroke="#168fd3" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"/><circle cx="360" cy="57" r="9" fill="#43b6e7"/><path d="M378 54h48M357 79h69M357 94h50" stroke="#78a9c0" strokeWidth="5" strokeLinecap="round"/><path d="M194 72h27M299 72h27" stroke="#319fd6" strokeWidth="3" strokeDasharray="5 6" strokeLinecap="round"/><circle cx="36" cy="37" r="6" fill="#fff" fillOpacity=".82"/><circle cx="480" cy="42" r="9" fill="#fff" fillOpacity=".72"/></svg>;
+function AtlantisLaunchArt() {
+  return <div className="atlantis-launch-art" aria-hidden="true">
+    <div className="atlantis-launch-orbit"><i/><i/><i/></div>
+    <span className="atlantis-launch-mark"><AquaMark/></span>
+    <div><small>ATLANTIS</small><b>STUDIO</b><span><Sparkles/> Create inside Aqua</span></div>
+    <div className="atlantis-launch-tools"><Globe2/><Gamepad2/><ImageIcon/><PanelsTopLeft/></div>
+  </div>;
 }
 
 function XBrandIcon() {
