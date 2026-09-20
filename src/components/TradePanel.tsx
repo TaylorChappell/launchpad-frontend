@@ -16,11 +16,11 @@ export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecim
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [currency, setCurrency] = useState<"SOL" | "PAIR">("SOL");
   const [amount, setAmount] = useState("");
-  const [slippageInput, setSlippageInput] = useState("1");
+  const [slippageInput, setSlippageInput] = useState("15");
   const slippage = Math.round(Number(slippageInput) * 100);
   const validSlippage = /^\d+(?:\.\d{0,2})?$/.test(slippageInput) && slippage >= 0 && slippage <= 5_000;
   const [acceptedRisk,setAcceptedRisk] = useState(false);
-  const highSlippage = slippage > 500;
+  const highSlippage = slippage > 1500;
   useEffect(()=>setAcceptedRisk(false),[slippageInput,launch.id,side,amount]);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteError, setQuoteError] = useState("");
@@ -118,9 +118,6 @@ export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecim
       {side === "sell" && balance !== null && <div className="trade-presets">{[25,50,75,100].map(percent=><button key={percent} onClick={()=>setAmount(displayTokenAmount((BigInt(balance)*BigInt(percent)/100n).toString(),launch.tokenDecimals).replaceAll(",",""))}>{percent===100?"Max":percent+"%"}</button>)}</div>}
       <div className="trade-receive"><span>Estimated received</span><strong>{displayed && outputDecimals !== null ? displayTokenAmount(displayed.estimated, outputDecimals) : "—"}</strong><b>{outputSymbol}</b></div>
       <label className="slippage-control">Slippage<span className="custom-slippage"><input aria-label="Slippage percentage" inputMode="decimal" value={slippageInput} onChange={(event) => { const value = event.target.value.replace(",", "."); if (/^\d*\.?\d{0,2}$/.test(value)) setSlippageInput(value); }}/><span>%</span></span></label>
-      <div className="trade-detail-row"><span>Minimum received</span><strong>{current && outputDecimals !== null ? displayTokenAmount(current.minimum,outputDecimals)+" "+outputSymbol : "Awaiting current quote"}</strong></div>
-      <div className="trade-detail-row"><span>Price impact</span><strong>{current?.impact != null ? current.impact.toFixed(2)+"%" : "Not supplied by this route"}</strong></div>
-      <div className="trade-detail-row"><span>Quote</span><span>{pending?"Refreshing…":current?Math.max(0,Math.floor((clock-current.receivedAt)/1000))+"s ago":"Not current"} <button type="button" className="soft-button" onClick={()=>setRefresh(v=>v+1)}>Refresh</button></span></div>
     </fieldset>
     {highSlippage && <label className="trade-ack danger-note"><input type="checkbox" checked={acceptedRisk} onChange={e=>setAcceptedRisk(e.target.checked)}/>I accept up to {slippageInput}% price movement. This tolerance is separate from transfer fees and can result in substantially less received.</label>}
     {insufficient && <p role="alert" className="danger-note">Insufficient {inputSymbol}. Reduce the amount or add funds to your wallet.</p>}

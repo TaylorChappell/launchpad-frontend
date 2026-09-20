@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Area, AreaChart, Brush, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { MarketSnapshot } from "../types";
 
 const money = new Intl.NumberFormat("en-US", { notation: "compact", style: "currency", currency: "USD", maximumFractionDigits: 2 });
@@ -23,7 +23,6 @@ export function MarketCapLine({ snapshots, range: selected, onRangeChange }: { s
       <YAxis orientation="right" width={72} tickFormatter={(value: number) => money.format(value)} domain={["auto", "auto"]} tickLine={false} axisLine={false} tick={{ fill: "#527083", fontSize: 11 }}/>
       <Tooltip labelFormatter={(value) => new Date(Number(value)).toLocaleString()} formatter={(value) => [new Intl.NumberFormat("en",{style:"currency",currency:"USD",maximumSignificantDigits:5}).format(Number(value)), metric === "cap" ? "Market cap" : "Price"]} contentStyle={{ background: "#fff", color: "#163d52", border: "1px solid #c5dce8", borderRadius: 8, fontSize: 12 }}/>
       <Area type="linear" dataKey="value" stroke="#2086bd" strokeWidth={2} fill="url(#market-chart-fill)" isAnimationActive={false} dot={visible.length === 1} activeDot={{ r: 4 }}/>
-      <Brush dataKey="time" height={20} stroke="#2086bd" tickFormatter={()=>""}/>
     </AreaChart></ResponsiveContainer></div> : <div className="chart-no-data">{points.length ? "No indexed snapshots in this timeframe. Try All time." : "Waiting for the first market snapshot."}</div>}
     <footer className="chart-data-caption"><span>Indexed snapshots · hover or focus the chart to inspect</span><span>{latest ? `Latest snapshot ${new Date(latest.time).toLocaleString()}` : "No chart data yet"}</span></footer>
   </div>;

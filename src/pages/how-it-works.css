@@ -105,10 +105,9 @@
   min-width: 0;
 }
 .aqua-docs-sidebar-inner {
-  position: sticky;
-  top: 102px;
-  max-height: calc(100vh - 122px);
-  overflow-y: auto;
+  position: static;
+  max-height: none;
+  overflow: visible;
   padding-right: 20px;
   scrollbar-width: thin;
   scrollbar-color: rgba(78, 182, 193, .32) transparent;

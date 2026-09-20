@@ -18,14 +18,11 @@ const links = [
 ];
 const bottomLinks = links;
 const moreLinks = [
-  { to: "/rewards", label: "Rewards" },
   { to: "/analytics", label: "Analytics" },
   { to: "/how-it-works", label: "How it works" },
   { to: "/developers", label: "Developers" },
-  { to: "/updates/atlantis-free", label: "Updates" },
-  { to: "/status", label: "Status & support" },
 ];
-const COMMUNITY_UPDATE_KEY = "aqua:update:atlantis-launch-v1";
+const COMMUNITY_UPDATE_KEY = "aqua:update:holder-workspace-v2";
 
 export function Layout({ children }: { children: ReactNode }) {
   const wallet = useWallet();
