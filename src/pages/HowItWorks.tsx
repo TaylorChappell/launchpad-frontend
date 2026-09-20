@@ -1,3 +1,4 @@
+import "./how-it-works.css";
 import type { ReactNode } from "react";
 import {
   ArrowRight,
@@ -123,7 +124,8 @@ export function HowItWorks() {
   return <main className="how-story-page aqua-docs-page">
     <PageBubbles count={24}/>
 
-    <section className="aqua-docs-hero">
+    <section className="dashboard-section"><h1>AQUA in one minute</h1><ol><li><b>Discover:</b> choose a community and compare its market, liquidity and reward mode.</li><li><b>Trade:</b> review the quote, fees and minimum received, then approve in your wallet.</li><li><b>Hold:</b> see eligible balances, allocations and claim receipts in My holdings.</li><li><b>Create:</b> launch directly on Orca and use Atlantis Studio to build the website or community experience.</li></ol><p>Each market chooses a permanent reward mode. Distributions depend on actual fees and settlement, not a guaranteed return.</p><button className="soft-button" onClick={()=>scrollTo("protocol-reference")}>Read the detailed protocol reference ↓</button></section>
+    <section className="aqua-docs-hero" id="protocol-reference">
       <h1>How AQUA<br/><span>actually works.</span></h1>
       <p>A detailed guide to launching, liquidity, trading fees, holder rewards, market governance and creator incentives. AQUA creates markets directly on Orca without a bonding curve or a separate token reserve.</p>
       <div className="aqua-docs-actions">

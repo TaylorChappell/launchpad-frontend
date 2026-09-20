@@ -1,3 +1,5 @@
+import {readWithRetry} from "./read-retry";
+import {cachedRead,clearReadCache} from "./read-cache";
 import type { WalletNotification, AdminDiagnostics, AnalyticsResponse, BatchStepValidation, CreatorLock, CreatorLockBalance, CreatorLockTransactionEnvelope, CumulativeRewardClaimConfirmation, CumulativeRewardClaimEnvelope, GovernanceMarket, GovernanceResponse, Launch, LaunchConfirmation, LaunchIntentResponse, LaunchRetryResponse, MarketGovernanceResponse, MarketProposalType, MarketSnapshot, RewardModeState, RuntimeConfig, StockOption, Trade, TransactionEnvelope, WalletRewardsResponse } from "./types";
 
 const DEFAULT_API_URL = "https://launchpad-backend-production-63dc.up.railway.app";
@@ -18,11 +20,22 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, { cache: "no-store", ...init });
+async function uncachedRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const signal = init?.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000);
+  const perform=async()=>{
+  const response = await fetch(`${API_URL}${path}`, { cache: "no-store", ...init, signal });
   const body = await response.json().catch(() => ({})) as T & { error?: string; code?: string; rebuildRequired?: boolean };
   if (!response.ok) throw new ApiError(body.error ?? `Request failed (${response.status})`, response.status, body);
   return body;
+  };
+  return !init?.method||init.method==="GET"?readWithRetry(perform,signal):perform();
+}
+
+async function request<T>(path:string,init?:RequestInit):Promise<T>{
+  const read=!init?.method||init.method==="GET";
+  if(!read){const result=await uncachedRequest<T>(path,init);clearReadCache();return result;}
+  if(init?.signal || new Headers(init?.headers).has("Authorization"))return uncachedRequest<T>(path,init);
+  return cachedRead(path,()=>uncachedRequest<T>(path,init),path==="/api/stocks"?60_000:2000);
 }
 
 const json = (body: unknown): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -32,11 +45,15 @@ export const api = {
   notifications: (wallet: string) => request<{ notifications: WalletNotification[] }>(`/api/notifications/${encodeURIComponent(wallet)}`),
   config: () => request<RuntimeConfig>("/api/config"),
   analytics: () => request<AnalyticsResponse>("/api/analytics"),
-  launches: () => request<{ launches: Launch[] }>("/api/launches"),
+  launches: (params: Record<string,string|number> = {}, signal?: AbortSignal) => request<{ launches: Launch[]; hasMore: boolean; nextOffset: number }>(`/api/launches?${new URLSearchParams(Object.entries(params).map(([k,v])=>[k,String(v)]))}`, {signal}),
+  holdings: (wallet: string) => request<{ holdings: Array<{launch:Launch;balanceRaw:string;balanceUpdatedAt:number;valueUsd:number|null}> }>(`/api/wallets/${encodeURIComponent(wallet)}/holdings`),
+  holdingGovernance:(wallet:string)=>request<{proposals:Array<{id:string;launch_id:string;symbol:string;type:string;status:string;funded_usd_cents:string;target_usd_cents:string;withdrawn_lamports:string;withdrawal_signature:string|null;dex_order_reference:string|null;updated_at:number}>}>(`/api/wallets/${encodeURIComponent(wallet)}/governance`),
+  claimHistory: (wallet: string) => request<{lifetime:Array<{stock_mint:string;symbol:string;decimals:number;amount_raw:string}>;hasMore:boolean;claims:Array<{launch_id:string;name:string;symbol:string;reward_symbol:string;stock_decimals:number;amount_raw:string;signature:string;claimed_at:number;kind:string}>}>(`/api/wallets/${encodeURIComponent(wallet)}/claim-history`),
+  holders: (id: string, offset=0) => request<{summary:{total:string;top_ten:string;creator:string};holders:Array<{wallet:string;balance_raw:string;last_accrual_at:number;creator_wallet:string;indexed_total_raw:string}>;hasMore:boolean;note:string}>(`/api/launches/${encodeURIComponent(id)}/holders?offset=${offset}`),
   launch: (id: string) => request<{ launch: Launch; trades: Trade[]; tradesHasMore?: boolean; creatorLock: CreatorLock | null; rewardModeState: RewardModeState }>(`/api/launches/${encodeURIComponent(id)}`),
-  trades: (id: string, offset: number, limit = 10) => request<{ trades: Trade[]; hasMore: boolean }>(`/api/launches/${encodeURIComponent(id)}/trades?offset=${offset}&limit=${limit}`),
-  marketData: (id: string) => request<{ snapshots: MarketSnapshot[] }>(`/api/launches/${encodeURIComponent(id)}/market-data`),
-  search: (query: string) => request<{ launches: Launch[] }>(`/api/search?q=${encodeURIComponent(query)}`),
+  trades: (id: string, offset: number, limit = 10, before?: Trade) => request<{ trades: Trade[]; hasMore: boolean }>(`/api/launches/${encodeURIComponent(id)}/trades?offset=${before?.block_time ? 0:offset}&limit=${limit}${before?.block_time ? "&before="+before.block_time+"&beforeId="+encodeURIComponent(before.id):""}`),
+  marketData: (id: string, range = "24h") => request<{ snapshots: MarketSnapshot[] }>(`/api/launches/${encodeURIComponent(id)}/market-data?range=${encodeURIComponent(range)}`),
+  search: (query: string, signal?: AbortSignal) => request<{ launches: Launch[] }>(`/api/search?q=${encodeURIComponent(query)}`, {signal}),
   stocks: () => request<{ stocks: StockOption[] }>("/api/stocks"),
   rewards: (wallet: string) => request<WalletRewardsResponse>(`/api/rewards/${encodeURIComponent(wallet)}`),
   governance: (wallet?: string | null) => request<GovernanceResponse>(`/api/governance${wallet ? `?wallet=${encodeURIComponent(wallet)}` : ""}`),
@@ -61,7 +78,7 @@ export const api = {
   creatorLockReleaseTransaction: (id: string, creator: string) => request<TransactionEnvelope>(`/api/launches/${encodeURIComponent(id)}/creator-lock/release-transaction`, json({ creator })),
   confirmCreatorLock: (id: string, creator: string, signature: string) => request<{ confirmed: true; creatorLock: CreatorLock }>(`/api/launches/${encodeURIComponent(id)}/creator-lock/confirm`, json({ creator, signature })),
   creatorFeesClaimTransaction: (id: string, creator: string) => request<TransactionEnvelope>(`/api/launches/${encodeURIComponent(id)}/creator-fees/claim-transaction`, json({ creator })),
-  upload: (body: FormData) => request<{ imageId: string; imageUrl: string }>("/api/uploads", { method: "POST", body }),
+  upload: (body: FormData, token: string) => request<{ imageId: string; imageUrl: string }>("/api/uploads", { method: "POST", body, headers: { Authorization: `Bearer ${token}` } }),
   createLaunch: (body: unknown) => request<LaunchIntentResponse>("/api/launches", json(body)),
   retryLaunchTransaction: (id: string, creator: string) => request<LaunchRetryResponse>(`/api/launches/${encodeURIComponent(id)}/retry-transaction`, json({ creator })),
   confirmLaunch: (id: string, signature: string) => request<LaunchConfirmation>(`/api/launches/${encodeURIComponent(id)}/confirm`, json({ signature })),

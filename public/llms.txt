@@ -2,7 +2,7 @@
 
 > AQUA is a non-custodial Solana launchpad that creates direct Orca Whirlpool markets, commits the full launch supply to permanently locked liquidity, and routes token activity into time-weighted holder rewards.
 
-Canonical website: https://taylorchappell.github.io/launchpad-frontend/docs/
+Canonical website: https://aquafamily.fun/
 Network: Solana mainnet-beta when live
 Trading venue: Orca Whirlpools
 Token standard: Token-2022
@@ -10,10 +10,10 @@ Program: H6PeZBdMDiPZHmhUkq2upYuh6X69tmyzzXwk7RUjpfjH
 
 ## Primary documents
 
-- Protocol overview: https://taylorchappell.github.io/launchpad-frontend/docs/aqua-protocol.md
-- Human-readable guide: https://taylorchappell.github.io/launchpad-frontend/docs/how-aqua-works.html
-- Terms of Service: https://taylorchappell.github.io/launchpad-frontend/docs/terms-of-service.html
-- Live application: https://taylorchappell.github.io/launchpad-frontend/docs/#/
+- Protocol overview: https://aquafamily.fun/aqua-protocol.md
+- Human-readable guide: https://aquafamily.fun/how-aqua-works.html
+- Terms of Service: https://aquafamily.fun/terms-of-service.html
+- Live application: https://aquafamily.fun/#/
 - Frontend source: https://github.com/TaylorChappell/launchpad-frontend
 - Backend source: https://github.com/TaylorChappell/launchpad-backend
 

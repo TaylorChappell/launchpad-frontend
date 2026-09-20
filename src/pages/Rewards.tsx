@@ -50,11 +50,15 @@ export function Rewards() {
   const [portfolio, setPortfolio] = useState<WalletRewardsResponse>(EMPTY_REWARDS);
   const [launches, setLaunches] = useState<Launch[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "offline">("loading");
+  const [updatedAt,setUpdatedAt] = useState<number|null>(null);
+  const [refreshKey,setRefreshKey] = useState(0);
   const [claiming, setClaiming] = useState("");
   const [claimExperience, setClaimExperience] = useState<ClaimExperience | null>(null);
 
   async function refresh(address: string) {
-    const [rewardData, launchData] = await Promise.all([api.rewards(address), api.launches()]);
+    const rewardData=await api.rewards(address);
+    const ids=[...new Set([...rewardData.holdings.map(x=>x.launchId),...rewardData.markets.map(x=>x.launchId)])];
+    const launchData=await api.launches({ids:ids.join(","),limit:100});
     setPortfolio(rewardData);
     setLaunches(launchData.launches);
   }
@@ -62,15 +66,21 @@ export function Rewards() {
   useEffect(() => {
     let active = true;
     setState("loading");
-    const personal = wallet.address ? api.rewards(wallet.address) : Promise.resolve(EMPTY_REWARDS);
-    Promise.all([personal, api.launches()]).then(([rewardData, launchData]) => {
-      if (!active) return;
-      setPortfolio(rewardData);
-      setLaunches(launchData.launches);
-      setState("ready");
-    }).catch(() => { if (active) setState("offline"); });
-    return () => { active = false; };
-  }, [wallet.address]);
+    let pending=false;
+    const load=async()=>{
+      if(pending)return;pending=true;
+      try {
+        const rewardData=wallet.address ? await api.rewards(wallet.address) : EMPTY_REWARDS;
+        const ids=[...new Set([...rewardData.holdings.map(x=>x.launchId),...rewardData.markets.map(x=>x.launchId)])];
+        const launchData=await api.launches(ids.length?{ids:ids.join(","),limit:100}:{limit:24});
+        if(active){setPortfolio(rewardData);setLaunches(launchData.launches);setState("ready");setUpdatedAt(Date.now());}
+      }catch{if(active)setState("offline");}finally{pending=false;}
+    };
+    void load();
+    const focus=()=>{if(document.visibilityState==="visible")void load();};
+    const timer=window.setInterval(focus,20_000);window.addEventListener("focus",focus);
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",focus);};
+  },[wallet.address,refreshKey]);
 
   const launchById = useMemo(() => new Map(launches.map((launch) => [launch.id, launch])), [launches]);
   const markets = useMemo(() => [...portfolio.markets].sort((a, b) => Number(b.canClaim) - Number(a.canClaim) || b.accumulatingUsdCents - a.accumulatingUsdCents), [portfolio.markets]);
@@ -152,7 +162,7 @@ export function Rewards() {
   return <main className="page rewards-page rewards-vault-page">
     <PageBubbles count={14}/>
     <header className="rewards-vault-heading">
-      <div><h1>Your rewards.</h1></div>
+      <div><h1>Your rewards.</h1><p className="status-inline">{updatedAt ? "Last refreshed "+new Date(updatedAt).toLocaleTimeString() : "Loading reward allocations"}</p></div><button className="soft-button" onClick={()=>setRefreshKey(v=>v+1)}><RefreshCw size={14}/> Refresh</button>
     </header>
 
     <GovernanceVote/>
@@ -180,9 +190,10 @@ export function Rewards() {
               {market.canClaim ? <><span className="reward-ready-dot"/><span><small>Estimated after costs</small><b>{dollars(market.netClaimableUsdCents)}</b></span></> : <span><small>Claim unlock</small><b>&gt; {dollars(market.minimumClaimUsdCents)} net</b></span>}
             </div>
             <div className="reward-action">
-              {market.canClaim ? <button onClick={() => void claim(market, launch)} disabled={claiming === market.launchId || (market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1)}>{claiming === market.launchId ? <Loader2 className="spin"/> : market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1 ? <>Program upgrade pending</> : <>Claim {dollars(market.claimableUsdCents)}</>}</button> : <span>Allocates every {epochMinutes} min</span>}
+              {market.canClaim ? <button onClick={() => void claim(market, launch)} disabled={claiming === market.launchId || (market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1)}>{claiming === market.launchId ? <Loader2 className="spin"/> : market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1 ? <>Program upgrade pending</> : <>Claim {dollars(market.claimableUsdCents)}</>}</button> : <span>Allocation target: {epochMinutes} min, subject to settlement</span>}
               {market.canClaim && <small>{market.claimMode !== "cumulative" && market.claimableEpochIds.length > 1 ? "One-transaction claims require the Solana program upgrade" : `1 wallet approval · est. ${dollars(market.estimatedClaimFeeUsdCents)} costs`}</small>}
             </div>
+            {!market.canClaim && <p className="trade-route-note">Allocated {dollars(market.accumulatingUsdCents)}. Claims require more than {dollars(market.minimumClaimUsdCents)} after estimated costs, with an on-chain claimable allocation.</p>}
             {!market.canClaim && <div className="reward-water-progress"><i style={{ width: `${Math.max(6, Math.min(94, market.minimumClaimUsdCents ? market.accumulatingUsdCents / market.minimumClaimUsdCents * 100 : 6))}%` }}/><span/><span/></div>}
           </article>;
         })}

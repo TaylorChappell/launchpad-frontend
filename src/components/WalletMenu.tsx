@@ -35,7 +35,7 @@ export function WalletMenu() {
     if (!address) { setCoins([]); return; }
     let active = true;
     setLoading(true);
-    api.launches().then(({ launches }) => {
+    api.launches({creator: address, status:"all", limit:100}).then(({ launches }) => {
       if (!active) return;
       setCoins(launches.filter((launch) => launch.creatorWallet === address).sort((a,b) => b.createdAt - a.createdAt));
     }).catch(() => { if (active) setCoins([]); }).finally(() => { if (active) setLoading(false); });
@@ -48,7 +48,7 @@ export function WalletMenu() {
     <button className="wallet-button connected wallet-menu-trigger" onClick={() => setOpen((value) => !value)} aria-haspopup="menu" aria-expanded={open}><span>{short}</span><ChevronDown size={14}/></button>
     {open && <div className="wallet-dropdown" role="menu">
       <header><div className="wallet-identity"><span className="wallet-connected-mark"><WalletCards size={16}/></span><div><small>Connected wallet</small><b>{short}</b></div></div><button aria-label="Copy wallet address" title="Copy wallet address" onClick={() => { void navigator.clipboard.writeText(address); toast.success("Wallet copied"); }}><Copy size={14}/></button></header>
-      <section>
+      <Link className="wallet-launch-link" to="/portfolio">My holdings &amp; creator dashboard</Link><section>
         <div className="wallet-dropdown-title"><span><WalletCards size={14}/>Your coins</span><b>{coins.length}</b></div>
         <div className="wallet-coins">
           {loading ? <small className="wallet-coins-empty">Loading your launches…</small> : coins.length ? coins.slice(0, visibleCoins).map((coin) => <Link key={coin.id} to={"/manage/" + coin.id} role="menuitem"><TokenMark launch={coin}/><span><b>{"$" + coin.symbol}</b><small>{coin.pairSymbol} market · {coin.status === "live" ? "Live" : "Launching"}</small></span><Settings2 size={14}/></Link>) : <small className="wallet-coins-empty">Coins launched by this wallet will appear here.</small>}

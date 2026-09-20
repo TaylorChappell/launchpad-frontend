@@ -1,6 +1,6 @@
 import { ArrowRight, ExternalLink, LoaderCircle, LockKeyhole, X } from "lucide-react";
 import { WalletMetamask, WalletPhantom } from "@web3icons/react";
-import { useEffect, useState } from "react";
+import { useDialog } from "./useDialog";
 import { useWallet } from "../context";
 import { useLocation } from "react-router-dom";
 import "./wallet-picker.css";
@@ -8,38 +8,10 @@ import "./wallet-picker.css";
 export function WalletModal() {
   const wallet = useWallet();
   const studio = useLocation().pathname === "/studio";
-  const [mounted, setMounted] = useState(wallet.modalOpen);
-  const [closing, setClosing] = useState(false);
-
-  useEffect(() => {
-    if (wallet.modalOpen) {
-      setMounted(true);
-      setClosing(false);
-      return;
-    }
-    if (!mounted) return;
-    setClosing(true);
-    const timeout = window.setTimeout(() => {
-      setMounted(false);
-      setClosing(false);
-    }, 900);
-    return () => window.clearTimeout(timeout);
-  }, [wallet.modalOpen, mounted]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") wallet.setModalOpen(false);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [mounted, wallet]);
-
-  if (!mounted) return null;
-  return <div className={`wallet-overlay wallet-connect-overlay ${closing ? "closing" : ""}`} role="presentation" onMouseDown={() => wallet.setModalOpen(false)}>
-    <div className="wallet-transition-wave" aria-hidden="true"/>
-    <div className="wallet-transition-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/></div>
-    <section className="wallet-modal aqua-wallet-picker" role="dialog" aria-modal="true" aria-labelledby="wallet-title" aria-describedby="wallet-description" onMouseDown={(event) => event.stopPropagation()}>
+  const dialogRef = useDialog(wallet.modalOpen, () => wallet.setModalOpen(false));
+  if (!wallet.modalOpen) return null;
+  return <div className={`wallet-overlay wallet-connect-overlay `} role="presentation" onMouseDown={() => wallet.setModalOpen(false)}>
+    <section ref={dialogRef} className="wallet-modal aqua-wallet-picker" role="dialog" aria-modal="true" aria-labelledby="wallet-title" aria-describedby="wallet-description" onMouseDown={(event) => event.stopPropagation()}>
       <button className="modal-close" onClick={() => wallet.setModalOpen(false)} aria-label="Close wallet dialog"><X size={17}/></button>
       <h2 id="wallet-title">Connect your wallet</h2>
       <p className="wallet-copy" id="wallet-description">{studio ? "Your wallet is the key to your studio. Choose one to get started." : "Choose a Solana wallet to continue to AQUA."}</p>

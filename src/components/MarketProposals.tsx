@@ -1,3 +1,4 @@
+import { ensureAccountSession } from "../account-api";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, Check, ChevronDown, ExternalLink, ImagePlus, Loader2, X } from "lucide-react";
@@ -294,7 +295,7 @@ export function DexProfileFields({ profile, update, optional = false }: { profil
     setUploading(true);
     try {
       const body = new FormData(); body.set("file", file); body.set("creatorWallet", wallet.address); body.set("clientRequestId", crypto.randomUUID());
-      const result = await api.upload(body);
+      const result = await api.upload(body, await ensureAccountSession(wallet.address!,wallet.signMessage));
       update("bannerUrl", result.imageUrl);
       toast.success("Banner uploaded");
     } catch (cause) { toast.error(cause instanceof Error ? cause.message : "The banner could not be uploaded."); }

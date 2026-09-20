@@ -1,3 +1,6 @@
+import "./studio.css";
+import { usePromotion } from "../usePromotion";
+import { StudioExamples } from "../components/StudioExamples";
 import {
   Suspense,
   useEffect,
@@ -5,13 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
-  useId,
-  Children,
-  cloneElement,
-  isValidElement,
-  type ReactNode,
 } from "react";
-import { createPortal } from "react-dom";
 import { PageBubbles } from "../components/PageBubbles";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { StudioMessage } from "../components/StudioMessage";
@@ -27,8 +24,6 @@ import {
   ArrowUp,
   Check,
   ChevronDown,
-  ChevronRight,
-  CircleAlert,
   Code2,
   Download,
   Droplets,
@@ -55,7 +50,7 @@ import {
   X,
 } from "lucide-react";
 import { useWallet } from "../context";
-import { API_URL } from "../api";
+import { api, API_URL } from "../api";
 import {
   aquaAmount,
   aquaRaw,
@@ -82,6 +77,7 @@ const Editor = lazy(() => import("../components/StudioEditor"));
 type Account = {
   balanceMicroUsd: string;
   creditExempt?: boolean;
+  promotionRemainingMicroUsd?:string;
   legacyBalanceNotice?: string | null;
   ledger: Array<{
     id: string;
@@ -138,6 +134,7 @@ function StudioWorkspace() {
   const wallet = useWallet(),
     navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const promotion=usePromotion();
   const preferenceKey = `aqua:studio-preferences:${wallet.address ?? "visitor"}`;
   const [effort, setEffort] = useState<"low" | "medium" | "high">(() => {
     try { const value=JSON.parse(localStorage.getItem(preferenceKey) ?? "{}").effort; return ["low","medium","high"].includes(value) ? value : "low"; } catch { return "low"; }
@@ -551,6 +548,23 @@ function StudioWorkspace() {
     autoSignInWallet.current = wallet.address;
     void signIn();
   }, [wallet.address, wallet.connecting, token]);
+  async function startTokenProject(){
+    const mint=params.get("token");if(!mint)return;
+    await task("Preparing token project",async()=>{
+      const markets=await api.search(mint);
+      const market=markets.launches.find(item=>item.mint===mint);
+      if(!market)throw new Error("This token is not a live indexed AQUA market.");
+      if(market.creatorWallet!==wallet.address)throw new Error("Connect the creator wallet to build this token's website.");
+      await save();
+      const value=await request<StudioProject>("/projects",{name:market.name+" website"});
+      const imported={...value.state,launch:{...value.state.launch,name:market.name,symbol:market.symbol,description:market.description,websiteUrl:market.websiteUrl??"",xUrl:market.xUrl??"",telegramUrl:market.telegramUrl??"",stockMint:market.stockMint,rewardMode:market.rewardMode},files:[...value.state.files,{path:"frontend/token-context.json",content:JSON.stringify({name:market.name,symbol:market.symbol,TOKEN_CA:market.mint,marketUrl:"https://aquafamily.fun/#/token/"+market.id},null,2),encoding:"utf8" as const,locked:true}]};
+      const saved=await request<StudioProject>("/projects/"+value.id,{revision:value.revision,state:imported});
+      takeProject(saved);setJobs([]);await refreshProjects();
+      setPrompt("Build a distinctive website for "+market.name+" ($"+market.symbol+"). Use frontend/token-context.json as the public token facts. Use TOKEN_CA as a frontend build variable with "+market.mint+" as the suggested value. Give me short GitHub publishing steps in chat. Do not add a backend unless the experience needs one.");
+      const next=new URLSearchParams(params);next.delete("token");setParams(next,{replace:true});
+      setNotice("Token project created. Review the prepared prompt, then send it to begin. No AI credit has been spent yet.");
+    });
+  }
   async function save() {
     if (!project || !state) return null;
     if (!dirty) return project;
@@ -1210,8 +1224,8 @@ function StudioWorkspace() {
       )}
     </div>
   );
-  const freeAccess = Boolean(config?.promotion?.active || account.creditExempt);
-  const creditLabel = freeAccess ? "Free access" : `${usdCredit(account.balanceMicroUsd)} credit`;
+  const freeAccess = Boolean(promotion.active && account.creditExempt);
+  const creditLabel = freeAccess ? `Free allowance · ${usdCredit(account.promotionRemainingMicroUsd??"0")} left` : `${usdCredit(account.balanceMicroUsd)} credit`;
   const coinImage = state?.files.find(item => item.path === state.launch.imagePath && imageFile(item));
   const setupIssues =
     config && !config.paidEnabled
@@ -1276,7 +1290,7 @@ function StudioWorkspace() {
         </div>
       )}
       {!token ? (
-        <section className="at-locked-stage" aria-label="Connect wallet to open Atlantis Studio">
+        <><section className="at-locked-stage" aria-label="Connect wallet to open Atlantis Studio">
           <div className="at-locked-preview" aria-hidden="true" inert>
             <div className="at-studio-shell">
               <aside className="at-sidebar">
@@ -1301,7 +1315,7 @@ function StudioWorkspace() {
             {wallet.address && <button className="at-entry-change" disabled={actionDisabled} onClick={() => void task("Changing wallet", async () => { await wallet.disconnect(); wallet.setModalOpen(true); })}>Use a different wallet</button>}
             <small className="at-entry-note"><LockKeyhole size={13} /> Your projects stay linked to your wallet.</small>
           </div>
-        </section>
+        </section><StudioExamples/></>
       ) : (
         <div className="at-studio-shell">
           <aside className="at-sidebar" aria-label="Studio navigation">
@@ -1506,6 +1520,7 @@ function StudioWorkspace() {
               </div>
             )}
           </div>
+          {token&&params.get("token")&&<div className="at-import-notice"><span>Create a separate website project for token {params.get("token")?.slice(0,8)}… using its live AQUA details.</span><button disabled={actionDisabled} onClick={()=>void startTokenProject()}>Prepare token project</button></div>}
           {project && (
             <nav className="at-mobile-tools" aria-label="Studio tools">
               <button
@@ -2699,248 +2714,4 @@ function StudioWorkspace() {
     </main>
   );
 }
-function StudioWorking({label}: {label: string}) {
-  return <div className="at-thinking" role="status" aria-live="polite">
-    <span className="at-thinking-dots" aria-hidden="true"><i /><i /><i /></span>
-    <span>{label}</span>
-  </div>;
-}
-function StudioSetupCard({
-  issues,
-  onRetry,
-  busy,
-  compact = false,
-  deposits = false,
-}: {
-  issues: StudioConfig["setup"]["issues"];
-  onRetry: () => void;
-  busy: boolean;
-  compact?: boolean;
-  deposits?: boolean;
-}) {
-  return (
-    <section
-      className={`at-setup-card ${compact ? "compact" : ""}`}
-      aria-label={deposits ? "AQUA deposit setup" : "Studio AI setup"}
-    >
-      <header>
-        <span><CircleAlert size={18} /></span>
-        <div>
-          <strong>{deposits ? "AQUA deposits unavailable" : "AI setup incomplete"}</strong>
-          <small>{deposits ? "Existing USD credit is unaffected." : "Editing and exports still work."}</small>
-        </div>
-      </header>
-      <div className="at-setup-list">
-        {issues.map((issue) => (
-          <div key={issue.code}>
-            <span aria-hidden="true" />
-            <div>
-              <strong>{issue.title}</strong>
-              <p>{issue.detail}</p>
-              {issue.variables.length > 0 && (
-                <div className="at-variable-list">
-                  {issue.variables.map((variable) => (
-                    <code key={variable}>{variable}</code>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-      <button disabled={busy} onClick={onRetry}>
-        <RefreshCw size={14} />
-        Check again
-      </button>
-    </section>
-  );
-}
-function Field({
-  label,
-  locked,
-  onLock,
-  children,
-}: {
-  label: string;
-  locked: boolean;
-  onLock: () => void;
-  children: ReactNode;
-}) {
-  const labelId = useId();
-  return (
-    <div className="at-field">
-      <div className="at-field-label">
-        <span id={labelId}>{label}</span>
-        <button
-          type="button"
-          title={
-            locked
-              ? "Atlantis will keep this unchanged"
-              : "Keep this unchanged when Atlantis makes edits"
-          }
-          aria-label={`${locked ? "Unlock" : "Lock"} ${label}`}
-          aria-pressed={locked}
-          onClick={onLock}
-        >
-          {locked ? <LockKeyhole size={13} /> : <Unlock size={13} />}
-          <span>{locked ? "Keep this" : ""}</span>
-        </button>
-      </div>
-      {Children.map(children, (child) =>
-        isValidElement<Record<string, unknown>>(child) &&
-        typeof child.type === "string" &&
-        ["input", "select", "textarea"].includes(child.type)
-          ? cloneElement(child, { "aria-labelledby": labelId })
-          : child,
-      )}
-    </div>
-  );
-}
-function Dialog({
-  title,
-  onClose,
-  children,
-  className = "",
-}: {
-  title: string;
-  onClose: () => void;
-  children: ReactNode;
-  className?: string;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const old = document.activeElement as HTMLElement | null;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    ref.current?.focus();
-    const trap = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
-      if (e.key !== "Tab") return;
-      const items = ref.current?.querySelectorAll<HTMLElement>(
-        'button:not(:disabled),input,textarea,select,a[href],summary,[tabindex="0"]',
-      );
-      if (!items?.length) return;
-      const first = items[0],
-        last = items[items.length - 1];
-      if (
-        e.shiftKey &&
-        (document.activeElement === first ||
-          document.activeElement === ref.current)
-      ) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", trap);
-    return () => {
-      document.removeEventListener("keydown", trap);
-      document.body.style.overflow = overflow;
-      old?.focus();
-    };
-  }, []);
-  return createPortal(
-    <div
-      className="at-dialog-overlay"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className={`at-dialog ${className}`}
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        tabIndex={-1}
-      >
-        <header>
-          <h2>{title}</h2>
-          <button aria-label="Close dialog" onClick={onClose}>
-            <X size={19} />
-          </button>
-        </header>
-        {children}
-      </div>
-    </div>,
-    document.body,
-  );
-}
-function FileTree({
-  files,
-  folders,
-  selected,
-  onSelect,
-  prefix = "",
-}: {
-  files: StudioFile[];
-  folders: string[];
-  selected: string;
-  onSelect: (path: string) => void;
-  prefix?: string;
-}) {
-  const [closed, setClosed] = useState<string[]>([]);
-  const all = [...files.map((f) => f.path), ...folders.map((f) => f + "/")];
-  const children = [
-    ...new Set(
-      all
-        .filter((p) => p.startsWith(prefix))
-        .map((p) => p.slice(prefix.length).split("/")[0])
-        .filter(Boolean),
-    ),
-  ].sort(
-    (a, b) =>
-      Number(files.some((f) => f.path === prefix + a)) -
-        Number(files.some((f) => f.path === prefix + b)) || a.localeCompare(b),
-  );
-  return (
-    <div className="at-tree">
-      {children.map((name) => {
-        const path = prefix + name,
-          file = files.find((f) => f.path === path),
-          collapsed = closed.includes(path);
-        return file ? (
-          <button
-            className={selected === path ? "selected" : ""}
-            key={path}
-            onClick={() => onSelect(path)}
-            title={path}
-          >
-            <span className="at-file-dot" />
-            {name}
-            {file.locked && <LockKeyhole size={11} />}
-          </button>
-        ) : (
-          <div key={path}>
-            <button
-              onClick={() =>
-                setClosed((old) =>
-                  collapsed ? old.filter((p) => p !== path) : [...old, path],
-                )
-              }
-              aria-expanded={!collapsed}
-            >
-              {collapsed ? (
-                <ChevronRight size={13} />
-              ) : (
-                <ChevronDown size={13} />
-              )}
-              <strong>{name}</strong>
-            </button>
-            {!collapsed && (
-              <FileTree
-                files={files}
-                folders={folders}
-                selected={selected}
-                onSelect={onSelect}
-                prefix={path + "/"}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+import {StudioWorking,StudioSetupCard,Field,Dialog,FileTree} from "../components/StudioControls";

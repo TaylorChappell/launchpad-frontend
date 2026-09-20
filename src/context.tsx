@@ -46,9 +46,20 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    api.config().then(setConfig).catch((reason) => setError(reason instanceof Error ? reason.message : "Backend unavailable")).finally(() => setLoading(false));
+    let active = true, pending = false;
+    const load = async () => {
+      if (pending || document.visibilityState === "hidden") return;
+      pending = true;
+      try { const next = await api.config(); if (active) { setConfig(next); setError(null); setLoading(false); } }
+      catch (reason) { if (active) setError(reason instanceof Error ? reason.message : "Backend unavailable"); }
+      finally { pending = false; }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 30_000);
+    window.addEventListener("online", load); window.addEventListener("focus", load);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener("online", load); window.removeEventListener("focus", load); };
   }, []);
-  return <RuntimeContext.Provider value={{ config, loading, error }}>{children}</RuntimeContext.Provider>;
+  return <RuntimeContext.Provider value={{ config:error?{...config,transactionsEnabled:false,transactionsDisabledReason:"Runtime configuration is unavailable. Wait for reconnection before creating or trading."}:config, loading, error }}>{children}</RuntimeContext.Provider>;
 }
 export const useRuntime = () => useContext(RuntimeContext);
 
@@ -248,6 +259,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [address]);
 
   const sendTransaction = useCallback(async (envelope: TransactionEnvelope, onSubmitted?: (signature:string) => void) => {
+    let submittedSignature:string|undefined;
     try {
       if (!adapter.current || !address) throw new Error("Connect your wallet first.");
       const [{ Connection, Transaction, VersionedTransaction }, { default: bs58 }] = await Promise.all([import("@solana/web3.js"), import("bs58")]);
@@ -278,11 +290,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      submittedSignature=signature;
       onSubmitted?.(signature);
       await waitForConfirmation(connection, signature, envelope.lastValidBlockHeight);
       return signature;
     } catch (error) {
       console.error("AQUA wallet transaction failed", error);
+      if(submittedSignature)throw new Error("Transaction was submitted, but confirmation could not be completed. Check "+submittedSignature+" on the explorer before retrying.");
       throw new Error(friendlyWalletError(error));
     }
   }, [address, config.network, config.publicRpcUrl]);

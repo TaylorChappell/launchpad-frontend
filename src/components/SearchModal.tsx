@@ -17,24 +17,13 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
 
   useEffect(() => {
     if (!open) return;
-    let active = true;
     setQuery("");
     setState("loading");
-    api.launches()
-      .then((data) => {
-        if (!active) return;
-        setLaunches(data.launches);
-        setState("ready");
-      })
-      .catch(() => {
-        if (active) setState("offline");
-      });
     const previousFocus = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     inputRef.current?.focus({ preventScroll: true });
     return () => {
-      active = false;
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus({ preventScroll: true });
     };
@@ -54,6 +43,16 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    setState("loading");
+    const timer = window.setTimeout(() => {
+      api.search(query,controller.signal).then(data => {if(!controller.signal.aborted){setLaunches(data.launches);setState("ready");}}).catch(()=>{if(!controller.signal.aborted)setState("offline");});
+    },200);
+    return()=>{controller.abort();window.clearTimeout(timer);};
+  },[open,query]);
 
   const results = useMemo(() => {
     const term = query.trim().toLowerCase();

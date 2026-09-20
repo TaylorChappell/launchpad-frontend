@@ -1,3 +1,6 @@
+import {marketShareUrl} from "../share-market";
+import { readLaunchDraft,saveLaunchDraft } from "../launch-draft";
+import { ensureAccountSession } from "../account-api";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft, ArrowRight, Check, Droplets, ImagePlus, Info, Rocket,
@@ -31,14 +34,7 @@ type ProgressState = "waiting" | "active" | "done" | "error";
 type PendingAction = { launchId: string; stage: ChainStage; envelope?: TransactionEnvelope; signature?: string };
 
 const empty: Form = { name: "", symbol: "", description: "", xUrl: "", websiteUrl: "", telegramUrl: "", devBuyCurrency: "SOL", launchAmount: "", rewardMode: "holder_rewards" };
-const governanceWizardSteps = [
-  { label: "Coin", short: "Name and artwork" },
-  { label: "Pair & rewards", short: "Choose SOL, ORCA, or an xStock" },
-  { label: "Reward mode", short: "Choose how the holder share works" },
-  { label: "DEX profile", short: "Optional profile draft" },
-  { label: "Dev buy", short: "Optional first buy" },
-] as const;
-const standardWizardSteps = governanceWizardSteps.filter((item) => item.label !== "DEX profile");
+const wizardSteps=[{label:"Coin",short:"Name, artwork and socials"},{label:"Market",short:"Pair, rewards and optional buy"},{label:"Review & launch",short:"Permanent choices and costs"}];
 const chainSteps: Array<{ key: ProgressKey; label: string; detail: string }> = [
   { key: "approval", label: "Prepare launch", detail: "Store artwork and immutable metadata" },
   { key: "mint", label: "Create token", detail: "Wallet approval 1 of 2" },
@@ -68,8 +64,7 @@ export function Create() {
   const [studioImportMessage, setStudioImportMessage] = useState("");
   const { config } = useRuntime();
   const dexProfileEnabled = config.marketGovernanceEnabled;
-  const wizardSteps = dexProfileEnabled ? governanceWizardSteps : standardWizardSteps;
-  const devBuyStep = dexProfileEnabled ? 4 : 3;
+  const devBuyStep = 2;
   const [form, setForm] = useState<Form>(empty);
   const [dexFundingEnabled, setDexFundingEnabled] = useState(false);
   const [dexProfile, setDexProfile] = useState<DexProfile>({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" });
@@ -90,6 +85,29 @@ export function Create() {
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [recoverableLaunch, setRecoverableLaunch] = useState<Launch | null>(null);
   const [completedLaunch, setCompletedLaunch] = useState<{ id: string; mint?: string } | null>(null);
+
+  const draftKey="launch:"+config.network+":"+(wallet.address??"guest");
+  const priorDraftKey=useRef(draftKey);
+  const [draftReady,setDraftReady]=useState("");
+  const [draftStatus,setDraftStatus]=useState("Loading local draft…");
+  useEffect(()=>{
+    if(stockLoading||draftReady===draftKey)return;
+    let active=true;const carryGuest=priorDraftKey.current==="launch:"+config.network+":guest";priorDraftKey.current=draftKey;setDraftStatus("Loading local draft…");
+    if(searchParams.get("studio")){setDraftReady(draftKey);return;}
+    readLaunchDraft<{form:Form;file:File|null;dexFundingEnabled:boolean;dexProfile:DexProfile;stockMint:string}>(draftKey).then(draft=>{
+      if(!active)return;
+      if(draft||!carryGuest){setForm(empty);setFile(null);setPreview("");setDexFundingEnabled(false);setDexProfile({description:"",bannerUrl:"",websiteUrl:"",xUrl:"",telegramUrl:""});setStock(stocks[0]??null);setStep(0);}
+      if(draft?.form){setForm({...empty,...draft.form});setDexFundingEnabled(Boolean(draft.dexFundingEnabled));if(draft.dexProfile)setDexProfile(draft.dexProfile);if(draft.file instanceof File)chooseArtwork(draft.file);const saved=stocks.find(s=>s.mint===draft.stockMint);if(saved)setStock(saved);}
+      setDraftStatus(draft?"Draft restored on this device.":"Draft will be saved on this device.");
+    }).catch(()=>{if(active)setDraftStatus("Local drafts unavailable. Keep this page open until launch.");}).finally(()=>{if(active)setDraftReady(draftKey);});
+    return()=>{active=false;};
+  },[draftKey,stockLoading]);
+  useEffect(()=>{
+    if(draftReady!==draftKey||completedLaunch)return;
+    let active=true;
+    const timer=window.setTimeout(()=>{void saveLaunchDraft(draftKey,{form,file,dexFundingEnabled,dexProfile,stockMint:stock?.mint}).then(()=>{if(active)setDraftStatus("Draft saved on this device.");}).catch(()=>{if(active)setDraftStatus("Draft could not save. Keep this page open until launch.");});},600);
+    return()=>{active=false;window.clearTimeout(timer);};
+  },[draftKey,draftReady,form,file,dexFundingEnabled,dexProfile,stock?.mint,completedLaunch]);
 
   useEffect(() => {
     const id=searchParams.get("studio");
@@ -132,7 +150,7 @@ export function Create() {
   useEffect(() => {
     if (!wallet.address) { setRecoverableLaunch(null); return; }
     let active = true;
-    api.launches().then(({ launches }) => {
+    api.launches({creator:wallet.address,status:"pending",limit:1,sort:"recent"}).then(({ launches }) => {
       if (!active) return;
       setRecoverableLaunch(launches.find((item) => item.creatorWallet === wallet.address && item.status !== "live") ?? null);
     }).catch(() => { if (active) setRecoverableLaunch(null); });
@@ -156,9 +174,7 @@ export function Create() {
     if (!value.trim()) return true;
     try { return ["https:", "http:"].includes(new URL(value.trim()).protocol); } catch { return false; }
   });
-  const validForStep = dexProfileEnabled
-    ? [form.name.trim().length >= 2 && form.symbol.trim().length >= 2 && Boolean(file), Boolean(stock) && (!stock?.restricted || acknowledged), true, dexDraftValid, amountValid]
-    : [form.name.trim().length >= 2 && form.symbol.trim().length >= 2 && Boolean(file), Boolean(stock) && (!stock?.restricted || acknowledged), true, amountValid];
+  const validForStep=[form.name.trim().length>=2&&form.symbol.trim().length>=2&&Boolean(file),Boolean(stock)&&(!stock?.restricted||acknowledged)&&amountValid&&(!dexProfileEnabled||dexDraftValid),Boolean(stock)&&amountValid&&(!dexProfileEnabled||dexDraftValid)];
   const currencySymbol = form.devBuyCurrency;
   const launchCost = config.launchCost;
   const currencyDecimals = form.devBuyCurrency === "SOL" ? 9 : 6;
@@ -166,7 +182,7 @@ export function Create() {
   const activeProgress = chainSteps.find((item) => progress[item.key] === "active")?.label ?? "Preparing launch";
 
   function chooseArtwork(next: File | null) {
-    if (next && next.size > 3 * 1024 * 1024) { toast.error("Artwork must be 3 MB or smaller."); return; }
+    if (next && next.size > 3_000_000) { toast.error("Artwork must be 3 MB or smaller."); return; }
     if (preview) URL.revokeObjectURL(preview);
     setFile(next); setPreview(next ? URL.createObjectURL(next) : "");
   }
@@ -397,7 +413,7 @@ export function Create() {
     try {
       const clientRequestId = crypto.randomUUID(); const symbol = form.symbol.trim().toUpperCase();
       const body = new FormData(); body.set("file", file); body.set("creatorWallet", wallet.address); body.set("clientRequestId", clientRequestId);
-      const imageId = (await api.upload(body)).imageId;
+      const imageId = (await api.upload(body, await ensureAccountSession(wallet.address!,wallet.signMessage))).imageId;
       const initialBuyRaw = hasInitialBuy ? decimalToRaw(form.launchAmount, currencyDecimals) : "0";
       const intent = await api.createLaunch({
         creatorWallet: wallet.address, clientRequestId, symbol, stockSymbol: stock.symbol,
@@ -428,7 +444,7 @@ export function Create() {
         <section className="launch-simple-status">
           <span className="launching-orb"><Loader2 className="spin"/></span>
           <h2>Launching</h2>
-          <span className="sr-only">{activeProgress}</span>
+          <p role="status">{activeProgress}</p><ol>{chainSteps.filter(item=>item.key!=="devBuy"||hasInitialBuy).map(item=><li key={item.key}>{progress[item.key]==="done"?"✓ ":progress[item.key]==="active"?"• ":""}{item.label}</li>)}</ol>
         </section>
       </div>}
       {completedLaunch ? <section className="launch-complete-screen" aria-live="polite">
@@ -439,7 +455,7 @@ export function Create() {
         <p>Your pool is active, the full supply is committed to locked liquidity, and {form.rewardMode === "holder_rewards" ? "holder rewards are accruing" : form.rewardMode === "buyback_burn" ? "market buybacks and burns are active" : "hourly jackpot scoring is active"}.</p>
         <div className="launch-complete-actions">
           <a className="complete-primary" href={`#/token/${completedLaunch.id}`}><span className="button-current"/>Go to coin <ArrowRight/></a>
-          <button className="complete-secondary" onClick={launchAnother}>Launch another coin</button>
+          <Link className="complete-secondary" to={"/studio?token="+encodeURIComponent(completedLaunch.mint??"")}>Build website</Link><Link className="complete-secondary" to={"/manage/"+completedLaunch.id}>Manage creator lock</Link><button className="complete-secondary" onClick={()=>{void navigator.clipboard.writeText(marketShareUrl(completedLaunch.id));toast.success("Market link copied");}}>Copy market link</button><button className="complete-secondary" onClick={launchAnother}>Launch another coin</button>
         </div>
       </section> : <>
       <aside className="wizard-rail" aria-label="Launch steps">
@@ -451,7 +467,7 @@ export function Create() {
         <div className="wizard-rail-pulse" aria-hidden="true"><i/><i/><i/></div>
       </aside>
 
-      <div className="wizard-main">
+      <div className="wizard-main">{launchCost && <p className="status-inline">Estimated launch: {launchCost.estimatedTotalSol.minimum.toFixed(2)}–{launchCost.estimatedTotalSol.maximum.toFixed(2)} SOL, excluding optional first buy. {draftStatus} Wallet approvals are never saved.</p>}
         {step === 0 && <WizardSection title="Create your coin" description="Add a name, ticker, and artwork. The description and socials are optional.">
           <div className="coin-identity-grid">
             <label className="wizard-artwork">
@@ -485,7 +501,7 @@ export function Create() {
           {stock?.restricted && <label className="stock-ack"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)}/><span>I understand tokenized stocks may be restricted or unavailable in my jurisdiction.</span></label>}
         </WizardSection>}
 
-        {step === 2 && <WizardSection title="Choose the reward mode" description="This policy is permanent after launch, so holders always know how the reward share will be used.">
+        {step === 1 && <WizardSection title="Choose the reward mode" description="This policy is permanent after launch, so holders always know how the reward share will be used.">
           <div className="reward-mode-grid" role="radiogroup" aria-label="Reward mode">
             <ModeButton active={form.rewardMode === "holder_rewards"} onClick={() => update("rewardMode", "holder_rewards")} icon={<RewardModeIcon mode="holder_rewards"/>} title="Holder Rewards" eyebrow="Steady rewards">
               The holder share is converted into the selected pair asset and distributed by balance × time held. Rewards accumulate into one claim per market.
@@ -500,19 +516,21 @@ export function Create() {
           {!config.rewardModes?.enabled && <div className="reward-mode-notice"><Info/> Alternative modes will unlock after the staged program upgrade is enabled. Holder Rewards remains available.</div>}
         </WizardSection>}
 
-        {dexProfileEnabled && step === 3 && <WizardSection title="DEX Funding Mode" description="Optional. Fund your DEX Screener profile together using market fees.">
+        {dexProfileEnabled && step === 1 && <details className="dashboard-section"><summary>Advanced: optional DEX profile funding</summary><WizardSection title="DEX Funding Mode" description="Optional. Fund your DEX Screener profile together using market fees.">
           <label className="launch-dex-toggle"><input type="checkbox" checked={dexFundingEnabled} onChange={event => setDexFundingEnabled(event.target.checked)}/><span><b>Enable DEX Funding Mode</b><small>Open a holder vote five minutes after launch. If approved, 80% of incoming market rewards funds the $300 profile target; 20% continues to holder rewards.</small></span></label><div className="launch-dex-intro"><DexScreenerIcon/><div><b>Let holders decide</b><p>Save an optional initial profile below. Eligible holders can propose replacement information and vote on it. If disabled here, holders can propose funding later.</p></div></div>
           <div className="launch-dex-fields"><DexProfileFields profile={dexProfile} update={(key, value) => setDexProfile((current) => ({ ...current, [key]: value }))} optional/></div>
           {!dexDraftValid && <p className="survey-error">Use full https:// URLs, or leave these fields empty.</p>}
           <button className="proposal-text-action" onClick={() => { setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" }); setStep(devBuyStep); }}>Skip for now <ArrowRight/></button>
-        </WizardSection>}
+        </WizardSection></details>}
 
-        {step === devBuyStep && <WizardSection title="Optional dev buy" description="Choose SOL or USDC to make the first buy. Leave the amount at zero to skip it.">
+        {step === 1 && <WizardSection title="Optional first buy" description="Choose SOL or USDC to make the first buy. Leave the amount at zero to skip it.">
           <div className="launch-currency-grid pair-choice-grid" role="radiogroup" aria-label="Initial buy currency">
             <CurrencyButton code="SOL" name="Pay with Solana" active={form.devBuyCurrency === "SOL"} onClick={() => { update("devBuyCurrency", "SOL"); update("launchAmount", ""); }} icon={<NetworkSolana className="currency-brand-icon" variant="branded"/>}/>
             <CurrencyButton code="USDC" name="Pay with USD Coin" active={form.devBuyCurrency === "USDC"} onClick={() => { update("devBuyCurrency", "USDC"); update("launchAmount", ""); }} icon={<span className="usdc-mark">$</span>}/>
           </div>
           <Field label={`Optional first buy in ${currencySymbol}`} wide><div className="unit-input launch-amount-input"><input inputMode="decimal" value={form.launchAmount} placeholder="0" onChange={(event) => update("launchAmount", event.target.value.replace(",", ".").replace(/[^0-9.]/g, ""))}/><span>{currencySymbol}</span></div></Field>
+        </WizardSection>}
+        {step === devBuyStep && <WizardSection title="Review and launch" description="Your pair, reward mode and opening liquidity lock are permanent. Check these choices before approving.">
           {launchCost && <div className="launch-cost-card">
             <div><span><b>Estimated launch cost</b><small>before any optional first buy</small></span><strong>{launchCost.estimatedTotalSol.minimum.toFixed(2)}–{launchCost.estimatedTotalSol.maximum.toFixed(2)} SOL</strong></div>
             <p><b>{launchCost.platformFeeSol.toFixed(2)} SOL AQUA fee</b> funds keeper operations. The rest is estimated Solana/Orca account rent and network fees; your wallet approval shows the authoritative amount.</p>

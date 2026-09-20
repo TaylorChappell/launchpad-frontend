@@ -110,26 +110,7 @@ body::before {
 .system-banner { color: #805912; background: #fff7df; }
 
 /* Shared surfaces */
-:where(
-  .token-card, .form-panel, .launch-summary, .chart-panel, .info-panel,
-  .activity, .trade-card, .wallet-card, .reward-ledger, .reward-explainer,
-  .system-map, .detail-panel, .mode-card, .empty-card, .simple-stats > div,
-  .liquidity-flow, .data-badge, .search-modal, .wallet-dropdown,
-  .rewards-connect-card, .rewards-empty, .holder-reward-card, .reward-claim-card,
-  .manage-hero, .manage-builder, .manage-quote, .manage-active-lock,
-  .manage-gate, .admin-access, .admin-hero, .admin-panel,
-  .admin-stat-grid article, .aqua-docs-callout, .aqua-docs-cost-card,
-  .aqua-docs-definition, .aqua-docs-flow-card, .aqua-docs-formula,
-  .aqua-docs-principle, .aqua-docs-summary, .aqua-docs-timeline-step,
-  .launch-cost-card, .launch-final-summary, .launch-resume-banner,
-  .wizard-shell, .how-foundation article, .analytics-live,
-  .analytics-metrics article, .analytics-panel
-) {
-  color: var(--aqua-ink) !important;
-  border-color: var(--line) !important;
-  background: rgba(255, 255, 255, .68) !important;
-  box-shadow: 0 18px 50px rgba(38, 107, 150, .08) !important;
-}
+
 
 :where(
   .token-card, .form-panel, .chart-panel, .trade-card, .holder-reward-card,
@@ -365,12 +346,10 @@ body::before {
 .activity table th,
 .fee-table th,
 .reference-table th,
-.aqua-docs-table th,
 .admin-table-wrap th { color: #527991; background: rgba(163, 216, 245, .28); }
 .activity table td,
 .fee-table td,
 .reference-table td,
-.aqua-docs-table td,
 .admin-table-wrap td { color: #476e86; border-color: var(--line); }
 
 /* Page-specific light surfaces */
@@ -431,18 +410,10 @@ body::before {
 .progress i,
 .reward-water-progress i { background: linear-gradient(90deg, var(--aqua-shallow), var(--aqua-blue)); }
 
-.aqua-docs-sidebar-inner {
-  width: 100%;
-  padding: 22px 20px !important;
-  border: 1px solid var(--line) !important;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, .68) !important;
-  box-shadow: 0 18px 48px rgba(38, 107, 150, .08);
-}
-.aqua-docs-nav-group a { color: #5b8097; }
-.aqua-docs-nav-group a:hover,
-.aqua-docs-nav-group a.active { color: var(--aqua-blue); background: rgba(163, 216, 245, .28); }
-.aqua-docs-section { border-color: var(--line); }
+
+
+
+
 
 .site-footer {
   color: #5c8097;
@@ -547,40 +518,10 @@ body::before {
   box-shadow: 0 16px 34px rgba(30, 143, 232, .2) !important;
 }
 
-.aqua-docs-actions .secondary-button {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  color: #176fae !important;
-  border-color: var(--line) !important;
-  background: rgba(255, 255, 255, .66) !important;
-}
-.aqua-docs-actions .secondary-button::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  left: -8%;
-  top: 110%;
-  width: 116%;
-  height: 110%;
-  background: linear-gradient(155deg, rgba(212, 237, 252, .98), rgba(91, 187, 239, .96));
-  -webkit-mask-image: var(--liquid-wave-mask);
-  mask-image: var(--liquid-wave-mask);
-  -webkit-mask-size: 112% 100%;
-  mask-size: 112% 100%;
-  transition: top .68s cubic-bezier(.16,.74,.25,1);
-}
-.aqua-docs-actions .secondary-button:hover {
-  color: #0b3853 !important;
-  border-color: rgba(30, 143, 232, .42) !important;
-  background: rgba(255, 255, 255, .72) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(30, 143, 232, .15);
-}
-.aqua-docs-actions .secondary-button:hover::before {
-  top: 4%;
-  animation: action-wave-drift 3.6s ease-in-out infinite;
-}
+
+
+
+
 
 /* Launch wizard contrast ------------------------------------------------- */
 .wizard-shell { background: rgba(248, 252, 255, .9) !important; }
@@ -687,106 +628,36 @@ body::before {
 }
 
 /* Documentation contrast ------------------------------------------------ */
-.aqua-docs-page { color: var(--aqua-ink); }
-.aqua-docs-hero { border-color: var(--line) !important; }
-.aqua-docs-kicker,
-.aqua-docs-section-heading small,
-.aqua-docs-inline-link { color: #176fae !important; }
-.aqua-docs-hero h1,
-.aqua-docs-hero h1 span,
-.aqua-docs-section h2,
-.aqua-docs-section > h3,
-.aqua-docs-sidebar-title {
-  color: var(--aqua-ink) !important;
-  background: none !important;
-  -webkit-text-fill-color: currentColor !important;
-}
-.aqua-docs-hero > p,
-.aqua-docs-section > p,
-.aqua-docs-section > p.lead,
-.aqua-docs-section > p.fine-print,
-.aqua-docs-section > p.aqua-docs-disclaimer {
-  color: #426b84 !important;
-}
-.aqua-docs-section > p strong { color: var(--aqua-ink) !important; }
-.aqua-docs-nav-group small { color: #315d78 !important; }
-.aqua-docs-nav-group button { color: #547a94 !important; }
-.aqua-docs-nav-group button:hover { color: #176fae !important; }
-.aqua-docs-principle h3,
-.aqua-docs-flow-card h3,
-.aqua-docs-timeline-step h3,
-.aqua-docs-risk-grid h3,
-.aqua-docs-callout b,
-.aqua-docs-definition b,
-.aqua-docs-cost-card span b,
-.aqua-docs-cost-card strong,
-.aqua-docs-summary strong,
-.aqua-docs-allocation strong,
-.aqua-docs-score-grid span b,
-.aqua-docs-accounts b,
-.aqua-docs-table tbody td:first-child,
-.aqua-docs-table tbody th { color: var(--aqua-ink) !important; }
-.aqua-docs-principle p,
-.aqua-docs-flow-card p,
-.aqua-docs-timeline-step p,
-.aqua-docs-risk-grid p,
-.aqua-docs-callout p,
-.aqua-docs-definition span,
-.aqua-docs-cost-card span small,
-.aqua-docs-summary span,
-.aqua-docs-allocation span,
-.aqua-docs-checklist > div,
-.aqua-docs-accounts,
-.aqua-docs-table { color: #547a94 !important; }
-.aqua-docs-principle > span,
-.aqua-docs-flow-card > span,
-.aqua-docs-timeline-step > span,
-.aqua-docs-score-grid span svg,
-.aqua-docs-accounts span svg,
+
+
+
+
+
+
+
+
+
+
+
 .rewards-connect-card > span,
 .reward-market-fallback {
   color: var(--aqua-blue) !important;
   border-color: rgba(30, 143, 232, .22) !important;
   background: rgba(163, 216, 245, .32) !important;
 }
-:where(
-  .aqua-docs-checklist > div, .aqua-docs-timeline.compact,
-  .aqua-docs-definition > div, .aqua-docs-table,
-  .aqua-docs-formula, .aqua-docs-score-grid > div,
-  .aqua-docs-accounts > a, .aqua-docs-accounts > div,
-  .aqua-docs-risk-grid > div, .aqua-docs-network
-) {
-  border-color: var(--line) !important;
-  background: rgba(255, 255, 255, .62) !important;
-}
-.aqua-docs-formula span,
-.aqua-docs-formula strong {
-  color: #315d78 !important;
-  border-color: var(--line) !important;
-  background: rgba(212, 237, 252, .72) !important;
-}
-.aqua-docs-formula strong { color: #176fae !important; border-color: rgba(30, 143, 232, .3) !important; }
-.aqua-docs-score-grid > div > strong { color: #176fae !important; }
-.aqua-docs-table thead th { color: #315d78 !important; background: rgba(163, 216, 245, .34) !important; }
-.aqua-docs-flow-arrow { color: var(--aqua-blue) !important; }
-.aqua-docs-callout { border-left-color: var(--aqua-blue) !important; }
 
-.aqua-docs-summary {
-  max-width: 920px;
-  margin: 58px auto 0 !important;
-  overflow: hidden;
-  border: 1px solid var(--line) !important;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, .7) !important;
-  box-shadow: 0 18px 48px rgba(38, 107, 150, .08) !important;
-}
-.aqua-docs-summary > div {
-  padding: 22px 24px !important;
-  border-right-color: var(--line) !important;
-}
-.aqua-docs-summary > div:first-child { padding-left: 24px !important; }
-.aqua-docs-shell { align-items: start; }
-.aqua-docs-sidebar { display: flex; justify-content: center; }
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* Opening animation follows the new logo palette. */
 .opening-reveal { background: transparent; }
@@ -796,10 +667,9 @@ body::before {
 @media (max-width: 760px) {
   .mobile-nav,
   .bottom-nav { background: rgba(238, 249, 255, .96); }
-  .aqua-docs-sidebar { display: none; }
-  .aqua-docs-summary { margin-top: 46px !important; }
-  .aqua-docs-summary > div,
-  .aqua-docs-summary > div:first-child { padding: 18px 16px !important; }
+
+
+
 }
 
 @media (max-width: 1080px) and (min-width: 741px) {

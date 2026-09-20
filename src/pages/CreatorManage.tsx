@@ -130,6 +130,7 @@ export function CreatorManage() {
   if (!isOwner) return <main className="page manage-page"><Link className="back" to={"/token/" + launch.id}><ArrowLeft/>Back to {launch.symbol}</Link><section className="manage-gate"><h1>This wallet is not the creator</h1><p>Switch to the wallet that launched {"$" + launch.symbol} to manage its creator lock and fees.</p></section></main>;
 
   return <main className="page manage-page">
+    <div className="action-links"><Link to={"/studio?token="+encodeURIComponent(launch.mint)}>Build this token’s website →</Link><Link to="/portfolio">Creator dashboard</Link></div>
     <Link className="back" to={"/token/" + launch.id}><ArrowLeft/>Back to market</Link>
     <section className="manage-hero">
       <div className="manage-hero-identity"><TokenMark launch={launch} large/><span><h1>Manage {"$" + launch.symbol}</h1><p>Lock tokens to earn creator fees, paid automatically in SOL.</p></span></div>

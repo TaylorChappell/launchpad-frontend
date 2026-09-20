@@ -1,3 +1,5 @@
+import {StudioPreviewChecks} from "./StudioPreviewChecks";
+import { studioQuality } from "../studio-quality";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, RotateCw, X } from "lucide-react";
 import type { StudioFile } from "../studio-api";
@@ -6,6 +8,8 @@ import { studioPreviewPages, studioPreviewTarget } from "../studio-preview-paths
 import type { PreviewStorage } from "../studio-preview-bridge";
 
 export function StudioSitePreview({files}:{files:StudioFile[]}) {
+  const quality=useMemo(()=>studioQuality(files),[files]);
+  const [runtimeIssues,setRuntimeIssues]=useState<string[]>([]);
   const pages = useMemo(() => studioPreviewPages(files),[files]);
   const [history,setHistory] = useState({entries:[pages[0] ?? "frontend/index.html"],index:0});
   const [reload,setReload] = useState(0), [notice,setNotice] = useState("");
@@ -41,6 +45,7 @@ export function StudioSitePreview({files}:{files:StudioFile[]}) {
     const receive = (event:MessageEvent) => {
       const data = event.data;
       if (event.source !== frame.current?.contentWindow || data?.type !== "aqua-preview" || data.channel !== channel) return;
+      if(data.kind==="quality"&&Array.isArray(data.issues))setRuntimeIssues(data.issues.filter((x:unknown)=>typeof x==="string").slice(0,30));
       if (data.kind === "navigate" && typeof data.href === "string") navigate(data.href);
       if (data.kind === "history" && Number.isSafeInteger(data.delta)) move(data.delta);
       if (data.kind === "notice" && typeof data.message === "string") setNotice(data.message.slice(0,300));
@@ -53,7 +58,7 @@ export function StudioSitePreview({files}:{files:StudioFile[]}) {
     window.addEventListener("message",receive);
     return () => window.removeEventListener("message",receive);
   },[channel,navigate,move]);
-  return <div className="at-site-preview">
+  return <div className="at-site-preview"><details className="at-preview-notice"><summary>Preview checks · {quality.length+compiled.issues.length+runtimeIssues.length} findings</summary><p>Static links and runtime layout/assets are checked. Review each control and form before publishing. Backend calls cannot run in this isolated preview.</p><button type="button" onClick={()=>frame.current?.contentWindow?.postMessage({type:"aqua-preview-check",channel},"*")}>Run page checks</button><StudioPreviewChecks files={files}/><ul>{[...quality,...compiled.issues,...runtimeIssues].map((issue,i)=><li key={i}>{issue}</li>)}</ul></details>
     {pages.length > 1 && <div className="at-preview-nav" aria-label="Preview navigation">
       <button type="button" aria-label="Previous preview page" disabled={history.index===0} onClick={()=>move(-1)}><ArrowLeft size={15}/></button>
       <button type="button" aria-label="Next preview page" disabled={history.index>=history.entries.length-1} onClick={()=>move(1)}><ArrowRight size={15}/></button>

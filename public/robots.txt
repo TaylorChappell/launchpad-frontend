@@ -10,4 +10,4 @@ Allow: /
 User-agent: GPTBot
 Allow: /
 
-Sitemap: https://taylorchappell.github.io/launchpad-frontend/docs/sitemap.xml
+Sitemap: https://aquafamily.fun/sitemap.xml

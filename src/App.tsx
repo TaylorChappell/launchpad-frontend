@@ -1,8 +1,10 @@
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Suspense } from "react";
 import { lazyWithRecovery as lazy } from "./components/LazyRecovery";
 import { HashRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Layout } from "./components/Layout";
 
+const Status = lazy(() => import("./pages/Status").then(module => ({default:module.Status})));
 const Markets = lazy(() => import("./pages/Markets").then(module => ({ default: module.Markets })));
 const Create = lazy(() => import("./pages/Create").then(module => ({ default: module.Create })));
 const Studio = lazy(() => import("./pages/Studio").then(module => ({ default: module.Studio })));
@@ -23,6 +25,8 @@ function LegacyStudioRedirect() {
   return <Navigate replace to={{ pathname: "/studio", search }} />;
 }
 
+function RouteRecovery({children}:{children:import("react").ReactNode}){const {pathname}=useLocation();return <ErrorBoundary key={pathname}>{children}</ErrorBoundary>;}
+
 export function App() {
-  return <HashRouter><Layout><Suspense fallback={<main className="page"><div className="page-loading">Loading AQUA…</div></main>}><Routes><Route path="/" element={<Markets/>}/><Route path="/studio" element={<Studio/>}/><Route path="/updates/atlantis-free" element={<AtlantisFreeUpdate/>}/><Route path="/integrations" element={<LegacyStudioRedirect/>}/><Route path="/settings/*" element={<LegacyStudioRedirect/>}/><Route path="/profile/:wallet" element={<LegacyStudioRedirect/>}/><Route path="/create" element={<Create/>}/><Route path="/token/:id" element={<Token/>}/><Route path="/manage/:id" element={<CreatorManage/>}/><Route path="/portfolio" element={<Portfolio/>}/><Route path="/rewards" element={<Rewards/>}/><Route path="/analytics" element={<Analytics/>}/><Route path="/how-it-works" element={<HowItWorks/>}/><Route path="/developers" element={<Developers/>}/><Route path="/terms" element={<Terms/>}/><Route path="/privacy" element={<Privacy/>}/><Route path="/admin" element={<Admin/>}/></Routes></Suspense></Layout></HashRouter>;
+  return <HashRouter><ErrorBoundary><Layout><RouteRecovery><Suspense fallback={<main className="page"><div className="page-loading">Loading AQUA…</div></main>}><Routes><Route path="/" element={<Markets/>}/><Route path="/studio" element={<Studio/>}/><Route path="/updates/atlantis-free" element={<AtlantisFreeUpdate/>}/><Route path="/integrations" element={<LegacyStudioRedirect/>}/><Route path="/settings/*" element={<LegacyStudioRedirect/>}/><Route path="/profile/:wallet" element={<LegacyStudioRedirect/>}/><Route path="/create" element={<Create/>}/><Route path="/token/:id" element={<Token/>}/><Route path="/manage/:id" element={<CreatorManage/>}/><Route path="/portfolio" element={<Portfolio/>}/><Route path="/rewards" element={<Rewards/>}/><Route path="/analytics" element={<Analytics/>}/><Route path="/how-it-works" element={<HowItWorks/>}/><Route path="/developers" element={<Developers/>}/><Route path="/terms" element={<Terms/>}/><Route path="/privacy" element={<Privacy/>}/><Route path="/admin" element={<Admin/>}/><Route path="/status" element={<Status/>}/><Route path="*" element={<main className="page"><section className="empty-state"><h1>Page not found</h1><p>This AQUA page has moved or does not exist.</p><a className="primary" href="#/">Explore markets</a></section></main>}/></Routes></Suspense></RouteRecovery></Layout></ErrorBoundary></HashRouter>;
 }

@@ -1,3 +1,4 @@
+import { useAssetBalance } from "../useAssetBalance";
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { api } from "../api";
@@ -6,7 +7,8 @@ import { decimalToRaw } from "../launch";
 import type { Launch } from "../types";
 import { displayTokenAmount, quoteAmounts } from "../trade-quote";
 
-type Quote = ReturnType<typeof quoteAmounts> & { key: string; route: string; assetKey: string; receivedAt: number };
+function previousTrade(key:string):{signature:string;status:string}|null{try{const value=JSON.parse(localStorage.getItem(key)??"null");return value&&/^[1-9A-HJ-NP-Za-km-z]{64,100}$/.test(value.signature)&&typeof value.status==="string"&&Date.now()-value.at<86_400_000?value:null;}catch{return null;}}
+type Quote = ReturnType<typeof quoteAmounts> & { key: string; route: string; assetKey: string; receivedAt: number; impact: number | null };
 
 export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecimals: number | null }) {
   const wallet = useWallet();
@@ -14,16 +16,21 @@ export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecim
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [currency, setCurrency] = useState<"SOL" | "PAIR">("SOL");
   const [amount, setAmount] = useState("");
-  const [slippageInput, setSlippageInput] = useState("20");
+  const [slippageInput, setSlippageInput] = useState("1");
   const slippage = Math.round(Number(slippageInput) * 100);
-  const validSlippage = /^\d+(?:\.\d{0,2})?$/.test(slippageInput) && slippage >= 0 && slippage < 10_000;
+  const validSlippage = /^\d+(?:\.\d{0,2})?$/.test(slippageInput) && slippage >= 0 && slippage <= 5_000;
+  const [acceptedRisk,setAcceptedRisk] = useState(false);
+  const highSlippage = slippage > 500;
+  useEffect(()=>setAcceptedRisk(false),[slippageInput,launch.id,side,amount]);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteError, setQuoteError] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [pending, setPending] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState("");
-  const [signature, setSignature] = useState("");
+  const tradeStorageKey=["aqua:last-trade",config.network,wallet.address,launch.id].join(":");
+  const [status, setStatus] = useState(()=>previousTrade(tradeStorageKey)?.status??"");
+  const [signature, setSignature] = useState(()=>previousTrade(tradeStorageKey)?.signature??"");
+  useEffect(()=>{if(!signature)return;try{localStorage.setItem(tradeStorageKey,JSON.stringify({signature,status,at:Date.now()}));}catch{/* Explorer reference remains visible if storage is blocked. */}},[signature,status,tradeStorageKey]);
   const [clock, setClock] = useState(Date.now());
   const executing = useRef(false);
   const routed = side === "buy" && launch.pairType !== "sol" && config.solBuyRouting?.enabled && currency === "SOL";
@@ -32,10 +39,12 @@ export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecim
   const inputDecimals = side === "sell" ? launch.tokenDecimals : routed ? 9 : pairDecimals;
   const outputDecimals = side === "buy" ? launch.tokenDecimals : pairDecimals;
   const buyCurrency = routed ? "SOL" : "PAIR";
+  const balance = useAssetBalance(side === "sell" ? launch.mint : inputSymbol === "SOL" ? null : launch.pairMint, refresh);
   const canTrade = launch.status === "live" && config.transactionsEnabled;
   let raw = "";
   try { if (inputDecimals !== null && /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(amount)) raw = decimalToRaw(amount, inputDecimals); } catch { /* Invalid precision must not produce a quote. */ }
   const valid = validSlippage && /^\d+$/.test(raw) && BigInt(raw) > 0n && outputDecimals !== null;
+  const insufficient = balance !== null && /^\d+$/.test(raw) && BigInt(raw)>BigInt(balance);
   const assetKey = [launch.id, side, buyCurrency].join(":");
   const displayed = amount && quote?.assetKey === assetKey ? quote : null;
   const key = [launch.id, side, buyCurrency, raw, slippage].join(":");
@@ -58,7 +67,7 @@ export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecim
       try {
         const result = await api.tradeQuote(launch.id, { side, buyCurrency, amountRaw: raw, slippageBps: slippage }, controller.signal);
         const amounts = quoteAmounts(result.quote);
-        if (!controller.signal.aborted) { setQuote({ ...amounts, route: result.route, assetKey, key, receivedAt: Date.now() }); setClock(Date.now()); setQuoteError(""); }
+        if (!controller.signal.aborted) { setQuote({ ...amounts, impact: (typeof result.quote.priceImpactPct === "string" || typeof result.quote.priceImpactPct === "number") && Number.isFinite(Number(result.quote.priceImpactPct)) ? Number(result.quote.priceImpactPct)*100 : null, route: result.route, assetKey, key, receivedAt: Date.now() }); setClock(Date.now()); setQuoteError(""); }
       } catch (error) {
         if (!controller.signal.aborted) { setQuoteError(error instanceof Error ? error.message : "Quote unavailable. Please retry."); }
       } finally { loading = false; if (!controller.signal.aborted) setPending(false); }
@@ -70,7 +79,7 @@ export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecim
 
   async function execute() {
     if (!wallet.address) { wallet.setModalOpen(true); return; }
-    if (!current || quoteError || !valid || !canTrade || executing.current || Date.now() - current.receivedAt >= 25_000) return;
+    if (insufficient || (highSlippage && !acceptedRisk) || !current || quoteError || !valid || !canTrade || executing.current || Date.now() - current.receivedAt >= 25_000) return;
     executing.current = true; setBusy(true); setSignature(""); setStatus("Preparing your transaction…");
     let conversionConfirmed = false;
     try {
@@ -81,18 +90,19 @@ export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecim
         if (!minimum || BigInt(minimum) < BigInt(current.minimum)) throw new Error("The quote changed. Wait for the updated quote and review it before continuing.");
       }
       setStatus(transaction.followUp ? `Approve SOL → ${launch.pairSymbol} in your wallet (1 of 2).` : "Approve the trade in your wallet.");
-      let confirmed = await wallet.sendTransaction(transaction);
+      let confirmed = await wallet.sendTransaction(transaction, value=>{setSignature(value);setStatus("Transaction submitted. Check its on-chain status before submitting another trade.");});
       if (transaction.followUp) {
         conversionConfirmed = true;
         setStatus(`Conversion confirmed. Preparing the ${launch.symbol} purchase (2 of 2)…`);
         const buy = await api.tradeTransaction(launch.id, { trader: wallet.address, side: "buy", buyCurrency: "PAIR", amountRaw: transaction.followUp.amountRaw, slippageBps: slippage });
         if (!buy.quote || BigInt(quoteAmounts(buy.quote).minimum) < BigInt(current.minimum)) throw new Error("The market moved below the reviewed minimum.");
         setStatus(`Approve the ${launch.symbol} purchase in your wallet (2 of 2).`);
-        confirmed = await wallet.sendTransaction(buy);
+        confirmed = await wallet.sendTransaction(buy, value=>{setSignature(value);setStatus("Purchase submitted. Check its on-chain status before submitting another trade.");});
       }
       setSignature(confirmed); setStatus("Trade confirmed."); setAmount("");
     } catch (error) {
       const message = error instanceof Error ? error.message : "The trade could not complete.";
+      if (conversionConfirmed) { setCurrency("PAIR"); setAmount(""); }
       setStatus(conversionConfirmed ? `SOL conversion confirmed, but the purchase did not complete. Your ${launch.pairSymbol} remains in your wallet; select ${launch.pairSymbol} to buy with it. ${message}` : message);
     } finally { executing.current = false; setBusy(false); setRefresh((value) => value + 1); }
   }
@@ -104,12 +114,19 @@ export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecim
       {side === "buy" && launch.pairType !== "sol" && <div className="trade-pay-route"><span>Pay with</span><div><button disabled={!config.solBuyRouting?.enabled} aria-pressed={Boolean(routed)} onClick={() => { setCurrency("SOL"); setAmount(""); }}>SOL</button><button aria-pressed={!routed} onClick={() => { setCurrency("PAIR"); setAmount(""); }}>{launch.pairSymbol}</button></div></div>}
       <label htmlFor="trade-amount">You pay</label><div className="trade-input"><input id="trade-amount" inputMode="decimal" autoComplete="off" placeholder="0.00" value={amount} onChange={(event) => { const value = event.target.value.replace(",", "."); if (/^\d*\.?\d*$/.test(value)) setAmount(value); }}/><b>{inputSymbol}</b></div>
       {inputSymbol === "SOL" && side === "buy" && <div className="trade-presets">{["0.1", "0.5", "1"].map((value) => <button key={value} onClick={() => setAmount(value)}>{value} SOL</button>)}</div>}
+      {wallet.address && <div className="trade-detail-row"><span>Available</span><strong>{balance !== null && inputDecimals !== null ? displayTokenAmount(balance,inputDecimals) : "Balance unavailable"} {inputSymbol}</strong></div>}
+      {side === "sell" && balance !== null && <div className="trade-presets">{[25,50,75,100].map(percent=><button key={percent} onClick={()=>setAmount(displayTokenAmount((BigInt(balance)*BigInt(percent)/100n).toString(),launch.tokenDecimals).replaceAll(",",""))}>{percent===100?"Max":percent+"%"}</button>)}</div>}
       <div className="trade-receive"><span>Estimated received</span><strong>{displayed && outputDecimals !== null ? displayTokenAmount(displayed.estimated, outputDecimals) : "—"}</strong><b>{outputSymbol}</b></div>
       <label className="slippage-control">Slippage<span className="custom-slippage"><input aria-label="Slippage percentage" inputMode="decimal" value={slippageInput} onChange={(event) => { const value = event.target.value.replace(",", "."); if (/^\d*\.?\d{0,2}$/.test(value)) setSlippageInput(value); }}/><span>%</span></span></label>
+      <div className="trade-detail-row"><span>Minimum received</span><strong>{current && outputDecimals !== null ? displayTokenAmount(current.minimum,outputDecimals)+" "+outputSymbol : "Awaiting current quote"}</strong></div>
+      <div className="trade-detail-row"><span>Price impact</span><strong>{current?.impact != null ? current.impact.toFixed(2)+"%" : "Not supplied by this route"}</strong></div>
+      <div className="trade-detail-row"><span>Quote</span><span>{pending?"Refreshing…":current?Math.max(0,Math.floor((clock-current.receivedAt)/1000))+"s ago":"Not current"} <button type="button" className="soft-button" onClick={()=>setRefresh(v=>v+1)}>Refresh</button></span></div>
     </fieldset>
-    {(!validSlippage || quoteError || (amount && !valid) || (!displayed && !busy)) && <div className="quote-status" aria-live="polite"><span className={quoteError ? "quote-error" : ""}>{!validSlippage ? "Enter a slippage percentage from 0 to 99.99%." : quoteError || (pending ? "Getting quote…" : amount && !valid ? "Enter a valid amount within the asset’s decimal precision." : "Enter an amount to get a quote.")}</span></div>}
+    {highSlippage && <label className="trade-ack danger-note"><input type="checkbox" checked={acceptedRisk} onChange={e=>setAcceptedRisk(e.target.checked)}/>I accept up to {slippageInput}% price movement. This tolerance is separate from transfer fees and can result in substantially less received.</label>}
+    {insufficient && <p role="alert" className="danger-note">Insufficient {inputSymbol}. Reduce the amount or add funds to your wallet.</p>}
+    {(!validSlippage || quoteError || (amount && !valid) || (!displayed && !busy)) && <div className="quote-status" aria-live="polite"><span className={quoteError ? "quote-error" : ""}>{!validSlippage ? "Enter a slippage percentage from 0 to 50%." : quoteError || (pending ? "Getting quote…" : amount && !valid ? "Enter a valid amount within the asset’s decimal precision." : "Enter an amount to get a quote.")}</span></div>}
     {current?.route === "jupiter_then_orca" && <p className="trade-route-note">Two wallet approvals: SOL converts to {launch.pairSymbol}, then buys {launch.symbol}. The estimate uses the minimum conversion output.</p>}
-    <button className="primary full" disabled={busy || (Boolean(wallet.address) && (!canTrade || !current || Boolean(quoteError) || pending))} onClick={() => void execute()}>{busy ? <><Loader2 className="spin"/>Waiting for confirmation</> : !wallet.address ? "Connect wallet" : !canTrade ? "Trading unavailable" : !current ? "Quote required" : `${side === "buy" ? "Buy" : "Sell"} ${launch.symbol}`}</button>
+    <button className="primary full" disabled={busy || (Boolean(wallet.address) && (!canTrade || !current || Boolean(quoteError) || pending || insufficient || (highSlippage && !acceptedRisk)))} onClick={() => void execute()}>{busy ? <><Loader2 className="spin"/>Waiting for confirmation</> : !wallet.address ? "Connect wallet" : !canTrade ? "Trading unavailable" : !current ? "Quote required" : `${side === "buy" ? "Buy" : "Sell"} ${launch.symbol}`}</button>
     {!canTrade && <p className="trade-route-note">{launch.status !== "live" ? "Trading opens after launch confirmation." : "Transactions are currently unavailable."}</p>}
     {status && <p className="trade-result" role="status">{status}{signature && <a href={`https://solscan.io/tx/${signature}${config.network === "devnet" ? "?cluster=devnet" : ""}`} target="_blank" rel="noreferrer">View transaction <ExternalLink size={12}/></a>}</p>}
     <details className="execution-breakdown"><summary>Fees &amp; execution</summary><dl><div><dt>Route</dt><dd>{current ? current.route === "orca" ? "Orca Whirlpool" : current.route === "jupiter" ? "Jupiter" : `Jupiter → ${launch.pairSymbol} → Orca` : "Quoted before approval"}</dd></div><div><dt>Token transfer fee</dt><dd>{(launch.transferFeeBps / 100).toFixed(2)}%</dd></div></dl><p>Swap quotes account for applicable token transfer fees. Solana transaction fees and account rent are additional and shown in your wallet. Quotes can change before approval.</p></details>

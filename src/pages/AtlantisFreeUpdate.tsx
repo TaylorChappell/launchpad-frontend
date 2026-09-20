@@ -1,43 +1,17 @@
 import { ArrowRight, Clock3, Gamepad2, Globe2, Image as ImageIcon, PanelsTopLeft, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { usePromotion } from "../usePromotion";
 import { Link } from "react-router-dom";
 import { PageBubbles } from "../components/PageBubbles";
-import { loadStudioConfig, type StudioConfig } from "../studio-api";
 import "./atlantis-free-update.css";
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
 export function AtlantisFreeUpdate() {
-  const [config, setConfig] = useState<StudioConfig | null>(null);
-  const [serverOffset, setServerOffset] = useState(0);
-  const [error, setError] = useState("");
-  const [tick, setTick] = useState(Date.now());
-
-  useEffect(() => {
-    void loadStudioConfig().then(value => {
-      setServerOffset((value.promotion?.serverNow ?? Date.now()) - Date.now());
-      setConfig(value);
-    }).catch(reason => setError(reason instanceof Error ? reason.message : "Could not load the promotion clock."));
-  }, []);
-  useEffect(() => {
-    const timer = window.setInterval(() => setTick(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const countdown = useMemo(() => {
-    const promotion = config?.promotion;
-    if (!promotion?.endsAt) return null;
-    const remaining = Math.max(0, promotion.endsAt - (tick + serverOffset));
-    const totalSeconds = Math.floor(remaining / 1000);
-    return {
-      remaining,
-      hours: Math.floor(totalSeconds / 3600),
-      minutes: Math.floor((totalSeconds % 3600) / 60),
-      seconds: totalSeconds % 60,
-    };
-  }, [config, serverOffset, tick]);
-
-  const active = Boolean(config?.promotion?.active && countdown?.remaining);
+  const {promotion,active,remaining,error}=usePromotion();
+  const config=promotion;
+  const totalSeconds=Math.floor(remaining/1000);
+  const countdown={hours:Math.floor(totalSeconds/3600),minutes:Math.floor(totalSeconds%3600/60),seconds:totalSeconds%60};
   return <main className="atlantis-update">
     <PageBubbles count={12}/>
     <section className="atlantis-update-card">
@@ -51,7 +25,7 @@ export function AtlantisFreeUpdate() {
         <Feature icon={<ImageIcon/>} title="Memes & generators" copy="Build shareable artwork, meme concepts and generators around your token identity."/>
         <Feature icon={<PanelsTopLeft/>} title="One Aqua workspace" copy="Keep the concept, assets, code and website together from first idea to export."/>
       </div>
-      <div className="atlantis-update-free"><b>Launch event</b><span>Atlantis Studio is free to use for 24 hours.</span></div>
+      <div className="atlantis-update-free"><b>Launch event</b><span>{active ? "Free access is active for the remaining launch-event time." : "The 24-hour launch offer is time-limited. Studio remains available with credits."}</span></div>
       {active && countdown ? <>
         <div className="atlantis-update-countdown" aria-label={`${countdown.hours} hours, ${countdown.minutes} minutes and ${countdown.seconds} seconds remaining`}>
           <Time value={countdown.hours} label="Hours"/>
@@ -60,7 +34,7 @@ export function AtlantisFreeUpdate() {
           <span>:</span>
           <Time value={countdown.seconds} label="Seconds"/>
         </div>
-        <small className="atlantis-update-live"><i/> Live countdown from the AQUA server</small>
+        <small className="atlantis-update-live"><i/> Live countdown from the AQUA server. Up to ${promotion?.allowanceUsd ?? 5} of AI usage per wallet. Add credit to continue after your allowance.</small>
       </> : config ? <div className="atlantis-update-ended"><Clock3/> This free period has ended.</div> : <div className="atlantis-update-loading"><Clock3/> {error || "Loading the live countdown…"}</div>}
       <Link className="atlantis-update-button" to="/studio">Open Atlantis Studio <ArrowRight size={18}/></Link>
       <strong className="atlantis-update-signoff">Launch on Aqua. Build on Orca.</strong>

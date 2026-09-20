@@ -4,6 +4,47 @@ export type PreviewBridgeOptions = {channel:string; location:string; storage?:Pr
 // Runs only inside the sandbox. No access to AQUA's wallet, storage or DOM.
 export function studioPreviewBridge(options: PreviewBridgeOptions) {
   const send = (kind:string, data:Record<string,unknown>) => parent.postMessage({type:"aqua-preview",channel:options.channel,kind,...data},"*");
+  const errors:string[]=[];
+  addEventListener("error",event=>errors.push("Script error: "+event.message));
+  addEventListener("unhandledrejection",event=>errors.push("Unhandled promise: "+String(event.reason?.message??event.reason)));
+  const check=()=>{
+    const issues:string[]=[...errors];
+    if(document.documentElement.scrollWidth>window.innerWidth+2)issues.push("Content overflows the preview width. Check mobile layout.");
+    for(const img of Array.from(document.images))if(img.complete&&!img.naturalWidth)issues.push("Image did not load: "+(img.alt||"unnamed image"));
+    for(const el of Array.from(document.querySelectorAll("button,input,select,textarea")))if(!el.textContent?.trim()&&!el.getAttribute("aria-label")&&!(el as HTMLElement).id&&!el.getAttribute("placeholder"))issues.push("An interactive control needs an accessible label.");
+    send("quality",{issues});
+  };
+  addEventListener("message",event=>{if(event.source===parent&&event.data?.type==="aqua-preview-check"&&event.data.channel===options.channel)check();});
+  addEventListener("load",check);
+  addEventListener("message",async event=>{
+    if(event.source!==parent||event.data?.type!=="aqua-preview-exercise"||event.data.channel!==options.channel)return;
+    const issues:string[]=[];
+    const controls=Array.from(document.querySelectorAll<HTMLButtonElement|HTMLInputElement>('button,input[type="submit"],input[type="button"]')).slice(0,50);
+    let exercised=0;
+    for(const control of controls){
+      if(control.disabled||!control.getClientRects().length)continue;
+      const label=control.getAttribute("aria-label")||control.textContent?.trim()||control.getAttribute("value")||"Unnamed control";
+      const form=control.closest("form");
+      if(form)for(const field of Array.from(form.querySelectorAll<HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement>("input,textarea,select"))){
+        if(field instanceof HTMLInputElement&&["hidden","file","submit","button","password"].includes(field.type))continue;
+        if(field instanceof HTMLInputElement&&["checkbox","radio"].includes(field.type))field.checked=true;
+        else if(field instanceof HTMLSelectElement){if(field.options.length)field.value=field.options[field.options.length-1].value;}
+        else if(!field.value)field.value=field instanceof HTMLInputElement&&field.type==="email"?"preview@example.invalid":field instanceof HTMLInputElement&&field.type==="number"?"1":"Preview example";
+        field.dispatchEvent(new Event("input",{bubbles:true}));field.dispatchEvent(new Event("change",{bubbles:true}));
+      }
+      const before=document.body.innerHTML;
+      let changed=false;const observer=new MutationObserver(()=>{changed=true;});observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true});
+      control.click();exercised++;
+      await new Promise(resolve=>setTimeout(resolve,150));
+      observer.disconnect();
+      if(!changed&&document.body.innerHTML===before)issues.push('Review "'+label.slice(0,70)+'": no visible response detected. Downloads, navigation and backend-only actions require separate verification.');
+    }
+    if(document.querySelectorAll("button,input[type=submit],input[type=button]").length>50)issues.push("More than 50 controls: inspect the remaining controls manually.");
+    issues.push(...errors);
+    if(document.documentElement.scrollWidth>innerWidth+2)issues.push("Horizontal overflow after interaction.");
+    send("exercise",{issues,exercised,forms:document.forms.length});
+  });
+  addEventListener("securitypolicyviolation",()=>send("notice",{message:"A resource or backend request was blocked by the isolated preview. Deploy the backend and configure API_BASE_URL to test network features."}));
   let current = options.location;
   const scroll = (hash:string) => {
     if (!hash) { window.scrollTo(0,0); return; }

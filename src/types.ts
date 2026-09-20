@@ -356,6 +356,8 @@ export type GovernanceResponse = {
 
 export type Trade = {
   id: string;
+  signature?: string;
+  block_time?: number;
   wallet: string;
   side: "buy" | "sell";
   gross_quote_raw?: string;
@@ -377,9 +379,16 @@ export type MarketSnapshot = {
 
 export type AnalyticsResponse = {
   generatedAt: number;
+  oldestIndexedAt:number|null;
+  stalePriceMarkets:number;
+  marketBreakdownLimit:number;
+  rewardHistory:Array<{time:number;allocatedUsd:number}>;
+  buybackHistory:Array<{time:number;sol:number}>;
+  claimedAssets:Array<{mint:string;symbol:string;decimals:number;amountRaw:string;receipts:number;lastClaimedAt:number}>;
   totals: {
     buybackSol: number;
     buybackFundedSol: number;
+    rewardsClaimedAllocationUsd:number;
     rewardsAccumulatedUsd: number;
     rewardsRedeemableUsd: number;
     liveMarkets: number;

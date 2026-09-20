@@ -6,6 +6,14 @@ export type GithubConnection = {
   login: string | null;
   connectedAt: number | null;
 };
+
+export async function ensureAccountSession(address: string, signMessage: (message: string) => Promise<{signature:string}>) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(studioSessionKey(address)) ?? "null");
+    if (saved?.token && saved.expiresAt > Date.now()+60_000) return saved.token as string;
+  } catch { /* Missing sessions require wallet proof, not just a public address. */ }
+  return (await signInAccount(address, signMessage)).token;
+}
 export type GithubExport = {
   id: string;
   target?: "frontend" | "backend" | "all";
@@ -27,6 +35,7 @@ export async function accountRequest<T>(
   const response = await fetch(`${API_URL}/account${path}`, {
     method: method ?? (body === undefined ? "GET" : "POST"),
     cache: "no-store",
+    signal: AbortSignal.timeout(30_000),
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),

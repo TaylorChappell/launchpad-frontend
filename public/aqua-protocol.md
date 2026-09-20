@@ -24,7 +24,7 @@ A permanent position lock prevents the position NFT from being used to withdraw 
 
 ## Trading and market cap
 
-Trades execute in the market's Orca Whirlpool. Pool balances change when people buy and sell. The market-cap chart is built from AQUA index snapshots and displayed as open, high, low and close candles. It is based on indexed market capitalisation rather than the raw token price. Index data can lag the chain.
+Trades execute in the market's Orca Whirlpool. Pool balances change when people buy and sell. USD price and market-cap lines use AQUA pool snapshots. Separately labelled OHLC candles use indexed trade amounts in the pair asset; sparse snapshots are not presented as trade candles. Index data can lag the chain.
 
 ## Transfer fees and settlement
 
@@ -47,7 +47,7 @@ Creators do not automatically receive an unlimited fee share. They may lock toke
 - an amount component, capped at the configured target percentage of total supply; and
 - a duration component, capped at the configured maximum duration.
 
-The live default target is 5% of total supply, the maximum scoring duration is 365 days, and the maximum creator share is 25% of the 1% platform stream. The backend configuration and quote endpoint are authoritative. Locking a tiny amount for 1,000 years does not produce a large share: the duration is capped and the small amount remains a small amount score.
+Use /api/config for current creatorLocks.targetSupplyBps, maximumSeconds and maximumFeeShareBps, and fees.platformBps. Do not hard-code a creator share from this document. The backend configuration and quote endpoint are authoritative. Locking a tiny amount for 1,000 years does not produce a large share: the duration is capped and the small amount remains a small amount score.
 
 When a lock is active, accrued creator fees can be claimed through a creator-wallet transaction. Locked tokens can only be released after maturity.
 

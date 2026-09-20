@@ -73,12 +73,12 @@ export function Developers() {
           <span className="dev-kicker"><Code2/>QUICKSTART</span><h2>A stable, indexed API</h2>
           <p>The AQUA API serves normalized data from AQUA’s indexers. Responses use JSON, event <code>created</code> timestamps are Unix milliseconds, scheduled round boundaries are Unix seconds, raw token quantities are strings, and monetary values are returned in human-readable units.</p>
           <div className="dev-code"><header><span>Request</span><CopyButton value={curlExample}/></header><pre><code>{curlExample}</code></pre></div>
-          <div className="dev-callout"><ShieldCheck/><div><b>Read-only by design</b><span>The public API does not expose keeper, admin or transaction-signing routes. No account or API key is required.</span></div></div>
+          <div className="dev-callout"><ShieldCheck/><div><b>Read-only by design</b><span>The public API does not expose keeper, admin or transaction-signing routes. Public reads need no account. Managing webhooks requires a wallet-authenticated AQUA session.</span></div></div>
         </section>
 
         <section id="limits" className="dev-section">
           <span className="dev-kicker"><Radio/>RATE LIMITS</span><h2>No API key required</h2>
-          <div className="dev-limit-grid two"><div className="featured"><b>60</b><span>requests / minute</span><small>Per IP address</small></div><div><b>10</b><span>webhook endpoints</span><small>Per IP address</small></div></div>
+          <div className="dev-limit-grid two"><div className="featured"><b>60</b><span>requests / minute</span><small>Per IP address</small></div><div><b>10</b><span>webhook endpoints</span><small>Per authenticated wallet</small></div></div>
           <p>AQUA identifies callers by IP and uses a one-minute request bucket. Check <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code> and <code>X-RateLimit-Reset</code>. A <code>429</code> also includes <code>Retry-After</code>.</p>
         </section>
 
@@ -106,7 +106,7 @@ export function Developers() {
         <section id="webhooks" className="dev-section">
           <span className="dev-kicker"><Webhook/>WEBHOOKS</span><h2>Signed delivery, with retries</h2>
           <p>Create an endpoint directly from your server and choose exact event types or <code>*</code>. AQUA associates it with the originating IP, attempts delivery immediately, then retries after 30 seconds, 2 minutes, 10 minutes, 1 hour and 6 hours.</p>
-          <div className="dev-steps"><div><b>1</b><span><strong>Create</strong><small><code>POST /v1/webhooks</code> with an HTTPS URL and event types.</small></span></div><div><b>2</b><span><strong>Verify</strong><small>Use the raw request body and the signing secret returned once.</small></span></div><div><b>3</b><span><strong>Acknowledge</strong><small>Return any <code>2xx</code> response within eight seconds.</small></span></div></div>
+          <div className="dev-steps"><div><b>1</b><span><strong>Create</strong><small>Sign in using /account/auth/challenge and /account/auth/session. Send Authorization: Bearer SESSION_TOKEN with webhook management requests. POST /v1/webhooks accepts an HTTPS URL and event types.</small></span></div><div><b>2</b><span><strong>Verify</strong><small>Use the raw request body and the signing secret returned once.</small></span></div><div><b>3</b><span><strong>Acknowledge</strong><small>Return any <code>2xx</code> response within eight seconds.</small></span></div></div>
           <div className="dev-code"><header><span>Node.js signature verification</span><CopyButton value={webhookExample}/></header><pre><code>{webhookExample}</code></pre></div>
           <div className="dev-header-list"><p><code>X-Aqua-Event</code><span>Event type</span></p><p><code>X-Aqua-Event-Id</code><span>Idempotency key</span></p><p><code>X-Aqua-Timestamp</code><span>Signature timestamp</span></p><p><code>X-Aqua-Signature</code><span><code>v1=&lt;hex digest&gt;</code></span></p></div>
         </section>
@@ -120,3 +120,4 @@ export function Developers() {
     </div>
   </main>;
 }
+import "../developer.css";

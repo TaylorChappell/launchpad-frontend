@@ -50,6 +50,7 @@ const terms: LegalSection[] = [
 ];
 
 const privacy: LegalSection[] = [
+  {title:"Atlantis Studio and integrations",paragraphs:["Studio stores prompts, generated files, project versions and usage records linked to your wallet. Relevant project context and requested artwork are sent to the configured AI providers to fulfil generation requests. Do not put credentials or private keys in prompts or generated frontend code.","Connecting GitHub allows repository and workflow export. Integration tokens are encrypted by the backend. Railway project tokens supplied for direct export are used for that request rather than stored as a reusable connection. Exported repositories and published websites are also subject to the visibility and retention settings of the hosting provider.","Theme preferences, watchlists and draft launch files are saved on your device. Signing out revokes the current wallet session. Clearing browser storage removes local preferences and drafts, but does not remove stored Studio projects or public blockchain records."]},
   { title: "Information AQUA processes", paragraphs: [
     "AQUA may process public wallet addresses, signed authentication messages, transaction identifiers, token activity, reward eligibility, device and browser information, IP-derived security data, and information submitted during a token launch.",
     "AQUA does not need your wallet seed phrase or private key. Never provide either to AQUA or to anyone claiming to represent AQUA."
@@ -80,7 +81,7 @@ export function Privacy() { return <LegalPage title="Privacy Policy" intro="This
 
 function LegalPage({ title, intro, sections, warning = false }: { title: string; intro: string; sections: LegalSection[]; warning?: boolean }) {
   return <main className="page legal-page">
-    <header><Link to="/">AQUA</Link><h1>{title}</h1><p>{intro}</p><small>Last updated 14 September 2026</small></header>
+    <header><Link to="/">AQUA</Link><h1>{title}</h1><p>{intro}</p><small>Last updated 20 September 2026</small></header>
     {warning && <div className="legal-risk-warning"><b>Cryptoasset risk warning</b><span>Cryptoassets are high risk. You could lose all the money you invest and may not be protected if something goes wrong.</span></div>}
     <div className="legal-content">{sections.map((section) => <section key={section.title}><h2>{section.title}</h2>{section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</section>)}</div>
   </main>;
