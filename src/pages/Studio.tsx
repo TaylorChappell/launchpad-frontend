@@ -82,7 +82,6 @@ import { lazyWithRecovery as lazy } from "../components/LazyRecovery";
 const Editor = lazy(() => import("../components/StudioEditor"));
 type Account = {
   balanceMicroUsd: string;
-  creditExempt?: boolean;
   legacyBalanceNotice?: string | null;
   ledger: Array<{
     id: string;
@@ -96,7 +95,6 @@ type Account = {
 type DepositQuote = TransactionEnvelope & {id:string;maximumCreditMicroUsd:string;expiresAt:number;price:{usdPrice:string;quotedAt:number}};
 type Quote = {
   effort?: "low" | "medium" | "high";
-  creditExempt?: boolean;
   id: string;
   maximumMicroUsd: string;
   expiresAt: number;
@@ -603,7 +601,7 @@ function StudioWorkspace() {
         setError("AI setup is incomplete. The exact missing settings are listed below.");
         return;
       }
-      if (!latestAccount.creditExempt && BigInt(latestAccount.balanceMicroUsd) <= 0n) {
+      if (BigInt(latestAccount.balanceMicroUsd) <= 0n) {
         setCreditGate({ balanceMicroUsd: latestAccount.balanceMicroUsd });
         return;
       }
@@ -618,7 +616,7 @@ function StudioWorkspace() {
       if (estimate.effort !== selectedEffort)
         throw new Error("This backend does not support effort selection yet. Deploy the updated Studio backend before sending.");
       if (!mounted.current || projectId.current !== saved.id) return;
-      if (!latestAccount.creditExempt && BigInt(latestAccount.balanceMicroUsd) < BigInt(estimate.maximumMicroUsd)) {
+      if (BigInt(latestAccount.balanceMicroUsd) < BigInt(estimate.maximumMicroUsd)) {
         setCreditGate({
           balanceMicroUsd: latestAccount.balanceMicroUsd,
           requiredMicroUsd: estimate.maximumMicroUsd,
@@ -664,7 +662,7 @@ function StudioWorkspace() {
       setPrompt("");
       setJobs(old => old.some(job => job.id === estimate.id) ? old : [{
         id: estimate.id, project_id: id, revision: submission.revision, prompt: submission.prompt,
-        kind: "auto", status: "queued", effort: submission.effort, credit_exempt: estimate.creditExempt,
+        kind: "auto", status: "queued", effort: submission.effort, credit_exempt: false,
         charged_raw: "0", reserved_raw: "0", charged_micro_usd: null,
         reserved_micro_usd: estimate.maximumMicroUsd, created_at: Date.now(),
       }, ...old]);
@@ -1210,7 +1208,7 @@ function StudioWorkspace() {
       )}
     </div>
   );
-  const creditLabel = account.creditExempt ? "Admin · No credits needed" : `${usdCredit(account.balanceMicroUsd)} credit`;
+  const creditLabel = `${usdCredit(account.balanceMicroUsd)} credit`;
   const coinImage = state?.files.find(item => item.path === state.launch.imagePath && imageFile(item));
   const setupIssues =
     config && !config.paidEnabled
@@ -1411,7 +1409,7 @@ function StudioWorkspace() {
                   }
                 }}
               >
-                {account.creditExempt ? "Details" : config?.paidEnabled ? "Add" : "Setup"}
+                {config?.paidEnabled ? "Add" : "Setup"}
               </button>
             </div>
           </aside>
@@ -1622,7 +1620,7 @@ function StudioWorkspace() {
                                 </button>}
                                 {job.applied_at && <small>Changes applied</small>}
                                 <small>
-                                  {job.credit_exempt ? "Admin · No credit charged" : job.charged_micro_usd != null ? `${usdCredit(job.charged_micro_usd)} used` : decimals !== null ? `${aquaAmount(job.charged_raw, decimals)} AQUA (legacy)` : "Legacy usage"}
+                                  {job.charged_micro_usd != null ? `${usdCredit(job.charged_micro_usd)} used` : decimals !== null ? `${aquaAmount(job.charged_raw, decimals)} AQUA (legacy)` : "Legacy usage"}
                                 </small>
                               </div>
                             </>
@@ -1695,9 +1693,9 @@ function StudioWorkspace() {
                         </button>
                       </div>
                   </div>
-                  {!account.creditExempt && <div className="at-composer-hint">
+                  <div className="at-composer-hint">
                     <span>Uses credits · Actual usage only</span>
-                  </div>}
+                  </div>
                   </div>
                 </aside>
               )}
@@ -2355,7 +2353,6 @@ function StudioWorkspace() {
                 <small>AVAILABLE TO SPEND</small>
                 <strong>{creditLabel}</strong>
               </div>
-              {account.creditExempt && <p className="at-notice">Your verified admin wallet can use AI without depositing AQUA. Any existing credit remains untouched. OpenAI configuration and the daily AI budget still apply.</p>}
               <p className="at-muted">
                 AQUA is valued in USD at deposit time. That value becomes prepaid
                 Studio credit and stays fixed when AQUA’s price changes. AI requests
