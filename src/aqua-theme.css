@@ -338,7 +338,7 @@ body::before {
 .reward-market-identity small { color: #64899f; }
 .metric b,
 .metric b.cap-normal { color: var(--aqua-ink); }
-.metric b.cap-warm { color: #bd8517; }
+.metric b.cap-warm { color: #8a6b00; }
 .metric b.cap-high { color: var(--aqua-blue); }
 
 .reward-card-focus {
