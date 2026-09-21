@@ -9,13 +9,14 @@ import type { AdminDiagnostics, MarketProposal } from "../types";
 import "./admin.css";
 
 const SESSION_KEY = "aqua-admin-session-v1";
-const sections = ["overview", "dex", "logs", "rewards", "custody"] as const;
+const sections = ["overview", "studio", "dex", "logs", "rewards", "custody"] as const;
 type Section = typeof sections[number];
 type Row = Record<string, unknown>;
 type Action = "withdraw" | "paid" | "complete" | "uphold" | "reject" | "access";
-const labels: Record<Section, string> = { overview: "Overview", dex: "DEX & proposals", logs: "Logs & pipeline", rewards: "Reward epochs", custody: "Custody & settings" };
+const labels: Record<Section, string> = { overview: "Overview", studio: "Atlantis Studio", dex: "DEX & proposals", logs: "Logs & pipeline", rewards: "Reward epochs", custody: "Custody & settings" };
 const actionLabels: Record<Action, string> = { withdraw: "Withdraw reserved SOL", paid: "Record DEX payment", complete: "Complete profile update", uphold: "Uphold challenges", reject: "Reject challenges", access: "Confirm AQUA profile access" };
 const sol = (value: unknown) => `${(Number(value ?? 0) / 1e9).toLocaleString(undefined, { maximumFractionDigits: 6 })} SOL`;
+const studioCredits = (value: unknown) => (Number(value ?? 0) / 1_000_000).toLocaleString(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const raw = (value: unknown) => { try { return BigInt(String(value ?? 0)).toLocaleString(); } catch { return "—"; } };
 const when = (value: unknown) => value ? new Date(Number(value)).toLocaleString() : "—";
 const short = (value: unknown) => { const text = String(value ?? ""); return text.length > 18 ? `${text.slice(0, 7)}…${text.slice(-6)}` : text || "—"; };
@@ -114,6 +115,7 @@ export function Admin() {
   if (!wallet.address || !authorizedWallet || !token || !data) return <main className="page ops-page"><section className="ops-access"><span className="ops-eyebrow">AQUA / OPERATIONS</span><h1>{!wallet.address ? "Your control room." : !authorizedWallet ? "Access restricted" : token ? "Loading operations" : "Verify your admin wallet"}</h1><p>{!wallet.address ? "Connect the authorized wallet to manage DEX funding and inspect market operations." : !authorizedWallet ? "This wallet is not authorized to access operational data." : token ? "Fetching the latest market and keeper records." : "Sign a verification message. This is not a transaction and cannot move funds."}</p>{!wallet.address ? <button className="ops-primary" onClick={() => wallet.setModalOpen(true)}>Connect admin wallet</button> : authorizedWallet && <button className="ops-primary" disabled={busy} onClick={() => token ? void load(token) : void verify()}>{busy && <Loader2 size={16} className="spin"/>}{busy ? "Please wait…" : token ? "Retry loading" : "Verify wallet"}</button>}{error && <div className="ops-error" role="alert">{error}</div>}</section></main>;
 
   const attention = config.marketGovernanceEnabled ? data.proposals.filter(needsAction) : [];
+  const studio = data.studio ?? { creditsSpentMicroUsd: "0", uniqueUsers: 0, coinsBuilt: 0, coins: [] };
   const blocked = data.diagnostics.filter(d => ["blocked", "failed"].includes(String(d.status)));
   const marketName = (id: unknown) => data.launches.find(l => l.id === id)?.symbol ?? id;
   const keeperRows = data.diagnostics.map(row => ({ ...row, onChain: data.runtime.markets?.find(m => m.launchId === row.launch_id), recordedAccruals: data.launches.filter(l => l.id === row.launch_id).map(l => ({ rewardRaw: l.reward_fees_accrued_raw, buybackRaw: l.buyback_fees_accrued_raw, treasuryRaw: l.treasury_fees_accrued_raw, creatorRaw: l.creator_fees_accrued_raw }))[0] }));
@@ -143,6 +145,12 @@ export function Admin() {
         </Panel>
       </>}
       {section === "rewards" && <Panel title="Holder reward epochs" description="Latest 200 epochs. Raw reward amounts use the token's smallest unit; they are not SOL values."><DataTable key={search} rows={data.rewardEpochs.filter(row => matches([row, marketName(row.launch_id)], search))} columns={["Market / epoch", "Amount (raw)", "Holders", "Status", "Funding"]} empty="No reward epochs match your search." render={row => <><td><b>${String(marketName(row.launch_id))}</b><small>{short(row.id)} · {when(row.ends_at)}</small></td><td>{raw(row.total_stock_raw)}<small>{String(row.stock_symbol)}</small></td><td>{String(row.eligible_holders)}</td><td><Status value={row.status}/></td><td><ChainLink value={row.funding_signature} tx/></td></>}/></Panel>}
+      {section === "studio" && <>
+        <div className="ops-metrics"><Metric label="Credits spent" value={studioCredits(studio.creditsSpentMicroUsd)} note="USD credits charged by completed Studio jobs" onClick={() => navigate("studio")}/><Metric label="Studio users" value={studio.uniqueUsers} note="Unique wallets that have run Studio jobs" onClick={() => navigate("studio")}/><Metric label="Coins built" value={studio.coinsBuilt} note="AQUA launches attributed to Studio projects" onClick={() => navigate("studio")}/></div>
+        <Panel title="Coins built with Atlantis" description="Launches imported directly from an Atlantis Studio project.">
+          <DataTable key={search} rows={studio.coins.filter(row => matches(row, search)) as Row[]} columns={["Coin", "Studio project", "Creator", "Status", "Created"]} empty="No Studio-built coins match this view." render={row => <><td><Link to={`/token/${String(row.id)}`}><b>${String(row.symbol)}</b></Link><small>{String(row.name)}</small></td><td><b>{String(row.project_name)}</b><small className="ops-mono">{short(row.project_id)}</small></td><td><ChainLink value={row.creator_wallet}/></td><td><Status value={row.status}/></td><td className="ops-nowrap">{when(row.created_at)}</td></>}/>
+        </Panel>
+      </>}
       {section === "custody" && <>
         <div className="ops-toolbar"><span>Live chain scans are optional. Other admin views use stored records.</span><button disabled={busy} onClick={() => void load(token, true)}><RefreshCw size={15} className={busy ? "spin" : ""}/>{busy ? "Loading…" : "Scan live balances"}</button></div>
         <Panel title="Wallets & reserves" description="Public destinations and balances read from the deployed program.">{data.runtime.available ? <div className="ops-custody">{[["Fee keeper", data.runtime.operator, sol(data.runtime.balances?.nativeLamports)], ["Reward operator", data.runtime.rewardOperator, sol(data.runtime.balances?.rewardNativeLamports)], ["Treasury", data.runtime.destinations?.treasury, ""], ["Buyback wallet", data.runtime.destinations?.buybackBuyer, ""]].map(([label, address, balance]) => <article key={label}><small>{label}</small><ChainLink value={address}/><b>{balance}</b></article>)}<article><small>Reward reserves</small><b>{sol(data.runtime.balances?.reservedRewardLamports)}</b><span>{sol(data.runtime.balances?.wrappedSolLamports)} wrapped</span></article><article><small>DEX reserves</small><b>{sol(data.runtime.balances?.reservedDexLamports)}</b><span>Allocated, not spendable rewards</span></article></div> : <Empty>{data.runtime.reason ?? "Chain diagnostics unavailable."}</Empty>}</Panel>
