@@ -1,5 +1,5 @@
 import { ArrowUpRight, Search, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import type { Launch } from "../types";
@@ -25,10 +25,10 @@ export function SearchModal({open,onClose}:{open:boolean;onClose:()=>void}){
         if(e.key==="Enter"){e.preventDefault();if(results[active])select(results[active]);}
       }}/><button onClick={onClose} aria-label="Close search"><X size={17}/></button></div>
       <div className="palette-label"><span>{query.trim()?"SEARCH RESULTS":"POPULAR MARKETS"}</span><span>MARKET CAP</span></div>
-      <div id="market-search-results" className="palette-results" role="listbox" aria-label="Markets" aria-busy={state==="loading"}>
-        {state==="loading"&&<div className="workspace-loading" role="status">Searching markets…</div>}
+      <div id="market-search-results" className="palette-results" role="listbox" aria-label="Markets" aria-busy={state==="loading"} style={{"--search-rows":state==="ready"?Math.max(2,results.length):Math.max(3,results.length)} as CSSProperties}>
+        {state==="loading"&&<><span className="sr-only" role="status">Searching markets…</span><div className="palette-skeletons" aria-hidden="true">{[0,1,2].map(i=><div className="palette-skeleton" key={i} style={{animationDelay:`${i*45}ms`}}><i/><span><b/><small/></span><em/></div>)}</div></>}
         {state==="offline"&&<div className="workspace-empty"><Search/><h3>Search is temporarily unavailable.</h3><p>Try again in a moment.</p></div>}
-        {state==="ready"&&results.map((l,i)=><button id={"market-result-"+l.id} role="option" aria-selected={i===active} className="palette-result" key={l.id} onMouseEnter={()=>setActive(i)} onFocus={()=>setActive(i)} onClick={()=>select(l)}><TokenMark launch={l}/><span className="palette-identity"><b>{l.name}</b><small>{l.symbol} <i/> {l.rewardMode==="buyback_burn"?"Buyback & burn":l.rewardMode==="jackpot"?"Jackpot":l.stockSymbol+" rewards"}</small></span><span className="palette-value"><b>{l.aquaIndexed?money.format(l.marketCapUsd):"Indexing"}</b><small>{l.pairSymbol} pair</small></span><ArrowUpRight size={15}/></button>)}
+        {state==="ready"&&results.map((l,i)=><button id={"market-result-"+l.id} role="option" aria-selected={i===active} className="palette-result" key={l.id} style={{animationDelay:`${Math.min(i*42,210)}ms`}} onMouseEnter={()=>setActive(i)} onFocus={()=>setActive(i)} onClick={()=>select(l)}><TokenMark launch={l}/><span className="palette-identity"><b>{l.name}</b><small>{l.symbol} <i/> {l.rewardMode==="buyback_burn"?"Buyback & burn":l.rewardMode==="jackpot"?"Jackpot":l.stockSymbol+" rewards"}</small></span><span className="palette-value"><b>{l.aquaIndexed?money.format(l.marketCapUsd):"Indexing"}</b><small>{l.pairSymbol} pair</small></span><ArrowUpRight size={15}/></button>)}
         {state==="ready"&&!results.length&&<div className="workspace-empty"><Search/><h3>No markets found.</h3><p>Try another name, ticker or token address.</p></div>}
       </div><footer><span><kbd>↑</kbd><kbd>↓</kbd> Navigate <kbd>↵</kbd> Open</span><span><kbd>esc</kbd> Close</span></footer>
     </section>

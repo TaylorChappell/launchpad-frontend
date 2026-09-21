@@ -1,0 +1,118 @@
+/* Shared motion for the two global dialogs. Keep closing/focus restoration immediate. */
+.wallet-overlay.wallet-connect-overlay,
+.aqua-search-overlay {
+  background: rgba(17, 49, 70, .36);
+  -webkit-backdrop-filter: blur(14px) saturate(.85);
+  backdrop-filter: blur(14px) saturate(.85);
+  animation: aqua-dialog-backdrop 260ms ease-out both;
+}
+.wallet-overlay.wallet-connect-overlay::before,
+.wallet-overlay.wallet-connect-overlay::after { display: none; }
+.wallet-connect-overlay .wallet-modal.aqua-wallet-picker,
+.aqua-search-overlay .market-search-palette {
+  box-shadow: 0 32px 100px #103e6b30, 0 8px 24px #103e6b14, inset 0 1px 0 #ffffff;
+  animation: aqua-dialog-arrive 460ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.wallet-modal.aqua-wallet-picker h2,
+.wallet-modal.aqua-wallet-picker .wallet-copy,
+.wallet-modal.aqua-wallet-picker .wallet-picker-note {
+  animation: aqua-dialog-detail 360ms 70ms cubic-bezier(.16, 1, .3, 1) backwards;
+}
+.wallet-modal.aqua-wallet-picker .wallet-row {
+  animation: aqua-dialog-detail 400ms 100ms cubic-bezier(.16, 1, .3, 1) backwards;
+  transition: transform 200ms ease, border-color 200ms ease, background 200ms ease, box-shadow 200ms ease;
+}
+.wallet-modal.aqua-wallet-picker .wallet-row:nth-child(2) { animation-delay: 160ms; }
+.wallet-modal.aqua-wallet-picker .wallet-picker-note { animation-delay: 210ms; }
+.wallet-modal.aqua-wallet-picker .wallet-row:hover:not(:disabled) {
+  transform: translateY(-3px);
+  border-color: #8acbdf;
+  background: #f2fbff;
+  box-shadow: 0 8px 20px #148db414;
+}
+.wallet-modal.aqua-wallet-picker .wallet-row:active:not(:disabled) { transform: translateY(0) scale(.985); }
+.aqua-wallet-picker .wallet-connect > svg,
+.palette-result > svg { transition: transform 200ms ease; }
+.aqua-wallet-picker .wallet-row:hover .wallet-connect > svg:not(.wallet-picker-spin) { transform: translateX(3px); }
+
+.aqua-search-overlay .market-search-palette {
+  max-height: calc(94dvh - 32px);
+  transform-origin: 50% 0;
+}
+.market-search-palette > .palette-input,
+.market-search-palette > .palette-label,
+.market-search-palette > footer { flex-shrink: 0; }
+.market-search-palette .palette-input {
+  position: relative;
+  animation: aqua-dialog-detail 380ms 50ms cubic-bezier(.16, 1, .3, 1) backwards;
+}
+.market-search-palette .palette-input::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #69c9e8, #378be8, transparent);
+  transform-origin: 50% 50%;
+  animation: aqua-search-line 600ms 90ms cubic-bezier(.16, 1, .3, 1) both;
+  pointer-events: none;
+}
+.market-search-palette .palette-results {
+  height: clamp(164px, calc(var(--search-rows, 3) * 72px + 12px), 430px);
+  min-height: 0;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  transition: height 320ms cubic-bezier(.22, 1, .36, 1);
+}
+.market-search-palette .palette-result {
+  animation: aqua-result-arrive 360ms cubic-bezier(.16, 1, .3, 1) backwards;
+  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+.market-search-palette .palette-result[aria-selected=true] {
+  background: linear-gradient(105deg, #e4f4ff, #f0fbff);
+  box-shadow: inset 3px 0 0 #54b6de;
+}
+.market-search-palette .palette-result[aria-selected=true] > svg { transform: translate(2px, -2px); }
+.market-search-palette .workspace-empty { animation: aqua-dialog-detail 260ms ease-out backwards; }
+.palette-skeleton { display: flex; align-items: center; gap: 13px; height: 72px; padding: 14px 12px; animation: aqua-dialog-detail 300ms ease-out backwards; }
+.palette-skeleton > i { width: 39px; height: 39px; flex-shrink: 0; border-radius: 12px; }
+.palette-skeleton > span { display: grid; flex: 1; gap: 9px; }
+.palette-skeleton b { width: 62%; height: 11px; }
+.palette-skeleton small { width: 40%; height: 8px; }
+.palette-skeleton > em { width: 54px; height: 11px; }
+.palette-skeleton > i, .palette-skeleton b, .palette-skeleton small, .palette-skeleton > em {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(100deg, #e6f0f7 20%, #f6fbff 45%, #e6f0f7 70%);
+  background-size: 250% 100%;
+  animation: aqua-search-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes aqua-dialog-backdrop { from { opacity: 0; } to { opacity: 1; } }
+@keyframes aqua-dialog-arrive {
+  from { opacity: 0; transform: translate3d(0, 24px, 0) scale(.95); filter: blur(5px); }
+  70% { opacity: 1; transform: translate3d(0, -2px, 0) scale(1.003); filter: blur(0); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes aqua-dialog-detail {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes aqua-result-arrive {
+  from { opacity: 0; transform: translate3d(-10px, 7px, 0); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes aqua-search-line { from { transform: scaleX(.1); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }
+@keyframes aqua-search-shimmer { from { background-position: 100% 50%; } to { background-position: -100% 50%; } }
+@media (max-width: 600px) {
+  .aqua-search-overlay .market-search-palette { max-height: calc(100dvh - 24px); }
+  .market-search-palette .palette-input input { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wallet-overlay.wallet-connect-overlay, .aqua-search-overlay,
+  .wallet-modal.aqua-wallet-picker, .aqua-wallet-picker *,
+  .market-search-palette, .market-search-palette *, .market-search-palette *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -109,7 +109,6 @@ button:disabled { cursor: not-allowed; }
 .trade-ack { display: flex; align-items: start; gap: 8px; margin: 14px 0; font-size: 12px; line-height: 1.5; }
 .trade-ack input { width: 16px; height: 16px; flex-shrink: 0; }
 .wallet-transition-wave, .wallet-transition-bubbles { display: none !important; }
-.wallet-overlay, .wallet-modal { animation: none !important; }
 .empty-state { padding: 40px 20px; color: var(--aqua-text); background: #f5fbffbd; border: 1px solid var(--aqua-border); border-radius: 14px; }
 .empty-state p { color: var(--aqua-muted); }
 

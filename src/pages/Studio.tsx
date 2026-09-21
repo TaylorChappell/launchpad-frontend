@@ -1,7 +1,6 @@
 import { StudioLaunchKit } from "../components/StudioLaunchKit";
 import "./studio.css";
 import { usePromotion } from "../usePromotion";
-import { StudioExamples } from "../components/StudioExamples";
 import {
   Suspense,
   useEffect,
@@ -1292,7 +1291,7 @@ function StudioWorkspace() {
         </div>
       )}
       {!token ? (
-        <><section className="at-locked-stage" aria-label="Connect wallet to open Atlantis Studio">
+        <section className="at-locked-stage" aria-label="Connect wallet to open Atlantis Studio">
           <div className="at-locked-preview" aria-hidden="true" inert>
             <div className="at-studio-shell">
               <aside className="at-sidebar">
@@ -1317,7 +1316,7 @@ function StudioWorkspace() {
             {wallet.address && <button className="at-entry-change" disabled={actionDisabled} onClick={() => void task("Changing wallet", async () => { await wallet.disconnect(); wallet.setModalOpen(true); })}>Use a different wallet</button>}
             <small className="at-entry-note"><LockKeyhole size={13} /> Your projects stay linked to your wallet.</small>
           </div>
-        </section><StudioExamples/></>
+        </section>
       ) : (
         <div className="at-studio-shell">
           <aside className="at-sidebar" aria-label="Studio navigation">
