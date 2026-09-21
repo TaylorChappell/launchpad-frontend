@@ -74,12 +74,14 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
   }
   async function retry(){
     if(!pending||running.current)return;running.current=true;setBusy(true);setError("");setStatus("Checking confirmation…");
-    try{
-      const state=await submittedState(pending);
-      if(state==="failed"||state==="expired")clearFailedClaim(state);
-      else if(state==="confirmed")await confirm(pending);
-      else if(alive.current){setError("Confirmation is still pending. Check the transaction or retry confirmation.");setStatus("");}
-    }catch{if(alive.current){setError("The transaction status could not be checked. Your pending claim has been kept safely; try again.");setStatus("");}}
+    try{await confirm(pending);}
+    catch{
+      try{
+        const state=await submittedState(pending);
+        if(state==="failed"||state==="expired")clearFailedClaim(state);
+        else if(alive.current){setError(state==="confirmed"?"The claim is confirmed on-chain, but AQUA has not recorded it yet. Retry confirmation.":"Confirmation is still pending. Check the transaction or retry confirmation.");setStatus("");}
+      }catch{if(alive.current){setError("The transaction status could not be checked. Your pending claim has been kept safely; try again.");setStatus("");}}
+    }
     finally{running.current=false;if(alive.current)setBusy(false);}
   }
   async function executeClaim(market:WalletRewardMarket){
