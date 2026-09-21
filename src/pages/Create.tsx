@@ -34,7 +34,14 @@ type ProgressState = "waiting" | "active" | "done" | "error";
 type PendingAction = { launchId: string; stage: ChainStage; envelope?: TransactionEnvelope; signature?: string };
 
 const empty: Form = { name: "", symbol: "", description: "", xUrl: "", websiteUrl: "", telegramUrl: "", devBuyCurrency: "SOL", launchAmount: "", rewardMode: "holder_rewards" };
-const wizardSteps=[{label:"Coin",short:"Name, artwork and socials"},{label:"Market",short:"Pair, rewards and optional buy"},{label:"Review & launch",short:"Permanent choices and costs"}];
+const governanceWizardSteps = [
+  { label: "Coin", short: "Name and artwork" },
+  { label: "Pair & rewards", short: "Choose SOL, ORCA, or an xStock" },
+  { label: "Reward mode", short: "Choose how the holder share works" },
+  { label: "DEX profile", short: "Optional profile draft" },
+  { label: "Dev buy", short: "Optional first buy" },
+] as const;
+const standardWizardSteps = governanceWizardSteps.filter((item) => item.label !== "DEX profile");
 const chainSteps: Array<{ key: ProgressKey; label: string; detail: string }> = [
   { key: "approval", label: "Prepare launch", detail: "Store artwork and immutable metadata" },
   { key: "mint", label: "Create token", detail: "Wallet approval 1 of 2" },
@@ -64,7 +71,8 @@ export function Create() {
   const [studioImportMessage, setStudioImportMessage] = useState("");
   const { config } = useRuntime();
   const dexProfileEnabled = config.marketGovernanceEnabled;
-  const devBuyStep = 2;
+  const wizardSteps = dexProfileEnabled ? governanceWizardSteps : standardWizardSteps;
+  const devBuyStep = dexProfileEnabled ? 4 : 3;
   const [form, setForm] = useState<Form>(empty);
   const [dexFundingEnabled, setDexFundingEnabled] = useState(false);
   const [dexProfile, setDexProfile] = useState<DexProfile>({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" });
@@ -183,7 +191,13 @@ export function Create() {
     if (!value.trim()) return true;
     try { return ["https:", "http:"].includes(new URL(value.trim()).protocol); } catch { return false; }
   });
-  const validForStep=[form.name.trim().length>=2&&form.symbol.trim().length>=2&&Boolean(file),Boolean(stock)&&(!stock?.restricted||acknowledged)&&amountValid&&(!dexProfileEnabled||dexDraftValid),Boolean(stock)&&amountValid&&(!dexProfileEnabled||dexDraftValid)];
+  const validForStep = [
+    form.name.trim().length >= 2 && form.symbol.trim().length >= 2 && Boolean(file),
+    Boolean(stock) && (!stock?.restricted || acknowledged),
+    form.rewardMode === "holder_rewards" || Boolean(config.rewardModes?.enabled && (form.rewardMode === "buyback_burn" || (form.rewardMode === "jackpot" && config.rewardModes.jackpot.enabled))),
+    ...(dexProfileEnabled ? [dexDraftValid] : []),
+    amountValid,
+  ];
   const currencySymbol = form.devBuyCurrency;
   const launchCost = config.launchCost;
   const currencyDecimals = form.devBuyCurrency === "SOL" ? 9 : 6;
@@ -198,7 +212,7 @@ export function Create() {
 
   function nextStep() {
     if (!validForStep[step]) {
-      toast.error(step === 0 ? "Add a coin name, ticker, and artwork." : step === 1 ? "Choose SOL or a supported stock." : step === 2 ? "Choose a reward mode." : dexProfileEnabled && step === 3 ? "Use a valid https:// URL for DEX profile links." : "Enter a valid amount.");
+      toast.error(step === 0 ? "Add a coin name, ticker, and artwork." : step === 1 ? "Choose SOL, ORCA, or a supported xStock." : step === 2 ? "Choose an available reward mode." : dexProfileEnabled && step === 3 ? "Use a valid https:// URL for DEX profile links." : "Enter a valid amount.");
       return;
     }
     setStep((current) => Math.min(wizardSteps.length - 1, current + 1));
@@ -413,7 +427,7 @@ export function Create() {
   async function beginLaunch() {
     if (launching) return;
     if (!wallet.address) { wallet.setModalOpen(true); return; }
-    if (!stock || !file || (stock.restricted && !acknowledged) || !amountValid || (dexProfileEnabled && !dexDraftValid) || !form.name.trim() || !form.symbol.trim() || !acceptedTerms) { toast.error("Complete every required launch step and accept the Terms of Service first."); return; }
+    if (!stock || !file || !validForStep.every(Boolean) || !acceptedTerms) { toast.error("Complete every required launch step and accept the Terms of Service first."); return; }
     if (!config.transactionsEnabled) { toast.error(config.transactionsDisabledReason ?? "On-chain launching is not enabled by the backend."); return; }
 
     setExecutionOpen(true); setExecutionState("running"); setProgress(initialProgress()); setPending(null);
@@ -510,7 +524,7 @@ export function Create() {
           {stock?.restricted && <label className="stock-ack"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)}/><span>I understand tokenized stocks may be restricted or unavailable in my jurisdiction.</span></label>}
         </WizardSection>}
 
-        {step === 1 && <WizardSection title="Choose the reward mode" description="This policy is permanent after launch, so holders always know how the reward share will be used.">
+        {step === 2 && <WizardSection title="Choose the reward mode" description="This policy is permanent after launch, so holders always know how the reward share will be used.">
           <div className="reward-mode-grid" role="radiogroup" aria-label="Reward mode">
             <ModeButton active={form.rewardMode === "holder_rewards"} onClick={() => update("rewardMode", "holder_rewards")} icon={<RewardModeIcon mode="holder_rewards"/>} title="Holder Rewards" eyebrow="Steady rewards">
               The holder share is converted into the selected pair asset and distributed by balance × time held. Rewards accumulate into one claim per market.
@@ -525,28 +539,26 @@ export function Create() {
           {!config.rewardModes?.enabled && <div className="reward-mode-notice"><Info/> Alternative modes will unlock after the staged program upgrade is enabled. Holder Rewards remains available.</div>}
         </WizardSection>}
 
-        {dexProfileEnabled && step === 1 && <details className="dashboard-section"><summary>Advanced: optional DEX profile funding</summary><WizardSection title="DEX Funding Mode" description="Optional. Fund your DEX Screener profile together using market fees.">
+        {dexProfileEnabled && step === 3 && <WizardSection title="DEX Funding Mode" description="Optional. Fund your DEX Screener profile together using market fees.">
           <label className="launch-dex-toggle"><input type="checkbox" checked={dexFundingEnabled} onChange={event => setDexFundingEnabled(event.target.checked)}/><span><b>Enable DEX Funding Mode</b><small>Open a holder vote five minutes after launch. If approved, 80% of incoming market rewards funds the $300 profile target; 20% continues to holder rewards.</small></span></label><div className="launch-dex-intro"><DexScreenerIcon/><div><b>Let holders decide</b><p>Save an optional initial profile below. Eligible holders can propose replacement information and vote on it. If disabled here, holders can propose funding later.</p></div></div>
           <div className="launch-dex-fields"><DexProfileFields profile={dexProfile} update={(key, value) => setDexProfile((current) => ({ ...current, [key]: value }))} optional/></div>
           {!dexDraftValid && <p className="survey-error">Use full https:// URLs, or leave these fields empty.</p>}
-          <button className="proposal-text-action" onClick={() => { setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" }); setStep(devBuyStep); }}>Skip for now <ArrowRight/></button>
-        </WizardSection></details>}
+          <button className="proposal-text-action" onClick={() => { setDexFundingEnabled(false); setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" }); setStep(devBuyStep); }}>Skip for now <ArrowRight/></button>
+        </WizardSection>}
 
-        {step === 1 && <WizardSection title="Optional first buy" description="Choose SOL or USDC to make the first buy. Leave the amount at zero to skip it.">
+        {step === devBuyStep && <WizardSection title="Optional dev buy" description="Choose SOL or USDC to make the first buy. Leave the amount at zero to skip it.">
           <div className="launch-currency-grid pair-choice-grid" role="radiogroup" aria-label="Initial buy currency">
             <CurrencyButton code="SOL" name="Pay with Solana" active={form.devBuyCurrency === "SOL"} onClick={() => { update("devBuyCurrency", "SOL"); update("launchAmount", ""); }} icon={<NetworkSolana className="currency-brand-icon" variant="branded"/>}/>
             <CurrencyButton code="USDC" name="Pay with USD Coin" active={form.devBuyCurrency === "USDC"} onClick={() => { update("devBuyCurrency", "USDC"); update("launchAmount", ""); }} icon={<span className="usdc-mark">$</span>}/>
           </div>
           <Field label={`Optional first buy in ${currencySymbol}`} wide><div className="unit-input launch-amount-input"><input inputMode="decimal" value={form.launchAmount} placeholder="0" onChange={(event) => update("launchAmount", event.target.value.replace(",", ".").replace(/[^0-9.]/g, ""))}/><span>{currencySymbol}</span></div></Field>
-        </WizardSection>}
-        {step === devBuyStep && <WizardSection title="Review and launch" description="Your pair, reward mode and opening liquidity lock are permanent. Check these choices before approving.">
           {launchCost && <div className="launch-cost-card">
             <div><span><b>Estimated launch cost</b><small>before any optional first buy</small></span><strong>{launchCost.estimatedTotalSol.minimum.toFixed(2)}–{launchCost.estimatedTotalSol.maximum.toFixed(2)} SOL</strong></div>
             <p><b>{launchCost.platformFeeSol.toFixed(2)} SOL AQUA fee</b> funds keeper operations. The rest is estimated Solana/Orca account rent and network fees; your wallet approval shows the authoritative amount.</p>
           </div>}
           <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} · {form.rewardMode === "holder_rewards" ? "Holder Rewards" : form.rewardMode === "buyback_burn" ? "Buyback & Burn" : "Hourly Jackpot"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
           <label className="terms-acceptance"><input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)}/><span>I have read and agree to the <Link to="/terms" target="_blank">Terms of Service</Link>, including the cryptoasset, permanent-liquidity and third-party risks.</span></label>
-          <button className="wizard-launch-button" onClick={() => void (pending ? retryLaunch() : beginLaunch())} disabled={!validForStep[devBuyStep] || launching || !acceptedTerms} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
+          <button className="wizard-launch-button" onClick={() => void (pending ? retryLaunch() : beginLaunch())} disabled={!validForStep.every(Boolean) || launching || !acceptedTerms} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
         </WizardSection>}
 
         <footer className="wizard-actions"><button className="wizard-back" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ArrowLeft/> Back</button>{step < wizardSteps.length - 1 && <button className="wizard-next" onClick={nextStep} disabled={!validForStep[step]}>Continue <ArrowRight/></button>}</footer>
