@@ -136,10 +136,10 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
     {status&&<p className="claim-status" role="status">{busy&&<Loader2 className="spin" size={16}/>}{status}</p>}
     {error&&<p className="danger-note" role="alert">{error} {!pending&&!busy&&<button className="text-button" onClick={()=>{setRevision(n=>n+1);onClaimed?.();}}>Try again</button>}</p>}
     {!rewardData&&!error?<div className="workspace-loading">Loading your rewards…</div>:markets.length?<div className="reward-claim-list">{markets.map(m=>{
-      const coin=allLaunches.find(l=>l.id===m.launchId),unsettled=Math.max(0,m.accumulatingUsdCents-m.grossRedeemableUsdCents);
+      const coin=allLaunches.find(l=>l.id===m.launchId);
       const eligible=m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1);
       return <article className={"reward-claim-row"+(eligible?" ready":"")} key={m.launchId}>
-        <div className="reward-claim-coin">{coin?<TokenMark launch={coin}/>:<Gift size={24}/>}<div>{coin&&!launch?<Link to={"/token/"+coin.id}>{coin.name}</Link>:<b>{coin?.name??"AQUA reward"}</b>}<small>{eligible?"Ready to claim":unsettled>0?"Awaiting settlement":"Accumulating"}</small></div></div>
+        <div className="reward-claim-coin">{coin?<TokenMark launch={coin}/>:<Gift size={24}/>}<div>{coin&&!launch?<Link to={"/token/"+coin.id}>{coin.name}</Link>:<b>{coin?.name??"AQUA reward"}</b>}<small>{eligible?"Ready to claim":m.pendingUsdCents>0?"Awaiting settlement":m.canClaim?"Preparing claim":"Below claim minimum"}</small></div></div>
         <div className="reward-row-amount"><strong>{usd(eligible?m.claimableUsdCents:m.grossRedeemableUsdCents+m.pendingUsdCents)}</strong><small>{eligible?`${usd(m.netClaimableUsdCents)} after estimated costs`:m.claimMode!=="cumulative"&&m.claimableEpochIds.length>1?"Preparing a combined claim":`Claim minimum ${usd(m.minimumClaimUsdCents)} net`}</small></div>
         <button className="primary" disabled={busy||Boolean(pending)||!eligible} onClick={()=>void claimBatch([m])}>{busy&&status?<Loader2 size={15} className="spin"/>:null}{eligible?"Claim":"Pending"}</button>
       </article>;
