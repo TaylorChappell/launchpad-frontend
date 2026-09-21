@@ -53,7 +53,7 @@ function PortfolioContent({address}:{address:string|null}){
   const pending=rewards?.markets.reduce((s,m)=>s+m.pendingUsdCents/100,0);
   const refresh=()=>setRevision(n=>n+1);
   if(!address)return <main className="page holder-workspace">
-    <header className="workspace-heading"><div><small className="workspace-eyebrow">YOUR AQUA</small><h1>My holdings</h1><p>A home for the coins and communities you hold.</p></div></header>
+    <header className="workspace-heading"><div><h1>My holdings</h1><p>A home for the coins and communities you hold.</p></div></header>
     <section className="portfolio-connect"><div className="portfolio-connect-copy"><span className="workspace-icon"><Wallet size={25}/></span><h1>Your holdings.<br/>Your rewards.</h1><p>Follow your positions, collect your rewards and see what your communities are building.</p><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet <ArrowRight size={17}/></button></div><div className="portfolio-connect-features">
       <div><Coins/><span><b>Every position, one view</b><p>Your token balances and current market values.</p></span></div>
       <div><Gift/><span><b>Rewards within reach</b><p>See what’s available and claim directly to your wallet.</p></span></div>
@@ -61,7 +61,7 @@ function PortfolioContent({address}:{address:string|null}){
     </div></section>
   </main>;
   return <main className="page holder-workspace">
-    <header className="workspace-heading"><div><small className="workspace-eyebrow">YOUR AQUA</small><h1>My holdings</h1><p>Positions, rewards and the communities you’re part of.</p></div><div className="workspace-heading-actions"><span className="wallet-address"><Wallet size={14}/>{address.slice(0,4)}…{address.slice(-4)}</span><button className="workspace-refresh" aria-label="Refresh holdings" onClick={refresh}><RefreshCw size={16}/></button></div></header>
+    <header className="workspace-heading"><div><h1>My holdings</h1><p>Positions, rewards and the communities you’re part of.</p></div><div className="workspace-heading-actions"><span className="wallet-address"><Wallet size={14}/>{address.slice(0,4)}…{address.slice(-4)}</span><button className="workspace-refresh" aria-label="Refresh holdings" onClick={refresh}><RefreshCw size={16}/></button></div></header>
     {Object.values(errors).some(Boolean)&&<p className="danger-note" role="alert">{Object.values(errors).filter(Boolean).join(" ")} Previous values may be stale. <button className="text-button" onClick={refresh}>Try again</button></p>}
     <section className="portfolio-overview">
       <article className="portfolio-value"><span className="workspace-eyebrow">HOLDINGS VALUE</span><strong>{value===undefined?"—":usd.format(value)}</strong><span>{holdings===null?"Loading positions…":holdings.length+" positions"}{unpriced>0?" · "+unpriced+" awaiting price":""}</span><Link to="/">Explore markets <ArrowUpRight size={15}/></Link></article>

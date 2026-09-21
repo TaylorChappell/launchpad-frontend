@@ -34,7 +34,7 @@ test("analytics prioritizes totals, handles empty history and stays within the v
     markets:[],claimedAssets:[],recentBuybacks:[],rewardHistory:[],buybackHistory:[]
   }}));
   await page.goto("/#/analytics");
-  await expect(page.getByRole("heading",{name:"Activity that gives back."})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Analytics",exact:true})).toBeVisible();
   await expect(page.getByText("Holder rewards allocated",{exact:true})).toBeVisible();
   await page.getByRole("button",{name:"Buybacks",exact:true}).click();
   await expect(page.getByRole("heading",{name:"No buybacks recorded in this period."})).toBeVisible();
@@ -46,6 +46,7 @@ test.beforeEach(async({page})=>{
   await page.route("**/api/config",route=>route.fulfill({json:{brand:"AQUA",network:"mainnet-beta",useTestnet:false,transactionsEnabled:false,marketGovernanceEnabled:false,publicRpcUrl:"https://rpc.invalid",whirlpools:{},fees:{transferFeeBps:200,platformBps:100,stockRewardsBps:100},creatorLocks:{minimumSeconds:86400,maximumSeconds:31536000,maximumFeeShareBps:5000},sniperDefense:{supported:false}}}));
   await page.route("**/api/launches?**",route=>route.fulfill({json:{launches:[],hasMore:false,nextOffset:0}}));
   await page.route("**/api/market-prices",route=>route.fulfill({json:{prices:[]}}));
+  await page.route("**/api/market-prices/stream",route=>route.fulfill({contentType:"text/event-stream",body:'data: {"prices":[]}\n\n'}));
   await page.route("**/api/governance",route=>route.fulfill({json:{enabled:false}}));
 });
 test("market controls are visible, bookmarkable and do not overflow",async({page})=>{

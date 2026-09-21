@@ -2126,7 +2126,6 @@ function StudioWorkspace() {
                           Upload assets
                         </button>
                       </div>
-                      <div className="at-launch-kit-actions"><button onClick={()=>{setPrompt("Generate a DEX Screener banner for this coin and assign it to the launch draft.");setWorkspaceOpen(false);}}>Create DEX banner</button><button onClick={()=>{setPrompt("Plan a teaser, launch and follow-up X post for this coin, with matching launch pictures. Save the drafts and pictures in my launch kit.");setWorkspaceOpen(false);}}>Plan X launch posts</button></div>
                       <StudioLaunchKit files={state.files}/>
                       <div className="at-asset-grid">
                         {state.files

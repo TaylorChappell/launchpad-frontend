@@ -64,6 +64,26 @@
 .workspace-section-title { display:flex; align-items:center; justify-content:space-between; margin:24px 0 20px; }
 .workspace-section-title p { font-size:12px; margin:7px 0 0; color:#6c8a9d; }
 .reward-tiles { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+.reward-claim-list { display:grid; gap:10px; }
+.reward-claim-row { display:flex; align-items:center; gap:18px; padding:18px 20px; border:1px solid #d6e8f1; border-radius:14px; background:#fff; }
+.reward-claim-row.ready { border-color:#add8e9; }
+.reward-claim-coin { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
+.reward-claim-coin .token-mark { width:40px; height:40px; flex-shrink:0; }
+.reward-claim-coin > div { display:grid; gap:5px; min-width:0; }
+.reward-claim-coin b,.reward-claim-coin a { font-size:14px; color:#214f69; overflow-wrap:anywhere; font-weight:650; }
+.reward-claim-row small { font-size:11px; color:#678899; }
+.reward-claim-amount { display:grid; gap:5px; text-align:right; }
+.reward-claim-amount strong { font-size:22px; color:#175e86; font-variant-numeric:tabular-nums; }
+.reward-claim-row .primary { flex-shrink:0; min-width:86px; }
+.market-reward-activity { margin-top:20px; }
+.market-reward-activity .market-reward-panel { border:0; box-shadow:none; }
+.sol-amount { display:inline-flex; align-items:center; gap:.25em; white-space:nowrap; }
+.sol-amount svg { width:1em; height:1em; flex-shrink:0; }
+@media(max-width:600px) {
+  .reward-claim-row { flex-wrap:wrap; gap:14px; padding:16px; }
+  .reward-claim-coin { flex-basis:100%; }
+  .reward-claim-amount { margin-right:auto; text-align:left; }
+}
 .reward-tile { border:1px solid #c5deeb; border-radius:15px; background:#ffffffc9; padding:24px; }
 .reward-tile.ready { border-color:#9dcedb; background:linear-gradient(130deg,#fff,#eefafa); }
 .reward-tile > header { display:flex; align-items:center; gap:11px; }

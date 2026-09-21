@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowUpRight, Check, Gift, Loader2 } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Gift, Loader2 } from "lucide-react";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import type { Launch, WalletRewardMarket, WalletRewardsResponse } from "../types";
@@ -37,7 +37,7 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
   const missingIds=(rewardData?.markets??[]).filter(m=>!launches.some(l=>l.id===m.launchId)&&launch?.id!==m.launchId).map(m=>m.launchId).sort().join(",");
   useEffect(()=>{let active=true;if(missingIds)api.launches({ids:missingIds,limit:100}).then(r=>{if(active)setKnown(r.launches);}).catch(()=>{});return()=>{active=false;};},[missingIds]);
   const allLaunches=[...launches,...known,...(launch?[launch]:[])];
-  const markets=(rewardData?.markets??[]).filter(m=>!launch||m.launchId===launch.id).sort((a,b)=>Number(b.canClaim)-Number(a.canClaim)||b.accumulatingUsdCents-a.accumulatingUsdCents);
+  const markets=(rewardData?.markets??[]).filter(m=>(!launch||m.launchId===launch.id)&&(m.grossRedeemableUsdCents>0||m.accumulatingUsdCents>0||m.pendingUsdCents>0)).sort((a,b)=>Number(b.canClaim)-Number(a.canClaim)||b.accumulatingUsdCents-a.accumulatingUsdCents);
   function remember(value:PendingClaim|null){try{if(value)localStorage.setItem(storageKey,JSON.stringify(value));else localStorage.removeItem(storageKey);}catch{/* Receipt remains visible if browser storage is unavailable. */}if(alive.current)setPending(value);}
   async function confirm(receipt:PendingClaim){
     if(receipt.wallet!==address)throw Error("Connect the wallet that submitted this claim.");
@@ -94,7 +94,7 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
     finally{running.current=false;if(alive.current)setBusy(false);}
   }
   const claimable=markets.filter(m=>m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1));
-  if(launch?.rewardMode==="jackpot"&&(!address||(rewardData&&!markets.length)))return null;
+  if(launch&&(!address||(rewardData&&!markets.length&&!pending&&!success&&!error)))return null;
   if(!address)return <section className="wallet-inline"><Gift size={24}/><div><h3>Your rewards are here.</h3><p>Connect your wallet to see your allocation and claim it.</p></div><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet</button></section>;
   return <div className="wallet-rewards">
     {!launch&&<div className="claim-all-bar"><span>{claimable.length} coin{claimable.length===1?"":"s"} ready to claim{claimable.length>1&&<small>Approve each coin in your wallet.</small>}</span><button className="primary" disabled={busy||Boolean(pending)||!claimable.length} onClick={()=>void claimBatch(claimable)}>{busy?<><Loader2 size={15} className="spin"/> Claiming…</>:"Claim all"}</button></div>}
@@ -102,15 +102,14 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
     {pending&&<div className="claim-notice"><Loader2 size={20} className={busy?"spin":""}/><div><b>{pending.name} · claim submitted</b><a href={"https://solscan.io/tx/"+pending.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View transaction <ArrowUpRight size={13}/></a></div><button className="soft-button" disabled={busy} onClick={()=>void retry()}>Check confirmation</button></div>}
     {status&&<p className="claim-status" role="status">{busy&&<Loader2 className="spin" size={16}/>}{status}</p>}
     {error&&<p className="danger-note" role="alert">{error} {!pending&&!busy&&<button className="text-button" onClick={()=>{setRevision(n=>n+1);onClaimed?.();}}>Try again</button>}</p>}
-    {!rewardData&&!error?<div className="workspace-loading">Loading your rewards…</div>:markets.length?<div className="reward-tiles">{markets.map(m=>{
+    {!rewardData&&!error?<div className="workspace-loading">Loading your rewards…</div>:markets.length?<div className="reward-claim-list">{markets.map(m=>{
       const coin=allLaunches.find(l=>l.id===m.launchId),unsettled=Math.max(0,m.accumulatingUsdCents-m.grossRedeemableUsdCents);
       const eligible=m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1);
-      return <article className={"reward-tile"+(m.canClaim?" ready":"")} key={m.launchId}>
-        <header>{coin?<TokenMark launch={coin}/>:<Gift size={24}/>}<div><b>{coin?.name??"AQUA reward"}</b><small>{coin?.stockSymbol??"Token"} rewards</small></div><span className="workspace-badge">{eligible?"Ready to claim":"Accumulating"}</span></header>
-        <div className="reward-tile-value"><small>{eligible?"Available to claim":"Allocated to you"}</small><strong>{usd(eligible?m.claimableUsdCents:m.accumulatingUsdCents)}</strong></div>
-        <div className="reward-tile-footer"><span>{eligible?<>Est. {usd(m.netClaimableUsdCents)} after costs</>:unsettled>0?usd(unsettled)+" awaiting settlement":<>Claim minimum {usd(m.minimumClaimUsdCents)} net</>}</span><button className="primary" disabled={busy||Boolean(pending)||!eligible} onClick={()=>void claimBatch([m])}>{eligible?"Claim rewards":"Not claimable yet"}</button></div>
-        <details className="reward-cost-details"><summary>Allocation details</summary><p>Funded {usd(m.grossRedeemableUsdCents)} · pending {usd(m.pendingUsdCents)} · estimated claim cost {usd(m.estimatedClaimFeeUsdCents)}.</p>{m.claimMode!=="cumulative"&&m.claimableEpochIds.length>1&&<p>Claims are awaiting consolidation.</p>}{coin&&!launch&&<Link to={"/token/"+coin.id}>Open market →</Link>}</details>
+      return <article className={"reward-claim-row"+(eligible?" ready":"")} key={m.launchId}>
+        <div className="reward-claim-coin">{coin?<TokenMark launch={coin}/>:<Gift size={24}/>}<div>{coin&&!launch?<Link to={"/token/"+coin.id}>{coin.name}</Link>:<b>{coin?.name??"AQUA reward"}</b>}<small>{eligible?"Ready to claim":unsettled>0?"Awaiting settlement":"Accumulating"}</small></div></div>
+        <div className="reward-claim-amount"><strong>{usd(eligible?m.claimableUsdCents:m.grossRedeemableUsdCents+m.pendingUsdCents)}</strong><small>{eligible?`${usd(m.netClaimableUsdCents)} after estimated costs`:m.claimMode!=="cumulative"&&m.claimableEpochIds.length>1?"Preparing a combined claim":`Claim minimum ${usd(m.minimumClaimUsdCents)} net`}</small></div>
+        <button className="primary" disabled={busy||Boolean(pending)||!eligible} onClick={()=>void claimBatch([m])}>{busy&&status?<Loader2 size={15} className="spin"/>:null}{eligible?"Claim":"Pending"}</button>
       </article>;
-    })}</div>:rewardData&&<div className="workspace-empty"><Gift/><h3>{launch?.rewardMode==="buyback_burn"?"This market buys back and burns tokens.":"No rewards to claim yet."}</h3><p>{launch?.rewardMode==="buyback_burn"?"Buybacks reduce supply; this mode does not pay a wallet reward.":"Your allocations will appear here once they’re indexed."}</p>{!launch&&<Link to="/">Explore markets →</Link>}</div>}
+    })}</div>:rewardData&&<div className="workspace-empty"><Gift/><h3>{launch?.rewardMode==="buyback_burn"?"This market buys back and burns tokens.":"No rewards to claim yet."}</h3><p>{launch?.rewardMode==="buyback_burn"?"Buybacks reduce supply; this mode does not pay a wallet reward.":"Your allocations will appear here once they’re indexed."}</p>{!launch&&<Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link>}</div>}
   </div>;
 }
