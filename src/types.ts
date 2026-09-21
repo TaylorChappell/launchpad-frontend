@@ -103,6 +103,22 @@ export type AdminDiagnostics = {
   rewardEpochs: Array<Record<string, unknown>>;
   creatorLocks: Array<Record<string, unknown>>;
   proposals: MarketProposal[];
+  studio?: {
+    creditsSpentMicroUsd: string;
+    uniqueUsers: number;
+    coinsBuilt: number;
+    coins: Array<{
+      id: string;
+      name: string;
+      symbol: string;
+      mint: string;
+      creator_wallet: string;
+      status: string;
+      created_at: number;
+      project_id: string;
+      project_name: string;
+    }>;
+  };
 };
 
 export type MarketProposalType = "dex_payment" | "dex_update" | "cto";
