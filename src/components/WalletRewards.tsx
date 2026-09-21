@@ -8,7 +8,7 @@ import { TokenMark } from "./TokenCard";
 import { displayTokenAmount } from "../trade-quote";
 
 const usd=(cents:number)=>new Intl.NumberFormat("en",{style:"currency",currency:"USD"}).format(cents/100);
-type PendingClaim={wallet:string;launchId:string;name:string;signature:string;sequence?:string;epochId?:string;amountUsd:number};
+type PendingClaim={wallet:string;launchId:string;name:string;signature:string;sequence?:string;epochId?:string;amountUsd:number;lastValidBlockHeight?:number;submittedAt?:number};
 function savedClaim(key:string):PendingClaim|null{
   try { const value=JSON.parse(localStorage.getItem(key)??"null");return value&&typeof value.wallet==="string"&&typeof value.launchId==="string"&&typeof value.signature==="string"&&(typeof value.sequence==="string"||typeof value.epochId==="string")?value:null; }catch{return null;}
 }
@@ -52,9 +52,34 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
       setStatus("");setRevision(n=>n+1);onClaimed?.();
     }
   }
+  async function submittedState(receipt:PendingClaim){
+    const {Connection}=await import("@solana/web3.js");
+    const connection=new Connection(config.publicRpcUrl,"confirmed");
+    const chainStatus=(await connection.getSignatureStatuses([receipt.signature],{searchTransactionHistory:true})).value[0];
+    if(chainStatus?.err)return "failed" as const;
+    if(chainStatus?.confirmationStatus==="confirmed"||chainStatus?.confirmationStatus==="finalized")return "confirmed" as const;
+    if(chainStatus)return "pending" as const;
+    if(receipt.lastValidBlockHeight!==undefined){
+      const blockHeight=await connection.getBlockHeight("confirmed");
+      if(blockHeight>receipt.lastValidBlockHeight)return "expired" as const;
+    }
+    // Receipts written before block-height tracking was added have no expiry data.
+    // If the signature is still absent from full RPC history, it was never landed.
+    if(receipt.lastValidBlockHeight===undefined&&(!receipt.submittedAt||Date.now()-receipt.submittedAt>120_000))return "expired" as const;
+    return "pending" as const;
+  }
+  function clearFailedClaim(state:"failed"|"expired"){
+    remember(null);setStatus("");setRevision(n=>n+1);onClaimed?.();
+    setError(state==="failed"?"The claim transaction failed on-chain. Nothing was claimed, so you can try again.":"The claim transaction expired before it landed. Nothing was claimed, so you can try again.");
+  }
   async function retry(){
     if(!pending||running.current)return;running.current=true;setBusy(true);setError("");setStatus("Checking confirmation…");
-    try{await confirm(pending);}catch{if(alive.current){setError("Confirmation is still pending. Check the transaction or retry confirmation.");setStatus("");}}
+    try{
+      const state=await submittedState(pending);
+      if(state==="failed"||state==="expired")clearFailedClaim(state);
+      else if(state==="confirmed")await confirm(pending);
+      else if(alive.current){setError("Confirmation is still pending. Check the transaction or retry confirmation.");setStatus("");}
+    }catch{if(alive.current){setError("The transaction status could not be checked. Your pending claim has been kept safely; try again.");setStatus("");}}
     finally{running.current=false;if(alive.current)setBusy(false);}
   }
   async function executeClaim(market:WalletRewardMarket){
@@ -67,14 +92,20 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
       if(!alive.current)throw Error("Wallet changed. Remaining claims were stopped.");
       setStatus("Approve the claim in your wallet");
       const onSubmitted=(signature:string)=>{
-        submitted={wallet:address,launchId:market.launchId,name:allLaunches.find(l=>l.id===market.launchId)?.name??"Reward",signature,amountUsd:market.claimableUsdCents,...("sequence" in envelope?{sequence:String(envelope.sequence)}:{epochId})};
+        submitted={wallet:address,launchId:market.launchId,name:allLaunches.find(l=>l.id===market.launchId)?.name??"Reward",signature,amountUsd:market.claimableUsdCents,lastValidBlockHeight:envelope.lastValidBlockHeight,submittedAt:Date.now(),...("sequence" in envelope?{sequence:String(envelope.sequence)}:{epochId})};
         remember(submitted);if(alive.current)setStatus("Confirming your reward…");
       };
       const signature=await wallet.sendTransaction(envelope,onSubmitted);
       if(!submitted)onSubmitted(signature);
       await confirm(submitted!);
     }catch(e){
-      if(alive.current){setStatus("");setError(submitted?"Claim submitted. Confirmation is pending; you can safely retry confirmation.":e instanceof Error?e.message:"Could not prepare the claim.");}
+      if(submitted){
+        try{
+          const state=await submittedState(submitted);
+          if(state==="failed"||state==="expired")clearFailedClaim(state);
+          else if(alive.current){setStatus("");setError("Claim submitted. Confirmation is pending; you can safely retry confirmation.");}
+        }catch{if(alive.current){setStatus("");setError("Claim submitted. Its status could not be checked, so the receipt was kept safely.");}}
+      }else if(alive.current){setStatus("");setError(e instanceof Error?e.message:"Could not prepare the claim.");}
       throw e;
     }
   }
@@ -113,3 +144,4 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
     })}</div>:rewardData&&<div className="workspace-empty"><Gift/><h3>{launch?.rewardMode==="buyback_burn"?"This market buys back and burns tokens.":"No rewards to claim yet."}</h3><p>{launch?.rewardMode==="buyback_burn"?"Buybacks reduce supply; this mode does not pay a wallet reward.":"Your allocations will appear here once they’re indexed."}</p>{!launch&&<Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link>}</div>}
   </div>;
 }
+
