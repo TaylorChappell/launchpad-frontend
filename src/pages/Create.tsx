@@ -1,4 +1,4 @@
-import {marketShareUrl} from "../share-market";
+import { handoffLaunchBatch, watchLaunchSubmission } from "../launch-relay";
 import { readLaunchDraft,saveLaunchDraft } from "../launch-draft";
 import { ensureAccountSession } from "../account-api";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -20,7 +20,7 @@ import { RewardModeIcon } from "../components/RewardModeIcon";
 import { DexProfileFields } from "../components/MarketProposals";
 import { DexScreenerIcon } from "../components/DexScreenerIcon";
 import type { DexProfile } from "../types";
-import type { Launch, LaunchBatchEnvelope, LaunchConfirmation, StockOption, TransactionEnvelope } from "../types";
+import type { Launch, LaunchBatchEnvelope, LaunchConfirmation, LaunchRelayStatus, StockOption, TransactionEnvelope } from "../types";
 
 type DevBuyCurrency = "SOL" | "USDC";
 type RewardMode = "holder_rewards" | "buyback_burn" | "jackpot";
@@ -90,9 +90,12 @@ export function Create() {
   const [executionOpen, setExecutionOpen] = useState(false);
   const [executionState, setExecutionState] = useState<"running" | "error" | "complete">("running");
   const [progress, setProgress] = useState(initialProgress);
+  const [relayMessage, setRelayMessage] = useState("");
+  const relayController = useRef<AbortController | null>(null);
+  const relayStorageKey = `aqua:launch-relay:${config.network}:${wallet.address ?? "guest"}`;
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [recoverableLaunch, setRecoverableLaunch] = useState<Launch | null>(null);
-  const [completedLaunch, setCompletedLaunch] = useState<{ id: string; mint?: string } | null>(null);
+  const [completedLaunch, setCompletedLaunch] = useState<{ id: string; mint?: string; symbol: string; rewardMode: RewardMode } | null>(null);
 
   const draftKey="launch:"+config.network+":"+(wallet.address??"guest");
   const priorDraftKey=useRef(draftKey);
@@ -232,88 +235,128 @@ export function Create() {
     toast.loading(title, { id: launchToastId, description });
   }
 
-  function finishLaunch(launchId: string, mint?: string) {
+  function finishLaunch(launchId: string, mint?: string, identity?: Pick<LaunchRelayStatus, "symbol" | "rewardMode">) {
+    try { localStorage.removeItem(relayStorageKey); } catch { /* Storage may be unavailable. */ }
+    setRelayMessage("");
     setPending(null); setExecutionState("complete"); setExecutionOpen(false); setRecoverableLaunch(null);
-    setCompletedLaunch({ id: launchId, mint });
-    toast.success("AQUA market launched", { id: launchToastId, description: `$${form.symbol || "Your coin"} is live on Orca.` });
+    setCompletedLaunch({ id: launchId, mint, symbol: identity?.symbol || form.symbol, rewardMode: identity?.rewardMode ?? form.rewardMode });
+    toast.success("AQUA market launched", { id: launchToastId, description: `$${identity?.symbol || form.symbol || "Your coin"} is live on Orca.` });
   }
 
   function launchAnother() {
     if (preview) URL.revokeObjectURL(preview);
-    setForm(empty); setFile(null); setPreview(""); setStep(0); setStock(null); setAcknowledged(false); setAcceptedTerms(false);
+    setRelayMessage(""); setForm(empty); setFile(null); setPreview(""); setStep(0); setStock(null); setAcknowledged(false); setAcceptedTerms(false);
     setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" });
     setProgress(initialProgress()); setPending(null); setCompletedLaunch(null); setExecutionState("running");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function executeDevBuyPlan(confirmation: LaunchConfirmation) {
+  async function executeDevBuyPlan(confirmation: LaunchConfirmation, signal?: AbortSignal) {
     const transactions = confirmation.devBuyPlan?.transactions ?? [];
     if (!transactions.length) return;
     setStage("devBuy", "active");
     for (const [index, transaction] of transactions.entries()) {
+      signal?.throwIfAborted();
       showLaunchStatus(transaction.label, `Approve transaction ${index + 1} of ${transactions.length} for the optional first buy.`);
       await wallet.sendTransaction(transaction);
     }
     if (confirmation.devBuyPlan?.buyAmountRaw) {
+      signal?.throwIfAborted();
       showLaunchStatus(`Buy $${form.symbol}`, "Preparing a fresh Orca transaction after the conversion confirmed.");
       const buy = await api.devBuyTransaction(confirmation.launchId, { trader: wallet.address!, amountRaw: confirmation.devBuyPlan.buyAmountRaw, slippageBps: 300 });
+      signal?.throwIfAborted();
       await wallet.sendTransaction(buy);
     }
     setStage("devBuy", "done");
   }
 
-  async function executeLaunchBatch(id: string, batch: LaunchBatchEnvelope[], repairAttempted = false) {
-    let activeStage: ChainStage = batch[0]?.step ?? "pool";
+  function relayState(state: LaunchRelayStatus) {
+    if (state.step) { setPending({ launchId: state.launchId, stage: state.step }); setStage(state.step, "active"); }
+    setRelayMessage("AQUA has your approval and is completing the launch. You can close this page.");
+  }
+
+  async function observeRelay(id: string, controller: AbortController) {
+    const state = await watchLaunchSubmission(api, id, controller.signal, relayState, () => {
+      setRelayMessage("Reconnecting to AQUA. An accepted launch continues on the server.");
+    });
+    if (state.status === "needs_approval") throw new ApiError(state.error ?? "Resume to approve the remaining transactions.", 409, { rebuildRequired: true });
+    if (state.status !== "complete") throw new Error("AQUA has not received the signed batch. Resume to approve the remaining launch transactions.");
+    return state;
+  }
+
+  // Save only the launch ID, never wallet signatures. A refresh reattaches to the job.
+  useEffect(() => {
+    setExecutionOpen(false); setPending(null); setRelayMessage("");
+    if (!wallet.address) return;
+    const controller = new AbortController();
+    relayController.current?.abort();
+    relayController.current = controller;
+    let saved: string | null = null;
+    try { saved = localStorage.getItem(relayStorageKey); } catch { /* Storage may be unavailable. */ }
+    if (saved) {
+      const id = saved;
+      setPending({ launchId: id, stage: "pool" });
+      setExecutionOpen(true); setExecutionState("running");
+      void observeRelay(id, controller).then(state => {
+        if (!controller.signal.aborted) finishLaunch(id, state.mint, state);
+      }).catch(error => {
+        if (!controller.signal.aborted) showLaunchError(error, "Could not restore launch status.");
+      });
+    }
+    return () => { relayController.current?.abort(); toast.dismiss(launchToastId); };
+  }, [relayStorageKey]);
+
+  async function attachExistingRelay(id: string) {
+    relayController.current?.abort();
+    const controller = new AbortController();
+    relayController.current = controller;
+    const state = await api.launchSubmission(id, controller.signal);
+    if (state.status === "not_submitted" || state.status === "needs_approval") return false;
+    try { localStorage.setItem(relayStorageKey, id); } catch { /* Storage may be unavailable. */ }
+    const complete = state.status === "complete" ? state : await observeRelay(id, controller);
+    if (!controller.signal.aborted) finishLaunch(id, complete.mint, complete);
+    return true;
+  }
+
+  async function executeLaunchBatch(id: string, batch: LaunchBatchEnvelope[]) {
+    const activeStage: ChainStage = batch[0]?.step ?? "pool";
+    relayController.current?.abort();
+    const controller = new AbortController();
+    relayController.current = controller;
     try {
       if (!batch.length) throw new Error("The backend did not return the Orca launch batch.");
       setPending({ launchId: id, stage: activeStage });
       setStage(activeStage, "active");
+      setRelayMessage("Approve the remaining launch transactions in your wallet.");
       showLaunchStatus("Approve the Orca launch", "Review the market and liquidity transactions in your wallet.");
       const signedBatch = await wallet.signTransactionBatch(batch);
-      let finalConfirmation: LaunchConfirmation | null = null;
-      for (const signed of signedBatch) {
-        activeStage = signed.step;
-        setPending({ launchId: id, stage: signed.step });
-        setStage(signed.step, "active");
-        const validation = await api.validateBatchStep(id, signed.step, signed.signedTransactionBase64);
-        if (validation.confirmationRecorded) {
-          setStage(signed.step, "done");
-          continue;
-        }
-        const signature = validation.alreadyConfirmed
-          ? validation.signature
-          : await wallet.submitSignedTransaction(signed);
-        if (!signature) throw new Error(`AQUA could not recover the confirmed ${signed.step} transaction.`);
-        showLaunchStatus("Waiting for confirmation", `Solana is confirming the ${signed.step} transaction.`);
-        finalConfirmation = await api.confirmLaunch(id, signature);
-        setStage(signed.step, "done");
-      }
-      if (finalConfirmation?.status !== "live") {
-        const recovered = await api.retryLaunchTransaction(id, wallet.address!);
-        if (recovered.status !== "live") throw new Error("The launch steps confirmed, but the backend did not mark the market live.");
-      }
-      if (finalConfirmation?.devBuyPlan && hasInitialBuy) {
-        try { await executeDevBuyPlan(finalConfirmation); }
-        catch (error) { setStage("devBuy", "error"); toast.warning("Coin launched without the optional first buy", { description: error instanceof Error ? error.message : "The initial buy was not completed.", duration: 10_000 }); }
-      }
-      if (finalConfirmation?.devBuyError) toast.warning("Coin launched without the optional first buy", { description: finalConfirmation.devBuyError, duration: 10_000 });
-      finishLaunch(id, finalConfirmation?.mint);
-    } catch (error) {
-      let failure: unknown = error;
-      if (!repairAttempted && error instanceof ApiError && error.rebuildRequired && wallet.address) {
+      controller.signal.throwIfAborted();
+      try { localStorage.setItem(relayStorageKey, id); } catch { /* Storage may be unavailable. */ }
+      setRelayMessage("Sending your approval to AQUA. Keep this page open until it is received.");
+      const accepted = await handoffLaunchBatch(api, id, signedBatch, controller.signal, () => {
+        setRelayMessage("Reconnecting to send your approval. Keep this page open until AQUA confirms receipt.");
+      });
+      relayState(accepted);
+      showLaunchStatus("Completing your launch", "AQUA is handling the transactions. This page no longer needs to stay connected.");
+      const complete = accepted.status === "complete" ? accepted : await observeRelay(id, controller);
+      controller.signal.throwIfAborted();
+      if (hasInitialBuy) {
         try {
-          const fresh = await api.retryLaunchTransaction(id, wallet.address);
-          if (fresh.status === "live") { finishLaunch(id); return; }
-          if (!fresh.batch?.length) throw new Error("The backend could not rebuild the remaining Orca launch transactions.");
-          await executeLaunchBatch(id, fresh.batch, true);
-          return;
-        } catch (recoveryError) {
-          failure = recoveryError;
+          setRelayMessage("Your coin is live. The optional first buy needs a separate wallet approval.");
+          const plan = await api.launchDevBuyPlan(id, wallet.address!);
+          controller.signal.throwIfAborted();
+          if (plan.devBuyError) throw new Error(plan.devBuyError);
+          await executeDevBuyPlan(plan, controller.signal);
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          toast.warning("Coin launched without the optional first buy", { description: error instanceof Error ? error.message : "The initial buy was not completed.", duration: 10_000 });
         }
       }
-      setPending({ launchId: id, stage: activeStage });
+      finishLaunch(id, complete.mint, complete);
+    } catch (error) {
+      if (controller.signal.aborted) return;
       setStage(activeStage, "error");
-      showLaunchError(failure, "The Orca launch batch could not continue.");
+      showLaunchError(error, "The launch could not continue.");
     }
   }
 
@@ -380,6 +423,7 @@ export function Create() {
         await continueLaunch({ envelope, stage: "devBuy", launchId: pending.launchId });
         return;
       }
+      if (await attachExistingRelay(pending.launchId)) return;
       const fresh = await api.retryLaunchTransaction(pending.launchId, wallet.address);
       if (fresh.status === "live") {
         setStage("lock", "done"); finishLaunch(pending.launchId); return;
@@ -399,6 +443,7 @@ export function Create() {
     setExecutionOpen(true); setExecutionState("running"); setPending(null);
     showLaunchStatus("Resuming launch", "AQUA is checking confirmed steps and preparing what remains.");
     try {
+      if (await attachExistingRelay(recoverableLaunch.id)) return;
       const fresh = await api.retryLaunchTransaction(recoverableLaunch.id, wallet.address);
       const restored = initialProgress();
       restored.approval = "done"; restored.mint = "done";
@@ -460,7 +505,7 @@ export function Create() {
     {!launching && !completedLaunch && <div className="at-launch-entry"><span><strong>Start with Atlantis Studio.</strong> Create your artwork, website and launch draft in one place.</span><Link to="/studio">Open Studio ↗</Link></div>}
     {studioImportMessage && <div className="at-import-notice" role="status">{studioImportMessage}</div>}
     <PageBubbles count={22}/>
-    {recoverableLaunch && <section className="launch-resume-banner"><span className="resume-coin-bubble"><TokenMark launch={recoverableLaunch}/></span><div><b>Continue ${recoverableLaunch.symbol}</b><small>A previous launch has a confirmed on-chain step waiting to continue.</small></div><button onClick={() => void resumeExistingLaunch()}><span className="resume-button-current" aria-hidden="true"/><span>Resume launch</span><ArrowRight/></button></section>}
+    {recoverableLaunch && !launching && !completedLaunch && <section className="launch-resume-banner"><span className="resume-coin-bubble"><TokenMark launch={recoverableLaunch}/></span><div><b>Continue ${recoverableLaunch.symbol}</b><small>A previous launch has a confirmed on-chain step waiting to continue.</small></div><button onClick={() => void resumeExistingLaunch()}><span className="resume-button-current" aria-hidden="true"/><span>Resume launch</span><ArrowRight/></button></section>}
     <section className={`wizard-shell ${launching ? "is-launching" : ""}`}>
       <div className="wizard-caustics" aria-hidden="true"/>
       {launching && <div className="wizard-launching-screen" role="status" aria-live="polite" aria-label={`Launching ${form.symbol}`}>
@@ -468,18 +513,18 @@ export function Create() {
         <section className="launch-simple-status">
           <span className="launching-orb"><Loader2 className="spin"/></span>
           <h2>Launching</h2>
-          <p role="status">{activeProgress}</p><ol>{chainSteps.filter(item=>item.key!=="devBuy"||hasInitialBuy).map(item=><li key={item.key}>{progress[item.key]==="done"?"✓ ":progress[item.key]==="active"?"• ":""}{item.label}</li>)}</ol>
+          <p role="status">{relayMessage || activeProgress}</p>
         </section>
       </div>}
       {completedLaunch ? <section className="launch-complete-screen" aria-live="polite">
         <div className="launch-complete-water" aria-hidden="true"><i/><i/><i/><i/><i/></div>
         <span className="launch-complete-orb"><Rocket/></span>
         <small>Orca market live</small>
-        <h1>${form.symbol} launched</h1>
-        <p>Your pool is active, the full supply is committed to locked liquidity, and {form.rewardMode === "holder_rewards" ? "holder rewards are accruing" : form.rewardMode === "buyback_burn" ? "market buybacks and burns are active" : "hourly jackpot scoring is active"}.</p>
+        <h1>${completedLaunch.symbol} launched</h1>
+        <p>Your pool is active, the full supply is committed to locked liquidity, and {completedLaunch.rewardMode === "holder_rewards" ? "holder rewards are accruing" : completedLaunch.rewardMode === "buyback_burn" ? "market buybacks and burns are active" : "hourly jackpot scoring is active"}.</p>
         <div className="launch-complete-actions">
           <a className="complete-primary" href={`#/token/${completedLaunch.id}`}><span className="button-current"/>Go to coin <ArrowRight/></a>
-          <Link className="complete-secondary" to={"/studio?token="+encodeURIComponent(completedLaunch.mint??"")}>Build website</Link><Link className="complete-secondary" to={"/manage/"+completedLaunch.id}>Manage creator lock</Link><button className="complete-secondary" onClick={()=>{void navigator.clipboard.writeText(marketShareUrl(completedLaunch.id));toast.success("Market link copied");}}>Copy market link</button><button className="complete-secondary" onClick={launchAnother}>Launch another coin</button>
+          <button className="complete-secondary" onClick={launchAnother}>Launch another coin</button>
         </div>
       </section> : <>
       <aside className="wizard-rail" aria-label="Launch steps">
@@ -491,7 +536,7 @@ export function Create() {
         <div className="wizard-rail-pulse" aria-hidden="true"><i/><i/><i/></div>
       </aside>
 
-      <div className="wizard-main">{launchCost && <p className="status-inline">Estimated launch: {launchCost.estimatedTotalSol.minimum.toFixed(2)}–{launchCost.estimatedTotalSol.maximum.toFixed(2)} SOL, excluding optional first buy. {draftStatus} Wallet approvals are never saved.</p>}
+      <div className="wizard-main">{launchCost && <p className="status-inline">Estimated launch: {launchCost.estimatedTotalSol.minimum.toFixed(2)}–{launchCost.estimatedTotalSol.maximum.toFixed(2)} SOL, excluding optional first buy. {draftStatus} Approved launch transactions are handed to AQUA for completion.</p>}
         {step === 0 && <WizardSection title="Create your coin" description="Add a name, ticker, and artwork. The description and socials are optional.">
           <div className="coin-identity-grid">
             <label className="wizard-artwork">

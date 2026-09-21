@@ -140,10 +140,9 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
       const eligible=m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1);
       return <article className={"reward-claim-row"+(eligible?" ready":"")} key={m.launchId}>
         <div className="reward-claim-coin">{coin?<TokenMark launch={coin}/>:<Gift size={24}/>}<div>{coin&&!launch?<Link to={"/token/"+coin.id}>{coin.name}</Link>:<b>{coin?.name??"AQUA reward"}</b>}<small>{eligible?"Ready to claim":unsettled>0?"Awaiting settlement":"Accumulating"}</small></div></div>
-        <div className="reward-claim-amount"><strong>{usd(eligible?m.claimableUsdCents:m.grossRedeemableUsdCents+m.pendingUsdCents)}</strong><small>{eligible?`${usd(m.netClaimableUsdCents)} after estimated costs`:m.claimMode!=="cumulative"&&m.claimableEpochIds.length>1?"Preparing a combined claim":`Claim minimum ${usd(m.minimumClaimUsdCents)} net`}</small></div>
+        <div className="reward-row-amount"><strong>{usd(eligible?m.claimableUsdCents:m.grossRedeemableUsdCents+m.pendingUsdCents)}</strong><small>{eligible?`${usd(m.netClaimableUsdCents)} after estimated costs`:m.claimMode!=="cumulative"&&m.claimableEpochIds.length>1?"Preparing a combined claim":`Claim minimum ${usd(m.minimumClaimUsdCents)} net`}</small></div>
         <button className="primary" disabled={busy||Boolean(pending)||!eligible} onClick={()=>void claimBatch([m])}>{busy&&status?<Loader2 size={15} className="spin"/>:null}{eligible?"Claim":"Pending"}</button>
       </article>;
     })}</div>:rewardData&&<div className="workspace-empty"><Gift/><h3>{launch?.rewardMode==="buyback_burn"?"This market buys back and burns tokens.":"No rewards to claim yet."}</h3><p>{launch?.rewardMode==="buyback_burn"?"Buybacks reduce supply; this mode does not pay a wallet reward.":"Your allocations will appear here once they’re indexed."}</p>{!launch&&<Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link>}</div>}
   </div>;
 }
-

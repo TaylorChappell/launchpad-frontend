@@ -504,6 +504,17 @@ export type CumulativeRewardClaimConfirmation = {
 
 export type LaunchBatchEnvelope = TransactionEnvelope & { step: "pool" | "liquidity" | "lock" };
 export type SignedTransactionEnvelope = LaunchBatchEnvelope & { signedTransactionBase64: string };
+export type LaunchRelayStatus = {
+  launchId: string;
+  batchHash: string | null;
+  symbol: string;
+  rewardMode: "holder_rewards" | "buyback_burn" | "jackpot";
+  mint: string;
+  status: "not_submitted" | "queued" | "running" | "needs_approval" | "complete";
+  step: "pool" | "liquidity" | "lock" | null;
+  error: string | null;
+  rebuildRequired: boolean;
+};
 export type BatchStepValidation = { ready: true; step: "pool" | "liquidity" | "lock"; alreadyConfirmed?: boolean; confirmationRecorded?: boolean; signature?: string };
 
 export type LaunchIntentResponse = TransactionEnvelope & {

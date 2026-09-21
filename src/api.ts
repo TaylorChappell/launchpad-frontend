@@ -1,4 +1,5 @@
 import {readWithRetry} from "./read-retry";
+import type { LaunchRelayStatus, SignedTransactionEnvelope } from "./types";
 import {cachedRead,clearReadCache} from "./read-cache";
 import type { WalletNotification, AdminDiagnostics, AnalyticsResponse, BatchStepValidation, CreatorLock, CreatorLockBalance, CreatorLockTransactionEnvelope, CumulativeRewardClaimConfirmation, CumulativeRewardClaimEnvelope, GovernanceMarket, GovernanceResponse, Launch, LaunchConfirmation, LaunchIntentResponse, LaunchRetryResponse, MarketGovernanceResponse, MarketProposalType, MarketSnapshot, RewardModeState, RuntimeConfig, StockOption, Trade, TransactionEnvelope, WalletRewardsResponse } from "./types";
 
@@ -83,6 +84,9 @@ export const api = {
   upload: (body: FormData, token: string) => request<{ imageId: string; imageUrl: string }>("/api/uploads", { method: "POST", body, headers: { Authorization: `Bearer ${token}` } }),
   createLaunch: (body: unknown) => request<LaunchIntentResponse>("/api/launches", json(body)),
   retryLaunchTransaction: (id: string, creator: string) => request<LaunchRetryResponse>(`/api/launches/${encodeURIComponent(id)}/retry-transaction`, json({ creator })),
+  submitLaunchBatch: (id: string, transactions: SignedTransactionEnvelope[], signal?: AbortSignal) => request<LaunchRelayStatus>(`/api/launches/${encodeURIComponent(id)}/submit-batch`, { ...json({ transactions: transactions.map(({ step, signedTransactionBase64 }) => ({ step, signedTransactionBase64 })) }), signal }),
+  launchSubmission: (id: string, signal?: AbortSignal) => uncachedRequest<LaunchRelayStatus>(`/api/launches/${encodeURIComponent(id)}/submission`, { signal }),
+  launchDevBuyPlan: (id: string, creator: string) => request<LaunchConfirmation>(`/api/launches/${encodeURIComponent(id)}/dev-buy-plan`, json({ creator })),
   confirmLaunch: (id: string, signature: string) => request<LaunchConfirmation>(`/api/launches/${encodeURIComponent(id)}/confirm`, json({ signature })),
   validateBatchStep: (id: string, step: "pool" | "liquidity" | "lock", signedTransactionBase64: string) => request<BatchStepValidation>(`/api/launches/${encodeURIComponent(id)}/validate-batch-step`, json({ step, signedTransactionBase64 })),
   devBuyTransaction: (id: string, body: { trader: string; amountRaw: string; slippageBps: number }) => request<TransactionEnvelope>(`/api/launches/${encodeURIComponent(id)}/dev-buy-transaction`, json(body)),
