@@ -46,7 +46,6 @@ import {
   Trash2,
   Unlock,
   Upload,
-  Wallet,
   X,
 } from "lucide-react";
 import { useWallet } from "../context";
@@ -1248,11 +1247,14 @@ function StudioWorkspace() {
     <main className="at-studio">
       <PageBubbles count={8} />
       <header className="at-heading">
-        <div>
-          <h1>
-            Atlantis<span>Studio</span>
-          </h1>
-          <p>Your memecoin, from idea to launch.</p>
+        <div className="at-brand">
+          <img className="at-brand-logo" src={`${import.meta.env.BASE_URL}atlantis-studio-logo.png`} alt="" width={56} height={56} />
+          <div>
+            <h1>
+              Atlantis<span>Studio</span>
+            </h1>
+            <p>Your memecoin, from idea to launch.</p>
+          </div>
         </div>
         <div className="at-heading-actions">
           {token ? (
@@ -1307,7 +1309,7 @@ function StudioWorkspace() {
             </div>
           </div>
           <div className="at-entry-card at-access-card">
-            <div className="at-entry-card-icon" aria-hidden="true"><Wallet size={25} /></div>
+            <img className="at-entry-logo" src={`${import.meta.env.BASE_URL}atlantis-studio-logo.png`} alt="" width={96} height={96} />
             <h2>{wallet.address ? "Opening your studio" : "Open Atlantis Studio"}</h2>
             <p>{wallet.address ? "Opening your saved projects. Future visits will open automatically while this login remains valid." : "Connect your Solana wallet to access your projects, artwork and websites."}</p>
             <button className="at-primary at-entry-continue" disabled={actionDisabled || Boolean(wallet.connecting)} onClick={() => wallet.address ? void signIn() : wallet.setModalOpen(true)}>
