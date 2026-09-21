@@ -440,6 +440,7 @@ export function Create() {
       const initialBuyRaw = hasInitialBuy ? decimalToRaw(form.launchAmount, currencyDecimals) : "0";
       const intent = await api.createLaunch({
         creatorWallet: wallet.address, clientRequestId, symbol, stockSymbol: stock.symbol,
+        ...(importedStudio.current === `${wallet.address}:${searchParams.get("studio")}` ? { studioProjectId: searchParams.get("studio") } : {}),
         name: form.name.trim(), description: form.description.trim(), imageId,
         stockMint: stock.mint, poolPair: stock.symbol === "SOL" ? "SOL" : "STOCK",
         devBuyStockRaw: "0", devBuyLamports: "0",
