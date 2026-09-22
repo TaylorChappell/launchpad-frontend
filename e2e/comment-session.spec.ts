@@ -1,0 +1,80 @@
+import { test, expect, type Page } from "@playwright/test";
+
+const address = "11111111111111111111111111111111", token = "a".repeat(64);
+async function setup(page: Page, restored = false, authenticated = false) {
+  await page.addInitScript(({ address, token, restored, authenticated }) => {
+    localStorage.setItem("aqua:update:holder-workspace-v2", "seen");
+    if (restored) localStorage.setItem("aqua:wallet", "phantom");
+    if (authenticated) localStorage.setItem(`aqua:studio:${address}`, JSON.stringify({ token, expiresAt: Date.now() + 86400000 }));
+    const calls = { signIn: 0, signMessage: 0 };
+    Object.assign(window, { commentWalletCalls: calls, phantom: { solana: {
+      isPhantom: true, publicKey: { toString: () => address },
+      connect: async () => ({ publicKey: { toString: () => address } }), on() {}, removeListener() {},
+      signIn: async () => { calls.signIn++; return { account: { address }, signedMessage: new TextEncoder().encode("SIWS proof"), signature: new Uint8Array(64) }; },
+      signMessage: async () => { calls.signMessage++; throw new Error("A comment must not request a signature"); },
+    } } });
+  }, { address, token, restored, authenticated });
+  await page.route("**/api/config", r => r.fulfill({ json: { brand: "AQUA", network: "mainnet-beta", useTestnet: false,
+    transactionsEnabled: false, marketGovernanceEnabled: false, publicRpcUrl: "https://rpc.invalid", whirlpools: {},
+    fees: { transferFeeBps: 200, platformBps: 100, stockRewardsBps: 100 }, creatorLocks: { minimumSeconds: 86400, maximumSeconds: 31536000, maximumFeeShareBps: 5000 }, sniperDefense: { supported: false } } }));
+  await page.route("**/account/x/config", r => r.fulfill({ json: { enabled: false } }));
+  await page.route("**/api/notifications/**", r => r.fulfill({ json: { notifications: [] } }));
+  await page.route("**/api/governance**", r => r.fulfill({ json: { enabled: false } }));
+  await page.route("**/api/stocks", r => r.fulfill({ json: { stocks: [] } }));
+  await page.route("**/api/market-prices", r => r.fulfill({ json: { prices: [] } }));
+  await page.route("**/api/market-prices/stream", r => r.fulfill({ contentType: "text/event-stream", body: 'data: {"prices":[]}\n\n' }));
+  await page.route("https://rpc.invalid/**", r => { const request = r.request().postDataJSON(); return r.fulfill({ json: { jsonrpc: "2.0", id: request.id, result: { context: { slot: 1 }, value: 0 } } }); });
+  await page.route("**/api/launches/coin/market-data?**", r => r.fulfill({ json: { snapshots: [] } }));
+  await page.route("**/api/launches/coin", r => r.fulfill({ json: { launch: {
+    id: "coin", mint: address, creatorWallet: address, name: "Comment test", symbol: "TEST", description: "A test market",
+    stockMint: address, stockSymbol: "SOL", stockName: "Solana", stock: { mint: address, symbol: "SOL", name: "Solana" },
+    pairMint: address, pairType: "sol", pairSymbol: "SOL", rewardMode: "holder_rewards", status: "live", txCount: 0,
+    marketCapUsd: 1000, tvlUsd: 100, holderCount: 1, aquaIndexed: true, totalSupplyRaw: "1000000", tokenDecimals: 6,
+    createdAt: Date.now(), launchedAt: Math.floor(Date.now() / 1000), devBuySol: 0, rewardAccumulatedUsd: 0, rewardRedeemableUsd: 0,
+  }, trades: [], creatorLock: null, rewardModeState: null } }));
+  await page.route("**/account/auth/sign-in/challenge", r => r.fulfill({ json: { id: "challenge", input: { nonce: "testnonce" } } }));
+  await page.route("**/account/auth/sign-in/session", r => {
+    expect(r.request().postDataJSON()).toMatchObject({ wallet: address, message: "SIWS proof" });
+    return r.fulfill({ json: { token, expiresAt: Date.now() + 86400000 } });
+  });
+  const posts: string[] = [];
+  await page.route("**/api/launches/coin/comments", r => {
+    if (r.request().method() === "GET") return r.fulfill({ json: { comments: [], hasMore: false, nextCursor: null } });
+    expect(r.request().headers().authorization).toBe(`Bearer ${token}`);
+    const input = r.request().postDataJSON(); posts.push(input.body);
+    return r.fulfill({ json: { comment: { ...input, launchId: "coin", authorWallet: address, createdAt: Date.now() } } });
+  });
+  await page.goto("/#/token/coin");
+  await page.getByRole("button", { name: "Comments", exact: true }).click();
+  return posts;
+}
+
+test("one wallet connection signs in, then comments post without another wallet prompt", async ({ page }) => {
+  const posts = await setup(page);
+  await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
+  await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
+  await expect(page.getByRole("dialog", { name: "Connect your wallet" })).toHaveCount(0);
+  for (const body of ["First comment", "Second comment"]) {
+    await page.getByLabel("Your comment", { exact: true }).fill(body);
+    await page.getByRole("button", { name: "Post comment", exact: true }).click();
+    await expect(page.locator(".market-comment-feed").getByText(body, { exact: true })).toBeVisible();
+  }
+  expect(posts).toEqual(["First comment", "Second comment"]);
+  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 1, signMessage: 0 });
+});
+
+test("a restored session can comment without signing in again", async ({ page }) => {
+  const posts = await setup(page, true, true);
+  await page.getByLabel("Your comment", { exact: true }).fill("Still signed in");
+  await page.getByRole("button", { name: "Post comment", exact: true }).click();
+  await expect(page.locator(".market-comment-feed").getByText("Still signed in", { exact: true })).toBeVisible();
+  expect(posts).toEqual(["Still signed in"]);
+  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 0, signMessage: 0 });
+});
+
+test("an old connection without a session does not silently open the wallet", async ({ page }) => {
+  await setup(page, true);
+  await expect(page.getByRole("button", { name: "Reconnect wallet", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Post comment", exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 0, signMessage: 0 });
+});

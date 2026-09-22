@@ -2,10 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { SolanaClient } from "@metamask/connect-solana";
 import { toast } from "sonner";
 import { api, API_URL } from "./api";
+import { ensureAccountSession, savedAccountSession, signInWithWallet, type WalletSignInInput, type WalletSignInOutput } from "./account-api";
 import type { LaunchBatchEnvelope, RuntimeConfig, SignedTransactionEnvelope, TransactionEnvelope } from "./types";
 
 type PhantomProvider = {
   isPhantom?: boolean;
+  publicKey?: { toString: () => string } | null;
+  signIn?: (input: WalletSignInInput) => Promise<WalletSignInOutput>;
   connect: (options?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey: { toString: () => string } }>;
   on?: (event: string, listener: (...args: any[]) => void) => void;
   removeListener?: (event: string, listener: (...args: any[]) => void) => void;
@@ -16,6 +19,7 @@ type PhantomProvider = {
 };
 type SolanaAccount = { address: string };
 type StandardConnect = { connect: () => Promise<{ accounts?: readonly SolanaAccount[] }> };
+type StandardSignIn = { signIn: (input: WalletSignInInput) => Promise<readonly WalletSignInOutput[]> };
 type SolanaSignMessage = { signMessage: (input: { account: SolanaAccount; message: Uint8Array }) => Promise<readonly { signature: Uint8Array }[]> };
 type SolanaSignAndSend = { signAndSendTransaction: (input: { account: SolanaAccount; transaction: Uint8Array; chain: string; options?: { preflightCommitment?: string; maxRetries?: number } }) => Promise<readonly { signature: Uint8Array }[]> };
 type SolanaSignTransaction = { signTransaction: (...inputs: Array<{ account: SolanaAccount; transaction: Uint8Array; chain: string }>) => Promise<readonly { signedTransaction: Uint8Array }[]> };
@@ -135,6 +139,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const connectWallet = useCallback(async (next: "phantom" | "metamask", silent = false) => {
     const attempt = ++connectionAttempt.current;
+    const isCurrent = () => attempt === connectionAttempt.current;
     setConnecting(next);
     try {
       if (next === "phantom") {
@@ -143,10 +148,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           if (!silent) window.open("https://phantom.com/download", "_blank", "noopener,noreferrer");
           throw new Error("Phantom is not installed.");
         }
-        const result = await provider.connect(silent ? { onlyIfTrusted: true } : undefined);
-        if (attempt !== connectionAttempt.current) return;
+        let connectedAddress: string;
+        if (!silent && provider.signIn && !savedAccountSession(provider.publicKey?.toString() ?? null)) {
+          const account = await signInWithWallet(input => provider.signIn!(input), isCurrent);
+          connectedAddress = account.address;
+          if (provider.publicKey && provider.publicKey.toString() !== connectedAddress) throw new Error("Wallet changed. Connect again.");
+        } else {
+          const result = await provider.connect(silent ? { onlyIfTrusted: true } : undefined);
+          if (!isCurrent()) return;
+          connectedAddress = result.publicKey.toString();
+          if (!silent) await ensureAccountSession(connectedAddress, async message => {
+            const signed = await provider.signMessage(new TextEncoder().encode(message), "utf8");
+            return { signature: base64(signed.signature) };
+          }, () => isCurrent() && (!provider.publicKey || provider.publicKey.toString() === connectedAddress));
+        }
+        if (!isCurrent()) return;
         adapter.current = { kind: "phantom", provider };
-        setAddress(result.publicKey.toString());
+        setAddress(connectedAddress);
       } else {
         const { createSolanaClient } = await import("@metamask/connect-solana");
         const client = await (metaClient.current ??= createSolanaClient({
@@ -157,11 +175,32 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const wallet = client.getWallet() as unknown as WalletStandard;
         const feature = wallet.features["standard:connect"] as StandardConnect | undefined;
         if (!feature) throw new Error("MetaMask does not expose a Solana account.");
+        const signIn = wallet.features["solana:signIn"] as StandardSignIn | undefined;
         // The SDK restores an existing Solana session during initialization.
         // Never request a new session automatically when permission is absent.
-        const result = silent ? { accounts: wallet.accounts } : await feature.connect();
-        if (attempt !== connectionAttempt.current) return;
-        const account = result.accounts?.[0] ?? wallet.accounts[0];
+        let account: SolanaAccount | undefined;
+        if (!silent && signIn && !savedAccountSession(wallet.accounts[0]?.address ?? null)) {
+          account = await signInWithWallet(async input => {
+            const [output] = await signIn.signIn(input);
+            if (!output) throw new Error("MetaMask did not return a sign-in result.");
+            return output;
+          }, isCurrent);
+          if (!wallet.accounts.some(current => current.address === account!.address)) throw new Error("Wallet changed. Connect again.");
+        } else {
+          const result = silent ? { accounts: wallet.accounts } : await feature.connect();
+          account = result.accounts?.[0] ?? wallet.accounts[0];
+          if (account && !silent) {
+            const selected = account.address;
+            await ensureAccountSession(selected, async message => {
+              const signing = wallet.features["solana:signMessage"] as SolanaSignMessage | undefined;
+              if (!signing) throw new Error("MetaMask does not support Solana message signing.");
+              const [signed] = await signing.signMessage({ account: account!, message: new TextEncoder().encode(message) });
+              if (!signed) throw new Error("MetaMask did not return a message signature.");
+              return { signature: base64(signed.signature) };
+            }, () => isCurrent() && wallet.accounts.some(current => current.address === selected));
+          }
+        }
+        if (!isCurrent()) return;
         if (!account) throw new Error("No Solana account was returned.");
         adapter.current = { kind: "metamask", value: { client, wallet, account } };
         setAddress(account.address);
@@ -356,4 +395,3 @@ export function useWallet() {
   if (!value) throw new Error("WalletProvider missing");
   return value;
 }
-

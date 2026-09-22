@@ -7,12 +7,37 @@ export type GithubConnection = {
   connectedAt: number | null;
 };
 
-export async function ensureAccountSession(address: string, signMessage: (message: string) => Promise<{signature:string}>) {
+export function savedAccountSession(address: string | null) {
+  if (!address) return null;
   try {
     const saved = JSON.parse(localStorage.getItem(studioSessionKey(address)) ?? "null");
-    if (saved?.token && saved.expiresAt > Date.now()+60_000) return saved.token as string;
+    if (typeof saved?.token === "string" && /^[a-f0-9]{64}$/.test(saved.token) && saved.expiresAt > Date.now()+60_000) return saved.token;
   } catch { /* Missing sessions require wallet proof, not just a public address. */ }
-  return (await signInAccount(address, signMessage)).token;
+  return null;
+}
+export async function ensureAccountSession(address: string, signMessage: (message: string) => Promise<{signature:string}>, isCurrent: () => boolean = () => true) {
+  if (!isCurrent()) throw new Error("Wallet changed. Sign in again.");
+  return savedAccountSession(address) ?? (await signInAccount(address, signMessage, isCurrent)).token;
+}
+
+export type WalletSignInInput = { domain: string; uri: string; statement: string; version: string; chainId: string; nonce: string; issuedAt: string; expirationTime: string };
+export type WalletSignInOutput = { account: { address: string }; signedMessage: Uint8Array; signature: Uint8Array; signatureType?: string };
+
+export async function signInWithWallet(signIn: (input: WalletSignInInput) => Promise<WalletSignInOutput>, isCurrent: () => boolean) {
+  const challenge = await accountRequest<{ id: string; input: WalletSignInInput }>("/auth/sign-in/challenge", "", {});
+  if (!isCurrent()) throw new Error("Wallet changed. Connect again.");
+  const output = await signIn(challenge.input);
+  if (!isCurrent()) throw new Error("Wallet changed. Connect again.");
+  if (output.signatureType && output.signatureType !== "ed25519") throw new Error("This wallet signature format is not supported.");
+  const session = await accountRequest<{ token: string; expiresAt: number }>("/auth/sign-in/session", "", {
+    id: challenge.id, wallet: output.account.address,
+    message: new TextDecoder("utf-8", { fatal: true }).decode(output.signedMessage),
+    signature: btoa(String.fromCharCode(...output.signature)),
+  });
+  if (!isCurrent()) throw new Error("Wallet changed. Connect again.");
+  localStorage.setItem(studioSessionKey(output.account.address), JSON.stringify(session));
+  window.dispatchEvent(new Event("aqua:account-session"));
+  return output.account;
 }
 export type GithubExport = {
   id: string;

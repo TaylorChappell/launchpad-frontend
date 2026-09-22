@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { ensureAccountSession } from "../account-api";
+import { savedAccountSession } from "../account-api";
 import { commentsApi } from "../market-comments-api";
 import { mergeComments, type MarketComment } from "../market-comments";
 import { useWallet } from "../context";
@@ -15,6 +15,7 @@ export function MarketComments({ launch }: { launch: Launch }) {
 
 function CommentList({ launch }: { launch: Launch }) {
   const wallet = useWallet();
+  const [session, setSession] = useState(() => savedAccountSession(wallet.address));
   const [comments, setComments] = useState<MarketComment[]>([]), [cursor, setCursor] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false), [loading, setLoading] = useState(true), [loadError, setLoadError] = useState("");
   const [body, setBody] = useState(""), [posting, setPosting] = useState(false), [postError, setPostError] = useState("");
@@ -46,6 +47,14 @@ function CommentList({ launch }: { launch: Launch }) {
     return () => { alive.current = false; reading.current?.abort(); reading.current = null; };
   }, [launch.id]);
   useEffect(() => { setBody(""); setPostError(""); draft.current = null; }, [wallet.address]);
+  useEffect(() => {
+    const sync = () => setSession(savedAccountSession(wallet.address));
+    sync();
+    window.addEventListener("aqua:account-session", sync);
+    window.addEventListener("storage", sync);
+    const timer = window.setInterval(sync, 30000);
+    return () => { window.removeEventListener("aqua:account-session", sync); window.removeEventListener("storage", sync); window.clearInterval(timer); };
+  }, [wallet.address]);
 
   async function publish() {
     const author = wallet.address, text = body.trim();
@@ -55,14 +64,18 @@ function CommentList({ launch }: { launch: Launch }) {
     const submission = { id: draft.current.id, body: text };
     postingRef.current = true; setPosting(true); setPostError("");
     try {
-      const token = await ensureAccountSession(author, wallet.signMessage);
+      const token = savedAccountSession(author);
+      if (!token) { setSession(null); return; }
       if (!alive.current || address.current !== author) return;
       const { comment } = await commentsApi.publish(launch.id, author, token, submission);
       if (!alive.current) return;
       setComments(current => mergeComments(current, [comment]));
       if (address.current === author) { setBody(""); draft.current = null; }
     } catch (error) {
-      if (alive.current && address.current === author) setPostError(error instanceof Error ? error.message : "Could not post your comment. Try again.");
+      if (alive.current && address.current === author) {
+        setSession(savedAccountSession(author));
+        setPostError(error instanceof Error ? error.message : "Could not post your comment. Try again.");
+      }
     } finally {
       postingRef.current = false;
       if (alive.current) setPosting(false);
@@ -71,7 +84,7 @@ function CommentList({ launch }: { launch: Launch }) {
 
   return <section className="market-comments" aria-labelledby="market-comments-heading">
     <header className="market-comments-heading"><h2 id="market-comments-heading">Comments</h2><span>Newest first</span></header>
-    {launch.status !== "live" ? <p className="market-comments-empty">Comments open once this coin launches.</p> : wallet.address ?
+    {launch.status !== "live" ? <p className="market-comments-empty">Comments open once this coin launches.</p> : wallet.address && session ?
       <form className="market-comment-composer" onSubmit={event => { event.preventDefault(); void publish(); }}>
         <div className="market-comment-author"><WalletIdentity wallet={wallet.address} link={false}/></div>
         <label className="sr-only" htmlFor="market-comment-body">Your comment</label>
@@ -81,7 +94,7 @@ function CommentList({ launch }: { launch: Launch }) {
           {posting && <Loader2 size={15} className="spin"/>}{posting ? "Posting…" : "Post comment"}
         </button></footer>
         {postError && <p className="market-comments-error" role="alert">{postError}</p>}
-      </form> : <div className="market-comments-connect"><p>Connect your wallet to join the conversation.</p><button className="soft-button" onClick={() => wallet.setModalOpen(true)}>Connect wallet</button></div>}
+      </form> : <div className="market-comments-connect"><p>{wallet.address ? "Reconnect your wallet to join the conversation." : "Connect your wallet to join the conversation."}</p><button className="soft-button" onClick={() => wallet.setModalOpen(true)}>{wallet.address ? "Reconnect wallet" : "Connect wallet"}</button></div>}
     <div className="market-comment-feed">{comments.map(comment => <article className="market-comment" key={comment.id}>
       <header><WalletIdentity wallet={comment.authorWallet}/>{comment.authorWallet === launch.creatorWallet && <span className="market-comment-creator">Creator</span>}
         <time dateTime={new Date(comment.createdAt).toISOString()} title={new Date(comment.createdAt).toLocaleString()}>{buybackAge(comment.createdAt)}</time>
