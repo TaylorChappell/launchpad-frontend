@@ -1,4 +1,5 @@
-export type MarketComment = { id: string; launchId: string; authorWallet: string; body: string; createdAt: number };
+export type CommentReference = { id: string; authorWallet: string; body: string };
+export type MarketComment = { id: string; launchId: string; authorWallet: string; body: string; createdAt: number; replyTo?: string | null; reply?: CommentReference | null };
 export type CommentPage = { comments: MarketComment[]; hasMore: boolean; nextCursor: string | null };
 
 export function mergeComments(current: MarketComment[], incoming: MarketComment[]) {

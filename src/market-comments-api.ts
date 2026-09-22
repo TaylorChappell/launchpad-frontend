@@ -15,7 +15,7 @@ async function request<T>(id: string, query: string, init: RequestInit = {}): Pr
 export const commentsApi = {
   list: (id: string, cursor: string | null, signal?: AbortSignal) =>
     request<CommentPage>(id, cursor ? `?cursor=${encodeURIComponent(cursor)}` : "", { signal }),
-  async publish(id: string, wallet: string, token: string, comment: { id: string; body: string }) {
+  async publish(id: string, wallet: string, token: string, comment: { id: string; body: string; replyTo?: string | null }) {
     try {
       return await request<{ comment: MarketComment }>(id, "", {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(comment),

@@ -38,11 +38,16 @@ async function setup(page: Page, restored = false, authenticated = false) {
     return r.fulfill({ json: { token, expiresAt: Date.now() + 86400000 } });
   });
   const posts: string[] = [];
+  const comments: any[] = [];
   await page.route("**/api/launches/coin/comments", r => {
-    if (r.request().method() === "GET") return r.fulfill({ json: { comments: [], hasMore: false, nextCursor: null } });
+    if (r.request().method() === "GET") return r.fulfill({ json: { comments, hasMore: false, nextCursor: null } });
     expect(r.request().headers().authorization).toBe(`Bearer ${token}`);
     const input = r.request().postDataJSON(); posts.push(input.body);
-    return r.fulfill({ json: { comment: { ...input, launchId: "coin", authorWallet: address, createdAt: Date.now() } } });
+    const parent = comments.find(c => c.id === input.replyTo);
+    if (input.replyTo) expect(parent).toBeTruthy();
+    const comment = { ...input, launchId: "coin", authorWallet: address, createdAt: Date.now(), reply: parent ? { id: parent.id, authorWallet: parent.authorWallet, body: parent.body.slice(0, 200) } : null };
+    comments.unshift(comment);
+    return r.fulfill({ json: { comment } });
   });
   await page.goto("/#/token/coin");
   await page.getByRole("button", { name: "Comments", exact: true }).click();
@@ -77,4 +82,40 @@ test("an old connection without a session does not silently open the wallet", as
   await expect(page.getByRole("button", { name: "Reconnect wallet", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Post comment", exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 0, signMessage: 0 });
+});
+
+test("compact comments support reply previews, cancellation, refresh and keyboard posting", async ({ page }) => {
+  const posts = await setup(page, true, true);
+  const field = page.getByLabel("Your comment", { exact: true });
+  await expect(field).toBeVisible();
+  expect((await page.locator(".market-comment-composer").boundingBox())!.height).toBeLessThan(140);
+  await field.fill("The new release is ready.");
+  await page.getByRole("button", { name: "Post comment", exact: true }).click();
+  await page.locator(".market-comment").getByRole("button", { name: "Reply", exact: true }).click();
+  await expect(page.locator(".comment-reply-draft")).toContainText("Replying to");
+  await expect(field).toBeFocused();
+  await page.getByRole("button", { name: "Cancel reply", exact: true }).click();
+  await expect(page.locator(".comment-reply-draft")).toHaveCount(0);
+  await page.locator(".market-comment").getByRole("button", { name: "Reply", exact: true }).click();
+  await field.fill("Trying it now!");
+  await field.press("Control+Enter");
+  await expect(page.locator(".market-comment").first().locator(".comment-text")).toHaveText("Trying it now!");
+  await expect(page.locator(".market-comment").first().locator(".comment-reference")).toContainText("The new release is ready.");
+  await page.getByRole("button", { name: "Refresh comments", exact: true }).click();
+  await expect(page.locator(".market-comment")).toHaveCount(2);
+  expect(posts).toEqual(["The new release is ready.", "Trying it now!"]);
+  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 0, signMessage: 0 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
+});
+
+test("long comments expand without overflowing the thread", async ({ page }) => {
+  await setup(page, true, true);
+  const body = "Progress update. ".repeat(35) + "Final detail.";
+  await page.getByLabel("Your comment", { exact: true }).fill(body);
+  await page.getByRole("button", { name: "Post comment", exact: true }).click();
+  await page.getByRole("button", { name: "Read more", exact: true }).click();
+  await expect(page.locator(".comment-text")).toHaveText(body);
+  await page.getByRole("button", { name: "Show less", exact: true }).click();
+  await expect(page.locator(".comment-text")).not.toContainText("Final detail.");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
 });
