@@ -8,7 +8,7 @@ import type { LaunchBatchEnvelope, RuntimeConfig, SignedTransactionEnvelope, Tra
 type PhantomProvider = {
   isPhantom?: boolean;
   publicKey?: { toString: () => string } | null;
-  signIn?: (input: WalletSignInInput) => Promise<WalletSignInOutput>;
+  signIn?: (input: WalletSignInInput) => Promise<unknown>;
   connect: (options?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey: { toString: () => string } }>;
   on?: (event: string, listener: (...args: any[]) => void) => void;
   removeListener?: (event: string, listener: (...args: any[]) => void) => void;
