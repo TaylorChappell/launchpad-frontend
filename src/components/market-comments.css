@@ -6,8 +6,9 @@
 .comment-refresh { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: #648797; cursor: pointer; }
 .comment-refresh:hover { background: #e4f3fa; color: #087fb5; }
 .market-comment-composer { display: flex; gap: 10px; padding-bottom: 18px; border-bottom: 1px solid #dcebf2; }
-.comment-avatar { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: 0 0 30px; overflow: hidden; border-radius: 9px; }
+.comment-avatar { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: 0 0 30px; overflow: hidden; border-radius: 50%; background: #e6f4fa; color: #4c8198; }
 .comment-avatar > svg, .comment-avatar .x-avatar { display: block; width: 30px; height: 30px; object-fit: cover; }
+.comment-avatar > .comment-avatar-guest { width: 17px; height: 17px; }
 .comment-avatar .x-avatar-fallback { display: flex; align-items: center; justify-content: center; background: #e0f2fb; color: #24779c; font-size: 13px; }
 .comment-compose-content, .market-comment-content { flex: 1; min-width: 0; }
 .market-comment-composer textarea { display: block; width: 100%; box-sizing: border-box; min-height: 42px; max-height: 180px; resize: none; padding: 10px 12px; border: 1px solid #c8e1ee; border-radius: 8px; background: #f7fcff; color: #264e62; font: inherit; font-size: 13px; line-height: 1.55; }
