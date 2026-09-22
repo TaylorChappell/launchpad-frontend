@@ -1,5 +1,6 @@
 import { WalletIdentity } from "../components/WalletIdentity";
 import { ProjectUpdates } from "../components/ProjectUpdates";
+import { MarketComments } from "../components/MarketComments";
 import { MarketInformationTabs } from "../components/MarketProposals";
 import { WalletRewards } from "../components/WalletRewards";
 import {marketShareUrl} from "../share-market";
@@ -181,6 +182,7 @@ export function Token() {
       {section==="Holders"&&<MarketHolders key={launch.id} launch={launch} creatorLock={creatorLock}/>}
       {section==="Your position"&&<MarketPosition launch={launch}/>}
       {section==="Updates"&&<ProjectUpdates launch={launch}/>}
+      {section==="Comments"&&<MarketComments launch={launch}/>}
       {section==="Project"&&<section className="dashboard-section"><h2>Project information</h2><p>{launch.description}</p><p>Opening LP lock: {launch.liquidityLockedPermanently?"Permanently locked":"Not verified"}{launch.lockConfig&&<> · <a href={solscanAccountUrl(launch.lockConfig,config.network)} target="_blank" rel="noreferrer">Verify LP lock ↗</a></>}</p><p>Creator token lock: {creatorLock?.status==="active"?"Active until "+new Date(creatorLock.unlockAt*1000).toLocaleString():"No active verified creator lock"}.</p><p>DEX profile payment is not an endorsement or security assessment.</p><a href={solscanAccountUrl(launch.mint,config.network)} target="_blank" rel="noreferrer">Inspect mint and authority state ↗</a></section>}
       {section==="Rewards"&&<>{rewardMode==="holder_rewards"&&<><WalletRewards launch={launch}/><section className="workspace-panel market-reward-activity"><header><h2>Market reward activity</h2></header><div className="info-grid single reward-mode-market-panel">
         {rewardMode === "holder_rewards" && <section className="market-reward-panel"><header><div><small>HOLDER REWARDS</small><h2>Earn {launch.stockSymbol}</h2></div><span className="reward-live-label">Accumulating</span></header><div className="reward-stat-row"><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Available to all holders" value={money.format(launch.rewardRedeemableUsd)}/></div><footer>Rewards follow your balance and time held.</footer></section>}
@@ -245,4 +247,3 @@ function JackpotLeaderboard({ jackpot }: { jackpot: RewardModeState["jackpot"] |
     </> : <p>No completed jackpot rounds yet.</p>}
   </section>;
 }
-
