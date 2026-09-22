@@ -1,3 +1,4 @@
+import { XConnect } from "./XConnect";
 import { Compass, Menu, PanelsTopLeft, Plus, Search, X, WalletCards, ChevronDown } from "lucide-react";
 import { StudioAnnouncement } from "./StudioAnnouncement";
 import { NavLink, useLocation } from "react-router-dom";
@@ -85,7 +86,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="header-actions">
           <button className="header-search" onClick={() => { setMobile(false); setSearchOpen(true); }} aria-label="Search AQUA markets"><Search size={17}/><span>Search coins, stocks...</span><kbd>/</kbd></button>
           {wallet.address && <Notifications key={wallet.address} wallet={wallet.address}/>}
-          <WalletMenu/>
+          <WalletMenu/><XConnect/>
           <button className="mobile-menu" onClick={() => setMobile(!mobile)} aria-label="Toggle navigation" aria-expanded={mobile}>{mobile ? <X /> : <Menu />}</button>
         </div>
       </div>
@@ -111,3 +112,4 @@ export function Layout({ children }: { children: ReactNode }) {
 function XBrandIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h3.7l3.9 5.2 4.6-5.2h1.7l-5.5 6.4 5.9 8.6h-3.7l-4.3-5.8-5.1 5.8H4.5l6-7L5 4.5Zm3 1.4 8.3 12.2h1.1L9.1 5.9H8Z"/></svg>;
 }
+

@@ -14,3 +14,5 @@ import "./creator-dashboard.css";
 import "./components/dialog-motion.css";
 createRoot(document.getElementById("root")!).render(<StrictMode><RuntimeProvider><WalletProvider><App/><Toaster theme="light" richColors/></WalletProvider></RuntimeProvider></StrictMode>);
 
+
+import "./x-identity.css";

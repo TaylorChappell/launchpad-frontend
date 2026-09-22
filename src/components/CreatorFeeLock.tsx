@@ -1,3 +1,4 @@
+import { WalletIdentity } from "./WalletIdentity";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ExternalLink, Loader2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
@@ -126,7 +127,7 @@ export function CreatorFeeLock({ onChanged }: { onChanged?: () => void }) {
   if (!launch && loaded) return <main className="page empty-state"><h2>Coin not found</h2><Link className="primary" to="/">Back to markets</Link></main>;
   if (!launch) return <main className="page"><div className="page-loading">Opening creator manager…</div></main>;
 
-  if (!wallet.address) return <main className="page manage-page"><Link className="back" to={"/token/" + launch.id}><ArrowLeft/>Back to {launch.symbol}</Link><section className="manage-gate"><h1>Connect the creator wallet</h1><p>Connect {launch.creatorWallet.slice(0, 6)}…{launch.creatorWallet.slice(-6)} to manage this coin.</p><button className="primary" onClick={() => wallet.setModalOpen(true)}>Connect wallet</button></section></main>;
+  if (!wallet.address) return <main className="page manage-page"><Link className="back" to={"/token/" + launch.id}><ArrowLeft/>Back to {launch.symbol}</Link><section className="manage-gate"><h1>Connect the creator wallet</h1><p>Connect <WalletIdentity wallet={launch.creatorWallet}/> to manage this coin.</p><button className="primary" onClick={() => wallet.setModalOpen(true)}>Connect wallet</button></section></main>;
   if (!isOwner) return <main className="page manage-page"><Link className="back" to={"/token/" + launch.id}><ArrowLeft/>Back to {launch.symbol}</Link><section className="manage-gate"><h1>This wallet is not the creator</h1><p>Switch to the wallet that launched {"$" + launch.symbol} to manage its creator lock and fees.</p></section></main>;
 
   return <>

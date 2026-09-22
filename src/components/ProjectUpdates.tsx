@@ -1,9 +1,9 @@
+import { WalletIdentity } from "./WalletIdentity";
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { creatorApi, type ProjectUpdate } from "../creator-api";
 import { ensureAccountSession } from "../account-api";
-import { useRuntime, useWallet } from "../context";
-import { solscanAccountUrl } from "../creator-lock";
+import { useWallet } from "../context";
 import { TokenMark } from "./TokenCard";
 import type { Launch } from "../types";
 
@@ -11,7 +11,7 @@ export function ProjectUpdates({ launch, compose = false }: { launch: Launch; co
   return <ProjectUpdateList key={launch.id} launch={launch} compose={compose}/>;
 }
 function ProjectUpdateList({ launch, compose }: { launch: Launch; compose: boolean }) {
-  const wallet = useWallet(), { config } = useRuntime();
+  const wallet = useWallet();
   const [updates, setUpdates] = useState<ProjectUpdate[]>([]), [more, setMore] = useState(false), [loading, setLoading] = useState(true);
   const [error, setError] = useState(""), [body, setBody] = useState(""), [posting, setPosting] = useState(false);
   const request = useRef<{ id: string; body: string } | null>(null), address = useRef(wallet.address), busy = useRef(false);
@@ -48,7 +48,7 @@ function ProjectUpdateList({ launch, compose }: { launch: Launch; compose: boole
     {!updates.length && !loading && !error && <p className="creator-empty">{compose ? "Your first update will appear here and on the market page." : "The creator hasn’t posted an update yet."}</p>}
     <div className="project-update-feed">{updates.map(update => <article key={update.id}>
       <TokenMark launch={launch}/><div><header><strong>{launch.name}</strong><span>{update.authorWallet === launch.creatorWallet ? "Creator" : "Previous creator"}</span><time dateTime={new Date(update.createdAt).toISOString()} title={new Date(update.createdAt).toLocaleString()}>{new Date(update.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</time></header>
-      <p>{update.body}</p><a href={solscanAccountUrl(update.authorWallet, config.network)} target="_blank" rel="noreferrer">{update.authorWallet.slice(0, 5)}…{update.authorWallet.slice(-4)} <ExternalLink size={12}/></a></div>
+      <p>{update.body}</p><WalletIdentity wallet={update.authorWallet}/></div>
     </article>)}</div>
     {loading && <p className="creator-empty" role="status">Loading updates…</p>}
     {more && <button className="soft-button" disabled={loading} onClick={() => void load(true)}>Older updates</button>}

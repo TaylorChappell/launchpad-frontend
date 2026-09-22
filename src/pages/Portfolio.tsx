@@ -1,3 +1,4 @@
+import { WalletIdentity } from "../components/WalletIdentity";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowRight, ArrowUpRight, Coins, Gift, Layers3, RefreshCw, Wallet } from "lucide-react";
@@ -61,7 +62,7 @@ function PortfolioContent({address}:{address:string|null}){
     </div></section>
   </main>;
   return <main className="page holder-workspace">
-    <header className="workspace-heading"><div><h1>My holdings</h1><p>Positions, rewards and the communities you’re part of.</p></div><div className="workspace-heading-actions"><span className="wallet-address"><Wallet size={14}/>{address.slice(0,4)}…{address.slice(-4)}</span><button className="workspace-refresh" aria-label="Refresh holdings" onClick={refresh}><RefreshCw size={16}/></button></div></header>
+    <header className="workspace-heading"><div><h1>My holdings</h1><p>Positions, rewards and the communities you’re part of.</p></div><div className="workspace-heading-actions"><span className="wallet-address"><Wallet size={14}/><WalletIdentity wallet={address}/></span><button className="workspace-refresh" aria-label="Refresh holdings" onClick={refresh}><RefreshCw size={16}/></button></div></header>
     {Object.values(errors).some(Boolean)&&<p className="danger-note" role="alert">{Object.values(errors).filter(Boolean).join(" ")} Previous values may be stale. <button className="text-button" onClick={refresh}>Try again</button></p>}
     <section className="portfolio-overview">
       <article className="portfolio-value"><span className="workspace-eyebrow">HOLDINGS VALUE</span><strong>{value===undefined?"—":usd.format(value)}</strong><span>{holdings===null?"Loading positions…":holdings.length+" positions"}{unpriced>0?" · "+unpriced+" awaiting price":""}</span><Link to="/">Explore markets <ArrowUpRight size={15}/></Link></article>
@@ -83,3 +84,4 @@ function PortfolioContent({address}:{address:string|null}){
     {tab==="Created"&&<section className="workspace-panel"><header><h2>Your coins</h2><Link to="/studio">Atlantis Studio <ArrowUpRight size={14}/></Link></header><div className="creator-market-list">{created?.map(l=><article key={l.id}><Link className="market-identity" to={"/token/"+l.id}><TokenMark launch={l}/><span><b>{l.name}</b><small>{l.status==="live"?"Live market":"Launch in progress"}</small></span></Link><div><CreatorFeeClaim launch={l} onClaimed={refresh}/><Link to={l.status==="live"?"/manage/"+l.id:"/create"}>{l.status==="live"?"Manage":"Resume launch"} <ArrowUpRight size={13}/></Link><Link to={"/studio?token="+encodeURIComponent(l.mint)}>Build <ArrowUpRight size={13}/></Link></div></article>)}</div>{created===null?<div className="workspace-loading">{errors.created?"Markets unavailable":"Loading your coins…"}</div>:!created.length&&<div className="workspace-empty"><Layers3/><h3>Build your own community.</h3><p>Launch a coin, then create its website or experience in Atlantis Studio.</p><Link className="primary" to="/create">Launch a coin <ArrowRight size={15}/></Link></div>}{more&&<button className="soft-button" disabled={loadingMore} onClick={async()=>{setLoadingMore(true);try{const d=await api.launches({creator:address,status:"all",limit:24,sort:"creator_claims",offset});setCreated(c=>[...(c??[]),...d.launches]);setMore(d.hasMore);setOffset(d.nextOffset);}catch{setErrors(e=>({...e,created:"Could not load more coins."}));}finally{setLoadingMore(false);}}}>Load more</button>}</section>}
   </main>;
 }
+

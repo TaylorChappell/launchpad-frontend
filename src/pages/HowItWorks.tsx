@@ -1,3 +1,4 @@
+import { WalletIdentity } from "../components/WalletIdentity";
 import "./how-it-works.css";
 import type { ReactNode } from "react";
 import {
@@ -504,7 +505,7 @@ function ReferenceRow({ label, value }: { label: string; value: string }) {
 function AccountRow({ label, address, useTestnet }: { label: string; address: string | null; useTestnet: boolean }) {
   if (!address) return <div><span><Landmark/><b>{label}</b></span><em>Not configured</em></div>;
   return <a href={solscanAccount(address, useTestnet)} target="_blank" rel="noreferrer">
-    <span><Landmark/><b>{label}</b></span><code>{address.slice(0, 8)}…{address.slice(-8)}</code><ExternalLink/>
+    <span><Landmark/><b>{label}</b></span><WalletIdentity wallet={address} link={false}/><ExternalLink/>
   </a>;
 }
 

@@ -1,3 +1,4 @@
+import { WalletIdentity } from "./WalletIdentity";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Copy, LogOut, Plus, Settings2, ShieldCheck, WalletCards } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
@@ -19,7 +20,6 @@ export function WalletMenu() {
   const [loading, setLoading] = useState(false);
   const [visibleCoins, setVisibleCoins] = useState(COINS_PER_PAGE);
   const address = wallet.address;
-  const short = address ? address.slice(0, 4) + "…" + address.slice(-4) : "";
   const remainingCoins = Math.max(0, coins.length - visibleCoins);
 
   useEffect(() => setOpen(false), [location.pathname]);
@@ -45,9 +45,9 @@ export function WalletMenu() {
   if (!address) return <button className="wallet-button" onClick={() => wallet.setModalOpen(true)}><span>Connect wallet</span></button>;
 
   return <div className="wallet-menu" ref={root}>
-    <button className="wallet-button connected wallet-menu-trigger" onClick={() => setOpen((value) => !value)} aria-haspopup="menu" aria-expanded={open}><span>{short}</span><ChevronDown size={14}/></button>
+    <button className="wallet-button connected wallet-menu-trigger" onClick={() => setOpen((value) => !value)} aria-haspopup="menu" aria-expanded={open}><span><WalletIdentity wallet={address} link={false}/></span><ChevronDown size={14}/></button>
     {open && <div className="wallet-dropdown" role="menu">
-      <header><div className="wallet-identity"><span className="wallet-connected-mark"><WalletCards size={16}/></span><div><small>Connected wallet</small><b>{short}</b></div></div><button aria-label="Copy wallet address" title="Copy wallet address" onClick={() => { void navigator.clipboard.writeText(address); toast.success("Wallet copied"); }}><Copy size={14}/></button></header>
+      <header><div className="wallet-identity"><span className="wallet-connected-mark"><WalletCards size={16}/></span><div><small>Connected wallet</small><b><WalletIdentity wallet={address} link={false}/></b></div></div><button aria-label="Copy wallet address" title="Copy wallet address" onClick={() => { void navigator.clipboard.writeText(address); toast.success("Wallet copied"); }}><Copy size={14}/></button></header>
       <Link className="wallet-launch-link" to="/portfolio">My holdings &amp; creator dashboard</Link><section>
         <div className="wallet-dropdown-title"><span><WalletCards size={14}/>Your coins</span><b>{coins.length}</b></div>
         <div className="wallet-coins">
@@ -61,3 +61,4 @@ export function WalletMenu() {
     </div>}
   </div>;
 }
+

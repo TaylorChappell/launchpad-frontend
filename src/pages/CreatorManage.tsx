@@ -1,3 +1,4 @@
+import { WalletIdentity } from "../components/WalletIdentity";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowUpRight, ExternalLink, LockKeyhole, MessageSquare, PanelsTopLeft } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
@@ -32,7 +33,7 @@ export function CreatorManage() {
   const refresh = () => setRevision(value => value + 1);
   if (error) return <main className="page manage-page"><div className="manage-gate"><h1>Dashboard unavailable</h1><p role="alert">{error}</p><button className="primary" onClick={refresh}>Try again</button></div></main>;
   if (!launch) return <main className="page"><div className="page-loading">Opening creator dashboard…</div></main>;
-  if (wallet.address !== launch.creatorWallet) return <main className="page manage-page"><Link className="back" to={"/token/" + id}><ArrowLeft/>Back to market</Link><section className="manage-gate"><h1>{wallet.address ? "Switch to the creator wallet" : "Connect your creator wallet"}</h1><p>Manage this coin with {launch.creatorWallet.slice(0, 6)}…{launch.creatorWallet.slice(-6)}.</p><button className="primary" onClick={() => wallet.setModalOpen(true)}>Connect wallet</button></section></main>;
+  if (wallet.address !== launch.creatorWallet) return <main className="page manage-page"><Link className="back" to={"/token/" + id}><ArrowLeft/>Back to market</Link><section className="manage-gate"><h1>{wallet.address ? "Switch to the creator wallet" : "Connect your creator wallet"}</h1><p>Manage this coin with <WalletIdentity wallet={launch.creatorWallet}/>.</p><button className="primary" onClick={() => wallet.setModalOpen(true)}>Connect wallet</button></section></main>;
   return <main className="page manage-page creator-dashboard">
     <div className="creator-dashboard-top"><Link className="back" to="/portfolio?tab=created"><ArrowLeft/>Your coins</Link><Link className="creator-market-link" to={"/token/" + id}>View market <ExternalLink size={14}/></Link></div>
     <header className="creator-dashboard-heading"><TokenMark launch={launch} large/><div><small>CREATOR DASHBOARD</small><h1>{launch.name} <span>${launch.symbol}</span></h1></div></header>

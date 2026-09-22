@@ -4,6 +4,8 @@ import { API_URL } from "../api";
 import { AquaMark } from "../components/AquaMark";
 
 const endpoints = [
+  ["GET", "/v1/wallets/:wallet/x", "Linked X profile for a Solana wallet; x is null when unlinked"],
+  ["GET", "/v1/wallets/x?wallets=ADDRESS,ADDRESS", "Batch lookup of up to 100 wallets"],
   ["GET", "/v1/markets", "List and filter live markets"],
   ["GET", "/v1/markets/:id", "Retrieve a market by ID or mint"],
   ["GET", "/v1/markets/:id/trades", "Indexed market trades"],
@@ -121,3 +123,4 @@ export function Developers() {
   </main>;
 }
 import "../developer.css";
+

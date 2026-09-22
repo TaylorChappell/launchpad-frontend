@@ -1,14 +1,14 @@
+import { WalletIdentity } from "./WalletIdentity";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, LockKeyhole, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
-import { useRuntime, useWallet } from "../context";
+import { useWallet } from "../context";
 import { displayTokenAmount } from "../trade-quote";
 import type { CreatorLock, Launch } from "../types";
 const quantity=new Intl.NumberFormat("en",{maximumFractionDigits:6});
-const short=(address:string)=>address.slice(0,5)+"…"+address.slice(-4);
 export function MarketHolders({launch,creatorLock}:{launch:Launch;creatorLock?:CreatorLock|null}){
-  const {config}=useRuntime(),[data,setData]=useState<Awaited<ReturnType<typeof api.holders>>|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(false);
+  const [data,setData]=useState<Awaited<ReturnType<typeof api.holders>>|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(false);
   useEffect(()=>{let active=true;api.holders(launch.id).then(d=>{if(active)setData(d);}).catch(()=>{if(active)setError("Holders could not load.");});return()=>{active=false;};},[launch.id]);
   const lock=creatorLock??launch.creatorLock,activeLock=lock?.status==="active"?lock:null;
   const rows=(data?.holders??[]).filter(h=>!activeLock||![activeLock.lockPda,activeLock.vaultTokenAccount].includes(h.wallet)).map(h=>({wallet:h.wallet,balanceRaw:h.balance_raw,locked:false,creator:h.wallet===launch.creatorWallet}));
@@ -16,7 +16,7 @@ export function MarketHolders({launch,creatorLock}:{launch:Launch;creatorLock?:C
   rows.sort((a,b)=>BigInt(a.balanceRaw)>BigInt(b.balanceRaw)?-1:BigInt(a.balanceRaw)<BigInt(b.balanceRaw)?1:a.wallet.localeCompare(b.wallet));
   return <div className="activity holder-activity"><header><div><b>Holders</b></div><strong>{launch.holderCount.toLocaleString()} wallet{launch.holderCount===1?"":"s"}</strong></header>
     {error&&<p className="danger-note" role="alert">{error}</p>}
-    <div className="activity-scroll"><table><thead><tr><th>#</th><th>Wallet</th><th>Tokens</th><th>Supply held</th></tr></thead><tbody>{rows.map((h,i)=><tr key={h.wallet}><td>{i+1}</td><td><a href={"https://solscan.io/account/"+h.wallet+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">{short(h.wallet)} <ArrowUpRight size={11}/></a>{h.creator&&<span className="holder-label">Creator</span>}{h.locked&&<span className="holder-label" title={"Unlocks "+new Date(activeLock!.unlockAt*1000).toLocaleString()}><LockKeyhole size={11}/> Locked</span>}</td><td>{displayTokenAmount(h.balanceRaw,launch.tokenDecimals)}</td><td>{BigInt(launch.totalSupplyRaw)>0n?(BigInt(h.balanceRaw)>0n&&Number(h.balanceRaw)/Number(launch.totalSupplyRaw)*100<0.0001?"<0.0001%":(Number(h.balanceRaw)/Number(launch.totalSupplyRaw)*100).toLocaleString("en",{maximumFractionDigits:4})+"%"):"—"}</td></tr>)}{!rows.length&&<tr><td colSpan={4} className="no-activity">{data?"No holders yet.":error?"Holders unavailable.":"Loading holders…"}</td></tr>}</tbody></table></div>
+    <div className="activity-scroll"><table><thead><tr><th>#</th><th>Wallet</th><th>Tokens</th><th>Supply held</th></tr></thead><tbody>{rows.map((h,i)=><tr key={h.wallet}><td>{i+1}</td><td><WalletIdentity wallet={h.wallet}/>{h.creator&&<span className="holder-label">Creator</span>}{h.locked&&<span className="holder-label" title={"Unlocks "+new Date(activeLock!.unlockAt*1000).toLocaleString()}><LockKeyhole size={11}/> Locked</span>}</td><td>{displayTokenAmount(h.balanceRaw,launch.tokenDecimals)}</td><td>{BigInt(launch.totalSupplyRaw)>0n?(BigInt(h.balanceRaw)>0n&&Number(h.balanceRaw)/Number(launch.totalSupplyRaw)*100<0.0001?"<0.0001%":(Number(h.balanceRaw)/Number(launch.totalSupplyRaw)*100).toLocaleString("en",{maximumFractionDigits:4})+"%"):"—"}</td></tr>)}{!rows.length&&<tr><td colSpan={4} className="no-activity">{data?"No holders yet.":error?"Holders unavailable.":"Loading holders…"}</td></tr>}</tbody></table></div>
     {data?.hasMore&&<button className="activity-load-more" disabled={loading} onClick={async()=>{setLoading(true);try{const next=await api.holders(launch.id,data.holders.length);setData({...next,holders:[...data.holders,...next.holders]});setError("");}catch{setError("Could not load more holders.");}finally{setLoading(false);}}}>Load more holders</button>}
   </div>;
 }
@@ -37,3 +37,4 @@ export function MarketPosition({launch}:{launch:Launch}){
     </>}
   </section>;
 }
+
