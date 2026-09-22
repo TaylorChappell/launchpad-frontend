@@ -12,6 +12,72 @@
 .creator-dashboard-nav button[aria-current="page"] { background: #e4f5fd; border-color: #c7e7f4; color: #096d99; }
 .creator-dashboard-nav a { margin-top: 15px; border-top: 1px solid #d9e9ee; border-radius: 0; font-size: 12px; }
 .creator-dashboard-content { min-width: 0; }
+.creator-earnings,.creator-lock-card { overflow: hidden; border: 1px solid #c5e1ee; border-radius: 18px; background: #fbfeff; margin-bottom: 24px; }
+.creator-eyebrow { display: block; color: #487e95; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+.creator-earnings-main { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 30px; background: linear-gradient(115deg,#f5fcff,#e2f4fd); }
+.creator-earnings-balance { min-width: 0; }
+.creator-earnings-balance h3 { margin: 12px 0 10px; color: #0d5778; font-size: clamp(26px,3.3vw,40px); line-height: 1.2; letter-spacing: -.04em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.creator-earnings-balance h3 span { font-size: 16px; letter-spacing: 0; color: #447a91; white-space: nowrap; }
+.creator-earnings-balance p,.creator-earnings-paid p { margin: 0; color: #587b8c; font-size: 12px; line-height: 1.6; }
+.creator-earnings-action { flex-shrink: 0; display: grid; justify-items: center; gap: 10px; }
+.creator-earnings-action .primary { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 44px; padding: 12px 24px; }
+.creator-earnings-action small { color: #587b8c; font-size: 10px; }
+.creator-earnings-action a,.creator-lock-receipt a { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #187fa8; }
+.creator-earnings-paid { display: grid; grid-template-columns: 1fr 1fr; padding: 24px 30px; gap: 24px; border-top: 1px solid #d6eaf3; }
+.creator-earnings-paid > div { min-width: 0; }
+.creator-earnings-paid > div + div { padding-left: 24px; border-left: 1px solid #d6eaf3; }
+.creator-earnings-paid > div > span { color: #567b8d; font-size: 11px; }
+.creator-earnings-paid strong { display: block; margin: 9px 0 6px; font-size: 23px; font-variant-numeric: tabular-nums; font-weight: 700; line-height: 1.3; color: #19546e; overflow-wrap: anywhere; }
+.creator-earnings-paid strong small { color: #668998; font-size: 12px; font-weight: 500; }
+.creator-earnings .creator-earnings-note { margin: 0 30px 24px; }
+.creator-earnings-note { color: #67828f; font-size: 12px; line-height: 1.7; }
+.creator-earnings-error { color: #a3443d !important; font-size: 12px; line-height: 1.6; }
+.creator-earnings > .creator-earnings-error { margin: 16px 30px; }
+.creator-payouts { padding: 20px 30px 12px; border-top: 1px solid #dbeaf0; }
+.creator-payouts h4 { font-size: 12px; color: #547a8d; margin: 0 0 9px; font-weight: 650; }
+.creator-payouts > a { display: flex; align-items: center; gap: 12px; padding: 13px 0; color: #237897; border-top: 1px solid #e9f2f6; }
+.creator-payouts > a:hover { color: #0d5274; }
+.creator-payouts > a > div { flex: 1; }
+.creator-payouts strong,.creator-payouts time { display: block; }
+.creator-payouts strong { color: #3c667b; font-size: 12px; font-weight: 600; }
+.creator-payouts time { color: #78939f; font-size: 10px; margin-top: 5px; }
+.creator-payouts b { font-size: 13px; text-align: right; overflow-wrap: anywhere; max-width: 55%; font-variant-numeric: tabular-nums; }
+.creator-payouts b span { font-weight: 500; font-size: 11px; }
+.creator-payouts svg { flex-shrink: 0; }
+.creator-lock-card { padding: 28px 30px; }
+.creator-lock-card > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.creator-lock-card h3 { color: #1b516b; font-size: 19px; margin: 6px 0 0; }
+.creator-lock-status { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1px solid #c4e4de; border-radius: 999px; background: #ecf9f5; color: #26745c; font-size: 11px; font-weight: 650; white-space: nowrap; }
+.creator-lock-status::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.creator-lock-status.mature { background: #edf6ff; border-color: #c5e0ef; color: #246b92; }
+.creator-lock-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 30px 0; }
+.creator-lock-metrics > div { min-width: 0; }
+.creator-lock-metrics strong { display: block; color: #17597a; font-size: 32px; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+.creator-lock-metrics span,.creator-lock-metrics small { display: block; margin-top: 6px; font-size: 12px; color: #4e768b; overflow-wrap: anywhere; }
+.creator-lock-metrics small { color: #7894a2; font-size: 11px; }
+.creator-lock-timeline { padding: 20px; background: #f0f8fc; border-radius: 12px; }
+.creator-lock-timeline > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.creator-lock-timeline strong { font-size: 12px; color: #3c6c83; }
+.creator-lock-timeline span,.creator-lock-timeline small { font-size: 11px; color: #6d8897; }
+.creator-lock-timeline progress { appearance: none; display: block; width: 100%; height: 6px; border: 0; border-radius: 999px; margin: 14px 0 12px; overflow: hidden; background: #d4eaf4; }
+.creator-lock-timeline progress::-webkit-progress-bar { background: #d4eaf4; }
+.creator-lock-timeline progress::-webkit-progress-value { border-radius: 999px; background: linear-gradient(90deg,#56c1da,#188cbe); }
+.creator-lock-timeline progress::-moz-progress-bar { border-radius: 999px; background: #188cbe; }
+.creator-lock-card > footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 23px; }
+.creator-lock-card > footer > a { display: inline-flex; align-items: center; gap: 5px; color: #4087a4; font-size: 12px; }
+.creator-lock-card > footer > div { display: flex; flex-wrap: wrap; gap: 9px; }
+.creator-lock-card button,.creator-lock-receipt button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; }
+.creator-lock-card button:disabled { opacity: .5; cursor: not-allowed; }
+.creator-lock-card > .creator-earnings-note { margin: 15px 0 0; text-align: right; font-size: 11px; }
+.creator-lock-editor { margin-top: 20px; }
+.creator-lock-editor .manage-builder,.creator-lock-editor .manage-quote { border-radius: 16px; }
+.creator-lock-editor .manage-quote dl > div { align-items: flex-start; gap: 14px; }
+.creator-lock-editor .manage-quote dd { margin: 0; max-width: 58%; overflow-wrap: anywhere; text-align: right; }
+.creator-lock-editor .manage-quote dt { text-align: left; }
+.creator-lock-renewal { padding: 14px; border: 1px solid #c9e4f1; border-radius: 10px; background: #edf8fd; color: #426e82; font-size: 12px; line-height: 1.7; margin: 22px 0 0; }
+.creator-lock-receipt { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px; margin-bottom: 18px; border: 1px solid #bedfea; border-radius: 12px; background: #eaf7fc; }
+.creator-lock-receipt strong { display: block; color: #275b72; font-size: 13px; margin-bottom: 6px; }
+@media(max-width:700px) { .creator-earnings-main { align-items: stretch; flex-direction: column; padding: 24px; gap: 20px; } .creator-earnings-action { justify-items: stretch; text-align: center; } .creator-earnings-paid { padding: 22px 24px; gap: 16px; } .creator-earnings-paid > div + div { padding-left: 16px; } .creator-earnings-paid strong { font-size: 20px; } .creator-lock-card { padding: 23px; } .creator-lock-metrics { gap: 16px; } .creator-lock-metrics strong { font-size: 28px; } .creator-lock-card > footer { align-items: stretch; flex-direction: column; } .creator-lock-card > footer > div { display: grid; grid-template-columns: 1fr 1fr; } .creator-lock-card > .creator-earnings-note { text-align: left; } .creator-lock-timeline { padding: 15px; } .creator-payouts { padding: 18px 24px 10px; } .creator-earnings .creator-earnings-note { margin: 0 24px 22px; } .creator-lock-receipt { align-items: stretch; flex-direction: column; } }
 .creator-dashboard-intro { margin-bottom: 22px; }
 .creator-dashboard-intro h2,.creator-updates h2,.creator-reward-deposit h2 { margin: 0 0 8px; font-size: 20px; color: #164c63; }
 .creator-dashboard-intro p,.creator-updates > header p,.creator-reward-deposit > header p { margin: 0; color: #66828f; font-size: 13px; line-height: 1.7; }

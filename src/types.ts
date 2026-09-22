@@ -66,7 +66,7 @@ export type RuntimeConfig = {
     winnerBonusSeconds: number;
     weighting: string;
   };
-  creatorLocks: { minimumSeconds: number; maximumSeconds: number; maximumFeeShareBps: number; targetSupplyBps?: number; initialLiquidityExcluded?: boolean };
+  creatorLocks: { minimumSeconds: number; maximumSeconds: number; maximumFeeShareBps: number; targetSupplyBps?: number; initialLiquidityExcluded?: boolean; additionsEnabled?: boolean };
   sniperDefense: { supported: false; reason: string };
 };
 
@@ -580,8 +580,15 @@ export type CreatorLockBalance = {
   tokenAccount: string;
 };
 
+export type CreatorFeeSummary = {
+  availableRaw: string; tokenPaidRaw: string; solPaidLamports: string;
+  recent: Array<{ signature: string; amountRaw: string; asset: "token" | "SOL"; paidAt: number }>;
+};
+
 export type CreatorLockTransactionEnvelope = TransactionEnvelope & {
   feeShareBps: number;
+  totalLockedRaw?: string;
+  unlockAt?: number;
   lockPda: string;
   vaultTokenAccount: string;
   availableRaw: string;
@@ -595,4 +602,3 @@ export type WalletNotification = {
   symbol: string; createdAt: number; title: string; message: string;
   claimed?: boolean; amountRaw?: string; rewardDecimals?: number; rewardSymbol?: string;
 };
-
