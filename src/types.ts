@@ -581,8 +581,11 @@ export type CreatorLockBalance = {
 };
 
 export type CreatorFeeSummary = {
-  availableRaw: string; tokenPaidRaw: string; solPaidLamports: string;
-  recent: Array<{ signature: string; amountRaw: string; asset: "token" | "SOL"; paidAt: number }>;
+  wallet: string;
+  availableLamports: string;
+  pendingLamports: string;
+  claimsEnabled: boolean;
+  pendingClaim: { id: string; mode: "manual" | "automatic"; signature: string | null } | null;
 };
 
 export type CreatorLockTransactionEnvelope = TransactionEnvelope & {

@@ -141,3 +141,46 @@
 .workspace-tabs button[aria-pressed="true"] .governance-tab-count { background: #caeaf9; }
 @media(max-width: 900px) { .creator-dashboard-layout { grid-template-columns: 1fr; gap: 24px; } .creator-dashboard-nav { position: static; display: flex; flex-wrap: wrap; } .creator-dashboard-nav a { margin-top: 0; border: 0; margin-left: auto; } }
 @media(max-width: 600px) { .creator-dashboard-heading { margin-bottom: 20px; } .creator-dashboard-stats { gap: 8px; } .creator-dashboard-stats article { padding: 13px 10px; } .creator-dashboard-stats small { font-size: 10px; } .creator-dashboard-nav button { padding: 11px 9px; font-size: 12px; } .creator-dashboard-nav a { margin-left: 0; } .creator-reward-deposit { padding: 20px; } .creator-reward-deposit > header { align-items: flex-start; flex-direction: column; gap: 16px; } .creator-dashboard-actions,.creator-dashboard-content .manage-grid { grid-template-columns: 1fr; } .creator-updates { padding: 18px; } .creator-update-composer footer { align-items: flex-start; flex-direction: column; } .creator-deposit-dialog { padding: 22px; } .creator-deposit-history article { flex-wrap: wrap; } }
+
+/* Creator fees: one balance, then a spacious lock workspace. */
+.creator-earnings-main { padding: 34px 36px; min-height: 172px; }
+.creator-earnings-balance h3 { margin: 12px 0 14px; font-size: clamp(32px,4vw,46px); }
+.creator-earnings-action .primary { min-width: 128px; min-height: 48px; border-radius: 12px; }
+.creator-lock-card { padding: 32px 36px; margin-top: 32px; }
+.creator-lock-card > header { padding-bottom: 24px; border-bottom: 1px solid #deedf4; }
+.creator-lock-metrics { gap: 32px; margin: 32px 0; }
+.creator-lock-metrics > div + div { padding-left: 32px; border-left: 1px solid #deedf4; }
+.creator-lock-metrics strong { line-height: 1.25; font-size: clamp(28px,3vw,36px); }
+.creator-lock-metrics span { line-height: 1.6; }
+.creator-lock-timeline { padding: 24px; }
+.creator-lock-timeline progress { margin: 20px 0 16px; }
+.creator-lock-card > footer { padding-top: 26px; margin-top: 24px; border-top: 1px solid #deedf4; }
+.creator-lock-card > footer button { min-height: 44px; padding: 12px 18px; border-radius: 10px; }
+.creator-dashboard-content .creator-lock-editor { grid-template-columns: minmax(0,1fr); gap: 22px; margin-top: 28px; }
+.creator-lock-editor .manage-builder { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; padding: 32px 36px; }
+.creator-lock-editor .manage-builder > header { display: block; grid-column: 1 / -1; padding-bottom: 24px; }
+.creator-lock-editor .manage-builder > label { margin-top: 0; min-width: 0; }
+.creator-lock-editor .manage-builder .manage-input { min-height: 58px; }
+.creator-lock-editor .manage-builder .manage-input input { min-width: 0; width: 100%; font-size: 25px; }
+.creator-lock-editor .duration-presets,.creator-lock-editor .creator-lock-renewal { grid-column: 1 / -1; margin-top: 0; }
+.creator-lock-editor .duration-presets { gap: 10px; }
+.creator-lock-editor .duration-presets button { min-height: 42px; padding: 11px 16px; border-radius: 9px; }
+.creator-lock-editor .manage-quote { position: static; padding: 30px 36px; width: auto; }
+.creator-lock-editor .manage-quote dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); column-gap: 32px; margin-bottom: 24px; }
+.creator-lock-editor .manage-quote dl > div { display: block; padding: 18px 0; }
+.creator-lock-editor .manage-quote dd { max-width: none; text-align: left; margin-top: 8px; line-height: 1.6; }
+.creator-lock-editor .manage-quote > strong { font-size: 36px; }
+.creator-lock-editor .manage-quote > .primary { width: auto; min-width: 220px; min-height: 48px; border-radius: 10px; }
+@media(max-width:700px) {
+  .creator-earnings-main { padding: 26px 24px; min-height: 0; }
+  .creator-lock-card { padding: 26px 24px; margin-top: 24px; }
+  .creator-lock-card > header { align-items: flex-start; flex-wrap: wrap; gap: 16px; }
+  .creator-lock-metrics { gap: 20px; }
+  .creator-lock-metrics > div + div { padding-left: 20px; }
+  .creator-lock-timeline { padding: 18px; }
+  .creator-lock-card > footer > div { display: flex; flex-direction: column; }
+  .creator-lock-editor .manage-builder { grid-template-columns: minmax(0,1fr); padding: 26px 24px; }
+  .creator-lock-editor .manage-quote { padding: 26px 24px; }
+  .creator-lock-editor .manage-quote dl { grid-template-columns: minmax(0,1fr); }
+  .creator-lock-editor .manage-quote > .primary { width: 100%; min-width: 0; }
+}

@@ -46,7 +46,7 @@ export function CreatorManage() {
           <CreatorRewardDeposit launch={launch}/>
           <div className="creator-dashboard-actions"><button onClick={() => setParams({ tab: "updates" })}><MessageSquare/><span><strong>Keep holders updated</strong><small>Share what you’re building and what’s next.</small></span><ArrowUpRight/></button><button onClick={() => setParams({ tab: "fees" })}><LockKeyhole/><span><strong>Manage creator fees</strong><small>{launch.creatorLock?.status === "active" ? "Your creator lock is active." : "Set up a token lock to earn creator fees."}</small></span><ArrowUpRight/></button></div>
         </>}
-        {selected === "fees" && <><section className="creator-dashboard-intro"><h2>Creator fees</h2><p>Track your earnings and manage the supply you’ve committed.</p></section><CreatorFeeClaim launch={launch} onClaimed={refresh}/><CreatorFeeLock launch={launch} onChanged={refresh}/></>}
+        {selected === "fees" && <><section className="creator-dashboard-intro"><h2>Creator fees</h2></section><CreatorFeeClaim launch={launch} onClaimed={refresh}/><CreatorFeeLock launch={launch} onChanged={refresh}/></>}
         {selected === "updates" && <ProjectUpdates launch={launch} compose/>}
       </div>
     </div>
