@@ -36,7 +36,7 @@ type PendingAction = { launchId: string; stage: ChainStage; envelope?: Transacti
 const empty: Form = { name: "", symbol: "", description: "", xUrl: "", websiteUrl: "", telegramUrl: "", devBuyCurrency: "SOL", launchAmount: "", rewardMode: "holder_rewards" };
 const governanceWizardSteps = [
   { label: "Coin", short: "Name and artwork" },
-  { label: "Pair & rewards", short: "Choose SOL, ORCA, or an xStock" },
+  { label: "Pair & rewards", short: "Choose your pair and rewards" },
   { label: "Reward mode", short: "Choose how the holder share works" },
   { label: "DEX profile", short: "Optional profile draft" },
   { label: "Dev buy", short: "Optional first buy" },
@@ -81,6 +81,25 @@ export function Create() {
   const [stockLoading, setStockLoading] = useState(true);
   const [stockError, setStockError] = useState("");
   const [stockQuery, setStockQuery] = useState("");
+  const [pairResult, setPairResult] = useState<{ query: string; stock?: StockOption; error?: string } | null>(null);
+  const [pairLookupEnabled, setPairLookupEnabled] = useState(false);
+  const [pairWarning, setPairWarning] = useState("");
+  const searchedMint = stockQuery.trim();
+  const mintSearch = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(searchedMint);
+  const searchedPair = pairResult?.query === searchedMint ? pairResult : null;
+  const pairChecking = mintSearch && pairLookupEnabled && !stocks.some(item => item.mint === searchedMint) && !searchedPair;
+  useEffect(() => {
+    if (!mintSearch || !pairLookupEnabled || stocks.some(item => item.mint === searchedMint)) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      api.lookupPair(searchedMint, controller.signal).then(({ stock: found }) => {
+        if (!controller.signal.aborted) setPairResult({ query: searchedMint, stock: found });
+      }).catch(error => {
+        if (!controller.signal.aborted) setPairResult({ query: searchedMint, error: error instanceof Error ? error.message : "Could not check this pair." });
+      });
+    }, 450);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [searchedMint, mintSearch, pairLookupEnabled, stocks]);
   const [visibleStocks, setVisibleStocks] = useState(10);
   const [stock, setStock] = useState<StockOption | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -105,10 +124,13 @@ export function Create() {
     if(stockLoading||draftReady===draftKey)return;
     let active=true;const carryGuest=priorDraftKey.current==="launch:"+config.network+":guest";priorDraftKey.current=draftKey;setDraftStatus("Loading local draft…");
     if(searchParams.get("studio")){setDraftReady(draftKey);return;}
-    readLaunchDraft<{form:Form;file:File|null;dexFundingEnabled:boolean;dexProfile:DexProfile;stockMint:string}>(draftKey).then(draft=>{
+    readLaunchDraft<{form:Form;file:File|null;dexFundingEnabled:boolean;dexProfile:DexProfile;stockMint:string}>(draftKey).then(async draft=>{
       if(!active)return;
       if(draft||!carryGuest){setForm(empty);setFile(null);setPreview("");setDexFundingEnabled(false);setDexProfile({description:"",bannerUrl:"",websiteUrl:"",xUrl:"",telegramUrl:""});setStock(stocks[0]??null);setStep(0);}
-      if(draft?.form){setForm({...empty,...draft.form});setDexFundingEnabled(Boolean(draft.dexFundingEnabled));if(draft.dexProfile)setDexProfile(draft.dexProfile);if(draft.file instanceof File)chooseArtwork(draft.file);const saved=stocks.find(s=>s.mint===draft.stockMint);if(saved)setStock(saved);}
+      if(draft?.form){setForm({...empty,...draft.form});setDexFundingEnabled(Boolean(draft.dexFundingEnabled));if(draft.dexProfile)setDexProfile(draft.dexProfile);if(draft.file instanceof File)chooseArtwork(draft.file);const saved=stocks.find(s=>s.mint===draft.stockMint);if(saved)setStock(saved);else if(draft.stockMint){
+        setStock(null);
+        if(pairLookupEnabled){try{const found=await api.lookupPair(draft.stockMint);if(!active)return;setStock(found.stock);}catch{if(!active)return;setDraftStatus("Draft restored. Your saved pair is unavailable; choose another pair.");return;}}
+      }}
       setDraftStatus(draft?"Draft restored on this device.":"Draft will be saved on this device.");
     }).catch(()=>{if(active)setDraftStatus("Local drafts unavailable. Keep this page open until launch.");}).finally(()=>{if(active)setDraftReady(draftKey);});
     return()=>{active=false;};
@@ -130,7 +152,12 @@ export function Create() {
       if(cancelled)return;
       const draft=project.state.launch;
       setForm(old=>({...old,name:draft.name,symbol:draft.symbol,description:draft.description,xUrl:draft.xUrl,websiteUrl:draft.websiteUrl,telegramUrl:draft.telegramUrl,rewardMode:draft.rewardMode}));
-      const selected=stocks.find(item=>item.mint===draft.stockMint);
+      let selected=stocks.find(item=>item.mint===draft.stockMint);
+      if(draft.stockMint && !selected){
+        setStock(null);
+        if(pairLookupEnabled){try{selected=(await api.lookupPair(draft.stockMint)).stock;}catch{/* Keep the requested pair unselected when verification fails. */}}
+        if(cancelled)return;
+      }
       if(selected)setStock(selected);
       setDexFundingEnabled(config.marketGovernanceEnabled&&draft.dexFundingEnabled);
       let importedProfile={...draft.dexProfile};
@@ -149,7 +176,7 @@ export function Create() {
       setStudioImportMessage(`Imported ${project.name}. Review every detail before launching.${draft.stockMint&&!selected?" Your saved pair is unavailable; choose a supported pair.":""}`);
     }).catch(reason=>{if(!cancelled)setStudioImportMessage(reason instanceof Error?reason.message:"Could not import Studio draft.");});
     return()=>{cancelled=true;};
-  },[wallet.address,searchParams,stockLoading,stocks,config.marketGovernanceEnabled]);
+  },[wallet.address,searchParams,stockLoading,stocks,config.marketGovernanceEnabled,pairLookupEnabled]);
 
   const update = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -158,10 +185,12 @@ export function Create() {
     try {
       const result = await api.stocks();
       setStocks(result.stocks);
+      setPairLookupEnabled(Boolean(result.customPairsEnabled));
+      setPairWarning(result.customPairWarning ?? "");
       if (!stock && result.stocks[0]) setStock(result.stocks[0]);
-      if (!result.stocks.length) setStockError("No supported stock pairs are available right now.");
+      if (!result.stocks.length) setStockError("No supported pairs are available right now.");
     } catch (error) {
-      setStockError(error instanceof Error ? error.message : "Could not load stocks.");
+      setStockError(error instanceof Error ? error.message : "Could not load pairs.");
     } finally { setStockLoading(false); }
   }
 
@@ -177,15 +206,20 @@ export function Create() {
     return () => { active = false; };
   }, [wallet.address]);
 
+  const pairOptions = useMemo(() => {
+    const options = [...stocks];
+    for (const item of [searchedPair?.stock, stock]) if (item && !options.some(option => option.mint === item.mint)) options.push(item);
+    return options;
+  }, [stocks, searchedPair?.stock, stock]);
   const filteredStocks = useMemo(() => {
     const query = stockQuery.trim().toLowerCase();
-    const result = query ? stocks.filter((item) => `${item.symbol} ${item.underlyingSymbol} ${item.name}`.toLowerCase().includes(query)) : stocks;
+    const result = query ? pairOptions.filter((item) => `${item.symbol} ${item.underlyingSymbol} ${item.name} ${item.mint}`.toLowerCase().includes(query)) : pairOptions;
     return result.slice(0, visibleStocks);
-  }, [stocks, stockQuery, visibleStocks]);
+  }, [pairOptions, stockQuery, visibleStocks]);
   const stockResultsCount = useMemo(() => {
     const query = stockQuery.trim().toLowerCase();
-    return query ? stocks.filter((item) => `${item.symbol} ${item.underlyingSymbol} ${item.name}`.toLowerCase().includes(query)).length : stocks.length;
-  }, [stocks, stockQuery]);
+    return query ? pairOptions.filter((item) => `${item.symbol} ${item.underlyingSymbol} ${item.name} ${item.mint}`.toLowerCase().includes(query)).length : pairOptions.length;
+  }, [pairOptions, stockQuery]);
   const amountInput = form.launchAmount.trim();
   const amount = Number(amountInput || "0");
   const amountValid = !amountInput || (amountPattern.test(amountInput) && Number.isFinite(amount) && amount >= 0);
@@ -487,7 +521,7 @@ export function Create() {
         creatorWallet: wallet.address, clientRequestId, symbol, stockSymbol: stock.symbol,
         ...(importedStudio.current === `${wallet.address}:${searchParams.get("studio")}` ? { studioProjectId: searchParams.get("studio") } : {}),
         name: form.name.trim(), description: form.description.trim(), imageId,
-        stockMint: stock.mint, poolPair: stock.symbol === "SOL" ? "SOL" : "STOCK",
+        stockMint: stock.mint, poolPair: stock.mint === "So11111111111111111111111111111111111111112" ? "SOL" : "STOCK",
         devBuyStockRaw: "0", devBuyLamports: "0",
         devBuyCurrency: form.devBuyCurrency, devBuyAmountRaw: initialBuyRaw, rewardMode: form.rewardMode,
         sniperDefense: false, xUrl: normaliseUrl(form.xUrl), websiteUrl: normaliseUrl(form.websiteUrl), telegramUrl: normaliseTelegram(form.telegramUrl),
@@ -557,16 +591,20 @@ export function Create() {
           </div></section>
         </WizardSection>}
 
-        {step === 1 && <WizardSection title="Choose the pair and reward" description="Launch against SOL, official ORCA, or one supported xStock. Holders earn the same asset you choose.">
-          <div className="stock-search"><Search size={17}/><input value={stockQuery} placeholder="Search SOL, ORCA, or stocks" onChange={(event) => { setStockQuery(event.target.value); setVisibleStocks(10); }}/><span>{stocks.length} assets</span></div>
-          {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Loading stocks</span></div> : stockError ? <div className="stock-error"><Info/><span>{stockError}</span><button onClick={() => void loadStocks()}><RefreshCw size={14}/> Retry</button></div> : <>
+        {step === 1 && <WizardSection title="Choose the pair and reward" description={pairLookupEnabled ? "Choose SOL, ORCA, AQUA, an eligible Pump.fun coin, or a supported xStock. Holders earn your selected pair asset." : "Launch against SOL, official ORCA, or one supported xStock. Holders earn the same asset you choose."}>
+          <div className="stock-search"><Search size={17}/><input value={stockQuery} aria-label="Search pairs or paste a Pump.fun mint address" placeholder={pairLookupEnabled ? "Search pairs or paste a Pump.fun CA" : "Search SOL, ORCA, or stocks"} onChange={(event) => { setStockQuery(event.target.value); setPairResult(null); setVisibleStocks(10); }}/><span>{pairOptions.length} assets</span></div>
+          {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Loading pairs</span></div> : stockError ? <div className="stock-error"><Info/><span>{stockError}</span><button onClick={() => void loadStocks()}><RefreshCw size={14}/> Retry</button></div> : <>
             <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { setStock(item); setAcknowledged(false); }}>
-              <StockLogo stock={item}/><div><b>{item.symbol}</b><small>{item.name}</small></div><span className="stock-market-depth">{item.symbol === "SOL" ? <><b>Native pair</b><small>SOL rewards</small></> : item.symbol === "ORCA" ? <><b>Official ORCA</b><small>ORCA rewards</small></> : <><b>${compactNumber.format(item.orcaTvlUsd)} TVL</b><small>${compactNumber.format(item.orcaVolume24hUsd)} 24h</small></>}</span><i>{stock?.mint === item.mint && <Check size={14}/>}</i>
+              <StockLogo stock={item}/><div><b>{item.symbol}</b><small>{item.name}</small></div><span className="stock-market-depth">{item.mint === "So11111111111111111111111111111111111111112" ? <><b>Native pair</b><small>SOL rewards</small></> : item.mint === "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE" ? <><b>Official ORCA</b><small>ORCA rewards</small></> : item.assetKind ? <><b>{item.assetKind === "aqua" ? "AQUA pair" : "Pump.fun"}</b><small>${compactNumber.format(item.liquidityUsd ?? 0)} liquidity</small></> : <><b>${compactNumber.format(item.orcaTvlUsd)} TVL</b><small>${compactNumber.format(item.orcaVolume24hUsd)} 24h</small></>}</span><i>{stock?.mint === item.mint && <Check size={14}/>}</i>
             </button>)}</div>
-            {filteredStocks.length === 0 && <div className="no-stock-results">No stocks match “{stockQuery}”.</div>}
+            {pairChecking && <div className="pair-lookup-status" role="status"><Loader2 size={16} className="spin"/>Checking this coin and its swap routes…</div>}
+            {searchedPair?.error && <div className="pair-lookup-error" role="alert">{searchedPair.error}</div>}
+            {filteredStocks.length === 0 && !pairChecking && !searchedPair?.error && <div className="no-stock-results">{mintSearch && !pairLookupEnabled ? "Custom pairs are not enabled yet." : `No pairs match “${stockQuery}”.`}</div>}
             {filteredStocks.length < stockResultsCount && <button className="stock-more" onClick={() => setVisibleStocks((value) => value + 20)}>Show more</button>}
           </>}
           {stock && <div className="selected-stock-strip"><StockLogo stock={stock}/><div><small>Permanent pair and reward</small><b>${form.symbol || "COIN"} / {stock.symbol}</b></div><span>Holder rewards in {stock.symbol}</span></div>}
+          {stock?.assetKind && <div className="selected-pair-address"><span>{stock.assetKind === "aqua" ? "AQUA" : "Pump.fun"} mint</span><a href={`https://solscan.io/token/${stock.mint}`} target="_blank" rel="noreferrer">{stock.mint}</a>{Boolean(stock.transferFeeBps) && <small>{(stock.transferFeeBps! / 100).toFixed(0)}% token transfer fee applies to swaps and rewards.</small>}</div>}
+          {pairWarning && <p className="pair-lookup-error">AQUA pair: {pairWarning}</p>}
           {stock?.restricted && <label className="stock-ack"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)}/><span>I understand tokenized stocks may be restricted or unavailable in my jurisdiction.</span></label>}
         </WizardSection>}
 
@@ -619,4 +657,5 @@ function WizardSection({ title, description, children }: { title: string; descri
 function Field({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) { return <label className={`wizard-field ${wide ? "wide" : ""}`}><span>{label}</span>{children}</label>; }
 function CurrencyButton({ code, name, active, icon, onClick }: { code: string; name: string; active: boolean; icon: ReactNode; onClick: () => void }) { return <button type="button" role="radio" aria-checked={active} className={active ? "selected" : ""} onClick={onClick}><i>{icon}</i><span><b>{code}</b><small>{name}</small></span><em>{active && <Check/>}</em></button>; }
 function ModeButton({ active, disabled, onClick, icon, title, eyebrow, children }: { active: boolean; disabled?: boolean; onClick: () => void; icon: ReactNode; title: string; eyebrow: string; children: ReactNode }) { return <button type="button" role="radio" aria-checked={active} disabled={disabled} className={`reward-mode-option ${active ? "selected" : ""}`} onClick={onClick}><i>{icon}</i><div><small>{eyebrow}</small><b>{title}</b><p>{children}</p></div><em>{disabled ? "Coming soon" : active ? <Check/> : null}</em></button>; }
-function StockLogo({ stock }: { stock: StockOption }) { const [failed, setFailed] = useState(false); return <span className="stock-logo">{stock.symbol === "SOL" ? <NetworkSolana className="currency-brand-icon" variant="branded"/> : stock.logoUrl && !failed ? <img src={stock.logoUrl} alt="" onError={() => setFailed(true)}/> : stock.underlyingSymbol.slice(0, 2)}</span>; }
+function StockLogo({ stock }: { stock: StockOption }) { const [failed, setFailed] = useState(false); return <span className="stock-logo">{stock.mint === "So11111111111111111111111111111111111111112" ? <NetworkSolana className="currency-brand-icon" variant="branded"/> : stock.logoUrl && !failed ? <img src={stock.logoUrl} alt="" onError={() => setFailed(true)}/> : stock.underlyingSymbol.slice(0, 2)}</span>; }
+

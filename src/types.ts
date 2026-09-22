@@ -66,6 +66,7 @@ export type RuntimeConfig = {
     winnerBonusSeconds: number;
     weighting: string;
   };
+  customPairsEnabled?: boolean;
   creatorLocks: { minimumSeconds: number; maximumSeconds: number; maximumFeeShareBps: number; targetSupplyBps?: number; initialLiquidityExcluded?: boolean; additionsEnabled?: boolean };
   sniperDefense: { supported: false; reason: string };
 };
@@ -182,6 +183,10 @@ export type MarketGovernanceResponse = {
 export type DexProfile = { description: string; bannerUrl: string; websiteUrl: string; xUrl: string; telegramUrl: string };
 
 export type StockOption = {
+  assetKind?: "aqua" | "pump";
+  tokenProgram?: string;
+  liquidityUsd?: number;
+  transferFeeBps?: number;
   symbol: string;
   underlyingSymbol: string;
   name: string;

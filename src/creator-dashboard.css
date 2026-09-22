@@ -184,3 +184,9 @@
   .creator-lock-editor .manage-quote dl { grid-template-columns: minmax(0,1fr); }
   .creator-lock-editor .manage-quote > .primary { width: 100%; min-width: 0; }
 }
+
+.pair-lookup-status { display: flex; align-items: center; gap: 9px; padding: 20px 4px; font-size: 13px; color: #487d96; }
+.pair-lookup-error { padding: 12px 4px; color: #9b5144; font-size: 13px; line-height: 1.6; }
+.selected-pair-address { display: grid; gap: 6px; margin: 10px 0 18px; font-size: 12px; }
+.selected-pair-address > span,.selected-pair-address > small { color: #6a8a9a; line-height: 1.6; }
+.selected-pair-address > a { color: #167fa9; overflow-wrap: anywhere; font-family: ui-monospace,monospace; }
