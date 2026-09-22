@@ -25,6 +25,12 @@ test("accepts serialized byte arrays without altering their values", () => {
   assert.deepEqual(normalized.signedMessage, proof.signedMessage);
   assert.deepEqual(normalized.signature, proof.signature);
 });
+test("accepts an injected address field while preserving the signed proof", () => {
+  const normalized = normalizeWalletSignIn({ address, ...proof });
+  assert.equal(normalized.account.address, address);
+  assert.equal(normalized.signature, proof.signature);
+  assert.equal(normalized.signedMessage, proof.signedMessage);
+});
 test("rejects empty, ambiguous and malformed results with an actionable error", () => {
   for (const result of [undefined, null, [], [{}, {}], {}, { ...proof }, { account: {}, ...proof }, { account: { address: "invalid" }, ...proof }, { account: { address } }, { account: { address }, ...proof, signature: [256] }, { account: { address }, ...proof, signatureType: "other" }]) {
     assert.throws(() => normalizeWalletSignIn(result), error => error instanceof Error && !(error instanceof TypeError) && /wallet|sign-in/i.test(error.message));

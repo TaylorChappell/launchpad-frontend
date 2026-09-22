@@ -12,13 +12,19 @@ async function setup(page: Page, restored = false, authenticated = false, signIn
       connect: async () => ({ publicKey: { toString: () => address } }), on() {}, removeListener() {},
       signIn: async () => {
         calls.signIn++;
+        if (signInShape === "rejected") throw new Error("User rejected the request");
         if (signInShape === "malformed") return {};
         const proof = { signedMessage: new TextEncoder().encode("SIWS proof"), signature: new Uint8Array(64) };
+        if (signInShape === "address") return { address, ...proof };
         if (signInShape === "injected") return { publicKey: { toString: () => address }, ...proof };
         const result = { account: { address }, ...proof };
         return signInShape === "array" ? [result] : result;
       },
-      signMessage: async () => { calls.signMessage++; throw new Error("A comment must not request a signature"); },
+      signMessage: async (message: Uint8Array) => {
+        calls.signMessage++;
+        if (signInShape === "malformed" && new TextDecoder().decode(message) === "Fresh fallback proof") return { signature: new Uint8Array(64) };
+        throw new Error("Unexpected message-signing request");
+      },
     } } });
   }, { address, token, restored, authenticated, signInShape });
   await page.route("**/api/config", r => r.fulfill({ json: { brand: "AQUA", network: "mainnet-beta", useTestnet: false,
@@ -44,6 +50,14 @@ async function setup(page: Page, restored = false, authenticated = false, signIn
     expect(r.request().postDataJSON()).toMatchObject({ wallet: address, message: "SIWS proof" });
     return r.fulfill({ json: { token, expiresAt: Date.now() + 86400000 } });
   });
+  await page.route("**/account/auth/challenge", r => {
+    expect(r.request().postDataJSON()).toEqual({ wallet: address });
+    return r.fulfill({ json: { id: "fresh-challenge", message: "Fresh fallback proof" } });
+  });
+  await page.route("**/account/auth/session", r => {
+    expect(r.request().postDataJSON()).toEqual({ id: "fresh-challenge", wallet: address, signature: Buffer.alloc(64).toString("base64") });
+    return r.fulfill({ json: { token, expiresAt: Date.now() + 86400000 } });
+  });
   const posts: string[] = [];
   const comments: any[] = [];
   await page.route("**/api/launches/coin/comments", r => {
@@ -61,7 +75,7 @@ async function setup(page: Page, restored = false, authenticated = false, signIn
   return posts;
 }
 
-for (const shape of ["standard", "injected", "array"]) test(`one wallet connection signs in with ${shape} response, then comments post without another wallet prompt`, async ({ page }) => {
+for (const shape of ["standard", "injected", "array", "address", "malformed"]) test(`one wallet connection signs in with ${shape} response, then comments post without another wallet prompt`, async ({ page }) => {
   const posts = await setup(page, false, false, shape);
   await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
   await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
@@ -72,18 +86,30 @@ for (const shape of ["standard", "injected", "array"]) test(`one wallet connecti
     await expect(page.locator(".market-comment-feed").getByText(body, { exact: true })).toBeVisible();
   }
   expect(posts).toEqual(["First comment", "Second comment"]);
-  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 1, signMessage: 0 });
+  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 1, signMessage: shape === "malformed" ? 1 : 0 });
 });
 
-test("an incomplete sign-in result cannot crash or create an authenticated session", async ({ page }) => {
+test("fallback requires a server-verified proof before creating an authenticated session", async ({ page }) => {
   await setup(page, false, false, "malformed");
   let sessionRequests = 0;
   await page.route("**/account/auth/sign-in/session", r => { sessionRequests++; return r.fulfill({ status: 400, json: { error: "Unexpected session request" } }); });
+  await page.route("**/account/auth/session", r => r.fulfill({ status: 401, json: { error: "Invalid wallet proof" } }));
   await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
   await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
-  await expect(page.getByText("The wallet did not return a valid Solana sign-in account. Connect again.")).toBeVisible();
+  await expect(page.getByText("Invalid wallet proof")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Connect your wallet" })).toBeVisible();
   expect(sessionRequests).toBe(0);
+  expect(await page.evaluate(address => localStorage.getItem(`aqua:studio:${address}`), address)).toBeNull();
+});
+
+for (const failure of ["rejected", "server"]) test(`a ${failure} sign-in does not open a fallback signing prompt`, async ({ page }) => {
+  await setup(page, false, false, failure === "rejected" ? "rejected" : "standard");
+  const message = failure === "rejected" ? "User rejected the request" : "Invalid wallet proof";
+  if (failure === "server") await page.route("**/account/auth/sign-in/session", r => r.fulfill({ status: 401, json: { error: message } }));
+  await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
+  await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
+  await expect(page.getByText(message)).toBeVisible();
+  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 1, signMessage: 0 });
   expect(await page.evaluate(address => localStorage.getItem(`aqua:studio:${address}`), address)).toBeNull();
 });
 
