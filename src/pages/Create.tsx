@@ -80,6 +80,9 @@ export function Create() {
   const [stocks, setStocks] = useState<StockOption[]>([]);
   const [stockLoading, setStockLoading] = useState(true);
   const [stockError, setStockError] = useState("");
+  const [pairsRefreshing, setPairsRefreshing] = useState(true);
+  const [pairLoadVersion, setPairLoadVersion] = useState(0);
+  const pairInitialized = useRef(false);
   const [stockQuery, setStockQuery] = useState("");
   const [pairResult, setPairResult] = useState<{ query: string; stock?: StockOption; error?: string } | null>(null);
   const [pairLookupEnabled, setPairLookupEnabled] = useState(false);
@@ -118,14 +121,16 @@ export function Create() {
 
   const draftKey="launch:"+config.network+":"+(wallet.address??"guest");
   const priorDraftKey=useRef(draftKey);
+  const editedDraftKey=useRef("");
   const [draftReady,setDraftReady]=useState("");
   const [draftStatus,setDraftStatus]=useState("Loading local draft…");
   useEffect(()=>{
-    if(stockLoading||draftReady===draftKey)return;
+    if(stockLoading||pairsRefreshing||draftReady===draftKey)return;
     let active=true;const carryGuest=priorDraftKey.current==="launch:"+config.network+":guest";priorDraftKey.current=draftKey;setDraftStatus("Loading local draft…");
     if(searchParams.get("studio")){setDraftReady(draftKey);return;}
     readLaunchDraft<{form:Form;file:File|null;dexFundingEnabled:boolean;dexProfile:DexProfile;stockMint:string}>(draftKey).then(async draft=>{
       if(!active)return;
+      if(editedDraftKey.current===draftKey){setDraftStatus("Draft will be saved on this device.");return;}
       if(draft||!carryGuest){setForm(empty);setFile(null);setPreview("");setDexFundingEnabled(false);setDexProfile({description:"",bannerUrl:"",websiteUrl:"",xUrl:"",telegramUrl:""});setStock(stocks[0]??null);setStep(0);}
       if(draft?.form){setForm({...empty,...draft.form});setDexFundingEnabled(Boolean(draft.dexFundingEnabled));if(draft.dexProfile)setDexProfile(draft.dexProfile);if(draft.file instanceof File)chooseArtwork(draft.file);const saved=stocks.find(s=>s.mint===draft.stockMint);if(saved)setStock(saved);else if(draft.stockMint){
         setStock(null);
@@ -134,7 +139,7 @@ export function Create() {
       setDraftStatus(draft?"Draft restored on this device.":"Draft will be saved on this device.");
     }).catch(()=>{if(active)setDraftStatus("Local drafts unavailable. Keep this page open until launch.");}).finally(()=>{if(active)setDraftReady(draftKey);});
     return()=>{active=false;};
-  },[draftKey,stockLoading]);
+  },[draftKey,stockLoading,pairsRefreshing]);
   useEffect(()=>{
     if(draftReady!==draftKey||completedLaunch)return;
     let active=true;
@@ -144,7 +149,7 @@ export function Create() {
 
   useEffect(() => {
     const id=searchParams.get("studio");
-    if(!id||!wallet.address||stockLoading||!stocks.length||importedStudio.current===`${wallet.address}:${id}`)return;
+    if(!id||!wallet.address||stockLoading||pairsRefreshing||!stocks.length||importedStudio.current===`${wallet.address}:${id}`)return;
     const token=studioSession(wallet.address);
     if(!token){setStudioImportMessage("Open Studio and sign in with this wallet, then choose Review launch again.");return;}
     let cancelled=false;
@@ -176,25 +181,44 @@ export function Create() {
       setStudioImportMessage(`Imported ${project.name}. Review every detail before launching.${draft.stockMint&&!selected?" Your saved pair is unavailable; choose a supported pair.":""}`);
     }).catch(reason=>{if(!cancelled)setStudioImportMessage(reason instanceof Error?reason.message:"Could not import Studio draft.");});
     return()=>{cancelled=true;};
-  },[wallet.address,searchParams,stockLoading,stocks,config.marketGovernanceEnabled,pairLookupEnabled]);
+  },[wallet.address,searchParams,stockLoading,pairsRefreshing,stocks,config.marketGovernanceEnabled,pairLookupEnabled]);
 
-  const update = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }));
+  const update = <K extends keyof Form>(key: K, value: Form[K]) => { editedDraftKey.current=draftKey; setForm((current) => ({ ...current, [key]: value })); };
 
-  async function loadStocks() {
-    setStockLoading(true); setStockError("");
-    try {
-      const result = await api.stocks();
-      setStocks(result.stocks);
-      setPairLookupEnabled(Boolean(result.customPairsEnabled));
-      setPairWarning(result.customPairWarning ?? "");
-      if (!stock && result.stocks[0]) setStock(result.stocks[0]);
-      if (!result.stocks.length) setStockError("No supported pairs are available right now.");
-    } catch (error) {
-      setStockError(error instanceof Error ? error.message : "Could not load pairs.");
-    } finally { setStockLoading(false); }
-  }
-
-  useEffect(() => { void loadStocks(); }, []);
+  // Keep the available pairs visible while independent catalogue sources load.
+  useEffect(() => {
+    const controller = new AbortController();
+    let timer: number | undefined;
+    const started = Date.now();
+    setStockError("");
+    async function refresh() {
+      try {
+        const result = await api.pairCatalog(controller.signal);
+        if (controller.signal.aborted) return;
+        setStocks(current => current.length === result.stocks.length && current.every((item, index) =>
+          item.mint === result.stocks[index].mint && item.verifiedAt === result.stocks[index].verifiedAt)
+          ? current : result.stocks);
+        setPairLookupEnabled(Boolean(result.customPairsEnabled));
+        setPairWarning(result.customPairWarning ?? "");
+        if (!pairInitialized.current) {
+          pairInitialized.current = true;
+          setStock(current => current ?? result.stocks[0] ?? null);
+        }
+        const keepPolling = Boolean(result.refreshing) && Date.now() - started < 60_000;
+        setPairsRefreshing(keepPolling);
+        setStockError(result.warning ?? (result.refreshing && !keepPolling ? "Some pairs are taking longer to load." : ""));
+        if (keepPolling) timer = window.setTimeout(() => void refresh(), 2000);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setStockError(error instanceof Error ? error.message : "Could not load pairs.");
+        setPairsRefreshing(false);
+      } finally {
+        if (!controller.signal.aborted) setStockLoading(false);
+      }
+    }
+    void refresh();
+    return () => { controller.abort(); window.clearTimeout(timer); };
+  }, [pairLoadVersion]);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   useEffect(() => {
     if (!wallet.address) { setRecoverableLaunch(null); return; }
@@ -575,8 +599,8 @@ export function Create() {
           <div className="coin-identity-grid">
             <label className="wizard-artwork">
               {preview ? <img src={preview} alt="Token artwork preview"/> : <><ImagePlus/><b>Add artwork</b><small>PNG, JPG, WebP or GIF</small></>}
-              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => chooseArtwork(event.target.files?.[0] ?? null)}/>
-              {preview && <button type="button" aria-label="Remove artwork" onClick={(event) => { event.preventDefault(); chooseArtwork(null); }}><X size={15}/></button>}
+              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => { editedDraftKey.current=draftKey; chooseArtwork(event.target.files?.[0] ?? null); }}/>
+              {preview && <button type="button" aria-label="Remove artwork" onClick={(event) => { event.preventDefault(); editedDraftKey.current=draftKey; chooseArtwork(null); }}><X size={15}/></button>}
             </label>
             <div className="wizard-field-grid">
               <Field label="Coin name"><input value={form.name} maxLength={32} placeholder="Aqua Robotics" onChange={(event) => update("name", event.target.value)}/></Field>
@@ -593,15 +617,17 @@ export function Create() {
 
         {step === 1 && <WizardSection title="Choose the pair and reward" description={pairLookupEnabled ? "Choose SOL, ORCA, AQUA, an eligible Pump.fun coin, or a supported xStock. Holders earn your selected pair asset." : "Launch against SOL, official ORCA, or one supported xStock. Holders earn the same asset you choose."}>
           <div className="stock-search"><Search size={17}/><input value={stockQuery} aria-label="Search pairs or paste a Pump.fun mint address" placeholder={pairLookupEnabled ? "Search pairs or paste a Pump.fun CA" : "Search SOL, ORCA, or stocks"} onChange={(event) => { setStockQuery(event.target.value); setPairResult(null); setVisibleStocks(10); }}/><span>{pairOptions.length} assets</span></div>
-          {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Loading pairs</span></div> : stockError ? <div className="stock-error"><Info/><span>{stockError}</span><button onClick={() => void loadStocks()}><RefreshCw size={14}/> Retry</button></div> : <>
-            <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { setStock(item); setAcknowledged(false); }}>
-              <StockLogo stock={item}/><div><b>{item.symbol}</b><small>{item.name}</small></div><span className="stock-market-depth">{item.mint === "So11111111111111111111111111111111111111112" ? <><b>Native pair</b><small>SOL rewards</small></> : item.mint === "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE" ? <><b>Official ORCA</b><small>ORCA rewards</small></> : item.assetKind ? <><b>{item.assetKind === "aqua" ? "AQUA pair" : "Pump.fun"}</b><small>${compactNumber.format(item.liquidityUsd ?? 0)} liquidity</small></> : <><b>${compactNumber.format(item.orcaTvlUsd)} TVL</b><small>${compactNumber.format(item.orcaVolume24hUsd)} 24h</small></>}</span><i>{stock?.mint === item.mint && <Check size={14}/>}</i>
+          {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Loading pairs</span></div> : <>
+            <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { editedDraftKey.current=draftKey; setStock(item); setAcknowledged(false); }}>
+              <StockLogo stock={item}/><div><b>{item.symbol}</b><small>{item.name}</small></div><span className="stock-market-depth">{item.mint === "So11111111111111111111111111111111111111112" ? <><b>Native pair</b><small>SOL rewards</small></> : item.mint === "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE" ? <><b>Official ORCA</b><small>ORCA rewards</small></> : item.assetKind ? <><b>{item.assetKind === "aqua" ? "AQUA pair" : "Pump.fun"}</b><small>{item.liquidityUsd === undefined ? "Swap routes available" : `$${compactNumber.format(item.liquidityUsd)} liquidity`}</small></> : <><b>${compactNumber.format(item.orcaTvlUsd)} TVL</b><small>${compactNumber.format(item.orcaVolume24hUsd)} 24h</small></>}</span><i>{stock?.mint === item.mint && <Check size={14}/>}</i>
             </button>)}</div>
             {pairChecking && <div className="pair-lookup-status" role="status"><Loader2 size={16} className="spin"/>Checking this coin and its swap routes…</div>}
             {searchedPair?.error && <div className="pair-lookup-error" role="alert">{searchedPair.error}</div>}
-            {filteredStocks.length === 0 && !pairChecking && !searchedPair?.error && <div className="no-stock-results">{mintSearch && !pairLookupEnabled ? "Custom pairs are not enabled yet." : `No pairs match “${stockQuery}”.`}</div>}
+            {filteredStocks.length === 0 && !pairsRefreshing && !pairChecking && !searchedPair?.error && <div className="no-stock-results">{mintSearch && !pairLookupEnabled ? "Custom pairs are not enabled yet." : `No pairs match “${stockQuery}”.`}</div>}
             {filteredStocks.length < stockResultsCount && <button className="stock-more" onClick={() => setVisibleStocks((value) => value + 20)}>Show more</button>}
           </>}
+          {!stockLoading && pairsRefreshing && <div className="pair-lookup-status" role="status"><Loader2 size={16} className="spin"/>Loading more pairs…</div>}
+          {!stockLoading && stockError && <div className="stock-error"><Info/><span>{stockError}</span><button onClick={() => setPairLoadVersion(value => value + 1)}><RefreshCw size={14}/> Retry</button></div>}
           {stock && <div className="selected-stock-strip"><StockLogo stock={stock}/><div><small>Permanent pair and reward</small><b>${form.symbol || "COIN"} / {stock.symbol}</b></div><span>Holder rewards in {stock.symbol}</span></div>}
           {stock?.assetKind && <div className="selected-pair-address"><span>{stock.assetKind === "aqua" ? "AQUA" : "Pump.fun"} mint</span><a href={`https://solscan.io/token/${stock.mint}`} target="_blank" rel="noreferrer">{stock.mint}</a>{Boolean(stock.transferFeeBps) && <small>{(stock.transferFeeBps! / 100).toFixed(0)}% token transfer fee applies to swaps and rewards.</small>}</div>}
           {pairWarning && <p className="pair-lookup-error">AQUA pair: {pairWarning}</p>}
