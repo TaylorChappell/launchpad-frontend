@@ -352,11 +352,12 @@ export function HowItWorks() {
           <table className="aqua-docs-table">
             <thead><tr><th>Proposal</th><th>What holders approve</th><th>Normal vote rules</th></tr></thead>
             <tbody>
-              <tr><td>Fund Dex</td><td>The funding campaign and exact first profile details.</td><td>15 minutes · 5% quorum · 60% approval</td></tr>
-              <tr><td>Update Dex</td><td>A replacement description, banner and set of public links.</td><td>15 minutes · 5% quorum · 60% approval</td></tr>
-              <tr><td>Community Takeover</td><td>A named community lead, new developer wallet, evidence and transition plan.</td><td>24 hours · 20% quorum · two-thirds approval</td></tr>
+              <tr><td>Fund Dex</td><td>The funding campaign and exact first profile details.</td><td>15 minutes · More than 50% of voting power cast</td></tr>
+              <tr><td>Update Dex</td><td>A replacement description, banner and set of public links.</td><td>15 minutes · More than 50% of voting power cast</td></tr>
+              <tr><td>Community Takeover</td><td>A named community lead, new developer wallet, evidence and transition plan.</td><td>24 hours · More than 50% of voting power cast</td></tr>
             </tbody>
           </table>
+          <p>All proposal votes use the eligible voting power actually cast, weighted by holdings and held time. There is no minimum turnout or supply participation requirement. Voting stays open for the full period; ties and no votes do not pass.</p>
           <h3>What an approved Update Dex proposal does</h3>
           <div className="aqua-docs-flow">
             <FlowCard icon={<DexScreenerIcon/>} label="Funding in progress" title="Replace the campaign details" text="The SOL already raised remains reserved. Spending pauses during the vote, then the approved profile replaces the prior details without restarting funding."/>
@@ -510,3 +511,4 @@ function AccountRow({ label, address, useTestnet }: { label: string; address: st
 function Risk({ title, children }: { title: string; children: ReactNode }) {
   return <div><BadgeDollarSign/><h3>{title}</h3><p>{children}</p></div>;
 }
+
