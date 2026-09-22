@@ -1,3 +1,4 @@
+import { useXFeature } from "../x-identity";
 import { useMemo, useState } from "react";
 import { Check, ChevronRight, Clipboard, Code2, ExternalLink, Radio, ShieldCheck, Webhook } from "lucide-react";
 import { API_URL } from "../api";
@@ -52,6 +53,7 @@ function CopyButton({ value, label = "Copy" }: { value: string; label?: string }
 }
 
 export function Developers() {
+  const { enabled: xEnabled } = useXFeature();
   const baseHost = useMemo(() => { try { return new URL(API_URL).host; } catch { return API_URL; } }, []);
   const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
@@ -86,7 +88,7 @@ export function Developers() {
 
         <section id="endpoints" className="dev-section">
           <span className="dev-kicker"><Code2/>REST API</span><h2>Endpoints</h2><p>Collection routes support <code>limit</code> and <code>cursor</code>. Market IDs may be replaced with the market token mint where noted.</p>
-          <div className="dev-endpoints">{endpoints.map(([method, path, description]) => <div key={`${method}:${path}`}><span className={`dev-method ${method.toLowerCase()}`}>{method}</span><code>{path}</code><p>{description}</p><ChevronRight/></div>)}</div>
+          <div className="dev-endpoints">{endpoints.filter(([, path]) => xEnabled || !path.startsWith("/v1/wallets/")).map(([method, path, description]) => <div key={`${method}:${path}`}><span className={`dev-method ${method.toLowerCase()}`}>{method}</span><code>{path}</code><p>{description}</p><ChevronRight/></div>)}</div>
         </section>
 
         <section id="events" className="dev-section">

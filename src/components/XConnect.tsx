@@ -2,19 +2,19 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Plus, X } from "lucide-react";
 import { useWallet } from "../context";
 import { ensureAccountSession } from "../account-api";
-import { connectX, setWalletX, useWalletX, xRequest } from "../x-identity";
+import { connectX, setWalletX, useWalletX, useXFeature, xRequest } from "../x-identity";
 import { WalletIdentity } from "./WalletIdentity";
 export function XLogo() { return <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3L12 14.6 5.5 22H2.3l7.7-8.8L1.8 2h6.5l4.5 6.8L18.9 2Zm-1.1 18h1.7L7.3 3.9H5.5L17.8 20Z"/></svg>; }
 export function XConnect() {
-  const wallet = useWallet();
-  return wallet.address ? <ConnectedX key={wallet.address} address={wallet.address}/> : null;
+  const wallet = useWallet(), { enabled } = useXFeature();
+  return enabled && wallet.address ? <ConnectedX key={wallet.address} address={wallet.address}/> : null;
 }
 function ConnectedX({ address }: { address: string }) {
-  const wallet = useWallet(), { profile, loaded } = useWalletX(address);
-  const [open, setOpen] = useState(false), [enabled, setEnabled] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(""), [confirm, setConfirm] = useState(false);
+  const wallet = useWallet(), { profile, loaded } = useWalletX(address), { enabled } = useXFeature();
+  const [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(""), [confirm, setConfirm] = useState(false);
   const current = useRef(wallet.address), root = useRef<HTMLDivElement>(null); current.current = wallet.address;
   const promptKey = `aqua:x-prompt:${address}`;
-  useEffect(() => { let alive = true; xRequest<{ enabled: boolean }>("/config").then(r => { if (alive) setEnabled(r.enabled); }).catch(() => {}); return () => { alive=false; current.current=null; }; }, []);
+  useEffect(() => () => { current.current=null; }, []);
   useEffect(() => { if (!enabled || !loaded || profile) return; try { if (sessionStorage.getItem(promptKey)) return; sessionStorage.setItem(promptKey,"1"); } catch { /* Still allow this prompt. */ } setOpen(true); }, [enabled,loaded,profile,promptKey]);
   useEffect(() => { if (!open) return; const close = (e: PointerEvent) => { if (!root.current?.contains(e.target as Node)) setOpen(false); }; const escape = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); }; document.addEventListener("pointerdown",close); document.addEventListener("keydown",escape); return () => { document.removeEventListener("pointerdown",close); document.removeEventListener("keydown",escape); }; }, [open]);
   async function act(disconnect = false) {

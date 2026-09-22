@@ -1,13 +1,18 @@
 import { captureXReturn, xReturnPath } from "../x-link-state";
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useWallet } from "../context";
 import { ensureAccountSession } from "../account-api";
-import { setWalletX, xPendingKey, xRequest, type XProfile } from "../x-identity";
+import { setWalletX, useXFeature, xPendingKey, xRequest, type XProfile } from "../x-identity";
 import { WalletIdentity } from "../components/WalletIdentity";
 import { XLogo } from "../components/XConnect";
 export function ConnectX() {
+  const { enabled, loaded } = useXFeature();
+  if (!loaded) return <main className="page"><div className="page-loading">Loading…</div></main>;
+  return enabled ? <FinishXConnection/> : <Navigate to="/" replace/>;
+}
+function FinishXConnection() {
   const wallet = useWallet(), [params] = useSearchParams(), navigate = useNavigate();
   const [pending] = useState(() => { try { return captureXReturn(sessionStorage,xPendingKey,params); } catch { return null; } });
   const [busy,setBusy]=useState(false),[error,setError]=useState(pending?.error ?? ""),[done,setDone]=useState(false);
