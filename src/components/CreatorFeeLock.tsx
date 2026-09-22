@@ -98,7 +98,7 @@ function LockManager({ launch, onChanged }: { launch: Launch; onChanged?: () => 
   return <div className="creator-lock-manager">
     {receipt&&<div className="creator-lock-receipt" role="status"><div><strong>Lock update submitted</strong><a href={`https://solscan.io/tx/${receipt.signature}${config.network==="devnet"?"?cluster=devnet":""}`} target="_blank" rel="noreferrer">View transaction <ExternalLink size={13}/></a></div><button className="soft-button" disabled={busy} onClick={()=>void act(receipt.action)}>{busy?<Loader2 size={15} className="spin"/>:null}Check confirmation</button></div>}
     {error&&<p className="creator-earnings-error" role="alert">{error}</p>}
-    {active&&<section className="creator-lock-card">
+    {active&&<section className="creator-supply-lock">
       <header><div><span className="creator-eyebrow">Creator lock</span><h3>Your locked supply</h3></div><span className={`creator-lock-status ${mature?"mature":""}`}>{mature?"Ready to release":"Lock active"}</span></header>
       <div className="creator-lock-metrics"><div><strong>{creatorLockPercentLabel(lock)}</strong><span>of the token supply</span><small>{displayTokenAmount(lock.amountRaw,launch.tokenDecimals)} {launch.symbol}</small></div><div><strong>{tradeShare.toFixed(3)}%</strong><span>Your fee per eligible transfer</span></div></div>
       <div className="creator-lock-timeline"><div><strong>{mature?"Your tokens can now be released":timeLeft}</strong><span>Unlocks {dateLabel(lock.unlockAt)}</span></div><progress value={progress} max={100} aria-label="Lock duration elapsed"/><small>{mature?"This lock has stopped earning new fees. Accumulated fees remain claimable.":"Your fee share stays active until this lock expires."}</small></div>

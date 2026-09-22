@@ -12,7 +12,7 @@
 .creator-dashboard-nav button[aria-current="page"] { background: #e4f5fd; border-color: #c7e7f4; color: #096d99; }
 .creator-dashboard-nav a { margin-top: 15px; border-top: 1px solid #d9e9ee; border-radius: 0; font-size: 12px; }
 .creator-dashboard-content { min-width: 0; }
-.creator-earnings,.creator-lock-card { overflow: hidden; border: 1px solid #c5e1ee; border-radius: 18px; background: #fbfeff; margin-bottom: 24px; }
+.creator-earnings,.creator-supply-lock { overflow: hidden; border: 1px solid #c5e1ee; border-radius: 18px; background: #fbfeff; margin-bottom: 24px; }
 .creator-eyebrow { display: block; color: #487e95; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
 .creator-earnings-main { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 30px; background: linear-gradient(115deg,#f5fcff,#e2f4fd); }
 .creator-earnings-balance { min-width: 0; }
@@ -44,31 +44,31 @@
 .creator-payouts b { font-size: 13px; text-align: right; overflow-wrap: anywhere; max-width: 55%; font-variant-numeric: tabular-nums; }
 .creator-payouts b span { font-weight: 500; font-size: 11px; }
 .creator-payouts svg { flex-shrink: 0; }
-.creator-lock-card { padding: 28px 30px; }
-.creator-lock-card > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.creator-lock-card h3 { color: #1b516b; font-size: 19px; margin: 6px 0 0; }
+.creator-supply-lock { display: block; min-width: 0; padding: 28px 30px; }
+.creator-supply-lock > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.creator-supply-lock h3 { color: #1b516b; font-size: 19px; margin: 6px 0 0; }
 .creator-lock-status { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1px solid #c4e4de; border-radius: 999px; background: #ecf9f5; color: #26745c; font-size: 11px; font-weight: 650; white-space: nowrap; }
 .creator-lock-status::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .creator-lock-status.mature { background: #edf6ff; border-color: #c5e0ef; color: #246b92; }
-.creator-lock-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 30px 0; }
+.creator-lock-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; margin: 30px 0; }
 .creator-lock-metrics > div { min-width: 0; }
 .creator-lock-metrics strong { display: block; color: #17597a; font-size: 32px; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
 .creator-lock-metrics span,.creator-lock-metrics small { display: block; margin-top: 6px; font-size: 12px; color: #4e768b; overflow-wrap: anywhere; }
-.creator-lock-metrics small { color: #7894a2; font-size: 11px; }
+.creator-lock-metrics small { color: #7894a2; font-size: 11px; letter-spacing: normal; font-weight: 400; line-height: 1.6; }
 .creator-lock-timeline { padding: 20px; background: #f0f8fc; border-radius: 12px; }
 .creator-lock-timeline > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .creator-lock-timeline strong { font-size: 12px; color: #3c6c83; }
-.creator-lock-timeline span,.creator-lock-timeline small { font-size: 11px; color: #6d8897; }
+.creator-lock-timeline span,.creator-lock-timeline small { font-size: 11px; color: #6d8897; letter-spacing: normal; font-weight: 400; line-height: 1.6; }
 .creator-lock-timeline progress { appearance: none; display: block; width: 100%; height: 6px; border: 0; border-radius: 999px; margin: 14px 0 12px; overflow: hidden; background: #d4eaf4; }
 .creator-lock-timeline progress::-webkit-progress-bar { background: #d4eaf4; }
 .creator-lock-timeline progress::-webkit-progress-value { border-radius: 999px; background: linear-gradient(90deg,#56c1da,#188cbe); }
 .creator-lock-timeline progress::-moz-progress-bar { border-radius: 999px; background: #188cbe; }
-.creator-lock-card > footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 23px; }
-.creator-lock-card > footer > a { display: inline-flex; align-items: center; gap: 5px; color: #4087a4; font-size: 12px; }
-.creator-lock-card > footer > div { display: flex; flex-wrap: wrap; gap: 9px; }
-.creator-lock-card button,.creator-lock-receipt button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; }
-.creator-lock-card button:disabled { opacity: .5; cursor: not-allowed; }
-.creator-lock-card > .creator-earnings-note { margin: 15px 0 0; text-align: right; font-size: 11px; }
+.creator-supply-lock > footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 23px; }
+.creator-supply-lock > footer > a { display: inline-flex; align-items: center; gap: 5px; color: #4087a4; font-size: 12px; }
+.creator-supply-lock > footer > div { display: flex; flex-wrap: wrap; gap: 9px; }
+.creator-supply-lock button,.creator-lock-receipt button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; }
+.creator-supply-lock button:disabled { opacity: .5; cursor: not-allowed; }
+.creator-supply-lock > .creator-earnings-note { margin: 15px 0 0; text-align: right; font-size: 11px; }
 .creator-lock-editor { margin-top: 20px; }
 .creator-lock-editor .manage-builder,.creator-lock-editor .manage-quote { border-radius: 16px; }
 .creator-lock-editor .manage-quote dl > div { align-items: flex-start; gap: 14px; }
@@ -77,7 +77,7 @@
 .creator-lock-renewal { padding: 14px; border: 1px solid #c9e4f1; border-radius: 10px; background: #edf8fd; color: #426e82; font-size: 12px; line-height: 1.7; margin: 22px 0 0; }
 .creator-lock-receipt { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px; margin-bottom: 18px; border: 1px solid #bedfea; border-radius: 12px; background: #eaf7fc; }
 .creator-lock-receipt strong { display: block; color: #275b72; font-size: 13px; margin-bottom: 6px; }
-@media(max-width:700px) { .creator-earnings-main { align-items: stretch; flex-direction: column; padding: 24px; gap: 20px; } .creator-earnings-action { justify-items: stretch; text-align: center; } .creator-earnings-paid { padding: 22px 24px; gap: 16px; } .creator-earnings-paid > div + div { padding-left: 16px; } .creator-earnings-paid strong { font-size: 20px; } .creator-lock-card { padding: 23px; } .creator-lock-metrics { gap: 16px; } .creator-lock-metrics strong { font-size: 28px; } .creator-lock-card > footer { align-items: stretch; flex-direction: column; } .creator-lock-card > footer > div { display: grid; grid-template-columns: 1fr 1fr; } .creator-lock-card > .creator-earnings-note { text-align: left; } .creator-lock-timeline { padding: 15px; } .creator-payouts { padding: 18px 24px 10px; } .creator-earnings .creator-earnings-note { margin: 0 24px 22px; } .creator-lock-receipt { align-items: stretch; flex-direction: column; } }
+@media(max-width:700px) { .creator-earnings-main { align-items: stretch; flex-direction: column; padding: 24px; gap: 20px; } .creator-earnings-action { justify-items: stretch; text-align: center; } .creator-earnings-paid { padding: 22px 24px; gap: 16px; } .creator-earnings-paid > div + div { padding-left: 16px; } .creator-earnings-paid strong { font-size: 20px; } .creator-supply-lock { padding: 23px; } .creator-lock-metrics { gap: 16px; } .creator-lock-metrics strong { font-size: 28px; } .creator-supply-lock > footer { align-items: stretch; flex-direction: column; } .creator-supply-lock > footer > div { display: grid; grid-template-columns: 1fr 1fr; } .creator-supply-lock > .creator-earnings-note { text-align: left; } .creator-lock-timeline { padding: 15px; } .creator-payouts { padding: 18px 24px 10px; } .creator-earnings .creator-earnings-note { margin: 0 24px 22px; } .creator-lock-receipt { align-items: stretch; flex-direction: column; } }
 .creator-dashboard-intro { margin-bottom: 22px; }
 .creator-dashboard-intro h2,.creator-updates h2,.creator-reward-deposit h2 { margin: 0 0 8px; font-size: 20px; color: #164c63; }
 .creator-dashboard-intro p,.creator-updates > header p,.creator-reward-deposit > header p { margin: 0; color: #66828f; font-size: 13px; line-height: 1.7; }
@@ -146,16 +146,16 @@
 .creator-earnings-main { padding: 34px 36px; min-height: 172px; }
 .creator-earnings-balance h3 { margin: 12px 0 14px; font-size: clamp(32px,4vw,46px); }
 .creator-earnings-action .primary { min-width: 128px; min-height: 48px; border-radius: 12px; }
-.creator-lock-card { padding: 32px 36px; margin-top: 32px; }
-.creator-lock-card > header { padding-bottom: 24px; border-bottom: 1px solid #deedf4; }
+.creator-supply-lock { padding: 32px 36px; margin-top: 32px; }
+.creator-supply-lock > header { padding-bottom: 24px; border-bottom: 1px solid #deedf4; }
 .creator-lock-metrics { gap: 32px; margin: 32px 0; }
 .creator-lock-metrics > div + div { padding-left: 32px; border-left: 1px solid #deedf4; }
 .creator-lock-metrics strong { line-height: 1.25; font-size: clamp(28px,3vw,36px); }
 .creator-lock-metrics span { line-height: 1.6; }
 .creator-lock-timeline { padding: 24px; }
 .creator-lock-timeline progress { margin: 20px 0 16px; }
-.creator-lock-card > footer { padding-top: 26px; margin-top: 24px; border-top: 1px solid #deedf4; }
-.creator-lock-card > footer button { min-height: 44px; padding: 12px 18px; border-radius: 10px; }
+.creator-supply-lock > footer { padding-top: 26px; margin-top: 24px; border-top: 1px solid #deedf4; }
+.creator-supply-lock > footer button { min-height: 44px; padding: 12px 18px; border-radius: 10px; }
 .creator-dashboard-content .creator-lock-editor { grid-template-columns: minmax(0,1fr); gap: 22px; margin-top: 28px; }
 .creator-lock-editor .manage-builder { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; padding: 32px 36px; }
 .creator-lock-editor .manage-builder > header { display: block; grid-column: 1 / -1; padding-bottom: 24px; }
@@ -173,12 +173,12 @@
 .creator-lock-editor .manage-quote > .primary { width: auto; min-width: 220px; min-height: 48px; border-radius: 10px; }
 @media(max-width:700px) {
   .creator-earnings-main { padding: 26px 24px; min-height: 0; }
-  .creator-lock-card { padding: 26px 24px; margin-top: 24px; }
-  .creator-lock-card > header { align-items: flex-start; flex-wrap: wrap; gap: 16px; }
+  .creator-supply-lock { padding: 26px 24px; margin-top: 24px; }
+  .creator-supply-lock > header { align-items: flex-start; flex-wrap: wrap; gap: 16px; }
   .creator-lock-metrics { gap: 20px; }
   .creator-lock-metrics > div + div { padding-left: 20px; }
   .creator-lock-timeline { padding: 18px; }
-  .creator-lock-card > footer > div { display: flex; flex-direction: column; }
+  .creator-supply-lock > footer > div { display: flex; flex-direction: column; }
   .creator-lock-editor .manage-builder { grid-template-columns: minmax(0,1fr); padding: 26px 24px; }
   .creator-lock-editor .manage-quote { padding: 26px 24px; }
   .creator-lock-editor .manage-quote dl { grid-template-columns: minmax(0,1fr); }
