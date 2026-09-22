@@ -61,5 +61,7 @@ test("launch UI removes the step list and keeps exactly two completion actions",
   assert.doesNotMatch(actions, /Build website|Manage creator lock|Copy market link/);
   assert.equal((actions.match(/<(?:a|button|Link)\b/g) ?? []).length, 2);
   const execution = source.slice(source.indexOf('async function executeLaunchBatch'), source.indexOf('async function continueLaunch'));
-  assert.doesNotMatch(execution, /submitSignedTransaction|validateBatchStep|confirmLaunch/);
+  assert.doesNotMatch(execution, /signTransactionBatch/);
+  assert.match(execution, /confirmLaunchPrerequisites/);
+  assert.match(execution, /signedBatch = \[await approveLaunchStep\(id, "lock"\)\]/);
 });

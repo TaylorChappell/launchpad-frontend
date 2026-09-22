@@ -15,7 +15,8 @@ type PhantomProvider = {
   disconnect: () => Promise<void>;
   signMessage: (message: Uint8Array, encoding: string) => Promise<{ signature: Uint8Array }>;
   signAndSendTransaction: (transaction: unknown, options?: { preflightCommitment?: string; maxRetries?: number }) => Promise<{ signature: string } | string>;
-  signAllTransactions?: (transactions: unknown[]) => Promise<Array<{ serialize: () => Uint8Array }>>;
+  signTransaction?: (transaction: unknown) => Promise<{ serialize: (options?: { requireAllSignatures?: boolean; verifySignatures?: boolean }) => Uint8Array }>;
+  signAllTransactions?: (transactions: unknown[]) => Promise<Array<{ serialize: (options?: { requireAllSignatures?: boolean; verifySignatures?: boolean }) => Uint8Array }>>;
 };
 type SolanaAccount = { address: string };
 type StandardConnect = { connect: () => Promise<{ accounts?: readonly SolanaAccount[] }> };
@@ -80,7 +81,7 @@ type WalletValue = {
   sendTransaction: (envelope: TransactionEnvelope, onSubmitted?: (signature:string) => void) => Promise<string>;
   signTransaction: (envelope: TransactionEnvelope) => Promise<{ signedTransactionBase64: string }>;
   signTransactionBatch: (envelopes: LaunchBatchEnvelope[]) => Promise<SignedTransactionEnvelope[]>;
-  submitSignedTransaction: (envelope: SignedTransactionEnvelope) => Promise<string>;
+  submitSignedTransaction: (envelope: TransactionEnvelope & { signedTransactionBase64: string }, onSubmitted?: (signature: string) => void) => Promise<string>;
 };
 const WalletContext = createContext<WalletValue | null>(null);
 const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
@@ -351,10 +352,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     });
     try {
       if (adapter.current.kind === "phantom") {
-        if (!adapter.current.provider.signAllTransactions) throw new Error("Update Phantom to sign these transactions.");
-        const signed = await adapter.current.provider.signAllTransactions(transactions);
+        const provider = adapter.current.provider;
+        if ((!provider.signTransaction && !provider.signAllTransactions) || (transactions.length > 1 && !provider.signAllTransactions)) throw new Error("Update Phantom to sign these transactions.");
+        const signed = transactions.length === 1 && provider.signTransaction
+          ? [await provider.signTransaction(transactions[0])]
+          : await provider.signAllTransactions!(transactions);
         if (signed.length !== envelopes.length) throw new Error("Phantom did not sign every transaction.");
-        return signed.map((transaction, index) => ({ ...envelopes[index], signedTransactionBase64: base64(transaction.serialize()) }));
+        return signed.map((transaction, index) => ({ ...envelopes[index], signedTransactionBase64: base64(transaction.serialize({ requireAllSignatures: false, verifySignatures: false })) }));
       }
       const { wallet, account } = adapter.current.value;
       const feature = wallet.features["solana:signTransaction"] as SolanaSignTransaction | undefined;
@@ -374,11 +378,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return signed.map((value, i) => ({ ...value, step: envelopes[i]!.step }));
   }, [signTransactions]);
 
-  const submitSignedTransaction = useCallback(async (envelope: SignedTransactionEnvelope) => {
+  const submitSignedTransaction = useCallback(async (envelope: TransactionEnvelope & { signedTransactionBase64: string }, onSubmitted?: (signature: string) => void) => {
     try {
       const { Connection } = await import("@solana/web3.js");
       const connection = new Connection(config.publicRpcUrl, "confirmed");
       const signature = await connection.sendRawTransaction(decodeBase64(envelope.signedTransactionBase64), { maxRetries: 5, preflightCommitment: "confirmed" });
+      onSubmitted?.(signature);
       await waitForConfirmation(connection, signature, envelope.lastValidBlockHeight);
       return signature;
     } catch (error) {
