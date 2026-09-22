@@ -57,7 +57,7 @@ export const api = {
   marketData: (id: string, range = "24h") => request<{ snapshots: MarketSnapshot[] }>(`/api/launches/${encodeURIComponent(id)}/market-data?range=${encodeURIComponent(range)}`),
   search: (query: string, signal?: AbortSignal) => request<{ launches: Launch[] }>(`/api/search?q=${encodeURIComponent(query)}`, {signal}),
   stocks: () => request<{ stocks: StockOption[]; customPairsEnabled?: boolean; customPairWarning?: string }>("/api/stocks"),
-  pairCatalog: (signal?: AbortSignal) => uncachedRequest<{ stocks: StockOption[]; refreshing?: boolean; customPairsEnabled?: boolean; customPairWarning?: string; warning?: string }>("/api/stocks?progressive=true", { signal }),
+  pairCatalog: (signal?: AbortSignal) => uncachedRequest<{ stocks: StockOption[]; refreshing?: boolean; retryAfterMs?: number; customPairsEnabled?: boolean; customPairWarning?: string; warning?: string }>("/api/stocks?progressive=true", { signal }),
   lookupPair: (mint: string, signal?: AbortSignal) => uncachedRequest<{ stock: StockOption }>(`/api/pairs/lookup?mint=${encodeURIComponent(mint)}`, { signal }),
   rewards: (wallet: string) => request<WalletRewardsResponse>(`/api/rewards/${encodeURIComponent(wallet)}`),
   governance: (wallet?: string | null) => request<GovernanceResponse>(`/api/governance${wallet ? `?wallet=${encodeURIComponent(wallet)}` : ""}`),

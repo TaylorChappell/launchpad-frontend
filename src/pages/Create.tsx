@@ -1,3 +1,4 @@
+import { pairCatalogPollDelay } from "../pair-catalog-refresh";
 import { handoffLaunchBatch, watchLaunchSubmission } from "../launch-relay";
 import { readLaunchDraft,saveLaunchDraft } from "../launch-draft";
 import { ensureAccountSession } from "../account-api";
@@ -82,6 +83,7 @@ export function Create() {
   const [stockError, setStockError] = useState("");
   const [pairsRefreshing, setPairsRefreshing] = useState(true);
   const [pairLoadVersion, setPairLoadVersion] = useState(0);
+  const [pairLookupVersion, setPairLookupVersion] = useState(0);
   const pairInitialized = useRef(false);
   const [stockQuery, setStockQuery] = useState("");
   const [pairResult, setPairResult] = useState<{ query: string; stock?: StockOption; error?: string } | null>(null);
@@ -102,7 +104,7 @@ export function Create() {
       });
     }, 450);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [searchedMint, mintSearch, pairLookupEnabled, stocks]);
+  }, [searchedMint, mintSearch, pairLookupEnabled, stocks, pairLookupVersion]);
   const [visibleStocks, setVisibleStocks] = useState(10);
   const [stock, setStock] = useState<StockOption | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -204,14 +206,15 @@ export function Create() {
           pairInitialized.current = true;
           setStock(current => current ?? result.stocks[0] ?? null);
         }
-        const keepPolling = Boolean(result.refreshing) && Date.now() - started < 60_000;
-        setPairsRefreshing(keepPolling);
-        setStockError(result.warning ?? (result.refreshing && !keepPolling ? "Some pairs are taking longer to load." : ""));
-        if (keepPolling) timer = window.setTimeout(() => void refresh(), 2000);
+        const pollDelay = pairCatalogPollDelay(result, Date.now() - started);
+        setPairsRefreshing(Boolean(result.refreshing) && pollDelay !== null);
+        setStockError(result.warning ?? (result.refreshing && pollDelay === null ? "Some pairs are taking longer to load." : ""));
+        if (pollDelay !== null) timer = window.setTimeout(() => void refresh(), pollDelay);
       } catch (error) {
         if (controller.signal.aborted) return;
         setStockError(error instanceof Error ? error.message : "Could not load pairs.");
         setPairsRefreshing(false);
+        if (Date.now() - started < 120_000) timer = window.setTimeout(() => void refresh(), 5000);
       } finally {
         if (!controller.signal.aborted) setStockLoading(false);
       }
@@ -622,7 +625,7 @@ export function Create() {
               <StockLogo stock={item}/><div><b>{item.symbol}</b><small>{item.name}</small></div><span className="stock-market-depth">{item.mint === "So11111111111111111111111111111111111111112" ? <><b>Native pair</b><small>SOL rewards</small></> : item.mint === "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE" ? <><b>Official ORCA</b><small>ORCA rewards</small></> : item.assetKind ? <><b>{item.assetKind === "aqua" ? "AQUA pair" : "Pump.fun"}</b><small>{item.liquidityUsd === undefined ? "Swap routes available" : `$${compactNumber.format(item.liquidityUsd)} liquidity`}</small></> : <><b>${compactNumber.format(item.orcaTvlUsd)} TVL</b><small>${compactNumber.format(item.orcaVolume24hUsd)} 24h</small></>}</span><i>{stock?.mint === item.mint && <Check size={14}/>}</i>
             </button>)}</div>
             {pairChecking && <div className="pair-lookup-status" role="status"><Loader2 size={16} className="spin"/>Checking this coin and its swap routes…</div>}
-            {searchedPair?.error && <div className="pair-lookup-error" role="alert">{searchedPair.error}</div>}
+            {searchedPair?.error && <div className="stock-error" role="alert"><span>{searchedPair.error}</span><button onClick={() => { setPairResult(null); setPairLookupVersion(value => value + 1); }}><RefreshCw size={14}/> Retry</button></div>}
             {filteredStocks.length === 0 && !pairsRefreshing && !pairChecking && !searchedPair?.error && <div className="no-stock-results">{mintSearch && !pairLookupEnabled ? "Custom pairs are not enabled yet." : `No pairs match “${stockQuery}”.`}</div>}
             {filteredStocks.length < stockResultsCount && <button className="stock-more" onClick={() => setVisibleStocks((value) => value + 20)}>Show more</button>}
           </>}
@@ -630,7 +633,7 @@ export function Create() {
           {!stockLoading && stockError && <div className="stock-error"><Info/><span>{stockError}</span><button onClick={() => setPairLoadVersion(value => value + 1)}><RefreshCw size={14}/> Retry</button></div>}
           {stock && <div className="selected-stock-strip"><StockLogo stock={stock}/><div><small>Permanent pair and reward</small><b>${form.symbol || "COIN"} / {stock.symbol}</b></div><span>Holder rewards in {stock.symbol}</span></div>}
           {stock?.assetKind && <div className="selected-pair-address"><span>{stock.assetKind === "aqua" ? "AQUA" : "Pump.fun"} mint</span><a href={`https://solscan.io/token/${stock.mint}`} target="_blank" rel="noreferrer">{stock.mint}</a>{Boolean(stock.transferFeeBps) && <small>{(stock.transferFeeBps! / 100).toFixed(0)}% token transfer fee applies to swaps and rewards.</small>}</div>}
-          {pairWarning && <p className="pair-lookup-error">AQUA pair: {pairWarning}</p>}
+          {pairWarning && <div className="stock-error"><span>AQUA pair: {pairWarning}</span><button onClick={() => setPairLoadVersion(value => value + 1)}><RefreshCw size={14}/> Retry</button></div>}
           {stock?.restricted && <label className="stock-ack"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)}/><span>I understand tokenized stocks may be restricted or unavailable in my jurisdiction.</span></label>}
         </WizardSection>}
 
