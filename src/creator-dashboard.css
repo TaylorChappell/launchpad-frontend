@@ -1,0 +1,77 @@
+.creator-dashboard { max-width: 1200px; }
+.creator-dashboard-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 26px; }
+.creator-market-link { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: #286d8e; }
+.creator-dashboard-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 30px; }
+.creator-dashboard-heading small { color: #628795; font-size: 10px; font-weight: 750; letter-spacing: .1em; }
+.creator-dashboard-heading h1 { margin: 5px 0 0; font-size: clamp(24px,3vw,34px); color: #123f56; }
+.creator-dashboard-heading h1 span { color: #78949f; font-size: .5em; font-weight: 500; }
+.creator-dashboard-layout { display: grid; grid-template-columns: 210px minmax(0,1fr); gap: 36px; align-items: start; }
+.creator-dashboard-nav { display: grid; gap: 6px; position: sticky; top: 95px; }
+.creator-dashboard-nav button,.creator-dashboard-nav a { display: flex; align-items: center; gap: 10px; padding: 13px 14px; text-align: left; font-size: 13px; font-weight: 650; color: #577886; border: 1px solid transparent; border-radius: 10px; background: transparent; }
+.creator-dashboard-nav button:hover,.creator-dashboard-nav a:hover { background: #ecf7fb; color: #1c789d; }
+.creator-dashboard-nav button[aria-current="page"] { background: #e4f5fd; border-color: #c7e7f4; color: #096d99; }
+.creator-dashboard-nav a { margin-top: 15px; border-top: 1px solid #d9e9ee; border-radius: 0; font-size: 12px; }
+.creator-dashboard-content { min-width: 0; }
+.creator-dashboard-intro { margin-bottom: 22px; }
+.creator-dashboard-intro h2,.creator-updates h2,.creator-reward-deposit h2 { margin: 0 0 8px; font-size: 20px; color: #164c63; }
+.creator-dashboard-intro p,.creator-updates > header p,.creator-reward-deposit > header p { margin: 0; color: #66828f; font-size: 13px; line-height: 1.7; }
+.creator-dashboard-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; margin-bottom: 24px; }
+.creator-dashboard-stats article { padding: 20px; border: 1px solid #d3e8ee; border-radius: 13px; background: #fff; }
+.creator-dashboard-stats small { display: block; font-size: 11px; color: #69838f; margin-bottom: 10px; }
+.creator-dashboard-stats strong { font-size: clamp(18px,2vw,26px); color: #12536d; overflow-wrap: anywhere; }
+.creator-reward-deposit { background: linear-gradient(120deg,#effaff,#fff); border: 1px solid #cae5ef; border-radius: 15px; padding: 25px; margin-bottom: 22px; }
+.creator-reward-deposit > header { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.creator-reward-deposit > header > div { max-width: 480px; }
+.creator-reward-deposit .primary { white-space: nowrap; gap: 7px; }
+.creator-deposit-history { margin-top: 22px; border-top: 1px solid #dcecf1; }
+.creator-deposit-history article { display: flex; align-items: center; gap: 14px; padding: 15px 0; border-bottom: 1px solid #e1eef2; font-size: 12px; }
+.creator-deposit-history article > div { flex: 1; }
+.creator-deposit-history strong { color: #245b70; }
+.creator-deposit-history small { display: block; margin-top: 5px; color: #78909a; font-size: 10px; }
+.deposit-status { color: #548099; text-align: right; }
+.deposit-status.credited { color: #217555; }
+.deposit-status.failed,.deposit-status.expired { color: #a14b46; }
+.creator-text-button { padding: 0; margin-top: 18px; border: 0; background: none; color: #297c9e; font-size: 12px; }
+.creator-dashboard-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.creator-dashboard-actions button { display: flex; gap: 12px; align-items: center; padding: 20px; background: #fff; border: 1px solid #d4e7ed; border-radius: 12px; text-align: left; color: #32728b; }
+.creator-dashboard-actions button:hover { border-color: #93cddd; background: #f9fdff; }
+.creator-dashboard-actions button > svg { width: 19px; flex-shrink: 0; }
+.creator-dashboard-actions button > svg:last-child { width: 15px; margin-left: auto; }
+.creator-dashboard-actions strong,.creator-dashboard-actions small { display: block; }
+.creator-dashboard-actions strong { font-size: 13px; color: #275669; }
+.creator-dashboard-actions small { margin-top: 6px; color: #77909a; font-size: 11px; line-height: 1.6; }
+.creator-dashboard-content .manage-grid { grid-template-columns: minmax(0,1.2fr) minmax(220px,.8fr); gap: 18px; }
+.creator-updates { padding: 24px; background: #fff; border: 1px solid #d3e7ee; border-radius: 14px; }
+.creator-updates > header { margin-bottom: 22px; }
+.creator-update-composer { padding-bottom: 22px; border-bottom: 1px solid #deebf0; }
+.creator-update-composer label { display: block; color: #3e6678; font-size: 13px; margin-bottom: 10px; }
+.creator-update-composer textarea { box-sizing: border-box; width: 100%; resize: vertical; min-height: 130px; max-height: 500px; border: 1px solid #c9e0ea; background: #f9fdff; border-radius: 11px; padding: 15px; font: inherit; font-size: 14px; color: #204e63; line-height: 1.7; }
+.creator-update-composer textarea:focus { outline: 2px solid #73bcdb; outline-offset: 2px; }
+.creator-update-composer footer { display: flex; gap: 15px; align-items: center; justify-content: space-between; margin-top: 12px; }
+.creator-update-composer footer small { color: #78939f; font-size: 10px; }
+.project-update-feed article { display: flex; align-items: flex-start; gap: 12px; padding: 22px 0; border-bottom: 1px solid #e1edf2; }
+.project-update-feed article:last-child { border-bottom: 0; }
+.project-update-feed .token-mark { width: 38px; height: 38px; flex: 0 0 38px; }
+.project-update-feed article > div { min-width: 0; flex: 1; }
+.project-update-feed header { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.project-update-feed header strong { color: #214f63; font-size: 13px; }
+.project-update-feed header span { font-size: 10px; color: #2686a6; }
+.project-update-feed time { color: #8a9ea8; font-size: 10px; margin-left: auto; }
+.project-update-feed p { white-space: pre-wrap; overflow-wrap: anywhere; color: #3f6272; line-height: 1.75; font-size: 14px; margin: 10px 0; }
+.project-update-feed a { display: inline-flex; align-items: center; gap: 4px; color: #8299a4; font-size: 10px; }
+.creator-empty { padding: 20px 0; color: #8099a5; font-size: 13px; }
+.creator-inline-error { color: #a4443b; font-size: 12px; line-height: 1.6; }
+.creator-inline-error button { color: inherit; text-decoration: underline; border: 0; background: none; }
+.creator-dialog-overlay { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; background: #143e5660; backdrop-filter: blur(12px); }
+.creator-deposit-dialog { width: min(460px,100%); max-height: 90dvh; overflow-y: auto; padding: 28px; border-radius: 20px; border: 1px solid #c3e2ef; background: #fafdff; box-shadow: 0 24px 90px #17405a30; }
+.creator-deposit-dialog > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.creator-deposit-dialog h2 { margin: 0; font-size: 23px; color: #164c64; }
+.creator-deposit-dialog > p { color: #608394; font-size: 13px; line-height: 1.7; }
+.creator-deposit-dialog label { display: block; margin: 24px 0 8px; font-size: 12px; color: #416c82; }
+.creator-deposit-dialog .manage-input input { min-width: 0; font-size: 22px; }
+.creator-deposit-note { color: #79929e; font-size: 11px; line-height: 1.7; }
+.creator-deposit-success { color: #207858; font-size: 12px; line-height: 1.7; }
+.workspace-tabs .governance-tab-count { display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; margin-left: 7px; border-radius: 12px; background: #ddf2fb; color: #167499; font-size: 10px; line-height: 1; }
+.workspace-tabs button[aria-pressed="true"] .governance-tab-count { background: #caeaf9; }
+@media(max-width: 900px) { .creator-dashboard-layout { grid-template-columns: 1fr; gap: 24px; } .creator-dashboard-nav { position: static; display: flex; flex-wrap: wrap; } .creator-dashboard-nav a { margin-top: 0; border: 0; margin-left: auto; } }
+@media(max-width: 600px) { .creator-dashboard-heading { margin-bottom: 20px; } .creator-dashboard-stats { gap: 8px; } .creator-dashboard-stats article { padding: 13px 10px; } .creator-dashboard-stats small { font-size: 10px; } .creator-dashboard-nav button { padding: 11px 9px; font-size: 12px; } .creator-dashboard-nav a { margin-left: 0; } .creator-reward-deposit { padding: 20px; } .creator-reward-deposit > header { align-items: flex-start; flex-direction: column; gap: 16px; } .creator-dashboard-actions,.creator-dashboard-content .manage-grid { grid-template-columns: 1fr; } .creator-updates { padding: 18px; } .creator-update-composer footer { align-items: flex-start; flex-direction: column; } .creator-deposit-dialog { padding: 22px; } .creator-deposit-history article { flex-wrap: wrap; } }

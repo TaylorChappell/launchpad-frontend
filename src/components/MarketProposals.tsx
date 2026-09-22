@@ -3,7 +3,7 @@ import { dexBadgeState } from "../dex-status";
 import { ensureAccountSession } from "../account-api";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, ArrowRight, Check, ChevronDown, ExternalLink, ImagePlus, Loader2, X } from "lucide-react";
+import { Bell, ArrowLeft, ArrowRight, Check, ChevronDown, ExternalLink, ImagePlus, Loader2, X } from "lucide-react";
 import { PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
 import { api } from "../api";
@@ -34,9 +34,10 @@ export function MarketDexStatusBadge() {
 }
 export function MarketInformationTabs({section,onChange}:{section:string;onChange:(value:string)=>void}){
   const {data}=useProposals();
+  const activeCount = data?.enabled ? data.proposals.filter(proposal => liveStatuses.includes(proposal.status)).length : 0;
   const hasGovernance=Boolean(data?.enabled&&data.proposals.some(p=>p.isDefault?!["rejected","cancelled"].includes(p.status):p.type==="cto"||!["rejected","cancelled"].includes(p.status)));
   useEffect(()=>{if(section==="Governance"&&data&&!hasGovernance)onChange("Transactions");},[section,data,hasGovernance,onChange]);
-  return <div className="workspace-tabs market-information-tabs" aria-label="Market information">{["Transactions","Holders","Your position","Rewards","Project",...(hasGovernance?["Governance"]:[])].map(label=><button key={label} aria-pressed={section===label} onClick={()=>onChange(label)}>{label}</button>)}</div>;
+  return <div className="workspace-tabs market-information-tabs" aria-label="Market information">{["Transactions","Holders","Your position","Rewards","Updates","Project",...(hasGovernance?["Governance"]:[])].map(label=><button key={label} aria-pressed={section===label} onClick={()=>onChange(label)}>{label}{label === "Governance" && activeCount > 0 && <span className="governance-tab-count" aria-label={`${activeCount} active proposals`} title={`${activeCount} active proposals`}><Bell size={12} aria-hidden="true"/><b>{activeCount}</b></span>}</button>)}</div>;
 }
 function countdown(at: number, now: number) {
   const seconds = Math.max(0, at - now);

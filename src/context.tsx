@@ -74,6 +74,7 @@ type WalletValue = {
   disconnect: () => Promise<void>;
   signMessage: (message: string) => Promise<{ message: string; signature: string }>;
   sendTransaction: (envelope: TransactionEnvelope, onSubmitted?: (signature:string) => void) => Promise<string>;
+  signTransaction: (envelope: TransactionEnvelope) => Promise<{ signedTransactionBase64: string }>;
   signTransactionBatch: (envelopes: LaunchBatchEnvelope[]) => Promise<SignedTransactionEnvelope[]>;
   submitSignedTransaction: (envelope: SignedTransactionEnvelope) => Promise<string>;
 };
@@ -301,9 +302,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [address, config.network, config.publicRpcUrl]);
 
-  const signTransactionBatch = useCallback(async (envelopes: LaunchBatchEnvelope[]) => {
+  const signTransactions = useCallback(async (envelopes: TransactionEnvelope[]) => {
     if (!adapter.current || !address) throw new Error("Connect your wallet first.");
-    if (!envelopes.length) throw new Error("No launch transactions were prepared.");
+    if (!envelopes.length) throw new Error("No transactions were prepared.");
     const { Transaction, VersionedTransaction } = await import("@solana/web3.js");
     const transactions = envelopes.map((envelope) => {
       const bytes = decodeBase64(envelope.transactionBase64);
@@ -311,9 +312,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     });
     try {
       if (adapter.current.kind === "phantom") {
-        if (!adapter.current.provider.signAllTransactions) throw new Error("Update Phantom to use AQUA's two-approval launch flow.");
+        if (!adapter.current.provider.signAllTransactions) throw new Error("Update Phantom to sign these transactions.");
         const signed = await adapter.current.provider.signAllTransactions(transactions);
-        if (signed.length !== envelopes.length) throw new Error("Phantom did not sign the complete launch batch.");
+        if (signed.length !== envelopes.length) throw new Error("Phantom did not sign every transaction.");
         return signed.map((transaction, index) => ({ ...envelopes[index], signedTransactionBase64: base64(transaction.serialize()) }));
       }
       const { wallet, account } = adapter.current.value;
@@ -321,12 +322,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (!feature) throw new Error("MetaMask does not support transaction batch signing.");
       const chain = config.network === "devnet" ? "solana:devnet" : "solana:mainnet";
       const results = await feature.signTransaction(...envelopes.map((envelope) => ({ account, transaction: decodeBase64(envelope.transactionBase64), chain })));
-      if (results.length !== envelopes.length) throw new Error("MetaMask did not sign the complete launch batch.");
+      if (results.length !== envelopes.length) throw new Error("MetaMask did not sign every transaction.");
       return results.map((result, index) => ({ ...envelopes[index], signedTransactionBase64: base64(result.signedTransaction) }));
     } catch (error) {
       throw new Error(friendlyWalletError(error));
     }
   }, [address, config.network]);
+
+  const signTransaction = useCallback(async (envelope: TransactionEnvelope) => (await signTransactions([envelope]))[0]!, [signTransactions]);
+  const signTransactionBatch = useCallback(async (envelopes: LaunchBatchEnvelope[]): Promise<SignedTransactionEnvelope[]> => {
+    const signed = await signTransactions(envelopes);
+    return signed.map((value, i) => ({ ...value, step: envelopes[i]!.step }));
+  }, [signTransactions]);
 
   const submitSignedTransaction = useCallback(async (envelope: SignedTransactionEnvelope) => {
     try {
@@ -340,7 +347,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [config.publicRpcUrl]);
 
-  const value = useMemo(() => ({ address, kind, connecting, modalOpen, setModalOpen, phantomInstalled, connect, disconnect, signMessage, sendTransaction, signTransactionBatch, submitSignedTransaction }), [address, kind, connecting, modalOpen, phantomInstalled, connect, disconnect, signMessage, sendTransaction, signTransactionBatch, submitSignedTransaction]);
+  const value = useMemo(() => ({ address, kind, connecting, modalOpen, setModalOpen, phantomInstalled, connect, disconnect, signMessage, sendTransaction, signTransaction, signTransactionBatch, submitSignedTransaction }), [address, kind, connecting, modalOpen, phantomInstalled, connect, disconnect, signMessage, sendTransaction, signTransaction, signTransactionBatch, submitSignedTransaction]);
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 }
 
@@ -349,3 +356,4 @@ export function useWallet() {
   if (!value) throw new Error("WalletProvider missing");
   return value;
 }
+
