@@ -1,3 +1,5 @@
+import { DexStatusBadge } from "./DexStatusBadge";
+import { dexBadgeState } from "../dex-status";
 import { ensureAccountSession } from "../account-api";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -26,6 +28,10 @@ type GovernanceContextValue = {
 };
 const GovernanceContext = createContext<GovernanceContextValue | null>(null);
 function useProposals() { const value = useContext(GovernanceContext); if (!value) throw new Error("Missing market governance provider."); return value; }
+export function MarketDexStatusBadge() {
+  const { launch, data } = useProposals();
+  return <DexStatusBadge state={dexBadgeState(launch, data)}/>;
+}
 export function MarketInformationTabs({section,onChange}:{section:string;onChange:(value:string)=>void}){
   const {data}=useProposals();
   const hasGovernance=Boolean(data?.enabled&&data.proposals.some(p=>p.isDefault?!["rejected","cancelled"].includes(p.status):p.type==="cto"||!["rejected","cancelled"].includes(p.status)));

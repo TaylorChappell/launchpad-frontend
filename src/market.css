@@ -537,3 +537,13 @@
   .rewards-empty { padding: 30px 20px; }
 }
 .market-price-delayed { display:block; color:#856338; font-size:11px; padding:0 18px 10px; }
+
+
+/* DEX campaign status, shared by market cards, table rows and market headers. */
+.dex-status-badge, .token-identity .dex-status-badge, .market-identity .dex-status-badge { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; width: fit-content; min-height: 22px; padding: 3px 7px; border: 1px solid #c8e5d6; border-radius: 5px; background: #eef8f2; color: #247754; font: 650 10px/1.2 "Manrope", sans-serif; white-space: nowrap; vertical-align: middle; }
+.dex-status-badge .dex-screener-icon { width: 14px; height: 14px; filter: invert(43%) sepia(30%) saturate(1040%) hue-rotate(101deg) brightness(88%); }
+.dex-status-badge > span { color: inherit !important; font: inherit !important; }
+.dex-status-badge.is-vote { color: #176c96; background: #eaf6ff; border-color: #b8dcee; }
+.dex-status-badge.is-funding { color: #90600c; background: #fff7df; border-color: #ead394; }
+.dex-status-badge.is-vote .dex-screener-icon { filter: invert(32%) sepia(55%) saturate(1000%) hue-rotate(163deg); }
+.dex-status-badge.is-funding .dex-screener-icon { filter: invert(39%) sepia(65%) saturate(720%) hue-rotate(7deg); }

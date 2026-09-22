@@ -230,6 +230,7 @@ export type Launch = {
   burnSummary?: { totalSol: number; totalTokenRaw: string };
   jackpotSummary?: { currentPotRaw: string; rewardSymbol: string; rewardDecimals: number };
   dexPaid?: boolean;
+  dexFundingStatus?: "voting" | "funding" | "ready" | "withdrawing" | "withdrawn" | null;
   dexFundingEnabled?: boolean;
   marketPolicyAddress?: string | null;
   pairVerified?: boolean;
@@ -594,3 +595,4 @@ export type WalletNotification = {
   symbol: string; createdAt: number; title: string; message: string;
   claimed?: boolean; amountRaw?: string; rewardDecimals?: number; rewardSymbol?: string;
 };
+
