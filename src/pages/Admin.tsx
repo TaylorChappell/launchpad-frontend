@@ -1,3 +1,4 @@
+import { AdminCommunityReports } from "../components/AdminCommunityReports";
 import { DexProfileFields } from "../components/MarketProposals";
 import { WalletIdentity } from "../components/WalletIdentity";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -11,11 +12,11 @@ import type { DexProfile, AdminDiagnostics, MarketProposal } from "../types";
 import "./admin.css";
 
 const SESSION_KEY = "aqua-admin-session-v1";
-const sections = ["overview", "studio", "dex", "logs", "rewards", "custody"] as const;
+const sections = ["overview", "studio", "community", "dex", "logs", "rewards", "custody"] as const;
 type Section = typeof sections[number];
 type Row = Record<string, unknown>;
 type Action = "withdraw" | "paid" | "complete" | "uphold" | "reject" | "access";
-const labels: Record<Section, string> = { overview: "Overview", studio: "Atlantis Studio", dex: "DEX & proposals", logs: "Logs & pipeline", rewards: "Reward epochs", custody: "Custody & settings" };
+const labels: Record<Section, string> = { community: "Community reports", overview: "Overview", studio: "Atlantis Studio", dex: "DEX & proposals", logs: "Logs & pipeline", rewards: "Reward epochs", custody: "Custody & settings" };
 const actionLabels: Record<Action, string> = { withdraw: "Withdraw reserved SOL", paid: "Record DEX payment", complete: "Complete profile update", uphold: "Uphold challenges", reject: "Reject challenges", access: "Confirm AQUA profile access" };
 const sol = (value: unknown) => `${(Number(value ?? 0) / 1e9).toLocaleString(undefined, { maximumFractionDigits: 6 })} SOL`;
 const studioCredits = (value: unknown) => (Number(value ?? 0) / 1_000_000).toLocaleString(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -140,6 +141,7 @@ export function Admin() {
         <div className="ops-dex-layout"><section className="ops-proposal-list" aria-label="Proposals">{proposals.slice(proposalPage * 8, proposalPage * 8 + 8).map(p => <button className={chosen?.id === p.id ? "selected" : ""} key={p.id} onClick={() => setSelected(p.id)} aria-pressed={chosen?.id === p.id}><div><b>${p.marketSymbol}</b><Status value={p.status}/></div><span>{p.type !== "cto" && <DexScreenerIcon/>}{typeLabel(p)}</span>{p.targetUsd > 0 && p.type !== "cto" && <><div className="ops-funding-numbers"><strong>${p.fundedUsd.toFixed(2)}</strong><small>of ${p.targetUsd.toFixed(0)}</small></div><progress aria-label="Funding progress" value={Math.min(p.fundedUsd, p.targetUsd)} max={p.targetUsd}/></>}<small>{p.openChallenges ? `${p.openChallenges} challenge(s) to review` : nextStep(p)}</small></button>)}{!proposals.length && <Empty>No proposals match this view.</Empty>}<Pager page={proposalPage} total={proposals.length} size={8} setPage={next => { setPage(next); setSelected(proposals[next * 8]?.id ?? null); }}/></section>
         {chosen && <ProposalDetail key={chosen.id} proposal={chosen} onAction={kind => setPending({ proposal: chosen, action: kind })} onSaveDetails={async details => { await api.adminAutomaticDexDetails(token, chosen.id, details); await load(token); }}/>}
         </div></>)}
+      {section === "community" && <AdminCommunityReports token={token} search={search}/>}
       {section === "logs" && <>
         <div className="ops-toolbar"><label>Source <select aria-label="Log source" value={logSource} onChange={e => setLogSource(e.target.value)}><option value="keeper">Keeper / market pipeline</option><option value="conversions">SOL conversions</option><option value="settlements">Fee settlements</option><option value="purchases">Reward purchases</option></select></label><label className="ops-check"><input type="checkbox" checked={errorsOnly} onChange={e => setErrorsOnly(e.target.checked)}/>Errors only</label></div>
         <Panel title={logSource === "keeper" ? "Latest keeper state" : titleCase(logSource)} description={logSource === "keeper" ? "Latest pass per market, not a full Railway log stream. Expand a row for the complete error and recorded details. Latest 100 markets." : "Latest 200 stored records. Search and pagination apply to this snapshot."}>

@@ -82,12 +82,19 @@ export function Token() {
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [range, setRange] = useState("24h");
-  const [params] = useSearchParams();
-  const [section,setSection]=useState(params.get("tab") === "community" || params.get("tab") === "comments" ? "Community" : params.get("tab") === "project" ? "Project" : "Transactions");
+  const [params,setParams] = useSearchParams();
+  const preferredSection=()=>{
+    const names=['Transactions','Community','Holders','Rewards','Project','Governance'];
+    const explicit=params.get('tab')==='comments'?'community':params.get('tab');
+    let saved='';try{saved=localStorage.getItem('aqua:market-tab')??'';}catch{}
+    return names.find(name=>name.toLowerCase()===explicit)??names.find(name=>name===saved)??'Transactions';
+  };
+  const [section,setSection]=useState(preferredSection);
+  const selectSection=(next:string)=>{try{localStorage.setItem('aqua:market-tab',next);}catch{}setSection(next);setParams(previous=>{const query=new URLSearchParams(previous);query.set('tab',next.toLowerCase());query.delete('feed');return query;},{replace:true});};
   const [positionOpen,setPositionOpen]=useState(false);
   const readKey = "aqua:comments:seen:" + (wallet.address ?? "visitor") + ":" + id;
   const [seen,setSeen]=useState<{key:string;cursor:CommentCursor|null}>(()=>({key:readKey,cursor:readCommentCursor(readKey)}));
-  useEffect(()=>{setSection(params.get("tab") === "community" || params.get("tab") === "comments" ? "Community" : params.get("tab") === "project" ? "Project" : "Transactions");setPositionOpen(false);},[id,params]);
+  useEffect(()=>{const next=preferredSection();setSection(next);try{localStorage.setItem('aqua:market-tab',next);}catch{}setPositionOpen(false);},[id,params]);
   useEffect(()=>{
     const sync=()=>setSeen({key:readKey,cursor:readCommentCursor(readKey)}); sync();
     window.addEventListener("storage",sync);return()=>window.removeEventListener("storage",sync);
@@ -195,7 +202,7 @@ export function Token() {
     <div className="token-layout"><section className="token-main">
       <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div></header><div className="chart market-line-shell"><MarketCapLine snapshots={withLatestMarketPoint(snapshots,launch)} range={range} onRangeChange={setRange}/></div></div>
 
-      <MarketInformationTabs section={section} onChange={setSection} newComments={newerComment(launch.latestComment,seen.key===readKey?seen.cursor:null)} latestProjectUpdateAt={launch.latestProjectUpdateAt}/>
+      <MarketInformationTabs section={section} onChange={selectSection} newComments={newerComment(launch.latestComment,seen.key===readKey?seen.cursor:null)} latestProjectUpdateAt={launch.latestProjectUpdateAt}/>
       {section==="Holders"&&<MarketHolders key={launch.id} launch={launch} creatorLock={creatorLock}/>}
       {section==="Community"&&<Community launch={launch} onRead={markCommentsRead}/>}
       {section==="Project"&&<div className="market-project"><section className="dashboard-section"><h2>Project information</h2><p>{launch.description}</p><p>Opening LP lock: {launch.liquidityLockedPermanently?"Permanently locked":"Not verified"}{launch.lockConfig&&<> · <a href={solscanAccountUrl(launch.lockConfig,config.network)} target="_blank" rel="noreferrer">Verify LP lock ↗</a></>}</p><p>Creator token lock: {creatorLock?.status==="active"?"Active until "+new Date(creatorLock.unlockAt*1000).toLocaleString():"No active verified creator lock"}.</p><p>DEX profile payment is not an endorsement or security assessment.</p><a href={solscanAccountUrl(launch.mint,config.network)} target="_blank" rel="noreferrer">Inspect mint and authority state ↗</a></section></div>}

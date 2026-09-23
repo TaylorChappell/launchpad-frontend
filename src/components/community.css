@@ -53,3 +53,39 @@
 @media(max-width:600px){.community-message-menu>button{min-height:42px}.community-message-menu{width:248px}.community-reaction-picker>button{height:38px}.community-feed-actions>button{min-height:42px}}
 .community-quick-reactions>button[role=menuitemcheckbox],.community-reaction-picker>button,.community-reactions>button{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
 .community-reactions>button>span{font-family:inherit}
+
+/* Compact chat bubbles, with separate editorial cards for announcements and polls. */
+.community-message.is-message{margin-bottom:7px;max-width:88%}
+.community-message.is-message .community-bubble{padding:6px 11px 5px;min-width:120px}
+.community-message.is-message .community-text{line-height:1.45;margin:3px 0}
+.community-message.is-message.is-own .community-bubble>header .wallet-identity,.community-message.is-message.is-own .community-bubble>header .community-badge{display:none}
+.community-message.is-message.is-own .community-bubble>header{min-height:0;height:0;margin:0}
+.community-message.is-message.is-own .community-text{padding-right:22px}
+.community-message.is-message.is-own .community-more{top:3px}
+.community-message-footer{justify-content:flex-end;min-height:18px}
+.community-reactions{margin-right:auto}
+.community-message-footer time{font-size:10px}
+.community-reactions>button{min-height:25px;padding:4px 8px;font-size:15px}
+.community-reactions>button>span{font:600 11px system-ui,sans-serif}
+.community-reply-preview{margin:5px 0;padding:6px 9px;background:#dceff5;border-left-color:#259abb}
+.community-unread{display:inline-block;flex:0 0 6px;width:6px;height:6px;border-radius:50%;background:#039ccd;box-shadow:0 0 0 3px #e0f3fa}
+.community-message.is-update,.community-message.is-poll{width:100%;max-width:100%;margin:0 0 16px}
+.community-message.is-update .community-bubble,.community-message.is-poll .community-bubble{width:100%;max-width:100%;border-radius:14px;padding:19px 21px 13px;background:#fff;border:1px solid #d5e6ec;box-shadow:0 4px 12px #18556f06}
+.community-message.is-update .community-bubble{border-top:3px solid #1aa9bc}
+.community-message.is-update .community-bubble>header,.community-message.is-poll .community-bubble>header{margin-bottom:14px}
+.community-message.is-update .community-text{font-size:14px;line-height:1.75;margin:12px 0 16px}
+.community-message.is-update .community-photo{width:100%}
+.community-message.is-update .community-photo img{width:100%;max-height:380px;object-fit:contain}
+.community-message.is-poll .community-text{font-size:16px;font-weight:650;line-height:1.5;margin-bottom:10px}
+.community-message.is-poll .community-poll{width:100%;padding:0}
+.community-message.is-poll .community-poll>button{min-height:46px;margin:9px 0;border-radius:9px}
+.community-message.is-poll .community-bubble{border-top:3px solid #7f9cce}
+.community-editor-toolbar{display:flex;gap:5px;margin-bottom:8px;padding:5px;background:#f0f7fa;border-radius:9px}
+.community-editor-toolbar button{display:grid;place-items:center;width:35px;height:33px;border:0;border-radius:6px;background:transparent;color:#48798e}
+.community-editor-toolbar button:hover{background:#dceef6}
+.community-update-preview{padding:12px 15px;border:1px solid #e0ecf1;border-radius:10px;margin:10px 0;max-height:200px;overflow:auto;background:#f9fcfd}
+.community-update-preview>small{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:#7794a2}
+.community-dialog .community-holder-toggle{display:flex;align-items:center;gap:10px;padding:13px;border:1px solid #d9e7ee;border-radius:10px;background:#f6fafc}
+.community-dialog .community-holder-toggle input{width:17px;height:17px;margin:0;accent-color:#0786bd}
+.community-holder-toggle small{display:block;font-size:11px;color:#728a97;font-weight:400;margin-top:4px}
+@media(max-width:600px){.community-message.is-update .community-bubble,.community-message.is-poll .community-bubble{padding:15px 14px 11px}.community-message.is-message{max-width:95%}.community-filters>button{gap:6px}}

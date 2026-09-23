@@ -30,7 +30,13 @@ export function CommunityMessageMenu({ anchor, moderator, canDelete, busy, onClo
     const outside = (event: PointerEvent) => {
       if (!menu.current?.contains(event.target as Node) && !anchor.trigger.contains(event.target as Node)) close.current();
     };
-    const dismissOnScroll = (event: Event) => { if (!menu.current?.contains(event.target as Node)) close.current(); };
+    // A tap can finish a pending scroll-to-view event. Only dismiss if the trigger actually moves.
+    const triggerPosition=anchor.trigger.getBoundingClientRect();
+    const dismissOnScroll = (event: Event) => {
+      if(menu.current?.contains(event.target as Node))return;
+      const current=anchor.trigger.getBoundingClientRect();
+      if(Math.abs(current.top-triggerPosition.top)>1||Math.abs(current.left-triggerPosition.left)>1)close.current();
+    };
     const dismiss = () => close.current();
     document.addEventListener('pointerdown', outside, true);
     window.addEventListener('scroll', dismissOnScroll, true);
@@ -61,7 +67,7 @@ export function CommunityMessageMenu({ anchor, moderator, canDelete, busy, onClo
       <button role="menuitem" aria-label={expanded ? 'Fewer reactions' : 'More reactions'} aria-expanded={expanded} title={expanded ? 'Fewer reactions' : 'More reactions'} onClick={()=>setExpanded(!expanded)}>{expanded ? <X size={17}/> : <Plus size={18}/>}</button>
     </div>
     {expanded && <div className="community-reaction-picker" role="group" aria-label="More reactions">{reactions.slice(3).map(emoji => <button key={emoji} role="menuitemcheckbox" aria-checked={Boolean(anchor.post.reactions?.find(r=>r.emoji===emoji)?.mine)} aria-label={`React ${emoji}`} disabled={busy} onClick={()=>onReact(emoji)}>{emoji}</button>)}</div>}
-    <button role="menuitem" onClick={onReply}><Reply size={16}/>Reply</button>
+    {anchor.post.kind==='message'&&<button role="menuitem" onClick={onReply}><Reply size={16}/>Reply</button>}
     {moderator && <button role="menuitem" disabled={busy} onClick={onPin}><Pin size={16}/>Pin message</button>}
     <button role="menuitem" onClick={onReport}><Flag size={16}/>Report</button>
     {canDelete && <button role="menuitem" className="community-danger" disabled={busy} onClick={onDelete}><Trash2 size={16}/>Delete message</button>}

@@ -2,7 +2,7 @@ import { API_URL, ApiError } from "./api";
 import { studioSessionKey } from "./studio-api";
 import type { TransactionEnvelope } from "./types";
 
-export type ProjectUpdate = { id: string; launchId: string; authorWallet: string; body: string; createdAt: number };
+export type ProjectUpdate = { id: string; launchId: string; authorWallet: string; body: string; createdAt: number; bodyFormat?:"plain"|"styled";imageUrl?:string|null };
 export type RewardDeposit = {
   id: string; launchId: string; amountLamports: string; rewardMode: string; targetSymbol: string;
   status: "prepared" | "queued" | "received" | "credited" | "failed" | "expired";

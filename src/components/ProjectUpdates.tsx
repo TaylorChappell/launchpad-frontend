@@ -1,3 +1,5 @@
+import { UpdateText } from "./UpdateText";
+import { communityImage } from "../community-api";
 import { WalletIdentity } from "./WalletIdentity";
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -48,7 +50,7 @@ function ProjectUpdateList({ launch, compose }: { launch: Launch; compose: boole
     {!updates.length && !loading && !error && <p className="creator-empty">{compose ? "Your first update will appear here and on the market page." : "The creator hasn’t posted an update yet."}</p>}
     <div className="project-update-feed">{updates.map(update => <article key={update.id}>
       <TokenMark launch={launch}/><div><header><strong>{launch.name}</strong><span>{update.authorWallet === launch.creatorWallet ? "Creator" : "Previous creator"}</span><time dateTime={new Date(update.createdAt).toISOString()} title={new Date(update.createdAt).toLocaleString()}>{new Date(update.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</time></header>
-      <p>{update.body}</p><WalletIdentity wallet={update.authorWallet}/></div>
+      <UpdateText text={update.body} styled={update.bodyFormat==="styled"}/>{update.imageUrl&&<img src={communityImage(update.imageUrl)} alt="Project update" style={{maxWidth:"100%",maxHeight:360,borderRadius:10}}/>}<WalletIdentity wallet={update.authorWallet}/></div>
     </article>)}</div>
     {loading && <p className="creator-empty" role="status">Loading updates…</p>}
     {more && <button className="soft-button" disabled={loading} onClick={() => void load(true)}>Older updates</button>}

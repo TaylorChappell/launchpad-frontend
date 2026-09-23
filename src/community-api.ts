@@ -1,11 +1,11 @@
 import { API_URL, ApiError } from './api';
 import { studioSessionKey } from './studio-api';
 export type CommunityPost = {
-  id:string; launchId:string; authorWallet:string; body:string; createdAt:number; kind:'message'|'update'|'poll'; imageUrl:string|null;
+  id:string; launchId:string; authorWallet:string; body:string; createdAt:number; kind:'message'|'update'|'poll'; bodyFormat?:'plain'|'styled'; imageUrl:string|null;
   reply:{id:string;authorWallet:string;body:string}|null; reactions:{emoji:string;count:number;mine:boolean}[];
-  poll:{options:{label:string;votes:number}[];myChoice:number|null;closesAt:number}|null; reasons?:string[];reports?:number;
+  poll:{holdersOnly?:boolean;options:{label:string;votes:number}[];myChoice:number|null;closesAt:number}|null; reasons?:string[];reports?:number;
 };
-export type CommunityPage={posts:CommunityPost[];pinned:CommunityPost|null;nextCursor:string|null;latest:{id:string;createdAt:number}|null};
+export type CommunityPage={posts:CommunityPost[];pinned:CommunityPost|null;nextCursor:string|null;latest:{id:string;createdAt:number}|null;latestByKind?:Partial<Record<'message'|'update'|'poll',{id:string;createdAt:number}>>};
 export async function communityRequest<T>(id:string,path='',token='',init:RequestInit={}):Promise<T>{
   const response=await fetch(`${API_URL}/api/launches/${encodeURIComponent(id)}/${path.startsWith('reports')?'community-reports'+path.slice(7):'community'+path}`,{
     ...init,cache:'no-store',signal:init.signal?AbortSignal.any([init.signal,AbortSignal.timeout(20000)]):AbortSignal.timeout(20000),
