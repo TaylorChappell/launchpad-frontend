@@ -50,7 +50,14 @@ export type StudioProject = {
   state: StudioState;
   updated_at: number;
 };
+export type StudioSurveyAnswer = { topic?:"creative"|"contract_address"; question:string; answer:string };
+export type StudioSurveyData = {
+  task:"website"|"image"|"chat";
+  title:string;
+  questions:Array<{id:string;topic?:"creative"|"contract_address";question:string;options:Array<{label:string;description:string}>}>;
+};
 export type StudioJob = {
+  survey_answers?: StudioSurveyAnswer[];
   revision?: number;
   applied_at?: number | null;
   has_changes?: boolean;
@@ -79,6 +86,7 @@ export type StudioJob = {
   };
 };
 export type StudioConfig = {
+  surveySupported?: boolean;
   hosting?: Pick<StudioHosting, "enabled" | "domain" | "prefix">;
   efforts?: Array<{id: "low" | "medium" | "high";model:string;imageModel:string;imageQuality:string}>;
   enabled: boolean;

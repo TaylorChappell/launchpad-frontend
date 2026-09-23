@@ -1,3 +1,5 @@
+import { StudioSurvey } from "../components/StudioSurvey";
+import type { StudioSurveyData, StudioSurveyAnswer } from "../studio-api";
 import { LaunchDetailsLoading } from "../components/LaunchDetailsLoading";
 import { StudioVariables } from "../components/StudioVariables";
 import { StudioPublish } from "../components/StudioPublish";
@@ -148,9 +150,14 @@ function StudioWorkspace() {
   const [autoApply,setAutoApply] = useState(() => {
     try { return JSON.parse(localStorage.getItem(preferenceKey) ?? "{}").autoApply === true; } catch { return false; }
   });
+  const [skipSurvey,setSkipSurvey] = useState(()=>{
+    try{return JSON.parse(localStorage.getItem(preferenceKey)??"{}").skipSurvey===true;}catch{return false;}
+  });
+  const [survey,setSurvey]=useState<{projectId:string;revision:number;prompt:string;effort:typeof effort;data:StudioSurveyData}|null>(null);
+  const preparedSurvey=useRef<{projectId:string;revision:number;prompt:string;answers:StudioSurveyAnswer[]}|null>(null);
   const handledResults = useRef(new Set<string>());
   const autoApplyJobs = useRef(new Set<string>());
-  const pendingSend = useRef<{projectId:string;revision:number;prompt:string;effort:typeof effort;quote:Quote;autoApply:boolean} | null>(null);
+  const pendingSend = useRef<{projectId:string;revision:number;prompt:string;effort:typeof effort;quote:Quote;autoApply:boolean;surveyAnswers:StudioSurveyAnswer[]} | null>(null);
   const [sending, setSending] = useState<{projectId:string;prompt:string} | null>(null);
   const projectListVersion = useRef(0);
   const projectsCurrent = useRef<Array<Omit<StudioProject, "state">>>([]);
@@ -160,8 +167,8 @@ function StudioWorkspace() {
   const autoApplyCurrent = useRef(autoApply);
   autoApplyCurrent.current = autoApply;
   useEffect(() => {
-    try { localStorage.setItem(preferenceKey,JSON.stringify({effort,autoApply})); } catch { /* Preferences still work for this session. */ }
-  }, [preferenceKey,effort,autoApply]);
+    try { localStorage.setItem(preferenceKey,JSON.stringify({effort,autoApply,skipSurvey})); } catch { /* Preferences still work for this session. */ }
+  }, [preferenceKey,effort,autoApply,skipSurvey]);
   const [token, setToken] = useState(() =>
     wallet.address ? studioSession(wallet.address) : "",
   );
@@ -353,6 +360,7 @@ function StudioWorkspace() {
     setProject(value);
     setState(value.state);
     setReview(null);
+    setSurvey(null);
     try { sessionStorage.setItem(`aqua:studio-project:${wallet.address}`, value.id); } catch { /* Selection still works without storage. */ }
   }
   async function openProject(id: string) {
@@ -599,17 +607,17 @@ function StudioWorkspace() {
         : [...old.lockedFields, key],
     }));
   }
-  async function sendMessage(retryMessage?: {prompt: string; effort?: typeof effort}) {
+  async function sendMessage(retryMessage?: {prompt: string; effort?: typeof effort; surveyAnswers?:StudioSurveyAnswer[]}) {
     const submittedPrompt = retryMessage?.prompt ?? prompt;
-    if (!project || !submittedPrompt.trim() || taskLock.current || generationBusy || review) return;
+    if (!project || !submittedPrompt.trim() || taskLock.current || generationBusy || review || (survey && !retryMessage?.surveyAnswers)) return;
     const sendingProject = project.id;
     const selectedEffort = retryMessage?.effort ?? effort;
     if (retryMessage?.effort) setEffort(retryMessage.effort);
     // Render the user's message before configuration, saving, or billing requests.
     setSending({ projectId: sendingProject, prompt: submittedPrompt });
     setPrompt("");
-    let accepted = false;
-    await task("Starting generation", async () => {
+    let accepted = false,surveyOpened=false;
+    await task("Understanding your request", async () => {
       try {
       const retry = pendingSend.current;
       if (retry && retry.projectId === sendingProject && retry.revision === project?.revision && retry.prompt === submittedPrompt && retry.effort === selectedEffort && !dirty) {
@@ -629,11 +637,25 @@ function StudioWorkspace() {
       }
       const saved = await save();
       if (!saved || saved.id !== sendingProject || projectId.current !== sendingProject) return;
+      const prepared=preparedSurvey.current;
+      let surveyAnswers=retryMessage?.surveyAnswers ?? (prepared?.projectId===saved.id&&prepared.revision===saved.revision&&prepared.prompt===submittedPrompt?prepared.answers:undefined);
+      if(surveyAnswers===undefined&&!skipSurvey&&latestConfig.surveySupported){
+        const data=await request<StudioSurveyData>(`/projects/${saved.id}/survey`,{prompt:submittedPrompt,revision:saved.revision});
+        if(!mounted.current||projectId.current!==saved.id)return;
+        if(data.questions.length){
+          surveyOpened=true;
+          setSurvey({projectId:saved.id,revision:saved.revision,prompt:submittedPrompt,effort:selectedEffort,data});
+          return;
+        }
+      }
+      surveyAnswers ??= [];
+      preparedSurvey.current={projectId:saved.id,revision:saved.revision,prompt:submittedPrompt,answers:surveyAnswers};
       const estimate = await request<Quote>(`/projects/${saved.id}/quote`, {
         prompt: submittedPrompt,
         kind: "auto",
         revision: saved.revision,
         effort: selectedEffort,
+        surveyAnswers,
       });
       if (estimate.effort !== selectedEffort)
         throw new Error("This backend does not support effort selection yet. Deploy the updated Studio backend before sending.");
@@ -645,16 +667,30 @@ function StudioWorkspace() {
         });
         return;
       }
-      const submission = {projectId:saved.id,revision:saved.revision,prompt:submittedPrompt,effort:selectedEffort,quote:estimate,autoApply};
+      const submission = {projectId:saved.id,revision:saved.revision,prompt:submittedPrompt,effort:selectedEffort,quote:estimate,autoApply,surveyAnswers};
       pendingSend.current = submission;
       accepted = await submitGeneration(submission);
       } finally {
         if (mounted.current) {
           setSending(null);
-          if (!accepted && projectId.current === sendingProject) setPrompt(submittedPrompt);
+          if (!accepted && !surveyOpened && projectId.current === sendingProject) setPrompt(submittedPrompt);
         }
       }
     });
+  }
+  function closeSurvey(){
+    if(!survey||taskLock.current)return;
+    if(projectId.current===survey.projectId)setPrompt(survey.prompt);
+    setSurvey(null);
+    requestAnimationFrame(()=>composerInput.current?.focus());
+  }
+  function completeSurvey(answers:StudioSurveyAnswer[]){
+    if(!survey||taskLock.current)return;
+    if(projectId.current!==survey.projectId||project?.revision!==survey.revision){setSurvey(null);setPrompt(survey.prompt);setError("Your project changed. Send your brief again to refresh its questions.");return;}
+    const brief=survey;
+    preparedSurvey.current={projectId:brief.projectId,revision:brief.revision,prompt:brief.prompt,answers};
+    setSurvey(null);
+    void sendMessage({prompt:brief.prompt,effort:brief.effort,surveyAnswers:answers});
   }
   async function submitGeneration(submission: NonNullable<typeof pendingSend.current>) {
       const id = submission.projectId, estimate = submission.quote;
@@ -684,7 +720,7 @@ function StudioWorkspace() {
       setPrompt("");
       setJobs(old => old.some(job => job.id === estimate.id) ? old : [{
         id: estimate.id, project_id: id, revision: submission.revision, prompt: submission.prompt,
-        kind: "auto", status: "queued", effort: submission.effort, credit_exempt: estimate.creditExempt,
+        kind: "auto", status: "queued", survey_answers:submission.surveyAnswers, effort: submission.effort, credit_exempt: estimate.creditExempt,
         charged_raw: "0", reserved_raw: "0", charged_micro_usd: null,
         reserved_micro_usd: estimate.maximumMicroUsd, created_at: Date.now(),
       }, ...old]);
@@ -741,7 +777,7 @@ function StudioWorkspace() {
     if (review) await task("Applying changes",()=>applyJobChanges(review));
   }
   useEffect(() => {
-    if (!project || !state || busy || review || modal || creditGate || taskLock.current) return;
+    if (!project || !state || busy || review || survey || modal || creditGate || taskLock.current) return;
     const candidate = [...jobs].reverse().find(job=>job.status === "complete" && !job.applied_at && job.has_changes !== false && !handledResults.current.has(job.id));
     if (!candidate) return;
     handledResults.current.add(candidate.id);
@@ -752,7 +788,7 @@ function StudioWorkspace() {
       if (autoApplyCurrent.current && autoApplyJobs.current.has(completed.id)) await applyJobChanges(completed,true);
       else setReview(completed);
     });
-  }, [jobs,project,state,busy,review,modal,creditGate,autoApply]);
+  }, [jobs,project,state,busy,review,survey,modal,creditGate,autoApply]);
   async function uploadFiles(list: FileList | null) {
     if (!list) return;
     await task("Adding assets", async () => {
@@ -1185,7 +1221,7 @@ function StudioWorkspace() {
       setNotice("Backend sent to Railway. Generate its public domain, paste it into Variables → BACKEND_URL, then publish your website changes.");
     });
   }
-  const actionDisabled = Boolean(busy);
+  const actionDisabled = Boolean(busy || survey);
   const hasBackend = Boolean(state?.files.some(file => file.path.startsWith("backend/") && /(?:\.(?:m?js|ts)|\/package\.json)$/.test(file.path)));
   const exportTargets: Array<"frontend" | "backend"> = hasBackend ? ["frontend","backend"] : ["frontend"];
   const reviewChanges = state ? studioChangeList(state,review?.result) : [];
@@ -1640,6 +1676,7 @@ function StudioWorkspace() {
                     {[...jobs].reverse().map((job) => (
                       <article className="at-message" key={job.id}>
                         <div className="at-user-message">{job.prompt}</div>
+                        {Boolean(job.survey_answers?.length)&&<details className="at-survey-answers"><summary>Creative choices</summary><dl>{job.survey_answers!.map((answer,index)=><div key={index}><dt>{answer.question}</dt><dd>{answer.answer}</dd></div>)}</dl></details>}
                         <div className="at-answer">
                           <span className="at-eyebrow">
                             ATLANTIS {job.kind === "image" ? "/ ARTWORK" : ""}
@@ -1665,7 +1702,7 @@ function StudioWorkspace() {
                               </div>
                             </>
                           ) : job.status === "failed" ? (
-                            <><p className="at-failed">{job.error}</p><div className="at-message-actions"><button disabled={actionDisabled || generationBusy || Boolean(review) || Boolean(prompt.trim())} title={prompt.trim() ? "Send or clear your current draft before retrying" : "Retry this prompt with the same effort"} onClick={() => void sendMessage({prompt:job.prompt,effort:job.effort})}><RefreshCw size={13} /> Retry request</button></div></>
+                            <><p className="at-failed">{job.error}</p><div className="at-message-actions"><button disabled={actionDisabled || generationBusy || Boolean(review) || Boolean(prompt.trim())} title={prompt.trim() ? "Send or clear your current draft before retrying" : "Retry this prompt with the same effort"} onClick={() => void sendMessage({prompt:job.prompt,effort:job.effort,surveyAnswers:job.survey_answers??[]})}><RefreshCw size={13} /> Retry request</button></div></>
                           ) : (
                             <StudioWorking label={job.progress ?? (job.status === "queued" ? "Queued" : "Thinking")} />
                           )}
@@ -1674,7 +1711,7 @@ function StudioWorkspace() {
                     ))}
                     {visibleSending && <article className="at-message at-pending-message">
                       <div className="at-user-message">{visibleSending.prompt}</div>
-                      <div className="at-answer"><span className="at-eyebrow">ATLANTIS</span><StudioWorking label="Sending your message" /></div>
+                      <div className="at-answer"><span className="at-eyebrow">ATLANTIS</span><StudioWorking label={busy==="Understanding your request"?"Thinking through your brief":"Starting your request"} /></div>
                     </article>}
                   </div>
                   <div className="at-composer-area">
@@ -1716,6 +1753,10 @@ function StudioWorkspace() {
                           <label className="at-auto-apply" title="Apply generated project edits without asking. Never launches, publishes, or signs wallet transactions.">
                             <input type="checkbox" role="switch" aria-label="Auto-apply edits" checked={autoApply} disabled={actionDisabled} onChange={e=>setAutoApply(e.target.checked)} />
                             <span>Auto-apply</span>
+                          </label>
+                          <label className="at-auto-apply" title="Let Atlantis choose any unspecified creative details without a survey.">
+                            <input type="checkbox" role="switch" aria-label="Skip survey" checked={skipSurvey} disabled={actionDisabled} onChange={e=>setSkipSurvey(e.target.checked)}/>
+                            <span>Skip survey</span>
                           </label>
                         </div>
                         <button
@@ -2272,6 +2313,7 @@ function StudioWorkspace() {
           </div>
         </Dialog>
       )}
+      {survey&&<StudioSurvey key={survey.projectId+survey.prompt} survey={survey.data} onClose={closeSurvey} onComplete={completeSurvey} onSkip={()=>completeSurvey([])}/>}
       {review && (
         <Dialog title="Apply these changes?" className="at-changes-dialog" onClose={() => { if (!taskLock.current) setReview(null); }}>
           <p>Atlantis has finished. {reviewChanges.length ? "Review the proposed edits below. Nothing has been changed yet." : "There are no new unlocked changes to apply."}</p>
