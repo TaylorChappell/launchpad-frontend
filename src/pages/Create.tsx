@@ -1,3 +1,4 @@
+import { assetLogoUrl } from "../asset-logo";
 import { TransactionOutcomeError } from "../transaction-confirmation";
 import { pairCatalogPollDelay } from "../pair-catalog-refresh";
 import { handoffLaunchBatch, watchLaunchSubmission } from "../launch-relay";
@@ -690,5 +691,5 @@ export function Create() {
 function WizardSection({ title, description, children }: { title: string; description: string; children: ReactNode }) { return <section className="wizard-section"><header><h2>{title}</h2><p>{description}</p></header><div className="wizard-section-body">{children}</div></section>; }
 function Field({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) { return <label className={`wizard-field ${wide ? "wide" : ""}`}><span>{label}</span>{children}</label>; }
 function ModeButton({ active, disabled, onClick, icon, title, eyebrow, children }: { active: boolean; disabled?: boolean; onClick: () => void; icon: ReactNode; title: string; eyebrow: string; children: ReactNode }) { return <button type="button" role="radio" aria-checked={active} disabled={disabled} className={`reward-mode-option ${active ? "selected" : ""}`} onClick={onClick}><i>{icon}</i><div><small>{eyebrow}</small><b>{title}</b><p>{children}</p></div><em>{disabled ? "Coming soon" : active ? <Check/> : null}</em></button>; }
-function StockLogo({ stock }: { stock: StockOption }) { const [failed, setFailed] = useState(false); return <span className="stock-logo">{stock.mint === "So11111111111111111111111111111111111111112" ? <NetworkSolana className="currency-brand-icon" variant="branded"/> : stock.logoUrl && !failed ? <img src={stock.logoUrl} alt="" onError={() => setFailed(true)}/> : stock.underlyingSymbol.slice(0, 2)}</span>; }
+function StockLogo({ stock }: { stock: StockOption }) { const [failed, setFailed] = useState(false); useEffect(() => setFailed(false), [stock.mint, stock.logoUrl]); return <span className="stock-logo">{stock.mint === "So11111111111111111111111111111111111111112" ? <NetworkSolana className="currency-brand-icon" variant="branded"/> : stock.logoUrl && !failed ? <img src={assetLogoUrl(stock.logoUrl)!} alt="" onError={() => setFailed(true)}/> : stock.underlyingSymbol.slice(0, 2)}</span>; }
 

@@ -235,6 +235,9 @@ export type Launch = {
   symbol: string;
   description: string;
   imageUrl: string;
+  latestProjectUpdateAt?: number | null;
+  latestComment?: { id: string; createdAt: number } | null;
+  pairLogoUrl?: string | null;
   metadataUri: string;
   stock: { symbol: string; name: string; mint: string; logoUrl: string | null; poolAddress: string | null; referenceTvlUsd?: number; referenceVolume24hUsd?: number };
   stockSymbol: string;
