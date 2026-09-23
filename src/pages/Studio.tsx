@@ -757,8 +757,8 @@ function StudioWorkspace() {
     await task("Adding assets", async () => {
       const files: StudioFile[] = [];
       for (const f of Array.from(list)) {
-        if (f.size > 3000000)
-          throw new Error("Each upload must be under 3 MB.");
+        if (f.size > 5000000)
+          throw new Error("Each upload must be 5 MB or smaller.");
         const path = `frontend/assets/${f.name.replace(/[^a-zA-Z0-9_.-]/g, "-")}`;
         if (state?.files.find((item) => item.path === path))
           throw new Error(`${path} already exists. Rename the upload first.`);
@@ -770,6 +770,8 @@ function StudioWorkspace() {
         });
         files.push({ path, content, encoding: "base64", locked: false });
       }
+      if (state && new Blob([JSON.stringify({ ...state, files: [...state.files, ...files] })]).size > 20_000_000)
+        throw new Error("These uploads would exceed the 20 MB project limit. Remove unused assets or choose smaller files.");
       edit((old) => ({ ...old, files: [...old.files, ...files] }));
       setTab("assets");
       setWorkspaceOpen(true);
@@ -2139,7 +2141,7 @@ function StudioWorkspace() {
                         <h2>A world of your own.</h2>
                         <p>
                           Create artwork with Atlantis or upload your own files.
-                          Each file can be up to 3 MB.
+                          Up to 5 MB per file · 20 MB per project.
                         </p>
                         <button onClick={() => upload.current?.click()}>
                           <ImagePlus size={16} />
