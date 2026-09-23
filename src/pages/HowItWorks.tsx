@@ -235,7 +235,7 @@ export function HowItWorks() {
           </table>
           <p>xStocks must have a live, supported Orca market and the required Orca TokenBadge. The eligibility checks reduce broken launches, but they do not remove market, issuer, liquidity or transfer restrictions.</p>
           <Callout title="Optional creator first buy">
-            A first buy is a normal market purchase after the pool exists. It is not a free allocation. The creator provides SOL or USDC, receives the quoted launch tokens and accepts the same price impact and transfer-fee rules as other buyers.
+            The creator funds an optional first buy with SOL and approves it before trading opens. Liquidity activation and the buy execute in one transaction, so another purchase cannot land between them. For other pairs, SOL is converted to the pair asset first. The buy follows the same price-impact and transfer-fee rules as other purchases.
           </Callout>
         </DocSection>
 

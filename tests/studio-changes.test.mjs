@@ -15,3 +15,8 @@ test('a replacement is not misleadingly listed as a deletion too',()=>{
   const changes=studioChangeList(state(),{files:[{path:'frontend/remove.js',content:'new',encoding:'utf8'}],deletePaths:['frontend/remove.js']});
   assert.deepEqual(changes.map(c=>c.label),['Update file']);
 });
+test('public variables and CA consent appear in the approval list without file changes',()=>{
+  const changes=studioChangeList(state(),{frontendVariables:{BACKEND_URL:'https://fish.example.com'},autoFillCA:true,files:[],deletePaths:[]});
+  assert.deepEqual(changes.map(c=>c.label),['Set frontend variable','Enable automatic website CA']);
+  assert.match(changes[0].detail,/https:\/\/fish.example.com/);
+});

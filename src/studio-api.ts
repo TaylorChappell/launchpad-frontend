@@ -27,12 +27,22 @@ export type StudioLaunch = {
 };
 export type StudioState = {
   name: string;
+  frontendVariables?: Record<string,string>;
+  autoFillCA?: boolean | null;
   launch: StudioLaunch;
   files: StudioFile[];
   folders: string[];
   lockedFields: Array<keyof StudioLaunch>;
 };
+export type StudioHosting = {
+  configurationSupported?: boolean;
+  enabled: boolean;
+  domain: string;
+  prefix: string;
+  site: { slug: string; url: string; published: boolean; revision: number | null; publishedAt: number | null } | null;
+};
 export type StudioProject = {
+  hostedWebsiteUrl?: string | null;
   active_job?: { id: string; status: string; progress?: string } | null;
   id: string;
   name: string;
@@ -61,12 +71,15 @@ export type StudioJob = {
   created_at: number;
   result?: {
     message: string;
+    frontendVariables?: Record<string,string>;
+    autoFillCA?: boolean;
     launch?: Partial<StudioLaunch>;
     files: StudioFile[];
     deletePaths: string[];
   };
 };
 export type StudioConfig = {
+  hosting?: Pick<StudioHosting, "enabled" | "domain" | "prefix">;
   efforts?: Array<{id: "low" | "medium" | "high";model:string;imageModel:string;imageQuality:string}>;
   enabled: boolean;
   paidEnabled: boolean;

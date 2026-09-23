@@ -1,3 +1,4 @@
+import { TransactionOutcomeError } from "../transaction-confirmation";
 import { pairCatalogPollDelay } from "../pair-catalog-refresh";
 import { handoffLaunchBatch, watchLaunchSubmission } from "../launch-relay";
 import { readLaunchDraft,saveLaunchDraft } from "../launch-draft";
@@ -23,13 +24,12 @@ import { DexScreenerIcon } from "../components/DexScreenerIcon";
 import type { DexProfile } from "../types";
 import type { Launch, LaunchBatchEnvelope, LaunchConfirmation, LaunchRelayStatus, StockOption, TransactionEnvelope } from "../types";
 
-type DevBuyCurrency = "SOL" | "USDC";
 type RewardMode = "holder_rewards" | "buyback_burn" | "jackpot";
 type Form = {
   name: string; symbol: string; description: string; xUrl: string; websiteUrl: string;
-  telegramUrl: string; devBuyCurrency: DevBuyCurrency; launchAmount: string; rewardMode: RewardMode;
+  telegramUrl: string; devBuyCurrency: "SOL"; launchAmount: string; rewardMode: RewardMode;
 };
-type ChainStage = "mint" | "pool" | "liquidity" | "lock" | "devBuy";
+type ChainStage = "mint" | "pool" | "prepare" | "funding" | "liquidity" | "lock" | "devBuy";
 type ProgressKey = "approval" | ChainStage;
 type ProgressState = "waiting" | "active" | "done" | "error";
 type PendingAction = { launchId: string; stage: ChainStage; envelope?: TransactionEnvelope; signature?: string };
@@ -47,11 +47,13 @@ const chainSteps: Array<{ key: ProgressKey; label: string; detail: string }> = [
   { key: "approval", label: "Prepare launch", detail: "Store artwork and immutable metadata" },
   { key: "mint", label: "Create token", detail: "Wallet approval 1 of 2" },
   { key: "pool", label: "Approve Orca market", detail: "Wallet approval 2 signs the launch batch" },
-  { key: "liquidity", label: "Verify liquidity", detail: "Prove the opening position is active" },
+  { key: "prepare", label: "Prepare accounts", detail: "The pool is not tradable yet" },
+  { key: "funding", label: "Prepare buy funds", detail: "Convert SOL into the selected pair" },
+  { key: "liquidity", label: "Open the market", detail: "Activate liquidity and execute the dev buy together" },
   { key: "lock", label: "Lock liquidity", detail: "Permanently lock the verified position" },
-  { key: "devBuy", label: "Initial buy", detail: "Optional transaction after launch" },
+  { key: "devBuy", label: "Initial buy", detail: "Included in liquidity activation" },
 ];
-const initialProgress = (): Record<ProgressKey, ProgressState> => ({ approval: "waiting", mint: "waiting", pool: "waiting", liquidity: "waiting", lock: "waiting", devBuy: "waiting" });
+const initialProgress = (): Record<ProgressKey, ProgressState> => ({ approval: "waiting", mint: "waiting", pool: "waiting", prepare: "waiting", funding: "waiting", liquidity: "waiting", lock: "waiting", devBuy: "waiting" });
 const normaliseUrl = (value: string, prefix = "https://") => value.trim() ? (/^https?:\/\//i.test(value.trim()) ? value.trim() : `${prefix}${value.trim()}`) : null;
 const compactNumber = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
 const normaliseTelegram = (value: string) => {
@@ -130,11 +132,11 @@ export function Create() {
     if(stockLoading||pairsRefreshing||draftReady===draftKey)return;
     let active=true;const carryGuest=priorDraftKey.current==="launch:"+config.network+":guest";priorDraftKey.current=draftKey;setDraftStatus("Loading local draft…");
     if(searchParams.get("studio")){setDraftReady(draftKey);return;}
-    readLaunchDraft<{form:Form;file:File|null;dexFundingEnabled:boolean;dexProfile:DexProfile;stockMint:string}>(draftKey).then(async draft=>{
+    readLaunchDraft<{form:Omit<Form,"devBuyCurrency"> & {devBuyCurrency?:"SOL"|"USDC"};file:File|null;dexFundingEnabled:boolean;dexProfile:DexProfile;stockMint:string}>(draftKey).then(async draft=>{
       if(!active)return;
       if(editedDraftKey.current===draftKey){setDraftStatus("Draft will be saved on this device.");return;}
       if(draft||!carryGuest){setForm(empty);setFile(null);setPreview("");setDexFundingEnabled(false);setDexProfile({description:"",bannerUrl:"",websiteUrl:"",xUrl:"",telegramUrl:""});setStock(stocks[0]??null);setStep(0);}
-      if(draft?.form){setForm({...empty,...draft.form});setDexFundingEnabled(Boolean(draft.dexFundingEnabled));if(draft.dexProfile)setDexProfile(draft.dexProfile);if(draft.file instanceof File)chooseArtwork(draft.file);const saved=stocks.find(s=>s.mint===draft.stockMint);if(saved)setStock(saved);else if(draft.stockMint){
+      if(draft?.form){setForm({...empty,...draft.form,devBuyCurrency:"SOL",launchAmount:draft.form.devBuyCurrency==="USDC"?"":draft.form.launchAmount??""});setDexFundingEnabled(Boolean(draft.dexFundingEnabled));if(draft.dexProfile)setDexProfile(draft.dexProfile);if(draft.file instanceof File)chooseArtwork(draft.file);const saved=stocks.find(s=>s.mint===draft.stockMint);if(saved)setStock(saved);else if(draft.stockMint){
         setStock(null);
         if(pairLookupEnabled){try{const found=await api.lookupPair(draft.stockMint);if(!active)return;setStock(found.stock);}catch{if(!active)return;setDraftStatus("Draft restored. Your saved pair is unavailable; choose another pair.");return;}}
       }}
@@ -158,7 +160,7 @@ export function Create() {
     void studioRequest<StudioProject>(`/projects/${encodeURIComponent(id)}`,token).then(async project=>{
       if(cancelled)return;
       const draft=project.state.launch;
-      setForm(old=>({...old,name:draft.name,symbol:draft.symbol,description:draft.description,xUrl:draft.xUrl,websiteUrl:draft.websiteUrl,telegramUrl:draft.telegramUrl,rewardMode:draft.rewardMode}));
+      setForm(old=>({...old,name:draft.name,symbol:draft.symbol,description:draft.description,xUrl:draft.xUrl,websiteUrl:draft.websiteUrl||project.hostedWebsiteUrl||"",telegramUrl:draft.telegramUrl,rewardMode:draft.rewardMode}));
       let selected=stocks.find(item=>item.mint===draft.stockMint);
       if(draft.stockMint && !selected){
         setStock(null);
@@ -262,9 +264,9 @@ export function Create() {
     ...(dexProfileEnabled ? [dexDraftValid] : []),
     amountValid,
   ];
-  const currencySymbol = form.devBuyCurrency;
+  const currencySymbol = "SOL";
   const launchCost = config.launchCost;
-  const currencyDecimals = form.devBuyCurrency === "SOL" ? 9 : 6;
+  const currencyDecimals = 9;
   const launching = executionOpen && executionState === "running";
   const activeProgress = chainSteps.find((item) => progress[item.key] === "active")?.label ?? "Preparing launch";
 
@@ -389,7 +391,7 @@ export function Create() {
       setPending({ launchId: id, stage: activeStage });
       setStage(activeStage, "active");
       setRelayMessage("Approve the remaining launch transactions in your wallet.");
-      showLaunchStatus("Approve the Orca launch", "Review the market and liquidity transactions in your wallet.");
+      showLaunchStatus("Approve the Orca launch", batch.some(tx => tx.step === "prepare") ? "Review the launch and dev buy together. Trading opens when your buy executes." : "Review the market and liquidity transactions in your wallet.");
       const signedBatch = await wallet.signTransactionBatch(batch);
       controller.signal.throwIfAborted();
       try { localStorage.setItem(relayStorageKey, id); } catch { /* Storage may be unavailable. */ }
@@ -401,7 +403,8 @@ export function Create() {
       showLaunchStatus("Completing your launch", "AQUA is handling the transactions. This page no longer needs to stay connected.");
       const complete = accepted.status === "complete" ? accepted : await observeRelay(id, controller);
       controller.signal.throwIfAborted();
-      if (hasInitialBuy) {
+      if (complete.devBuyIncluded) setStage("devBuy", "done");
+      if (hasInitialBuy && !complete.devBuyIncluded) {
         try {
           setRelayMessage("Your coin is live. The optional first buy needs a separate wallet approval.");
           const plan = await api.launchDevBuyPlan(id, wallet.address!);
@@ -410,7 +413,7 @@ export function Create() {
           await executeDevBuyPlan(plan, controller.signal);
         } catch (error) {
           if (controller.signal.aborted) return;
-          toast.warning("Coin launched without the optional first buy", { description: error instanceof Error ? error.message : "The initial buy was not completed.", duration: 10_000 });
+          toast.warning(error instanceof TransactionOutcomeError && error.outcome === "pending" ? "Coin launched; buy confirmation pending" : "Coin launched; initial buy not completed", { description: error instanceof Error ? error.message : "The initial buy was not completed.", duration: 10_000 });
         }
       }
       finishLaunch(id, complete.mint, complete);
@@ -430,7 +433,10 @@ export function Create() {
       let signature = action.signature;
       if (!signature) {
         showLaunchStatus(action.stage === "mint" ? "Approve token creation" : "Approve transaction", "Review the request in your wallet to continue.");
-        signature = await wallet.sendTransaction(action.envelope);
+        signature = await wallet.sendTransaction(action.envelope, submitted => {
+          retryAction = { ...action, signature: submitted };
+          setPending(retryAction);
+        });
         retryAction = { ...action, signature };
         setPending(retryAction);
       }
@@ -448,7 +454,7 @@ export function Create() {
       if (confirmation.status === "live") {
         if (confirmation.devBuyPlan && hasInitialBuy) {
           try { await executeDevBuyPlan(confirmation); }
-          catch (error) { setStage("devBuy", "error"); toast.warning("Coin launched without the optional first buy", { description: error instanceof Error ? error.message : "The initial buy was not completed.", duration: 10_000 }); }
+          catch (error) { setStage("devBuy", "error"); toast.warning(error instanceof TransactionOutcomeError && error.outcome === "pending" ? "Coin launched; buy confirmation pending" : "Coin launched; initial buy not completed", { description: error instanceof Error ? error.message : "The initial buy was not completed.", duration: 10_000 }); }
         }
         if (confirmation.devBuyError) toast.warning("Coin launched without the optional first buy", { description: confirmation.devBuyError, duration: 10_000 });
         finishLaunch(action.launchId, confirmation.mint);
@@ -457,6 +463,9 @@ export function Create() {
       if (!confirmation.nextStep || !isEnvelope(confirmation)) throw new Error("The backend returned an incomplete launch step.");
       await continueLaunch({ envelope: confirmation, stage: confirmation.nextStep, launchId: action.launchId });
     } catch (error) {
+      if (error instanceof TransactionOutcomeError && error.outcome === "failed") {
+        retryAction = { ...action, signature: undefined };
+      }
       if (action.stage === "mint" && retryAction.signature) {
         setPending({ launchId: action.launchId, stage: "pool" });
         setStage("mint", "done"); setStage("pool", "error");
@@ -550,7 +559,7 @@ export function Create() {
         name: form.name.trim(), description: form.description.trim(), imageId,
         stockMint: stock.mint, poolPair: stock.mint === "So11111111111111111111111111111111111111112" ? "SOL" : "STOCK",
         devBuyStockRaw: "0", devBuyLamports: "0",
-        devBuyCurrency: form.devBuyCurrency, devBuyAmountRaw: initialBuyRaw, rewardMode: form.rewardMode,
+        devBuyCurrency: "SOL", devBuyAmountRaw: initialBuyRaw, rewardMode: form.rewardMode,
         sniperDefense: false, xUrl: normaliseUrl(form.xUrl), websiteUrl: normaliseUrl(form.websiteUrl), telegramUrl: normaliseTelegram(form.telegramUrl),
         ...(dexProfileEnabled ? { dexFundingEnabled, dexProfile: Object.fromEntries(Object.entries(dexProfile).filter(([, value]) => value.trim()).map(([key, value]) => [key, value.trim()])) } : {}),
       });
@@ -659,11 +668,7 @@ export function Create() {
           <button className="proposal-text-action" onClick={() => { setDexFundingEnabled(false); setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" }); setStep(devBuyStep); }}>Skip for now <ArrowRight/></button>
         </WizardSection>}
 
-        {step === devBuyStep && <WizardSection title="Optional dev buy" description="Choose SOL or USDC to make the first buy. Leave the amount at zero to skip it.">
-          <div className="launch-currency-grid pair-choice-grid" role="radiogroup" aria-label="Initial buy currency">
-            <CurrencyButton code="SOL" name="Pay with Solana" active={form.devBuyCurrency === "SOL"} onClick={() => { update("devBuyCurrency", "SOL"); update("launchAmount", ""); }} icon={<NetworkSolana className="currency-brand-icon" variant="branded"/>}/>
-            <CurrencyButton code="USDC" name="Pay with USD Coin" active={form.devBuyCurrency === "USDC"} onClick={() => { update("devBuyCurrency", "USDC"); update("launchAmount", ""); }} icon={<span className="usdc-mark">$</span>}/>
-          </div>
+        {step === devBuyStep && <WizardSection title="Optional dev buy" description="Your buy executes as liquidity opens, before other buyers. Enter SOL or leave zero to skip.">
           <Field label={`Optional first buy in ${currencySymbol}`} wide><div className="unit-input launch-amount-input"><input inputMode="decimal" value={form.launchAmount} placeholder="0" onChange={(event) => update("launchAmount", event.target.value.replace(",", ".").replace(/[^0-9.]/g, ""))}/><span>{currencySymbol}</span></div></Field>
           {launchCost && <div className="launch-cost-card">
             <div><span><b>Estimated launch cost</b><small>before any optional first buy</small></span><strong>{launchCost.estimatedTotalSol.minimum.toFixed(2)}–{launchCost.estimatedTotalSol.maximum.toFixed(2)} SOL</strong></div>
@@ -684,7 +689,6 @@ export function Create() {
 
 function WizardSection({ title, description, children }: { title: string; description: string; children: ReactNode }) { return <section className="wizard-section"><header><h2>{title}</h2><p>{description}</p></header><div className="wizard-section-body">{children}</div></section>; }
 function Field({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) { return <label className={`wizard-field ${wide ? "wide" : ""}`}><span>{label}</span>{children}</label>; }
-function CurrencyButton({ code, name, active, icon, onClick }: { code: string; name: string; active: boolean; icon: ReactNode; onClick: () => void }) { return <button type="button" role="radio" aria-checked={active} className={active ? "selected" : ""} onClick={onClick}><i>{icon}</i><span><b>{code}</b><small>{name}</small></span><em>{active && <Check/>}</em></button>; }
 function ModeButton({ active, disabled, onClick, icon, title, eyebrow, children }: { active: boolean; disabled?: boolean; onClick: () => void; icon: ReactNode; title: string; eyebrow: string; children: ReactNode }) { return <button type="button" role="radio" aria-checked={active} disabled={disabled} className={`reward-mode-option ${active ? "selected" : ""}`} onClick={onClick}><i>{icon}</i><div><small>{eyebrow}</small><b>{title}</b><p>{children}</p></div><em>{disabled ? "Coming soon" : active ? <Check/> : null}</em></button>; }
 function StockLogo({ stock }: { stock: StockOption }) { const [failed, setFailed] = useState(false); return <span className="stock-logo">{stock.mint === "So11111111111111111111111111111111111111112" ? <NetworkSolana className="currency-brand-icon" variant="branded"/> : stock.logoUrl && !failed ? <img src={stock.logoUrl} alt="" onError={() => setFailed(true)}/> : stock.underlyingSymbol.slice(0, 2)}</span>; }
 

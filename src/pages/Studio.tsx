@@ -1,3 +1,5 @@
+import { StudioVariables } from "../components/StudioVariables";
+import { StudioPublish } from "../components/StudioPublish";
 import { StudioLaunchKit } from "../components/StudioLaunchKit";
 import "./studio.css";
 import { usePromotion } from "../usePromotion";
@@ -26,6 +28,7 @@ import {
   ChevronDown,
   Code2,
   Download,
+  Globe,
   Droplets,
   FilePlus2,
   FolderPlus,
@@ -41,6 +44,7 @@ import {
   Pencil,
   RefreshCw,
   Save,
+  SlidersHorizontal,
   Send,
   Smartphone,
   Trash2,
@@ -109,6 +113,8 @@ type Version = {
 type Modal =
   | "credit"
   | "export"
+  | "publish"
+  | "variables"
   | "github"
   | "history"
   | "project"
@@ -696,6 +702,11 @@ function StudioWorkspace() {
   }
   async function applyJobChanges(job: StudioJob, automatic = false) {
     if (!project || job.project_id !== project.id) return;
+    if (automatic && job.result?.autoFillCA !== undefined && job.result.autoFillCA !== state?.autoFillCA) {
+      setReview(job);
+      setNotice("Review the website CA choice before applying it.");
+      return;
+    }
     if (automatic && (!autoApplyCurrent.current || dirty || job.revision !== project.revision)) {
       setReview(job);
       setNotice("Your project changed while Atlantis was working. Review the edits before applying them.");
@@ -746,8 +757,8 @@ function StudioWorkspace() {
     await task("Adding assets", async () => {
       const files: StudioFile[] = [];
       for (const f of Array.from(list)) {
-        if (f.size > 3000000)
-          throw new Error("Each upload must be under 3 MB.");
+        if (f.size > 5000000)
+          throw new Error("Each upload must be 5 MB or smaller.");
         const path = `frontend/assets/${f.name.replace(/[^a-zA-Z0-9_.-]/g, "-")}`;
         if (state?.files.find((item) => item.path === path))
           throw new Error(`${path} already exists. Rename the upload first.`);
@@ -759,6 +770,8 @@ function StudioWorkspace() {
         });
         files.push({ path, content, encoding: "base64", locked: false });
       }
+      if (state && new Blob([JSON.stringify({ ...state, files: [...state.files, ...files] })]).size > 20_000_000)
+        throw new Error("These uploads would exceed the 20 MB project limit. Remove unused assets or choose smaller files.");
       edit((old) => ({ ...old, files: [...old.files, ...files] }));
       setTab("assets");
       setWorkspaceOpen(true);
@@ -1168,7 +1181,7 @@ function StudioWorkspace() {
       if (!selected) throw new Error("Export the backend to GitHub first.");
       const result = await request<{url:string}>(`/projects/${project.id}/railway`, {exportId:selected,token:railwayToken.trim(),variables});
       setRailwayUrl(result.url); setRailwayToken(""); setRailwayVariables("");
-      setNotice("Backend sent to Railway. Generate a public domain there, add it as API_BASE_URL in your frontend GitHub Variables, then run Publish website again.");
+      setNotice("Backend sent to Railway. Generate its public domain, paste it into Variables → BACKEND_URL, then publish your website changes.");
     });
   }
   const actionDisabled = Boolean(busy);
@@ -1500,6 +1513,12 @@ function StudioWorkspace() {
                   <Save size={16} />
                   <span>Save</span>
                 </button>
+                <button disabled={actionDisabled} onClick={() => openModal("variables")}>
+                  <SlidersHorizontal size={16}/><span>Variables</span>
+                </button>
+                <button disabled={actionDisabled} onClick={() => openModal("publish")}>
+                  <Globe size={16}/><span>Publish</span>
+                </button>
                 <button
                   disabled={actionDisabled}
                   onClick={() => openModal("export")}
@@ -1627,6 +1646,8 @@ function StudioWorkspace() {
                             <>
                               <StudioMessage
                                 text={job.message ?? "Your result is ready."}
+                                onOpenVariables={() => openModal("variables")}
+                                actionsDisabled={actionDisabled}
                               />
                               <div className="at-message-actions">
                                 {job.has_changes !== false && !job.applied_at && <button
@@ -1769,7 +1790,7 @@ function StudioWorkspace() {
                             </button>
                           </div>
                         ) : (
-                          <StudioSitePreview key={project?.id} files={state?.files ?? []} mobile={mobile}/>
+                          <StudioSitePreview key={project?.id} files={state?.files ?? []} variables={state?.frontendVariables} mobile={mobile}/>
                         )}
                       </div>
                       <div className="at-preview-footer">
@@ -2120,7 +2141,7 @@ function StudioWorkspace() {
                         <h2>A world of your own.</h2>
                         <p>
                           Create artwork with Atlantis or upload your own files.
-                          Each file can be up to 3 MB.
+                          Up to 5 MB per file · 20 MB per project.
                         </p>
                         <button onClick={() => upload.current?.click()}>
                           <ImagePlus size={16} />
@@ -2331,10 +2352,13 @@ function StudioWorkspace() {
       )}
       {modal && (
         <Dialog
+          className={modal === "variables" ? "at-variables-dialog" : ""}
           title={
             {
               credit: "Your Studio credit",
               export: "Take your project with you",
+              publish: "Publish website",
+              variables: "Variables",
               github: "GitHub connection",
               history: "Project history",
               project: "Create a project",
@@ -2454,6 +2478,10 @@ function StudioWorkspace() {
                 )}
               </div>
             </>
+          ) : modal === "variables" && project ? (
+            <StudioVariables key={project.id} project={project} state={state ?? project.state} edit={edit} token={token} dirty={dirty} busy={actionDisabled} hasBackend={hasBackend} save={save} run={task}/>
+          ) : modal === "publish" && project ? (
+            <StudioPublish key={project.id} project={project} token={token} dirty={dirty} busy={actionDisabled} save={save} run={task}/>
           ) : modal === "export" ? (
             <>
               <p>
@@ -2465,11 +2493,11 @@ function StudioWorkspace() {
               </div>
               <details className="at-export-setup" open>
                 <summary>GitHub setup and frontend variables</summary>
-                <StudioMessage text={state?.files.find(file => file.path === "frontend/README.md")?.content.split("## Local or ZIP setup")[0].replace(/^# Publish your website\s*/, "") ?? "1. Export the frontend to GitHub.\n2. Choose GitHub Actions in Settings → Pages.\n3. Run Actions → Publish website.\n\nAsk Atlantis to add TOKEN_CA as a frontend variable if this older project does not have public-env.json and scripts/configure.mjs yet."} />
+                <StudioMessage onOpenVariables={() => openModal("variables")} actionsDisabled={actionDisabled} text={state?.files.find(file => file.path === "frontend/README.md")?.content.split("## Local or ZIP setup")[0].replace(/^# Publish your website\s*/, "") ?? "1. Export the frontend to GitHub.\n2. Choose GitHub Actions in Settings → Pages.\n3. Run Actions → Publish website.\n\nAsk Atlantis to add TOKEN_CA as a frontend variable if this older project does not have public-env.json and scripts/configure.mjs yet."} />
               </details>
               {hasBackend && <details className="at-export-setup">
                 <summary>Backend setup</summary>
-                <StudioMessage text={state?.files.find(file => file.path === "backend/README.md")?.content ?? "Open backend/.env.example for your project's variables. Set FRONTEND_ORIGIN to your frontend HTTPS origin. Railway supplies PORT. Ask Atlantis to update this older project's backend setup guide for any additional variables."} />
+                <StudioMessage onOpenVariables={() => openModal("variables")} actionsDisabled={actionDisabled} text={state?.files.find(file => file.path === "backend/README.md")?.content ?? "Open backend/.env.example for your project's variables. Set FRONTEND_ORIGIN to your frontend HTTPS origin. Railway supplies PORT. Ask Atlantis to update this older project's backend setup guide for any additional variables."} />
               </details>}
               <hr />
               <h3>Export to GitHub</h3>

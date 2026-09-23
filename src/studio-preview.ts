@@ -5,7 +5,7 @@ import { studioPreviewBridge, type PreviewBridgeOptions } from "./studio-preview
 export function studioPreview(
   files: StudioFile[],
   entry = "frontend/index.html",
-  options?: PreviewBridgeOptions & {onIssue?:(message:string)=>void},
+  options?: PreviewBridgeOptions & {variables?:Record<string,string>;onIssue?:(message:string)=>void},
 ) {
   const map = new Map(files.map((f) => [f.path, f]));
   const resolve = (base: string, path: string) => {
@@ -79,6 +79,12 @@ export function studioPreview(
     const config = JSON.stringify({channel:options.channel,location:options.location,storage:options.storage}).replace(/</g,"\\u003c");
     bridge.textContent = `(${studioPreviewBridge.toString()})(${config});`;
     doc.head.prepend(bridge);
+  }
+  if (options?.variables && Object.keys(options.variables).length) {
+    const script = doc.createElement("script");
+    const values = JSON.stringify(options.variables).replace(/</g,"\\u003c");
+    script.textContent = `(() => { const values = ${values}; let settings = Object.assign({}, window.AQUA_CONFIG, values); Object.defineProperty(window, "AQUA_CONFIG", { configurable: true, get: () => settings, set: value => { settings = Object.assign({}, value, values); } }); })();`;
+    doc.head.prepend(script);
   }
   // srcdoc otherwise inherits AQUA's URL as its base. A native #section link
   // then loads AQUA inside the sandbox and appears blank if the click bridge

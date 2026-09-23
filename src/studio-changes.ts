@@ -9,6 +9,12 @@ const fieldLabels: Record<string,string> = {
 export function studioChangeList(state: StudioState, result: StudioJob["result"]) {
   const changes: Array<{key:string;label:string;detail:string}> = [];
   if (!result) return changes;
+  for (const [key,value] of Object.entries(result.frontendVariables ?? {})) {
+    if (state.frontendVariables?.[key] !== value)
+      changes.push({key:"variable:"+key,label:"Set frontend variable",detail:key+" = "+(value || "(empty)")});
+  }
+  if (result.autoFillCA !== undefined && result.autoFillCA !== state.autoFillCA)
+    changes.push({key:"autoFillCA",label:result.autoFillCA ? "Enable automatic website CA" : "Disable automatic website CA",detail:result.autoFillCA ? "Fill connected CA fields and trading links after this project's coin launches." : "Keep the website's manual CA and trading links."});
   for (const [key,value] of Object.entries(result.launch ?? {})) {
     if (state.lockedFields.includes(key as keyof StudioState["launch"]) || JSON.stringify(state.launch[key as keyof StudioState["launch"]]) === JSON.stringify(value)) continue;
     changes.push({key:"launch:"+key,label:"Update "+(fieldLabels[key] ?? key),detail:typeof value === "object" ? JSON.stringify(value) : String(value || "Clear this value")});
