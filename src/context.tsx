@@ -3,12 +3,14 @@ import type { SolanaClient } from "@metamask/connect-solana";
 import { toast } from "sonner";
 import { api, API_URL } from "./api";
 import { ensureAccountSession, savedAccountSession, signInWithWallet, type WalletSignInInput, type WalletSignInOutput } from "./account-api";
+import { WalletSignInResponseError } from "./wallet-sign-in";
+import { getPhantomProvider, isMobileBrowser, phantomBrowseUrl } from "./phantom-mobile";
 import type { LaunchBatchEnvelope, RuntimeConfig, SignedTransactionEnvelope, TransactionEnvelope } from "./types";
 
 type PhantomProvider = {
   isPhantom?: boolean;
   publicKey?: { toString: () => string } | null;
-  signIn?: (input: WalletSignInInput) => Promise<WalletSignInOutput>;
+  signIn?: (input: WalletSignInInput) => Promise<unknown>;
   connect: (options?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey: { toString: () => string } }>;
   on?: (event: string, listener: (...args: any[]) => void) => void;
   removeListener?: (event: string, listener: (...args: any[]) => void) => void;
@@ -26,6 +28,7 @@ type SolanaSignTransaction = { signTransaction: (...inputs: Array<{ account: Sol
 type WalletStandard = { accounts: readonly SolanaAccount[]; features: Record<string, unknown> };
 type MetaAdapter = { client: SolanaClient; wallet: WalletStandard; account: SolanaAccount };
 type Adapter = { kind: "phantom"; provider: PhantomProvider } | { kind: "metamask"; value: MetaAdapter };
+const readPhantomProvider = () => getPhantomProvider(window as Window & { phantom?: { solana?: PhantomProvider }; solana?: PhantomProvider });
 
 const fallback: RuntimeConfig = {
   brand: "AQUA",
@@ -135,7 +138,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const remember = (value: "phantom" | "metamask" | null) => {
     try { if (value) localStorage.setItem("aqua:wallet", value); else localStorage.removeItem("aqua:wallet"); } catch { /* Private browsing may disable storage. */ }
   };
-  const phantomInstalled = typeof window !== "undefined" && Boolean((window as Window & { phantom?: { solana?: PhantomProvider } }).phantom?.solana?.isPhantom);
+  const [phantomInstalled, setPhantomInstalled] = useState(() => typeof window !== "undefined" && Boolean(readPhantomProvider()));
+  useEffect(() => {
+    const detect = () => setPhantomInstalled(Boolean(readPhantomProvider()));
+    detect();
+    // Mobile browsers can inject the provider after the page has rendered.
+    const timer = window.setInterval(detect, 250);
+    const stop = window.setTimeout(() => window.clearInterval(timer), 10_000);
+    window.addEventListener("focus", detect);
+    window.addEventListener("pageshow", detect);
+    return () => { window.clearInterval(timer); window.clearTimeout(stop); window.removeEventListener("focus", detect); window.removeEventListener("pageshow", detect); };
+  }, [modalOpen]);
 
   const connectWallet = useCallback(async (next: "phantom" | "metamask", silent = false) => {
     const attempt = ++connectionAttempt.current;
@@ -143,24 +156,42 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setConnecting(next);
     try {
       if (next === "phantom") {
-        const provider = (window as Window & { phantom?: { solana?: PhantomProvider } }).phantom?.solana;
+        const provider = readPhantomProvider();
         if (!provider?.isPhantom) {
+          if (!silent && isMobileBrowser()) {
+            window.location.assign(phantomBrowseUrl(window.location.href));
+            return;
+          }
           if (!silent) window.open("https://phantom.com/download", "_blank", "noopener,noreferrer");
           throw new Error("Phantom is not installed.");
         }
-        let connectedAddress: string;
-        if (!silent && provider.signIn && !savedAccountSession(provider.publicKey?.toString() ?? null)) {
-          const account = await signInWithWallet(input => provider.signIn!(input), isCurrent);
-          connectedAddress = account.address;
-          if (provider.publicKey && provider.publicKey.toString() !== connectedAddress) throw new Error("Wallet changed. Connect again.");
-        } else {
+        const connectAndAuthenticate = async () => {
           const result = await provider.connect(silent ? { onlyIfTrusted: true } : undefined);
-          if (!isCurrent()) return;
-          connectedAddress = result.publicKey.toString();
+          if (!isCurrent()) throw new Error("Wallet changed. Connect again.");
+          const connectedAddress = result?.publicKey?.toString();
+          if (!connectedAddress) throw new Error("Phantom did not return a connected Solana account.");
           if (!silent) await ensureAccountSession(connectedAddress, async message => {
+            if (!isCurrent() || (provider.publicKey && provider.publicKey.toString() !== connectedAddress)) throw new Error("Wallet changed. Connect again.");
             const signed = await provider.signMessage(new TextEncoder().encode(message), "utf8");
             return { signature: base64(signed.signature) };
           }, () => isCurrent() && (!provider.publicKey || provider.publicKey.toString() === connectedAddress));
+          return connectedAddress;
+        };
+        let connectedAddress: string;
+        if (!silent && !isMobileBrowser() && provider.signIn && !savedAccountSession(provider.publicKey?.toString() ?? null)) {
+          try {
+            const account = await signInWithWallet(input => provider.signIn!(input), isCurrent);
+            connectedAddress = account.address;
+            if (provider.publicKey && provider.publicKey.toString() !== connectedAddress) throw new Error("Wallet changed. Connect again.");
+          } catch (error) {
+            // Some injected providers expose signIn but return an incompatible
+            // result. Obtain a fresh, server-verified message proof instead.
+            // Rejections, changed wallets and server errors must never retry.
+            if (!(error instanceof WalletSignInResponseError) || !isCurrent()) throw error;
+            connectedAddress = await connectAndAuthenticate();
+          }
+        } else {
+          connectedAddress = await connectAndAuthenticate();
         }
         if (!isCurrent()) return;
         adapter.current = { kind: "phantom", provider };

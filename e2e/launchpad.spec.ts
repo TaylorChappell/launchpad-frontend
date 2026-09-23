@@ -74,6 +74,33 @@ test("wallet modal closes immediately and returns focus",async({page})=>{
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);await expect(button).toBeFocused();
 });
+
+test("phone browsers open the current AQUA page in Phantom instead of requiring an extension", async ({page}, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "Mobile universal link.");
+  await page.goto("/#/portfolio?tab=rewards");
+  const original = page.url();
+  await page.getByRole("button", {name:"Connect wallet",exact:true}).first().click();
+  const link = page.getByRole("link", {name:/Phantom.*Open/});
+  const href = await link.getAttribute("href");
+  const target = new URL(href!);
+  expect(target.origin).toBe("https://phantom.app");
+  expect(decodeURIComponent(target.pathname.slice("/ul/browse/".length))).toBe(original);
+  expect(target.searchParams.get("ref")).toBe(new URL(original).origin);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
+  await page.route("https://phantom.app/**", r => r.fulfill({contentType:"text/html",body:"<title>Phantom handoff</title>"}));
+  await link.click();
+  await expect(page).toHaveURL(href!);
+});
+
+test("the wallet picker detects a provider injected after loading", async ({page}) => {
+  await page.goto("/#/");
+  await page.getByRole("button", {name:"Connect wallet",exact:true}).click();
+  await page.evaluate(() => {
+    (window as any).phantom = {solana:{isPhantom:true}};
+  });
+  await expect(page.getByRole("button", {name:/Phantom.*Detected.*Connect/})).toBeVisible();
+  await expect(page.getByRole("link", {name:/Phantom.*Open/})).toHaveCount(0);
+});
 test("unknown routes recover instead of showing a blank shell",async({page})=>{
   await page.goto("/#/missing-market-page");
   await expect(page.getByRole("heading",{name:"Page not found"})).toBeVisible();
