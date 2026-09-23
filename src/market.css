@@ -547,3 +547,47 @@
 .dex-status-badge.is-funding { color: #90600c; background: #fff7df; border-color: #ead394; }
 .dex-status-badge.is-vote .dex-screener-icon { filter: invert(32%) sepia(55%) saturate(1000%) hue-rotate(163deg); }
 .dex-status-badge.is-funding .dex-screener-icon { filter: invert(39%) sepia(65%) saturate(720%) hue-rotate(7deg); }
+
+/* DEX boost polls stay inside the existing governance cards. */
+.boost-proposal-card h4{font-size:1.1rem;margin:16px 0 6px;color:var(--text,#143b48)}
+.boost-poll-options{display:grid;gap:8px;margin:12px 0}
+.boost-poll-options button{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:12px 16px;border:1px solid #b8dbe6;border-radius:12px;background:#f4fbfe;color:#174252;text-align:left;font:inherit}
+.boost-poll-options button:disabled{opacity:1;cursor:default}.boost-poll-options button.chosen{border-color:#008db4;box-shadow:inset 0 0 0 1px #008db4}.boost-poll-options button:not(:disabled):hover{border-color:#008db4;background:#e7f7fc}
+.boost-poll-options button>span:not(.boost-poll-fill){display:flex;align-items:center;gap:8px;font-weight:700;z-index:1}.boost-poll-options button>b{z-index:1;font-size:.85rem}.boost-poll-fill{position:absolute;inset:0 auto 0 0;background:#ccecf6;z-index:0;transition:width .2s}
+.boost-pack-prices{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:12px 0}.boost-pack-prices>span{display:flex;flex-direction:column;gap:3px;padding:10px 4px;border-radius:9px;background:#edf7fb;text-align:center;color:#174252}.boost-pack-prices b{font-size:.95rem}.boost-pack-prices small{font-size:.65rem;color:#537681}.boost-pack-prices span span{font-size:.8rem}
+.boost-selected-pack{display:flex;justify-content:space-between;gap:12px;padding:14px;margin:12px 0;border-radius:12px;background:#e1f5ed;color:#185641}.boost-proposal-card .proposal-funded small{display:block;margin-top:6px;color:#537681}
+@media(max-width:400px){.boost-pack-prices{gap:4px}.boost-pack-prices>span{padding:8px 2px}.boost-pack-prices span span{font-size:.72rem}}
+
+/* Market activity fits into the existing navigation and trading column. */
+.market-information-tabs button { display: inline-flex; align-items: center; gap: 6px; }
+.market-unread-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #007ca8; box-shadow: 0 0 0 3px #0a99bd16; }
+.market-update-indicator { display: inline-flex; align-items: center; color: #087c9f; }
+.token-card { position: relative; }
+.market-update-link { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid #b7dce9; border-radius: 50%; color: #066b8c; background: #e8f8ff; z-index: 2; }
+.market-update-link:hover { background: #cef0ff; }
+.market-update-link:focus-visible { outline: 2px solid #087c9f; outline-offset: 3px; }
+.token-card:has(.market-update-link) .card-arrow { visibility: hidden; }
+.market-project { display: grid; gap: 20px; min-width: 0; }
+.market-position-dropdown { border: 1px solid #cbdfe9; border-radius: 12px; background: #f8fcff; overflow: hidden; color: #204e67; }
+.market-position-dropdown > summary { cursor: pointer; padding: 15px 18px; font-size: 14px; font-weight: 650; }
+.market-position-dropdown[open] > summary { border-bottom: 1px solid #deebf2; }
+.market-position-dropdown .market-position { padding: 16px; margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.market-position-dropdown .position-overview { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.market-position-dropdown .position-overview strong { font-size: 18px; overflow-wrap: anywhere; }
+.market-position-dropdown .wallet-inline { flex-wrap: wrap; }
+@media(max-width:1100px) {
+  .token-page .market-position-dropdown { order: 2; }
+  .token-page .market-information-tabs { order: 8; }
+  .token-page .market-project,.token-page .market-comments { order: 9; }
+}
+.market-information-tabs button > .market-unread-dot { padding: 0; border-radius: 50%; background: #007ca8; }
+.market-information-tabs button > .market-update-indicator { padding: 0; background: transparent; }
+
+.market-table td:first-child { position: relative; padding-right: 44px; }
+.market-table .market-update-link { top: 50%; transform: translateY(-50%); right: 8px; }
+
+.watch-card .market-update-link { right: 50px; }
+.watch-card:has(.market-update-link) .token-head { padding-right: 60px; }
+
+@media(max-width:1100px) { .token-page .market-facts { order: 2; } }
+.watch-card:has(.market-update-link) .token-title { flex-wrap: wrap; row-gap: 5px; }

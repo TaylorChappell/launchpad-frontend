@@ -122,12 +122,24 @@ export type AdminDiagnostics = {
   };
 };
 
-export type MarketProposalType = "dex_payment" | "dex_update" | "cto";
+export type MarketProposalChoice = "yes" | "no" | "5" | "10" | "20";
+export type MarketProposalType = "dex_payment" | "dex_update" | "cto" | "dex_boost";
 export type MarketProposal = {
   id: string;
   launchId: string;
   type: MarketProposalType;
   isDefault: boolean;
+  isAutomatic?: boolean;
+  collectionPaused?: boolean;
+  transferredLamports?: string;
+  fundingPercent?: number | null;
+  fundingStartsAt?: number | null;
+  fundingEndsAt?: number | null;
+  boostPack?: number | null;
+  boostHours?: number | null;
+  returnedLamports?: string;
+  pollPowerRaw?: Record<"5" | "10" | "20" | "no", string> | null;
+  boostPacks?: Array<{ boosts: number; cents: number; hours: number }>;
   proposerWallet: string;
   status: "voting" | "funding" | "approved" | "ready" | "withdrawing" | "withdrawn" | "completed" | "rejected" | "cancelled";
   payload: Record<string, unknown>;
@@ -162,6 +174,7 @@ export type MarketProposal = {
 
 export type MarketGovernanceResponse = {
   enabled: boolean;
+  automaticFundingEnabled?: boolean;
   testingMode: boolean;
   disabledReason: string | null;
   dexPaid: boolean;
@@ -176,7 +189,7 @@ export type MarketGovernanceResponse = {
   options: Record<MarketProposalType, { available: boolean; completed: boolean; reason: string | null }>;
   createPower: { currentRaw: string; averageRaw: string; effectiveRaw: string; thresholdRaw: string; eligible: boolean; windowStartsAt: number } | null;
   votePower: { currentRaw: string; averageRaw: string; effectiveRaw: string; thresholdRaw: string; eligible: boolean; windowStartsAt: number } | null;
-  votes: Record<string, "yes" | "no">;
+  votes: Record<string, MarketProposalChoice>;
   proposals: MarketProposal[];
 };
 
@@ -222,6 +235,9 @@ export type Launch = {
   symbol: string;
   description: string;
   imageUrl: string;
+  latestProjectUpdateAt?: number | null;
+  latestComment?: { id: string; createdAt: number } | null;
+  pairLogoUrl?: string | null;
   metadataUri: string;
   stock: { symbol: string; name: string; mint: string; logoUrl: string | null; poolAddress: string | null; referenceTvlUsd?: number; referenceVolume24hUsd?: number };
   stockSymbol: string;

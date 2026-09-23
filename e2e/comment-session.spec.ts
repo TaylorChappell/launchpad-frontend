@@ -63,32 +63,32 @@ async function setup(page: Page, restored = false, authenticated = false, signIn
   });
   const posts: string[] = [];
   const comments: any[] = [];
-  await page.route("**/api/launches/coin/comments", r => {
-    if (r.request().method() === "GET") return r.fulfill({ json: { comments, hasMore: false, nextCursor: null } });
+  await page.route("**/api/launches/coin/community**", r => {
+    if (r.request().method() === "GET") return r.fulfill({ json: { posts:comments,pinned:null,latest:comments[0]??null,nextCursor:null } });
     expect(r.request().headers().authorization).toBe(`Bearer ${token}`);
     const input = r.request().postDataJSON(); posts.push(input.body);
     const parent = comments.find(c => c.id === input.replyTo);
     if (input.replyTo) expect(parent).toBeTruthy();
-    const comment = { ...input, launchId: "coin", authorWallet: address, createdAt: Date.now(), reply: parent ? { id: parent.id, authorWallet: parent.authorWallet, body: parent.body.slice(0, 200) } : null };
+    const comment = { ...input,kind:"message",imageUrl:null,poll:null,reactions:[], launchId: "coin", authorWallet: address, createdAt: Date.now(), reply: parent ? { id: parent.id, authorWallet: parent.authorWallet, body: parent.body.slice(0, 200) } : null };
     comments.unshift(comment);
-    return r.fulfill({ json: { comment } });
+    return r.fulfill({ json: { post:comment } });
   });
   await page.goto("/#/token/coin");
-  await page.getByRole("button", { name: "Comments", exact: true }).click();
+  await page.getByRole("button", { name: "Community", exact: true }).click();
   return posts;
 }
 
 for (const shape of ["standard", "injected", "array", "address", "malformed", "undefined"]) test(`one wallet connection signs in with ${shape} response, then comments post without another wallet prompt`, async ({ page }, testInfo) => {
   const posts = await setup(page, false, false, shape);
-  await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
+  await page.locator(".community").getByRole("button", { name: "Connect wallet", exact: true }).click();
   await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
   await expect(page.getByRole("dialog", { name: "Connect your wallet" })).toHaveCount(0);
   for (const body of ["First comment", "Second comment"]) {
-    await page.getByLabel("Your comment", { exact: true }).fill(body);
-    await page.getByRole("button", { name: "Post comment", exact: true }).click();
-    await expect(page.locator(".market-comment-feed").getByText(body, { exact: true })).toBeVisible();
+    await page.getByLabel("Your message", { exact: true }).fill(body);
+    await page.getByRole("button", { name: "Send message", exact: true }).click();
+    await expect(page.locator(".community-scroll").getByText(body, { exact: true })).toBeVisible();
   }
-  expect(posts).toEqual(["First comment", "Second comment"]);
+  await expect.poll(()=>posts).toEqual(["First comment", "Second comment"]);
   const mobile = testInfo.project.name === "mobile";
   expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: mobile ? 0 : 1, signMessage: mobile || ["malformed", "undefined"].includes(shape) ? 1 : 0 });
 });
@@ -97,7 +97,7 @@ test("rejecting the fallback login leaves the wallet unauthenticated", async ({ 
   await setup(page, false, false, "fallback-rejected");
   let sessionRequests = 0;
   await page.route("**/account/auth/session", r => { sessionRequests++; return r.fulfill({ status: 400, json: { error: "Unexpected session request" } }); });
-  await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
+  await page.locator(".community").getByRole("button", { name: "Connect wallet", exact: true }).click();
   await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
   await expect(page.getByText("User rejected the login signature")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Connect your wallet" })).toBeVisible();
@@ -111,7 +111,7 @@ test("fallback requires a server-verified proof before creating an authenticated
   let sessionRequests = 0;
   await page.route("**/account/auth/sign-in/session", r => { sessionRequests++; return r.fulfill({ status: 400, json: { error: "Unexpected session request" } }); });
   await page.route("**/account/auth/session", r => r.fulfill({ status: 401, json: { error: "Invalid wallet proof" } }));
-  await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
+  await page.locator(".community").getByRole("button", { name: "Connect wallet", exact: true }).click();
   await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
   await expect(page.getByText("Invalid wallet proof")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Connect your wallet" })).toBeVisible();
@@ -124,7 +124,7 @@ for (const failure of ["rejected", "server"]) test(`a ${failure} sign-in does no
   await setup(page, false, false, failure === "rejected" ? "rejected" : "standard");
   const message = failure === "rejected" ? "User rejected the request" : "Invalid wallet proof";
   if (failure === "server") await page.route("**/account/auth/sign-in/session", r => r.fulfill({ status: 401, json: { error: message } }));
-  await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
+  await page.locator(".community").getByRole("button", { name: "Connect wallet", exact: true }).click();
   await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
   await expect(page.getByText(message)).toBeVisible();
   expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 1, signMessage: 0 });
@@ -139,52 +139,54 @@ for (const android of [false, true]) for (const legacy of [false, true]) test(`$
     (window as any).solana = (window as any).phantom.solana;
     delete (window as any).phantom;
   });
-  await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
+  await page.locator(".community").getByRole("button", { name: "Connect wallet", exact: true }).click();
   await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
   await expect(page.getByRole("dialog", { name: "Connect your wallet" })).toHaveCount(0);
-  await page.getByLabel("Your comment", { exact: true }).fill("Signed in on my phone");
-  await page.getByRole("button", { name: "Post comment", exact: true }).click();
-  await expect(page.locator(".market-comment-feed")).toContainText("Signed in on my phone");
-  expect(posts).toEqual(["Signed in on my phone"]);
+  await page.getByLabel("Your message", { exact: true }).fill("Signed in on my phone");
+  await page.getByRole("button", { name: "Send message", exact: true }).click();
+  await expect(page.locator(".community-scroll")).toContainText("Signed in on my phone");
+  await expect.poll(()=>posts).toEqual(["Signed in on my phone"]);
   expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 0, signMessage: 1 });
 });
 
 test("a restored session can comment without signing in again", async ({ page }) => {
   const posts = await setup(page, true, true);
-  await page.getByLabel("Your comment", { exact: true }).fill("Still signed in");
-  await page.getByRole("button", { name: "Post comment", exact: true }).click();
-  await expect(page.locator(".market-comment-feed").getByText("Still signed in", { exact: true })).toBeVisible();
-  expect(posts).toEqual(["Still signed in"]);
+  await page.getByLabel("Your message", { exact: true }).fill("Still signed in");
+  await page.getByRole("button", { name: "Send message", exact: true }).click();
+  await expect(page.locator(".community-scroll").getByText("Still signed in", { exact: true })).toBeVisible();
+  await expect.poll(()=>posts).toEqual(["Still signed in"]);
   expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 0, signMessage: 0 });
 });
 
 test("an old connection without a session does not silently open the wallet", async ({ page }) => {
   await setup(page, true);
-  await expect(page.getByRole("button", { name: "Reconnect wallet", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Post comment", exact: true })).toHaveCount(0);
+  await expect(page.locator(".community").getByRole("button", { name: "Connect wallet", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send message", exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 0, signMessage: 0 });
 });
 
 test("compact comments support reply previews, cancellation, refresh and keyboard posting", async ({ page }) => {
   const posts = await setup(page, true, true);
-  const field = page.getByLabel("Your comment", { exact: true });
+  const field = page.getByLabel("Your message", { exact: true });
   await expect(field).toBeVisible();
-  expect((await page.locator(".market-comment-composer").boundingBox())!.height).toBeLessThan(140);
+  expect((await page.locator(".community-composer").boundingBox())!.height).toBeLessThan(140);
   await field.fill("The new release is ready.");
-  await page.getByRole("button", { name: "Post comment", exact: true }).click();
-  await page.locator(".market-comment").getByRole("button", { name: "Reply", exact: true }).click();
-  await expect(page.locator(".comment-reply-draft")).toContainText("Replying to");
+  await page.getByRole("button", { name: "Send message", exact: true }).click();
+  await page.locator(".community-message").getByRole("button", { name: "Message options", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Reply", exact: true }).click();
+  await expect(page.locator(".community-composer-reply")).toContainText("Replying to");
   await expect(field).toBeFocused();
   await page.getByRole("button", { name: "Cancel reply", exact: true }).click();
-  await expect(page.locator(".comment-reply-draft")).toHaveCount(0);
-  await page.locator(".market-comment").getByRole("button", { name: "Reply", exact: true }).click();
+  await expect(page.locator(".community-composer-reply")).toHaveCount(0);
+  await page.locator(".community-message").getByRole("button", { name: "Message options", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Reply", exact: true }).click();
   await field.fill("Trying it now!");
   await field.press("Control+Enter");
-  await expect(page.locator(".market-comment").first().locator(".comment-text")).toHaveText("Trying it now!");
-  await expect(page.locator(".market-comment").first().locator(".comment-reference")).toContainText("The new release is ready.");
-  await page.getByRole("button", { name: "Refresh comments", exact: true }).click();
-  await expect(page.locator(".market-comment")).toHaveCount(2);
-  expect(posts).toEqual(["The new release is ready.", "Trying it now!"]);
+  await expect(page.locator(".community-message").last().locator(".community-text")).toHaveText("Trying it now!");
+  await expect(page.locator(".community-message").last().locator(".community-reply-preview")).toContainText("The new release is ready.");
+  await page.getByRole("button", { name: "Refresh community", exact: true }).click();
+  await expect(page.locator(".community-message")).toHaveCount(2);
+  await expect.poll(()=>posts).toEqual(["The new release is ready.", "Trying it now!"]);
   expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 0, signMessage: 0 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
 });
@@ -192,11 +194,11 @@ test("compact comments support reply previews, cancellation, refresh and keyboar
 test("long comments expand without overflowing the thread", async ({ page }) => {
   await setup(page, true, true);
   const body = "Progress update. ".repeat(35) + "Final detail.";
-  await page.getByLabel("Your comment", { exact: true }).fill(body);
-  await page.getByRole("button", { name: "Post comment", exact: true }).click();
+  await page.getByLabel("Your message", { exact: true }).fill(body);
+  await page.getByRole("button", { name: "Send message", exact: true }).click();
   await page.getByRole("button", { name: "Read more", exact: true }).click();
-  await expect(page.locator(".comment-text")).toHaveText(body);
+  await expect(page.locator(".community-text")).toHaveText(body);
   await page.getByRole("button", { name: "Show less", exact: true }).click();
-  await expect(page.locator(".comment-text")).not.toContainText("Final detail.");
+  await expect(page.locator(".community-text")).not.toContainText("Final detail.");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
 });

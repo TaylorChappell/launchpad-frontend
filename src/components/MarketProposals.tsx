@@ -1,3 +1,4 @@
+import { RecentUpdateBell } from "./RecentUpdateBell";
 import { WalletIdentity } from "./WalletIdentity";
 import { DexStatusBadge } from "./DexStatusBadge";
 import { dexBadgeState } from "../dex-status";
@@ -9,12 +10,13 @@ import { PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
-import type { DexProfile, Launch, MarketGovernanceResponse, MarketProposal, MarketProposalType } from "../types";
+import type { DexProfile, Launch, MarketGovernanceResponse, MarketProposal, MarketProposalChoice, MarketProposalType } from "../types";
 import { DexScreenerIcon } from "./DexScreenerIcon";
 import { holdingPercent, MarketActionHint } from "./MarketActionHint";
 
-const labels: Record<MarketProposalType, string> = { dex_payment: "Fund Dex", dex_update: "Update Dex", cto: "Community Takeover" };
+const labels: Record<MarketProposalType, string> = { dex_payment: "Fund Dex", dex_update: "Update Dex", dex_boost: "Fund DEX boost", cto: "Community Takeover" };
 const descriptions: Record<MarketProposalType, string> = {
+  dex_boost: "Vote to fund a DEX Screener boost with 5%, 10% or 20% of incoming market rewards for one hour. Unspent funds return to holders.",
   dex_payment: "Ask holders to fund this coin’s DEX Screener profile from incoming market rewards.",
   dex_update: "Propose the exact description, banner and links for holders to vote on. You can replace details during funding or request changes after payment. Existing funds stay with the campaign; DEX spending pauses during the vote.",
   cto: "Nominate a new developer wallet and put a clear handover plan to a holder vote.",
@@ -25,7 +27,7 @@ type Dialog = { kind: "create"; type: MarketProposalType } | { kind: "details" |
 type GovernanceContextValue = {
   launch: Launch; data: MarketGovernanceResponse | null; now: number; busy: boolean; error: string;
   refresh: () => Promise<void>; open: (dialog: Dialog) => void;
-  vote: (proposal: MarketProposal, choice: "yes" | "no") => Promise<void>;
+  vote: (proposal: MarketProposal, choice: MarketProposalChoice) => Promise<void>;
 };
 const GovernanceContext = createContext<GovernanceContextValue | null>(null);
 function useProposals() { const value = useContext(GovernanceContext); if (!value) throw new Error("Missing market governance provider."); return value; }
@@ -33,12 +35,12 @@ export function MarketDexStatusBadge() {
   const { launch, data } = useProposals();
   return <DexStatusBadge state={dexBadgeState(launch, data)}/>;
 }
-export function MarketInformationTabs({section,onChange}:{section:string;onChange:(value:string)=>void}){
+export function MarketInformationTabs({section,onChange,newComments=false,latestProjectUpdateAt}:{section:string;onChange:(value:string)=>void;newComments?:boolean;latestProjectUpdateAt?:number|null}){
   const {data}=useProposals();
-  const activeCount = data?.enabled ? data.proposals.filter(proposal => liveStatuses.includes(proposal.status)).length : 0;
-  const hasGovernance=Boolean(data?.enabled&&data.proposals.some(p=>p.isDefault?!["rejected","cancelled"].includes(p.status):p.type==="cto"||!["rejected","cancelled"].includes(p.status)));
+  const activeCount = (data?.enabled || data?.automaticFundingEnabled) ? data.proposals.filter(proposal => liveStatuses.includes(proposal.status)).length : 0;
+  const hasGovernance=Boolean((data?.enabled||data?.automaticFundingEnabled)&&data.proposals.some(p=>p.isDefault?!["rejected","cancelled"].includes(p.status):(p.type==="cto"||p.type==="dex_boost")||!["rejected","cancelled"].includes(p.status)));
   useEffect(()=>{if(section==="Governance"&&data&&!hasGovernance)onChange("Transactions");},[section,data,hasGovernance,onChange]);
-  return <div className="workspace-tabs market-information-tabs" aria-label="Market information">{["Transactions","Comments","Holders","Your position","Rewards","Updates","Project",...(hasGovernance?["Governance"]:[])].map(label=><button key={label} aria-pressed={section===label} onClick={()=>onChange(label)}>{label}{label === "Governance" && activeCount > 0 && <span className="governance-tab-count" aria-label={`${activeCount} active proposals`} title={`${activeCount} active proposals`}><Bell size={12} aria-hidden="true"/><b>{activeCount}</b></span>}</button>)}</div>;
+  return <div className="workspace-tabs market-information-tabs" aria-label="Market information">{["Transactions","Community","Holders","Rewards","Project",...(hasGovernance?["Governance"]:[])].map(label=><button key={label} aria-pressed={section===label} onClick={()=>onChange(label)}>{label}{label === "Community" && newComments && <span className="market-unread-dot" aria-label="New community posts" title="New community posts"/>}{label === "Community" && <RecentUpdateBell at={latestProjectUpdateAt}/>} {label === "Governance" && activeCount > 0 && <span className="governance-tab-count" aria-label={`${activeCount} active proposals`} title={`${activeCount} active proposals`}><Bell size={12} aria-hidden="true"/><b>{activeCount}</b></span>}</button>)}</div>;
 }
 function countdown(at: number, now: number) {
   const seconds = Math.max(0, at - now);
@@ -80,14 +82,14 @@ export function MarketGovernanceProvider({ launch, children }: { launch: Launch;
     if (currentIdentity.current !== identity) throw new Error("Wallet changed. Please try again.");
     return { wallet: address, challenge: approval.challenge, ...signature };
   }
-  async function vote(proposal: MarketProposal, choice: "yes" | "no") {
+  async function vote(proposal: MarketProposal, choice: MarketProposalChoice) {
     if (busy || (!data?.testingMode && !data?.votePower?.eligible) || proposal.status !== "voting") return;
     setBusy(true);
     try {
       const approval = await sign("vote", proposal.id, { choice });
       const result = await api.voteMarketProposal(launch.id, proposal.id, { ...approval, choice });
       if (currentIdentity.current === identity) setData(result);
-      toast.success((choice === "yes" ? "Yes" : "No") + " vote recorded");
+      toast.success((choice === "yes" ? "Yes" : choice === "no" ? "No" : choice + "%") + " vote recorded");
     } catch (cause) { toast.error(cause instanceof Error ? cause.message : "Could not record vote."); }
     finally { setBusy(false); }
   }
@@ -143,6 +145,7 @@ export function MarketProposals() {
     : !unlocked ? "Proposals unlock in " + countdown(data.proposalsOpenAt ?? now, now) + ", 15 minutes after launch."
     : !data.createPower?.eligible ? "You hold " + holdingPercent(data.createPower?.currentRaw, data.totalSupplyRaw) + " of " + launch.symbol + ". You need 0.50% to create a proposal."
     : "Start a holder vote to fund DEX Screener, update the DEX profile or propose a community takeover.";
+  if (data && !data.enabled) return null;
   return <div className="market-proposal-menu" ref={root}>
     <MarketActionHint text={hint} disabled={!eligible}><button className="market-corner-action proposal" disabled={!eligible} aria-expanded={eligible && expanded} aria-controls="market-proposal-options" onClick={() => setExpanded(!expanded)}>Proposals <ChevronDown/></button></MarketActionHint>
     {eligible && expanded && <div className="proposal-dropdown" id="market-proposal-options" aria-label="Proposal options">
@@ -158,11 +161,27 @@ export function MarketProposals() {
   </div>;
 }
 
+function AutomaticProfileCard({ proposal: p }: { proposal: MarketProposal }) {
+  const { now } = useProposals();
+  const funding = p.status === "funding";
+  return <article className="proposal-vote-card automatic-funding-card">
+    <header><div><DexScreenerIcon/><h3>DEX profile</h3></div><span className="proposal-state">{funding ? p.collectionPaused ? "Paused" : "Auto funding" : p.status === "ready" ? "Ready to purchase" : p.status}</span></header>
+    <div className="proposal-funded"><div><span>{funding ? "10% of incoming rewards" : "Profile fund"}</span><b>${p.fundedUsd.toFixed(2)} / $300</b></div><progress value={p.fundedUsd} max={300}/></div>
+    {funding && <p className="proposal-detail-note">{p.collectionPaused ? "Waiting for trading activity. " : ""}Expires in {countdown(p.fundingEndsAt ?? now, now)}.</p>}
+    {p.outcome === "funding_expired" && <p className="proposal-detail-note">The target was not reached within 24 hours. All funds returned to holders.</p>}
+    {BigInt(p.returnedLamports ?? "0") > 0n && <p className="proposal-detail-note">{(Number(p.returnedLamports)/1e9).toLocaleString(undefined,{maximumFractionDigits:9})} SOL returned to holders.</p>}
+    {p.outcome === "holder_no" && <p className="proposal-detail-note">Holders voted No. Automatic funding is paused for 24 hours.</p>}
+    <details className="proposal-public-details"><summary>How automatic funding works</summary><p>Sustained trading activity sets aside 10% of incoming market rewards. Collection pauses when activity slows; the 24-hour deadline continues. A successful Fund DEX vote carries this balance into 80% funding. If the target is not met, the reserve returns to holders.</p><p>Team AQUA can prepare missing profile details. An approved Update DEX proposal replaces them.</p>{p.payload.dexDetails && typeof p.payload.dexDetails === "object" ? <p>{String((p.payload.dexDetails as Record<string, unknown>).description ?? "")}</p> : null}</details>
+  </article>;
+}
+
 function ProposalCard({ proposal, compact = false }: { proposal: MarketProposal; compact?: boolean }) {
   const { data, launch, now, busy, vote, open } = useProposals();
   const wallet = useWallet();
   const { config } = useRuntime();
   if (!data) return null;
+  if (proposal.isAutomatic && proposal.type === "dex_payment") return <AutomaticProfileCard proposal={proposal}/>;
+  if (proposal.type === "dex_boost") return <BoostProposalCard proposal={proposal}/>;
   const yes = BigInt(proposal.yesPowerRaw || "0"), no = BigInt(proposal.noPowerRaw || "0"), total = yes + no;
   const percent = total ? Number(yes * 10_000n / total) / 100 : 0;
   const voting = proposal.status === "voting" && now >= proposal.startsAt && now < proposal.endsAt;
@@ -221,14 +240,64 @@ export function DexFundingVote() {
   </section>;
 }
 
+
+const boostChoices = ["5", "10", "20", "no"] as const;
+const fallbackBoostPacks = [{ boosts: 10, cents: 9900, hours: 12 }, { boosts: 30, cents: 24900, hours: 12 }, { boosts: 50, cents: 39900, hours: 12 }, { boosts: 100, cents: 89900, hours: 24 }, { boosts: 500, cents: 399900, hours: 24 }];
+function BoostPackPrices({ packs = fallbackBoostPacks }: { packs?: typeof fallbackBoostPacks }) {
+  return <div className="boost-pack-prices">{packs.map(pack => <span key={pack.boosts}><b>{pack.boosts}x</b><span>${(pack.cents / 100).toLocaleString()}</span><small>{pack.hours} hours</small></span>)}</div>;
+}
+function BoostProposalCard({ proposal: p }: { proposal: MarketProposal }) {
+  const { data, now, busy, vote, open } = useProposals();
+  const wallet = useWallet();
+  if (!data) return null;
+  const packs = p.boostPacks ?? fallbackBoostPacks;
+  const powers = p.pollPowerRaw ?? { "5": "0", "10": "0", "20": "0", no: "0" };
+  const total = boostChoices.reduce((sum, choice) => sum + BigInt(powers[choice]), 0n);
+  const voting = p.status === "voting";
+  const canVote = voting && now >= p.startsAt && now < p.endsAt && Boolean(wallet.address && (data.testingMode || data.votePower?.eligible)) && !busy;
+  const nextPack = packs.find(pack => pack.cents > p.fundedUsd * 100);
+  const affordable = [...packs].reverse().find(pack => pack.cents <= p.fundedUsd * 100);
+  const minimum = p.isAutomatic ? 100 : 99;
+  const title = voting ? "Choose the funding rate" : p.status === "approved" ? "Waiting for DEX funding" : p.status === "funding" ? "Funding a DEX boost" : p.outcome === "below_minimum" ? "Funds returned to holders" : p.status === "rejected" ? "Boost not approved" : p.status === "cancelled" ? "Boost cancelled" : p.status === "completed" ? `${p.boostPack}x boost purchased` : `${p.boostPack}x boost funded`;
+  return <article className="proposal-vote-card boost-proposal-card">
+    <header><div><DexScreenerIcon/><h3>{p.isAutomatic ? "Mini DEX boost" : "DEX boost"}</h3></div><span className={"proposal-state " + p.status}>{p.isAutomatic && p.status === "funding" ? p.collectionPaused ? "Paused" : "Auto funding" : p.status === "approved" ? "Queued" : p.status === "ready" ? "Ready to purchase" : p.status === "withdrawn" ? "Purchase pending" : p.status}</span></header>
+    {!p.isAutomatic && <h4>{title}</h4>}{!p.isAutomatic && <p className="proposal-reason">{String(p.payload.reason ?? "")}</p>}
+    {voting ? <><div className="proposal-vote-meta"><span>{p.eligibleVoters} eligible voters</span><time>{countdown(p.endsAt, now)} left</time></div>
+      <div className="boost-poll-options">{boostChoices.map(choice => {
+        const share = total ? Number(BigInt(powers[choice]) * 10000n / total) / 100 : 0;
+        const chosen = data.votes[p.id] === choice;
+        return <button key={choice} aria-pressed={chosen} disabled={!canVote || chosen} onClick={() => void vote(p, choice)} className={chosen ? "chosen" : ""}>
+          <span className="boost-poll-fill" style={{ width: share + "%" }}/><span>{choice === "no" ? "No boost" : choice + "%"}{chosen && <Check size={15}/>}</span><b>{share.toFixed(1)}%</b>
+        </button>;
+      })}</div><small className="proposal-detail-note">Share of future market rewards, collected for one hour.</small>
+      {!wallet.address && <p className="proposal-eligibility">Connect your wallet to vote.</p>}
+      {wallet.address && !data.testingMode && !data.votePower?.eligible && <p className="proposal-eligibility">Voting requires a current and time-weighted holding of at least 0.1%.</p>}
+      <details className="proposal-vote-rules"><summary>Voting rules</summary><p>15-minute vote, weighted by holdings and held time. Most voting power wins. Ties favour No, then the lower percentage. No votes means no boost.</p></details></> : <>
+      {p.fundingPercent && <div className="proposal-funding-terms"><span>Reward allocation <b>{p.fundingPercent}%</b></span><span>{p.status === "funding" ? "Funding ends in" : "Funding period"}<b>{p.status === "funding" && p.fundingEndsAt ? countdown(p.fundingEndsAt, now) : "1 hour"}</b></span></div>}
+      {p.status === "funding" && <div className="proposal-funded"><div><span>{affordable && p.fundedUsd >= minimum ? `${affordable.boosts}x affordable` : `$${minimum} minimum`}</span><b>${p.fundedUsd.toFixed(2)}</b></div><progress aria-label="Boost funding" value={p.fundedUsd} max={p.fundedUsd < minimum ? minimum : nextPack ? nextPack.cents / 100 : 3999}/><small>{p.isAutomatic && p.fundedUsd < minimum ? "$100 starts a 10x purchase; the pack costs $99." : nextPack ? `$${(nextPack.cents / 100).toLocaleString()} unlocks ${nextPack.boosts}x` : "Largest pack funded. Surplus returns to holders."}</small></div>}
+      {p.isAutomatic && p.status === "funding" && <p className="proposal-detail-note">{p.collectionPaused ? "Activity has slowed. Collection is paused; the fund closes after five quiet minutes." : "Closes after one hour or five minutes of sustained slowdown."}</p>}
+      {Boolean(p.payload.inheritedAutomaticFund) && <p className="proposal-detail-note">Includes the automatic fund. The original funding deadline is unchanged.</p>}
+      {p.status === "approved" && <p className="proposal-detail-note">The hour starts once the DEX profile is paid and any open challenges are resolved.</p>}
+      {p.boostPack && <div className="boost-selected-pack"><b>{p.boostPack}x · {p.boostHours} hours</b><span>${p.targetUsd.toFixed(0)}</span></div>}
+      {p.outcome === "below_minimum" && <p className="proposal-detail-note">The available reserve was below ${minimum}. All remaining funds returned to holder rewards.</p>}
+      {BigInt(p.returnedLamports ?? "0") > 0n && <p className="proposal-detail-note">{(Number(p.returnedLamports) / 1e9).toLocaleString(undefined, { maximumFractionDigits: 9 })} SOL returned to holders.</p>}
+      {p.status === "rejected" && <p className="proposal-detail-note">{p.outcome === "no_votes" ? "No eligible votes were cast." : "No won the poll."}</p>}
+      {p.dexOrderReference && <p className="proposal-detail-note">Purchase reference: {p.dexOrderReference}</p>}
+    </>}
+    <details className="proposal-public-details"><summary>Boost packs & funding</summary><BoostPackPrices packs={packs}/><p>The largest affordable pack is selected when funding closes. SOL is valued at settlement; affordability is checked again before withdrawal. Any remainder returns to holder rewards. AQUA completes the purchase and records its receipt.</p></details>
+    {Boolean(p.openChallenges) && <p className="proposal-detail-note">Purchase paused while a holder challenge is reviewed.</p>}
+    {["approved", "funding", "ready"].includes(p.status) && data.enabled && wallet.address && data.votePower?.eligible && <button className="proposal-text-action" disabled={busy} onClick={() => open({ kind: "challenge", proposal: p })}>Challenge proposal</button>}
+  </article>;
+}
+
 export function CommunityProposalVotes() {
   const { data } = useProposals();
-  if (!data?.enabled) return null;
-  const proposals = data.proposals.filter((item) => !item.isDefault && !(item.type !== "cto" && ["rejected", "cancelled"].includes(item.status)));
+  if (!data?.enabled && !data?.automaticFundingEnabled) return null;
+  const proposals = data.proposals.filter((item) => !item.isDefault && item.outcome !== "transferred_to_vote" && !(!item.isAutomatic && !["cto", "dex_boost"].includes(item.type) && ["rejected", "cancelled"].includes(item.status)));
   const active = proposals.filter((item) => liveStatuses.includes(item.status));
   const history = proposals.filter((item) => !liveStatuses.includes(item.status));
   if (!proposals.length) return null;
-  return <section className="community-proposals"><header><div><small>HOLDER GOVERNANCE</small><h2>Community proposals</h2></div><span>{active.length} active</span></header><div className="community-proposal-grid">{active.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal}/>)}</div>{history.length > 0 && <details className="community-proposal-history"><summary>Past proposals · {history.length}</summary>{history.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal}/>)}</details>}</section>;
+  return <section className="community-proposals"><header><div><small>{data.enabled ? "HOLDER GOVERNANCE" : "MARKET ACTIVITY"}</small><h2>{data.enabled ? "Community proposals" : "Automatic boost funding"}</h2></div><span>{active.length} active</span></header><div className="community-proposal-grid">{active.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal}/>)}</div>{history.length > 0 && <details className="community-proposal-history"><summary>Past proposals · {history.length}</summary>{history.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal}/>)}</details>}</section>;
 }
 
 function ProposalSurvey({ dialog, draft, launch, busy, close, submit }: { dialog: Dialog; draft: Partial<DexProfile>; launch: Launch; busy: boolean; close: () => void; submit: (content: Record<string, unknown>) => Promise<void> }) {
@@ -264,6 +333,7 @@ function ProposalSurvey({ dialog, draft, launch, busy, close, submit }: { dialog
     if (kind === "details") return profile;
     if (kind === "activity") return { summary: form.reason.trim(), evidenceUrl: form.evidenceUrl.trim() };
     if (kind === "challenge") return { reason: form.reason.trim() };
+    if (type === "dex_boost") return { reason: form.reason.trim() };
     if (type === "dex_payment") return { reason: form.reason.trim(), proposedProfile: profile };
     if (type === "dex_update") return { reason: form.reason.trim(), ...profile };
     return { reason: form.reason.trim(), communityLead: form.communityLead.trim(), communityTakeoverWallet: form.communityTakeoverWallet.trim(), plan: form.plan.trim(), evidenceUrl: form.evidenceUrl.trim() };
@@ -289,6 +359,7 @@ function ProposalSurvey({ dialog, draft, launch, busy, close, submit }: { dialog
         {kind !== "details" && <label>{kind === "challenge" ? "What should be investigated?" : kind === "activity" ? "What are you actively working on?" : "Why should holders support this?"}<textarea required minLength={20} maxLength={1000} value={form.reason} onChange={(event) => set("reason", event.target.value)} placeholder={kind === "activity" ? "Describe recent work, current progress and what you are shipping next." : type === "dex_payment" ? "Explain how a DEX profile will help this coin and its holders." : "Describe the change, its purpose and the benefit to holders."}/><small>Be specific. This explanation will be visible on the market page.</small></label>}
         {kind === "activity" && <label>Public proof of work<input type="url" required maxLength={500} value={form.evidenceUrl} onChange={(event) => set("evidenceUrl", event.target.value)} placeholder="https://github.com/… or https://x.com/…"/><small>Link to recent, verifiable work or project updates.</small></label>}
         {kind === "create" && type === "dex_update" && <div className="survey-funding-summary"><b>{!data?.dexPaid ? "Replace the existing campaign’s details" : data.dexManagedByAqua ? "Update a profile managed by AQUA" : "Fund a DEX profile takeover · $200"}</b><p>{!data?.dexPaid ? "Raised SOL stays in the campaign. Spending pauses during this vote and the approved details replace the current profile." : data.dexManagedByAqua ? "Once holders approve, AQUA submits these exact details using its existing profile access." : "After approval, 80% of incoming market rewards accumulates toward the $200 target. The remaining 20% continues to holder rewards. AQUA then submits the takeover request for DEX Screener review."}</p></div>}
+        {kind === "create" && type === "dex_boost" && <div className="survey-funding-summary"><b>5% · 10% · 20% · No</b><p>Holders have 15 minutes to choose. The winning rate funds one hour, then AQUA purchases the largest affordable pack and returns the remainder to holders. The DEX profile must be paid. If an automatic fund is running, its balance carries over and its deadline stays the same.</p><BoostPackPrices/></div>}
         {profileFields && <DexProfileFields profile={form} update={(key, value) => set(key, value)}/>} 
         {kind === "create" && type === "cto" && <><div className="survey-field-row"><label>Proposed community lead<input required minLength={2} maxLength={100} value={form.communityLead} onChange={(event) => set("communityLead", event.target.value)} placeholder="Name or public handle"/></label><label>Public evidence / community URL<input type="url" required maxLength={500} value={form.evidenceUrl} onChange={(event) => set("evidenceUrl", event.target.value)} placeholder="https://…"/></label></div><label>Community takeover wallet address<input required value={form.communityTakeoverWallet} onChange={(event) => set("communityTakeoverWallet", event.target.value)} placeholder="Takeover developer's Solana wallet"/><small>This is the wallet of the person taking over development. After an approved vote is executed on-chain, it receives existing and future creator fees and can create future developer locks. It is not a community treasury.</small></label><label>Transition plan<textarea required minLength={40} maxLength={2000} value={form.plan} onChange={(event) => set("plan", event.target.value)} placeholder="Who takes responsibility, what changes, and how will holders stay informed?"/></label></>}
       </div> : <div className="survey-review"><small>CHECK BEFORE SIGNING</small><dl>{Object.entries(content()).filter(([, value]) => value).map(([key, value]) => <div key={key}><dt>{reviewLabels[key] ?? key}</dt><dd>{key === "communityTakeoverWallet" ? <WalletIdentity wallet={String(value)}/> : String(value)}</dd></div>)}</dl><label className="survey-consent"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)}/><span>I have checked these details and approve their publication for this market.</span></label><p>Your wallet signs a message. This approval does not spend funds.</p></div>}

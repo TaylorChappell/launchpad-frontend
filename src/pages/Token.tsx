@@ -1,15 +1,15 @@
+import { newerComment, readCommentCursor, type CommentCursor } from "../market-activity";
 import { WalletIdentity } from "../components/WalletIdentity";
-import { ProjectUpdates } from "../components/ProjectUpdates";
-import { MarketComments } from "../components/MarketComments";
+import { Community } from "../components/Community";
 import { MarketInformationTabs } from "../components/MarketProposals";
 import { WalletRewards } from "../components/WalletRewards";
 import {marketShareUrl} from "../share-market";
 import { MarketHolders,MarketPosition } from "../components/MarketHolders";
 import { mergeTrades, tradeTime } from "../trade-history";
 import { formatJackpotAmount } from "../jackpot-format";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Copy, ExternalLink, Globe2, Loader2, LockKeyhole, Settings2 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
@@ -82,7 +82,31 @@ export function Token() {
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [range, setRange] = useState("24h");
-  const [section,setSection]=useState("Transactions");
+  const [params,setParams] = useSearchParams();
+  const preferredSection=()=>{
+    const names=['Transactions','Community','Holders','Rewards','Project','Governance'];
+    const explicit=params.get('tab')==='comments'?'community':params.get('tab');
+    let saved='';try{saved=localStorage.getItem('aqua:market-tab')??'';}catch{}
+    return names.find(name=>name.toLowerCase()===explicit)??names.find(name=>name===saved)??'Transactions';
+  };
+  const [section,setSection]=useState(preferredSection);
+  const selectSection=(next:string)=>{try{localStorage.setItem('aqua:market-tab',next);}catch{}setSection(next);setParams(previous=>{const query=new URLSearchParams(previous);query.set('tab',next.toLowerCase());query.delete('feed');return query;},{replace:true});};
+  const [positionOpen,setPositionOpen]=useState(false);
+  const readKey = "aqua:comments:seen:" + (wallet.address ?? "visitor") + ":" + id;
+  const [seen,setSeen]=useState<{key:string;cursor:CommentCursor|null}>(()=>({key:readKey,cursor:readCommentCursor(readKey)}));
+  useEffect(()=>{const next=preferredSection();setSection(next);try{localStorage.setItem('aqua:market-tab',next);}catch{}setPositionOpen(false);},[id,params]);
+  useEffect(()=>{
+    const sync=()=>setSeen({key:readKey,cursor:readCommentCursor(readKey)}); sync();
+    window.addEventListener("storage",sync);return()=>window.removeEventListener("storage",sync);
+  },[readKey]);
+  const markCommentsRead=useCallback((cursor:CommentCursor)=>{
+    setSeen(previous=>{
+      const old=previous.key===readKey?previous.cursor:readCommentCursor(readKey);
+      const latest=newerComment(cursor,old)?cursor:old;
+      try{if(latest)localStorage.setItem(readKey,JSON.stringify(latest));}catch{/* Reading still works when browser storage is disabled. */}
+      return {key:readKey,cursor:latest};
+    });
+  },[readKey]);
   const [nowSeconds, setNowSeconds] = useState(() => Math.floor(Date.now() / 1_000));
 
   useEffect(() => {
@@ -178,12 +202,10 @@ export function Token() {
     <div className="token-layout"><section className="token-main">
       <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div></header><div className="chart market-line-shell"><MarketCapLine snapshots={withLatestMarketPoint(snapshots,launch)} range={range} onRangeChange={setRange}/></div></div>
 
-      <MarketInformationTabs section={section} onChange={setSection}/>
+      <MarketInformationTabs section={section} onChange={selectSection} newComments={newerComment(launch.latestComment,seen.key===readKey?seen.cursor:null)} latestProjectUpdateAt={launch.latestProjectUpdateAt}/>
       {section==="Holders"&&<MarketHolders key={launch.id} launch={launch} creatorLock={creatorLock}/>}
-      {section==="Your position"&&<MarketPosition launch={launch}/>}
-      {section==="Updates"&&<ProjectUpdates launch={launch}/>}
-      {section==="Comments"&&<MarketComments launch={launch}/>}
-      {section==="Project"&&<section className="dashboard-section"><h2>Project information</h2><p>{launch.description}</p><p>Opening LP lock: {launch.liquidityLockedPermanently?"Permanently locked":"Not verified"}{launch.lockConfig&&<> · <a href={solscanAccountUrl(launch.lockConfig,config.network)} target="_blank" rel="noreferrer">Verify LP lock ↗</a></>}</p><p>Creator token lock: {creatorLock?.status==="active"?"Active until "+new Date(creatorLock.unlockAt*1000).toLocaleString():"No active verified creator lock"}.</p><p>DEX profile payment is not an endorsement or security assessment.</p><a href={solscanAccountUrl(launch.mint,config.network)} target="_blank" rel="noreferrer">Inspect mint and authority state ↗</a></section>}
+      {section==="Community"&&<Community launch={launch} onRead={markCommentsRead}/>}
+      {section==="Project"&&<div className="market-project"><section className="dashboard-section"><h2>Project information</h2><p>{launch.description}</p><p>Opening LP lock: {launch.liquidityLockedPermanently?"Permanently locked":"Not verified"}{launch.lockConfig&&<> · <a href={solscanAccountUrl(launch.lockConfig,config.network)} target="_blank" rel="noreferrer">Verify LP lock ↗</a></>}</p><p>Creator token lock: {creatorLock?.status==="active"?"Active until "+new Date(creatorLock.unlockAt*1000).toLocaleString():"No active verified creator lock"}.</p><p>DEX profile payment is not an endorsement or security assessment.</p><a href={solscanAccountUrl(launch.mint,config.network)} target="_blank" rel="noreferrer">Inspect mint and authority state ↗</a></section></div>}
       {section==="Rewards"&&<>{rewardMode==="holder_rewards"&&<><WalletRewards launch={launch}/><section className="workspace-panel market-reward-activity"><header><h2>Market reward activity</h2></header><div className="info-grid single reward-mode-market-panel">
         {rewardMode === "holder_rewards" && <section className="market-reward-panel"><header><div><small>HOLDER REWARDS</small><h2>Earn {launch.stockSymbol}</h2></div><span className="reward-live-label">Accumulating</span></header><div className="reward-stat-row"><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Available to all holders" value={money.format(launch.rewardRedeemableUsd)}/></div><footer>Rewards follow your balance and time held.</footer></section>}
       </div></section></>}
@@ -208,7 +230,7 @@ export function Token() {
       {section==="Transactions"&&<div className="activity"><header><div><b>Market activity</b><span>Newest transactions first</span>{incomingTrades.some(t=>!trades.some(old=>old.id===t.id))&&<button className="soft-button" onClick={()=>{setTrades(current=>mergeTrades(current,incomingTrades));setIncomingTrades([]);}}>Show new transactions</button>}</div><strong>{launch.txCount.toLocaleString()} total</strong></header><div className="activity-scroll"><table><thead><tr><th>Type</th><th>Wallet</th><th>Time</th><th>{launch.pairSymbol}</th><th>Tokens</th></tr></thead><tbody>{sortedTrades.length ? sortedTrades.map((item) => <tr key={item.id}><td className={item.side}>{item.side.toUpperCase()}</td><td><WalletIdentity wallet={item.wallet}/></td><td>{item.signature ? <a href={solscanTransactionUrl(item.signature, config.network)} target="_blank" rel="noreferrer">{new Date(tradeTime(item)).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})} ↗</a> : "—"}</td><td>{formatRaw(item.gross_quote_raw, pairDecimals)}</td><td title={formatRaw(item.token_amount_raw, launch.tokenDecimals)}>{compact.format(Number(item.token_amount_raw) / 10 ** launch.tokenDecimals)}</td></tr>) : <tr><td colSpan={5} className="no-activity">No indexed trades yet.</td></tr>}</tbody></table></div>{tradesHaveMore && <button className="activity-load-more" disabled={loadingTrades} onClick={() => void loadMoreTrades()}>{loadingTrades ? <><Loader2 className="spin"/>Loading</> : "Load more"}</button>}</div>}
     </section>
 
-    <aside className="token-side"><TradePanel key={[launch.id,wallet.address,config.network].join(":")} launch={launch} pairDecimals={launch.pairType === "sol" ? 9 : stock?.decimals ?? null}/><details className="market-facts"><summary>Market details</summary><dl><div><dt>Creator</dt><dd><WalletIdentity wallet={launch.creatorWallet}/></dd></div><div><dt>Developer buy</dt><dd>{launch.pairType === "sol" ? launch.devBuySol > 0 ? `${launch.devBuySol} SOL` : "None" : BigInt(launch.devBuyStockRaw || "0") > 0n ? `${formatRaw(launch.devBuyStockRaw, stockDecimals)} ${launch.pairSymbol}` : "None"}</dd></div><div><dt>Holders</dt><dd>{compact.format(launch.holderCount)}</dd></div><div><dt>Pool</dt><dd><a href={explorerUrl} target="_blank" rel="noreferrer">View on explorer <ExternalLink size={12}/></a></dd></div></dl></details><DexFundingVote/>{rewardMode === "jackpot" && <JackpotLeaderboard jackpot={jackpot}/>}</aside></div>
+    <aside className="token-side"><TradePanel key={[launch.id,wallet.address,config.network].join(":")} launch={launch} pairDecimals={launch.pairType === "sol" ? 9 : stock?.decimals ?? null}/><details className="market-position-dropdown" open={positionOpen} onToggle={event=>setPositionOpen(event.currentTarget.open)}><summary>Your position</summary>{positionOpen && <MarketPosition key={launch.id + ":" + wallet.address} launch={launch} compact/>}</details><details className="market-facts"><summary>Market details</summary><dl><div><dt>Creator</dt><dd><WalletIdentity wallet={launch.creatorWallet}/></dd></div><div><dt>Developer buy</dt><dd>{launch.pairType === "sol" ? launch.devBuySol > 0 ? `${launch.devBuySol} SOL` : "None" : BigInt(launch.devBuyStockRaw || "0") > 0n ? `${formatRaw(launch.devBuyStockRaw, stockDecimals)} ${launch.pairSymbol}` : "None"}</dd></div><div><dt>Holders</dt><dd>{compact.format(launch.holderCount)}</dd></div><div><dt>Pool</dt><dd><a href={explorerUrl} target="_blank" rel="noreferrer">View on explorer <ExternalLink size={12}/></a></dd></div></dl></details><DexFundingVote/>{rewardMode === "jackpot" && <JackpotLeaderboard jackpot={jackpot}/>}</aside></div>
   </main></MarketGovernanceProvider>;
 }
 

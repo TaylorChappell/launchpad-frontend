@@ -20,7 +20,7 @@ export function MarketHolders({launch,creatorLock}:{launch:Launch;creatorLock?:C
     {data?.hasMore&&<button className="activity-load-more" disabled={loading} onClick={async()=>{setLoading(true);try{const next=await api.holders(launch.id,data.holders.length);setData({...next,holders:[...data.holders,...next.holders]});setError("");}catch{setError("Could not load more holders.");}finally{setLoading(false);}}}>Load more holders</button>}
   </div>;
 }
-export function MarketPosition({launch}:{launch:Launch}){
+export function MarketPosition({launch,compact=false}:{launch:Launch;compact?:boolean}){
   const wallet=useWallet(),[data,setData]=useState<Awaited<ReturnType<typeof api.position>>|null>(null),[error,setError]=useState("");
   useEffect(()=>{
     let active=true,pending=false;setData(null);setError("");if(!wallet.address)return;
@@ -29,7 +29,7 @@ export function MarketPosition({launch}:{launch:Launch}){
     return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",focus);};
   },[wallet.address,launch.id]);
   const pnl=data?.pnl;
-  return <section className="dashboard-section market-position"><header><h2>Your position</h2><Link to="/portfolio">My holdings <ArrowUpRight size={14}/></Link></header>
+  return <section className="dashboard-section market-position"><header>{!compact && <h2>Your position</h2>}<Link to="/portfolio">My holdings <ArrowUpRight size={14}/></Link></header>
     {!wallet.address?<div className="wallet-inline"><Wallet size={24}/><div><h3>Your tokens. Your P&amp;L.</h3></div><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet</button></div>:<>
       {error&&<p className="danger-note" role="alert">{error}</p>}
       {!data&&!error?<div className="workspace-loading">Loading your position…</div>:data&&<div className="position-overview"><div><small>Position value</small><strong>{data.valueSol==null?"—":quantity.format(data.valueSol)+" SOL"}</strong><span>{displayTokenAmount(data.balanceRaw,launch.tokenDecimals)} {launch.symbol}</span></div>

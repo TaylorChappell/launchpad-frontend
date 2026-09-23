@@ -1,3 +1,5 @@
+import { RecentUpdateBell } from "./RecentUpdateBell";
+import { assetLogoUrl } from "../asset-logo";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, LockKeyhole } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -22,12 +24,11 @@ export function TokenMark({ launch, large=false }: { launch: Launch; large?: boo
 
 export function AssetMark({ launch, reward = false }: { launch: Launch; reward?: boolean }) {
   const [failed, setFailed] = useState(false);
-  const assetSymbol = reward ? launch.stockSymbol : launch.pairSymbol;
   const useSol = reward
-    ? launch.stockSymbol.toUpperCase() === "SOL" || launch.stockMint === "So11111111111111111111111111111111111111112"
+    ? launch.stockMint === "So11111111111111111111111111111111111111112"
     : launch.pairType === "sol";
-  const useOrca = assetSymbol.toUpperCase() === "ORCA";
-  const logoUrl = useOrca ? `${import.meta.env.BASE_URL}orca-logo.png` : launch.stock.logoUrl;
+  const useOrca = (reward ? launch.stockMint : launch.pairMint) === "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE";
+  const logoUrl = useOrca ? `${import.meta.env.BASE_URL}orca-logo.png` : assetLogoUrl(reward ? launch.stock.logoUrl : launch.pairLogoUrl ?? launch.stock.logoUrl);
   useEffect(() => setFailed(false), [logoUrl, reward, launch.pairType]);
   return <span className={`asset-mark ${useSol ? "solana" : useOrca ? "orca" : "stock"}`} aria-hidden="true">
     {useSol ? <svg viewBox="0 0 32 32"><defs><linearGradient id={"solana-" + launch.id + (reward ? "-reward" : "-pair")} x1="0" y1="1" x2="1" y2="0"><stop stopColor="#9945ff"/><stop offset=".52" stopColor="#19fb9b"/><stop offset="1" stopColor="#00d1ff"/></linearGradient></defs><path fill={"url(#solana-" + launch.id + (reward ? "-reward" : "-pair") + ")"} d="M8 6h19l-3 4H5l3-4Zm-3 9h19l3 4H8l-3-4Zm3 9h19l-3 4H5l3-4Z"/></svg> : logoUrl && !failed ? <img src={logoUrl} alt="" onError={() => setFailed(true)}/> : <svg viewBox="0 0 32 32" className="generic-stock-mark"><path d="M6 25V14h5v11H6Zm8 0V7h5v18h-5Zm8 0V11h5v14h-5Z"/><path d="M4 27h24"/></svg>}
@@ -38,7 +39,7 @@ function PayoutAssetMark({ launch, symbol, position }: { launch: Launch; symbol:
   const normalized = symbol.toUpperCase();
   const iconId = `jackpot-solana-${launch.id}-${position}`;
   if (normalized === "SOL") return <span className="jackpot-asset-mark solana" aria-hidden="true"><svg viewBox="0 0 32 32"><defs><linearGradient id={iconId} x1="0" y1="1" x2="1" y2="0"><stop stopColor="#9945ff"/><stop offset=".52" stopColor="#19fb9b"/><stop offset="1" stopColor="#00d1ff"/></linearGradient></defs><path fill={`url(#${iconId})`} d="M8 6h19l-3 4H5l3-4Zm-3 9h19l3 4H8l-3-4Zm3 9h19l-3 4H5l3-4Z"/></svg></span>;
-  if (normalized === launch.stockSymbol.toUpperCase() && launch.stock.logoUrl) return <span className="jackpot-asset-mark" aria-hidden="true"><img src={launch.stock.logoUrl} alt=""/></span>;
+  if (normalized === launch.stockSymbol.toUpperCase() && launch.stock.logoUrl) return <span className="jackpot-asset-mark" aria-hidden="true"><img src={assetLogoUrl(launch.stock.logoUrl)!} alt=""/></span>;
   return <span className="jackpot-asset-mark fallback" aria-hidden="true">{normalized.slice(0, 1)}</span>;
 }
 
@@ -73,6 +74,7 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
       : <div className="reward-card-focus mode-jackpot"><span>HOURLY JACKPOT</span><div className="card-jackpot-prizes">{prizes.map((amount, index) => { const rewardSymbol = jackpot?.rewardSymbol ?? "SOL"; return <div key={index}><span>{["1st", "2nd", "3rd", "4th", "5th"][index]}</span><b aria-label={`${amount} ${rewardSymbol}`}><PayoutAssetMark launch={launch} symbol={rewardSymbol} position={index}/>{amount}</b></div>; })}</div></div>}
     <div className="token-card-status"><DexStatusBadge state={dexBadgeState(launch)}/>{creatorLock && <span className="creator-lock-badge" title="Verified creator lock" aria-label={`${creatorLockPercentLabel(creatorLock)} of supply locked by the creator`}><LockKeyhole aria-hidden="true"/>{creatorLockPercentLabel(creatorLock)} locked</span>}</div><div className="token-stats"><Metric label="Market cap" value={indexed ? "$" + compact.format(launch.marketCapUsd) : "Indexing"} tone={indexed ? marketCapTone(launch.marketCapUsd) : ""}/><Metric label="24h volume" value={indexed ? "$" + compact.format(launch.volume24hUsd) : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
     </Link>
+    <RecentUpdateBell at={launch.latestProjectUpdateAt} launchId={launch.id}/>
   </article>;
 }
 

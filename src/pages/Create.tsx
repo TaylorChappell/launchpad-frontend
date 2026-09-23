@@ -1,3 +1,4 @@
+import { assetLogoUrl } from "../asset-logo";
 import { TransactionOutcomeError } from "../transaction-confirmation";
 import { pairCatalogPollDelay } from "../pair-catalog-refresh";
 import { handoffLaunchBatch, watchLaunchSubmission } from "../launch-relay";
@@ -16,6 +17,7 @@ import { toast } from "sonner";
 import { ApiError, api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
+import { LaunchDetailsLoading } from "../components/LaunchDetailsLoading";
 import { PageBubbles } from "../components/PageBubbles";
 import { TokenMark } from "../components/TokenCard";
 import { RewardModeIcon } from "../components/RewardModeIcon";
@@ -71,8 +73,13 @@ export function Create() {
   const wallet = useWallet();
   const [searchParams] = useSearchParams();
   const importedStudio = useRef("");
+  const studioId = searchParams.get("studio");
+  const studioImportKey = `${wallet.address}:${studioId}`;
+  const [studioImport, setStudioImport] = useState<{key: string; status: "loading" | "ready" | "error"; error?: string}>({key:"",status:"loading"});
+  const [studioImportAttempt, setStudioImportAttempt] = useState(0);
+  const studioImportReady = !studioId || (studioImport.key === studioImportKey && studioImport.status === "ready");
   const [studioImportMessage, setStudioImportMessage] = useState("");
-  const { config } = useRuntime();
+  const { config, loading: runtimeLoading } = useRuntime();
   const dexProfileEnabled = config.marketGovernanceEnabled;
   const wizardSteps = dexProfileEnabled ? governanceWizardSteps : standardWizardSteps;
   const devBuyStep = dexProfileEnabled ? 4 : 3;
@@ -120,6 +127,7 @@ export function Create() {
   const relayController = useRef<AbortController | null>(null);
   const relayStorageKey = `aqua:launch-relay:${config.network}:${wallet.address ?? "guest"}`;
   const [pending, setPending] = useState<PendingAction | null>(null);
+  const [savedLaunchId, setSavedLaunchId] = useState<string | null>(null);
   const [recoverableLaunch, setRecoverableLaunch] = useState<Launch | null>(null);
   const [completedLaunch, setCompletedLaunch] = useState<{ id: string; mint?: string; symbol: string; rewardMode: RewardMode } | null>(null);
 
@@ -145,47 +153,64 @@ export function Create() {
     return()=>{active=false;};
   },[draftKey,stockLoading,pairsRefreshing]);
   useEffect(()=>{
-    if(draftReady!==draftKey||completedLaunch)return;
+    if(draftReady!==draftKey||completedLaunch||!studioImportReady)return;
     let active=true;
     const timer=window.setTimeout(()=>{void saveLaunchDraft(draftKey,{form,file,dexFundingEnabled,dexProfile,stockMint:stock?.mint}).then(()=>{if(active)setDraftStatus("Draft saved on this device.");}).catch(()=>{if(active)setDraftStatus("Draft could not save. Keep this page open until launch.");});},600);
     return()=>{active=false;window.clearTimeout(timer);};
-  },[draftKey,draftReady,form,file,dexFundingEnabled,dexProfile,stock?.mint,completedLaunch]);
+  },[draftKey,draftReady,form,file,dexFundingEnabled,dexProfile,stock?.mint,completedLaunch,studioImportReady]);
 
   useEffect(() => {
-    const id=searchParams.get("studio");
-    if(!id||!wallet.address||stockLoading||pairsRefreshing||!stocks.length||importedStudio.current===`${wallet.address}:${id}`)return;
-    const token=studioSession(wallet.address);
-    if(!token){setStudioImportMessage("Open Studio and sign in with this wallet, then choose Review launch again.");return;}
-    let cancelled=false;
-    void studioRequest<StudioProject>(`/projects/${encodeURIComponent(id)}`,token).then(async project=>{
-      if(cancelled)return;
-      const draft=project.state.launch;
-      setForm(old=>({...old,name:draft.name,symbol:draft.symbol,description:draft.description,xUrl:draft.xUrl,websiteUrl:draft.websiteUrl||project.hostedWebsiteUrl||"",telegramUrl:draft.telegramUrl,rewardMode:draft.rewardMode}));
-      let selected=stocks.find(item=>item.mint===draft.stockMint);
-      if(draft.stockMint && !selected){
-        setStock(null);
-        if(pairLookupEnabled){try{selected=(await api.lookupPair(draft.stockMint)).stock;}catch{/* Keep the requested pair unselected when verification fails. */}}
-        if(cancelled)return;
+    const id = studioId, address = wallet.address;
+    if (!id || !address || stockLoading || pairsRefreshing) return;
+    const key = `${address}:${id}`;
+    if (importedStudio.current === key) return;
+    if (!stocks.length) return;
+    const token = studioSession(address);
+    if (!token) {
+      setStudioImport({key,status:"error",error:"Open Studio and sign in with this wallet, then choose Review launch again."});
+      return;
+    }
+    let cancelled = false;
+    setStudioImport({key,status:"loading"});
+    setStudioImportMessage("");
+    void studioRequest<StudioProject>(`/projects/${encodeURIComponent(id)}`,token).then(async project => {
+      if (cancelled) return;
+      const draft = project.state.launch;
+      let selected = stocks.find(item => item.mint === draft.stockMint);
+      if (draft.stockMint && !selected && pairLookupEnabled) {
+        try { selected = (await api.lookupPair(draft.stockMint)).stock; }
+        catch { /* An unavailable saved pair must be explicitly replaced in the wizard. */ }
+        if (cancelled) return;
       }
-      if(selected)setStock(selected);
-      setDexFundingEnabled(config.marketGovernanceEnabled&&draft.dexFundingEnabled);
-      let importedProfile={...draft.dexProfile};
-      if(draft.dexProfile.bannerPath){
-        const banner=project.state.files.find(item=>item.path===draft.dexProfile.bannerPath);
-        if(!banner)throw Error("The assigned DEX banner is missing. Choose another image in Studio before reviewing the launch.");
-        const body=new FormData();body.set("file",studioAssetFile(banner));body.set("creatorWallet",wallet.address!);body.set("clientRequestId",crypto.randomUUID());
-        const upload=await api.upload(body,await ensureAccountSession(wallet.address!,wallet.signMessage));
-        if(cancelled)return;
-        importedProfile={...importedProfile,bannerUrl:upload.imageUrl};
+      let importedProfile = {...draft.dexProfile};
+      if (draft.dexProfile.bannerPath) {
+        const banner = project.state.files.find(item => item.path === draft.dexProfile.bannerPath);
+        if (!banner) throw Error("The assigned DEX banner is missing. Choose another image in Studio before reviewing the launch.");
+        const body = new FormData(); body.set("file",studioAssetFile(banner)); body.set("creatorWallet",address); body.set("clientRequestId",crypto.randomUUID());
+        const upload = await api.upload(body,await ensureAccountSession(address,wallet.signMessage));
+        if (cancelled) return;
+        importedProfile = {...importedProfile,bannerUrl:upload.imageUrl};
       }
+      const artwork = project.state.files.find(item => item.path === draft.imagePath);
+      if (draft.imagePath && !artwork) throw Error("The assigned coin artwork is missing. Choose another image in Studio before reviewing the launch.");
+      const artworkFile = artwork ? studioAssetFile(artwork) : null;
+      if (cancelled) return;
+      // Apply only a complete import. Launch must retain its Studio project link.
+      setForm({...empty,name:draft.name,symbol:draft.symbol,description:draft.description,xUrl:draft.xUrl,websiteUrl:draft.websiteUrl||project.hostedWebsiteUrl||"",telegramUrl:draft.telegramUrl,rewardMode:draft.rewardMode});
+      setStock(selected ?? (draft.stockMint ? null : stocks[0]));
+      setDexFundingEnabled(config.marketGovernanceEnabled && draft.dexFundingEnabled);
       setDexProfile(importedProfile);
-      const artwork=project.state.files.find(item=>item.path===draft.imagePath);
-      if(artwork)chooseArtwork(studioAssetFile(artwork));
-      importedStudio.current=`${wallet.address}:${id}`;
+      if (artworkFile) chooseArtwork(artworkFile);
+      else { setFile(null); setPreview(""); }
+      setStep(0);
+      importedStudio.current = key;
+      setStudioImport({key,status:"ready"});
       setStudioImportMessage(`Imported ${project.name}. Review every detail before launching.${draft.stockMint&&!selected?" Your saved pair is unavailable; choose a supported pair.":""}`);
-    }).catch(reason=>{if(!cancelled)setStudioImportMessage(reason instanceof Error?reason.message:"Could not import Studio draft.");});
-    return()=>{cancelled=true;};
-  },[wallet.address,searchParams,stockLoading,pairsRefreshing,stocks,config.marketGovernanceEnabled,pairLookupEnabled]);
+    }).catch(reason => {
+      if (!cancelled) setStudioImport({key,status:"error",error:reason instanceof Error ? reason.message : "Could not load your coin details."});
+    });
+    return () => { cancelled = true; };
+  },[wallet.address,studioId,stockLoading,pairsRefreshing,stocks,config.marketGovernanceEnabled,pairLookupEnabled,studioImportAttempt]);
 
   const update = <K extends keyof Form>(key: K, value: Form[K]) => { editedDraftKey.current=draftKey; setForm((current) => ({ ...current, [key]: value })); };
 
@@ -300,7 +325,7 @@ export function Create() {
 
   function finishLaunch(launchId: string, mint?: string, identity?: Pick<LaunchRelayStatus, "symbol" | "rewardMode">) {
     try { localStorage.removeItem(relayStorageKey); } catch { /* Storage may be unavailable. */ }
-    setRelayMessage("");
+    setRelayMessage(""); setSavedLaunchId(null);
     setPending(null); setExecutionState("complete"); setExecutionOpen(false); setRecoverableLaunch(null);
     setCompletedLaunch({ id: launchId, mint, symbol: identity?.symbol || form.symbol, rewardMode: identity?.rewardMode ?? form.rewardMode });
     toast.success("AQUA market launched", { id: launchToastId, description: `$${identity?.symbol || form.symbol || "Your coin"} is live on Orca.` });
@@ -347,25 +372,13 @@ export function Create() {
     return state;
   }
 
-  // Save only the launch ID, never wallet signatures. A refresh reattaches to the job.
+  // Remember the launch without reattaching or recovering until Resume is pressed.
   useEffect(() => {
-    setExecutionOpen(false); setPending(null); setRelayMessage("");
-    if (!wallet.address) return;
-    const controller = new AbortController();
     relayController.current?.abort();
-    relayController.current = controller;
+    setExecutionOpen(false); setPending(null); setRelayMessage("");
     let saved: string | null = null;
-    try { saved = localStorage.getItem(relayStorageKey); } catch { /* Storage may be unavailable. */ }
-    if (saved) {
-      const id = saved;
-      setPending({ launchId: id, stage: "pool" });
-      setExecutionOpen(true); setExecutionState("running");
-      void observeRelay(id, controller).then(state => {
-        if (!controller.signal.aborted) finishLaunch(id, state.mint, state);
-      }).catch(error => {
-        if (!controller.signal.aborted) showLaunchError(error, "Could not restore launch status.");
-      });
-    }
+    try { if (wallet.address) saved = localStorage.getItem(relayStorageKey); } catch { /* Storage may be unavailable. */ }
+    setSavedLaunchId(saved);
     return () => { relayController.current?.abort(); toast.dismiss(launchToastId); };
   }, [relayStorageKey]);
 
@@ -508,30 +521,32 @@ export function Create() {
   }
 
   async function resumeExistingLaunch() {
-    if (!recoverableLaunch || !wallet.address) return;
-    if (launching) return;
+    if (!wallet.address || launching) return;
+    if (pending) { await retryLaunch(); return; }
+    const launchId = recoverableLaunch?.id ?? savedLaunchId;
+    if (!launchId) return;
     setExecutionOpen(true); setExecutionState("running"); setPending(null);
     showLaunchStatus("Resuming launch", "AQUA is checking confirmed steps and preparing what remains.");
     try {
-      if (await attachExistingRelay(recoverableLaunch.id)) return;
-      const fresh = await api.retryLaunchTransaction(recoverableLaunch.id, wallet.address);
+      if (await attachExistingRelay(launchId)) return;
+      const fresh = await api.retryLaunchTransaction(launchId, wallet.address);
       const restored = initialProgress();
       restored.approval = "done"; restored.mint = "done";
       if (fresh.status === "live") {
-        restored.pool = "done"; restored.liquidity = "done"; restored.lock = "done"; setProgress(restored); finishLaunch(recoverableLaunch.id, recoverableLaunch.mint); return;
+        restored.pool = "done"; restored.liquidity = "done"; restored.lock = "done"; setProgress(restored); finishLaunch(launchId, recoverableLaunch?.mint); return;
       }
       if (fresh.batch?.length) {
         const first = fresh.batch[0]?.step;
         if (first === "liquidity" || first === "lock") restored.pool = "done";
         if (first === "lock") restored.liquidity = "done";
         setProgress(restored);
-        await executeLaunchBatch(recoverableLaunch.id, fresh.batch);
+        await executeLaunchBatch(launchId, fresh.batch);
       } else {
         if (!fresh.step || !isEnvelope(fresh)) throw new Error("The backend returned an incomplete recovery step.");
         if (fresh.step === "liquidity" || fresh.step === "lock") restored.pool = "done";
         if (fresh.step === "lock") restored.liquidity = "done";
         setProgress(restored);
-        await continueLaunch({ envelope: fresh, stage: fresh.step, launchId: recoverableLaunch.id });
+        await continueLaunch({ envelope: fresh, stage: fresh.step, launchId: launchId });
       }
       setRecoverableLaunch(null);
     } catch (error) {
@@ -540,7 +555,7 @@ export function Create() {
   }
 
   async function beginLaunch() {
-    if (launching) return;
+    if (launching || !studioImportReady) return;
     if (!wallet.address) { wallet.setModalOpen(true); return; }
     if (!stock || !file || !validForStep.every(Boolean) || !acceptedTerms) { toast.error("Complete every required launch step and accept the Terms of Service first."); return; }
     if (!config.transactionsEnabled) { toast.error(config.transactionsDisabledReason ?? "On-chain launching is not enabled by the backend."); return; }
@@ -571,11 +586,22 @@ export function Create() {
     }
   }
 
+  if (!studioImportReady) {
+    const importError = studioImport.key === studioImportKey && studioImport.status === "error" ? studioImport.error : "";
+    const pairError = !stockLoading && !pairsRefreshing && !stocks.length ? stockError || "No trading pairs are available. Try loading them again." : "";
+    const message = !wallet.address ? (runtimeLoading || wallet.connecting ? "" : "Connect the wallet that owns this Studio project.") : importError || pairError;
+    return <LaunchDetailsLoading message={message || undefined}>{message && <>
+      {!wallet.address ? <button onClick={() => wallet.setModalOpen(true)}>Connect wallet</button>
+        : <button onClick={() => { setStudioImport({key:studioImportKey,status:"loading"}); if (pairError) { setStockLoading(true); setPairLoadVersion(value => value + 1); } else setStudioImportAttempt(value => value + 1); }}>Try again</button>}
+      <Link to="/studio">Back to Studio</Link>
+    </>}</LaunchDetailsLoading>;
+  }
+
   return <main className="page launch-wizard-page launch-wizard-only">
     {!launching && !completedLaunch && <div className="at-launch-entry"><span><strong>Start with Atlantis Studio.</strong> Create your artwork, website and launch draft in one place.</span><Link to="/studio">Open Studio ↗</Link></div>}
     {studioImportMessage && <div className="at-import-notice" role="status">{studioImportMessage}</div>}
     <PageBubbles count={22}/>
-    {recoverableLaunch && !launching && !completedLaunch && <section className="launch-resume-banner"><span className="resume-coin-bubble"><TokenMark launch={recoverableLaunch}/></span><div><b>Continue ${recoverableLaunch.symbol}</b><small>A previous launch has a confirmed on-chain step waiting to continue.</small></div><button onClick={() => void resumeExistingLaunch()}><span className="resume-button-current" aria-hidden="true"/><span>Resume launch</span><ArrowRight/></button></section>}
+    {(pending || recoverableLaunch || savedLaunchId) && !launching && !completedLaunch && <section className="launch-resume-banner">{recoverableLaunch && (!pending || pending.launchId === recoverableLaunch.id) && <span className="resume-coin-bubble"><TokenMark launch={recoverableLaunch}/></span>}<div><b>{pending ? `Continue $${form.symbol || "your coin"}` : recoverableLaunch ? `Continue $${recoverableLaunch.symbol}` : "Continue your previous launch"}</b><small>Resume when you’re ready to continue this launch.</small></div><button onClick={() => void resumeExistingLaunch()}><span className="resume-button-current" aria-hidden="true"/><span>Resume launch</span><ArrowRight/></button></section>}
     <section className={`wizard-shell ${launching ? "is-launching" : ""}`}>
       <div className="wizard-caustics" aria-hidden="true"/>
       {launching && <div className="wizard-launching-screen" role="status" aria-live="polite" aria-label={`Launching ${form.symbol}`}>
@@ -676,7 +702,7 @@ export function Create() {
           </div>}
           <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} · {form.rewardMode === "holder_rewards" ? "Holder Rewards" : form.rewardMode === "buyback_burn" ? "Buyback & Burn" : "Hourly Jackpot"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
           <label className="terms-acceptance"><input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)}/><span>I have read and agree to the <Link to="/terms" target="_blank">Terms of Service</Link>, including the cryptoasset, permanent-liquidity and third-party risks.</span></label>
-          <button className="wizard-launch-button" onClick={() => void (pending ? retryLaunch() : beginLaunch())} disabled={!validForStep.every(Boolean) || launching || !acceptedTerms} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
+          <button className="wizard-launch-button" onClick={() => void beginLaunch()} disabled={!validForStep.every(Boolean) || launching || !acceptedTerms} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
         </WizardSection>}
 
         <footer className="wizard-actions"><button className="wizard-back" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ArrowLeft/> Back</button>{step < wizardSteps.length - 1 && <button className="wizard-next" onClick={nextStep} disabled={!validForStep[step]}>Continue <ArrowRight/></button>}</footer>
@@ -690,5 +716,5 @@ export function Create() {
 function WizardSection({ title, description, children }: { title: string; description: string; children: ReactNode }) { return <section className="wizard-section"><header><h2>{title}</h2><p>{description}</p></header><div className="wizard-section-body">{children}</div></section>; }
 function Field({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) { return <label className={`wizard-field ${wide ? "wide" : ""}`}><span>{label}</span>{children}</label>; }
 function ModeButton({ active, disabled, onClick, icon, title, eyebrow, children }: { active: boolean; disabled?: boolean; onClick: () => void; icon: ReactNode; title: string; eyebrow: string; children: ReactNode }) { return <button type="button" role="radio" aria-checked={active} disabled={disabled} className={`reward-mode-option ${active ? "selected" : ""}`} onClick={onClick}><i>{icon}</i><div><small>{eyebrow}</small><b>{title}</b><p>{children}</p></div><em>{disabled ? "Coming soon" : active ? <Check/> : null}</em></button>; }
-function StockLogo({ stock }: { stock: StockOption }) { const [failed, setFailed] = useState(false); return <span className="stock-logo">{stock.mint === "So11111111111111111111111111111111111111112" ? <NetworkSolana className="currency-brand-icon" variant="branded"/> : stock.logoUrl && !failed ? <img src={stock.logoUrl} alt="" onError={() => setFailed(true)}/> : stock.underlyingSymbol.slice(0, 2)}</span>; }
+function StockLogo({ stock }: { stock: StockOption }) { const [failed, setFailed] = useState(false); useEffect(() => setFailed(false), [stock.mint, stock.logoUrl]); return <span className="stock-logo">{stock.mint === "So11111111111111111111111111111111111111112" ? <NetworkSolana className="currency-brand-icon" variant="branded"/> : stock.logoUrl && !failed ? <img src={assetLogoUrl(stock.logoUrl)!} alt="" onError={() => setFailed(true)}/> : stock.underlyingSymbol.slice(0, 2)}</span>; }
 

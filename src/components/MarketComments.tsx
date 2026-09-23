@@ -10,11 +10,12 @@ import { WalletIdentity } from "./WalletIdentity";
 import { CommentAvatar } from "./CommentAvatar";
 import "./market-comments.css";
 
-export function MarketComments({ launch }: { launch: Launch }) {
-  return <CommentList key={launch.id} launch={launch}/>;
+export function MarketComments({ launch, onRead }: { launch: Launch; onRead?: (comment: MarketComment) => void }) {
+  const wallet = useWallet();
+  return <CommentList key={launch.id + ":" + (wallet.address ?? "visitor")} launch={launch} onRead={onRead}/>;
 }
 
-function CommentList({ launch }: { launch: Launch }) {
+function CommentList({ launch, onRead }: { launch: Launch; onRead?: (comment: MarketComment) => void }) {
   const wallet = useWallet();
   const [session, setSession] = useState(() => savedAccountSession(wallet.address));
   const [comments, setComments] = useState<MarketComment[]>([]), [cursor, setCursor] = useState<string | null>(null);
@@ -35,6 +36,7 @@ function CommentList({ launch }: { launch: Launch }) {
       if (!alive.current || controller.signal.aborted) return;
       setComments(current => before ? mergeComments(current, result.comments) : result.comments);
       setCursor(result.nextCursor); setLoaded(true);
+      if (!before && result.comments[0] && document.visibilityState === "visible") onRead?.(result.comments[0]);
     } catch (error) {
       if (alive.current && !controller.signal.aborted) setLoadError(error instanceof Error ? error.message : "Comments could not load.");
     } finally {
@@ -87,6 +89,7 @@ function CommentList({ launch }: { launch: Launch }) {
       const { comment } = await commentsApi.publish(launch.id, author, token, submission);
       if (!alive.current) return;
       setComments(current => mergeComments(current, [comment]));
+      void load();
       if (address.current === author) { setBody(""); setReply(null); draft.current = null; }
     } catch (error) {
       if (alive.current && address.current === author) {

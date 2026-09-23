@@ -1,3 +1,4 @@
+import { LaunchDetailsLoading } from "../components/LaunchDetailsLoading";
 import { StudioVariables } from "../components/StudioVariables";
 import { StudioPublish } from "../components/StudioPublish";
 import { StudioLaunchKit } from "../components/StudioLaunchKit";
@@ -1258,6 +1259,7 @@ function StudioWorkspace() {
       : null;
   return (
     <main className="at-studio">
+      {busy === "Preparing launch" && <LaunchDetailsLoading/>}
       <PageBubbles count={8} />
       <header className="at-heading">
         <div className="at-brand">
