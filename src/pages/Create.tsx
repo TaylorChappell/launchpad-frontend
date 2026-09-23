@@ -121,6 +121,7 @@ export function Create() {
   const relayController = useRef<AbortController | null>(null);
   const relayStorageKey = `aqua:launch-relay:${config.network}:${wallet.address ?? "guest"}`;
   const [pending, setPending] = useState<PendingAction | null>(null);
+  const [savedLaunchId, setSavedLaunchId] = useState<string | null>(null);
   const [recoverableLaunch, setRecoverableLaunch] = useState<Launch | null>(null);
   const [completedLaunch, setCompletedLaunch] = useState<{ id: string; mint?: string; symbol: string; rewardMode: RewardMode } | null>(null);
 
@@ -301,7 +302,7 @@ export function Create() {
 
   function finishLaunch(launchId: string, mint?: string, identity?: Pick<LaunchRelayStatus, "symbol" | "rewardMode">) {
     try { localStorage.removeItem(relayStorageKey); } catch { /* Storage may be unavailable. */ }
-    setRelayMessage("");
+    setRelayMessage(""); setSavedLaunchId(null);
     setPending(null); setExecutionState("complete"); setExecutionOpen(false); setRecoverableLaunch(null);
     setCompletedLaunch({ id: launchId, mint, symbol: identity?.symbol || form.symbol, rewardMode: identity?.rewardMode ?? form.rewardMode });
     toast.success("AQUA market launched", { id: launchToastId, description: `$${identity?.symbol || form.symbol || "Your coin"} is live on Orca.` });
@@ -348,25 +349,13 @@ export function Create() {
     return state;
   }
 
-  // Save only the launch ID, never wallet signatures. A refresh reattaches to the job.
+  // Remember the launch without reattaching or recovering until Resume is pressed.
   useEffect(() => {
-    setExecutionOpen(false); setPending(null); setRelayMessage("");
-    if (!wallet.address) return;
-    const controller = new AbortController();
     relayController.current?.abort();
-    relayController.current = controller;
+    setExecutionOpen(false); setPending(null); setRelayMessage("");
     let saved: string | null = null;
-    try { saved = localStorage.getItem(relayStorageKey); } catch { /* Storage may be unavailable. */ }
-    if (saved) {
-      const id = saved;
-      setPending({ launchId: id, stage: "pool" });
-      setExecutionOpen(true); setExecutionState("running");
-      void observeRelay(id, controller).then(state => {
-        if (!controller.signal.aborted) finishLaunch(id, state.mint, state);
-      }).catch(error => {
-        if (!controller.signal.aborted) showLaunchError(error, "Could not restore launch status.");
-      });
-    }
+    try { if (wallet.address) saved = localStorage.getItem(relayStorageKey); } catch { /* Storage may be unavailable. */ }
+    setSavedLaunchId(saved);
     return () => { relayController.current?.abort(); toast.dismiss(launchToastId); };
   }, [relayStorageKey]);
 
@@ -509,30 +498,32 @@ export function Create() {
   }
 
   async function resumeExistingLaunch() {
-    if (!recoverableLaunch || !wallet.address) return;
-    if (launching) return;
+    if (!wallet.address || launching) return;
+    if (pending) { await retryLaunch(); return; }
+    const launchId = recoverableLaunch?.id ?? savedLaunchId;
+    if (!launchId) return;
     setExecutionOpen(true); setExecutionState("running"); setPending(null);
     showLaunchStatus("Resuming launch", "AQUA is checking confirmed steps and preparing what remains.");
     try {
-      if (await attachExistingRelay(recoverableLaunch.id)) return;
-      const fresh = await api.retryLaunchTransaction(recoverableLaunch.id, wallet.address);
+      if (await attachExistingRelay(launchId)) return;
+      const fresh = await api.retryLaunchTransaction(launchId, wallet.address);
       const restored = initialProgress();
       restored.approval = "done"; restored.mint = "done";
       if (fresh.status === "live") {
-        restored.pool = "done"; restored.liquidity = "done"; restored.lock = "done"; setProgress(restored); finishLaunch(recoverableLaunch.id, recoverableLaunch.mint); return;
+        restored.pool = "done"; restored.liquidity = "done"; restored.lock = "done"; setProgress(restored); finishLaunch(launchId, recoverableLaunch?.mint); return;
       }
       if (fresh.batch?.length) {
         const first = fresh.batch[0]?.step;
         if (first === "liquidity" || first === "lock") restored.pool = "done";
         if (first === "lock") restored.liquidity = "done";
         setProgress(restored);
-        await executeLaunchBatch(recoverableLaunch.id, fresh.batch);
+        await executeLaunchBatch(launchId, fresh.batch);
       } else {
         if (!fresh.step || !isEnvelope(fresh)) throw new Error("The backend returned an incomplete recovery step.");
         if (fresh.step === "liquidity" || fresh.step === "lock") restored.pool = "done";
         if (fresh.step === "lock") restored.liquidity = "done";
         setProgress(restored);
-        await continueLaunch({ envelope: fresh, stage: fresh.step, launchId: recoverableLaunch.id });
+        await continueLaunch({ envelope: fresh, stage: fresh.step, launchId: launchId });
       }
       setRecoverableLaunch(null);
     } catch (error) {
@@ -576,7 +567,7 @@ export function Create() {
     {!launching && !completedLaunch && <div className="at-launch-entry"><span><strong>Start with Atlantis Studio.</strong> Create your artwork, website and launch draft in one place.</span><Link to="/studio">Open Studio ↗</Link></div>}
     {studioImportMessage && <div className="at-import-notice" role="status">{studioImportMessage}</div>}
     <PageBubbles count={22}/>
-    {recoverableLaunch && !launching && !completedLaunch && <section className="launch-resume-banner"><span className="resume-coin-bubble"><TokenMark launch={recoverableLaunch}/></span><div><b>Continue ${recoverableLaunch.symbol}</b><small>A previous launch has a confirmed on-chain step waiting to continue.</small></div><button onClick={() => void resumeExistingLaunch()}><span className="resume-button-current" aria-hidden="true"/><span>Resume launch</span><ArrowRight/></button></section>}
+    {(pending || recoverableLaunch || savedLaunchId) && !launching && !completedLaunch && <section className="launch-resume-banner">{recoverableLaunch && (!pending || pending.launchId === recoverableLaunch.id) && <span className="resume-coin-bubble"><TokenMark launch={recoverableLaunch}/></span>}<div><b>{pending ? `Continue $${form.symbol || "your coin"}` : recoverableLaunch ? `Continue $${recoverableLaunch.symbol}` : "Continue your previous launch"}</b><small>Resume when you’re ready to continue this launch.</small></div><button onClick={() => void resumeExistingLaunch()}><span className="resume-button-current" aria-hidden="true"/><span>Resume launch</span><ArrowRight/></button></section>}
     <section className={`wizard-shell ${launching ? "is-launching" : ""}`}>
       <div className="wizard-caustics" aria-hidden="true"/>
       {launching && <div className="wizard-launching-screen" role="status" aria-live="polite" aria-label={`Launching ${form.symbol}`}>
@@ -677,7 +668,7 @@ export function Create() {
           </div>}
           <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} · {form.rewardMode === "holder_rewards" ? "Holder Rewards" : form.rewardMode === "buyback_burn" ? "Buyback & Burn" : "Hourly Jackpot"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
           <label className="terms-acceptance"><input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)}/><span>I have read and agree to the <Link to="/terms" target="_blank">Terms of Service</Link>, including the cryptoasset, permanent-liquidity and third-party risks.</span></label>
-          <button className="wizard-launch-button" onClick={() => void (pending ? retryLaunch() : beginLaunch())} disabled={!validForStep.every(Boolean) || launching || !acceptedTerms} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
+          <button className="wizard-launch-button" onClick={() => void beginLaunch()} disabled={!validForStep.every(Boolean) || launching || !acceptedTerms} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
         </WizardSection>}
 
         <footer className="wizard-actions"><button className="wizard-back" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ArrowLeft/> Back</button>{step < wizardSteps.length - 1 && <button className="wizard-next" onClick={nextStep} disabled={!validForStep[step]}>Continue <ArrowRight/></button>}</footer>
