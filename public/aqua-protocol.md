@@ -1,6 +1,6 @@
 # AQUA protocol overview
 
-Last updated: 15 September 2026
+Last updated: 23 September 2026
 
 AQUA is a non-custodial Solana token launchpad. It prepares wallet-approved transactions that create a Token-2022 mint, an Orca Whirlpool, opening concentrated liquidity and a permanent lock over the liquidity position. AQUA has no bonding curve and no separate escrow or reserve wallet holding launch supply.
 
@@ -15,10 +15,9 @@ The launch sequence is:
 1. Upload artwork and create permanent metadata.
 2. Create and initialise the Token-2022 mint.
 3. Create the Orca Whirlpool.
-4. Add the full planned token liquidity to the opening Orca position.
-5. Verify that the position is active.
-6. Permanently lock the liquidity position.
-7. Optionally perform a first buy.
+4. For an optional dev buy, prepare the empty position and fund the selected pair asset before opening trading.
+5. Activate the full planned liquidity and execute the dev buy in the same transaction. A failed buy rolls back activation. Launches without a dev buy add liquidity normally.
+6. Verify that the position is active and permanently lock it.
 
 A permanent position lock prevents the position NFT from being used to withdraw the opening liquidity through the normal owner path. It does not prevent trading, eliminate volatility or guarantee market depth.
 

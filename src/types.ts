@@ -508,20 +508,22 @@ export type CumulativeRewardClaimConfirmation = {
   stockDecimals: number;
 };
 
-export type LaunchBatchEnvelope = TransactionEnvelope & { step: "pool" | "liquidity" | "lock" };
+export type LaunchBatchEnvelope = TransactionEnvelope & { step: "pool" | "prepare" | "funding" | "liquidity" | "lock" };
 export type SignedTransactionEnvelope = LaunchBatchEnvelope & { signedTransactionBase64: string };
 export type LaunchRelayStatus = {
+  devBuyIncluded?: boolean;
+  devBuySignature?: string | null;
   launchId: string;
   batchHash: string | null;
   symbol: string;
   rewardMode: "holder_rewards" | "buyback_burn" | "jackpot";
   mint: string;
   status: "not_submitted" | "queued" | "running" | "needs_approval" | "complete";
-  step: "pool" | "liquidity" | "lock" | null;
+  step: "pool" | "prepare" | "funding" | "liquidity" | "lock" | null;
   error: string | null;
   rebuildRequired: boolean;
 };
-export type BatchStepValidation = { ready: true; step: "pool" | "liquidity" | "lock"; alreadyConfirmed?: boolean; confirmationRecorded?: boolean; signature?: string };
+export type BatchStepValidation = { ready: true; step: "pool" | "prepare" | "funding" | "liquidity" | "lock"; alreadyConfirmed?: boolean; confirmationRecorded?: boolean; signature?: string };
 
 export type LaunchIntentResponse = TransactionEnvelope & {
   launchId: string;
@@ -533,7 +535,7 @@ export type LaunchIntentResponse = TransactionEnvelope & {
 
 export type LaunchRetryResponse = Partial<TransactionEnvelope> & {
   launchId: string;
-  step?: "pool" | "liquidity" | "lock";
+  step?: "pool" | "prepare" | "funding" | "liquidity" | "lock";
   status?: "live";
   whirlpoolAddress?: string;
   positionMint?: string;
@@ -545,7 +547,7 @@ export type LaunchConfirmation = Partial<TransactionEnvelope> & {
   confirmed: true;
   launchId: string;
   completedStep?: "mint" | "pool" | "liquidity";
-  nextStep?: "pool" | "liquidity" | "lock";
+  nextStep?: "pool" | "prepare" | "funding" | "liquidity" | "lock";
   status?: "live";
   whirlpoolAddress?: string;
   positionMint?: string;

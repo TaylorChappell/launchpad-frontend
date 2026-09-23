@@ -1,3 +1,4 @@
+import { TransactionOutcomeError } from "../transaction-confirmation";
 import { pairCatalogPollDelay } from "../pair-catalog-refresh";
 import { handoffLaunchBatch, watchLaunchSubmission } from "../launch-relay";
 import { readLaunchDraft,saveLaunchDraft } from "../launch-draft";
@@ -28,7 +29,7 @@ type Form = {
   name: string; symbol: string; description: string; xUrl: string; websiteUrl: string;
   telegramUrl: string; devBuyCurrency: "SOL"; launchAmount: string; rewardMode: RewardMode;
 };
-type ChainStage = "mint" | "pool" | "liquidity" | "lock" | "devBuy";
+type ChainStage = "mint" | "pool" | "prepare" | "funding" | "liquidity" | "lock" | "devBuy";
 type ProgressKey = "approval" | ChainStage;
 type ProgressState = "waiting" | "active" | "done" | "error";
 type PendingAction = { launchId: string; stage: ChainStage; envelope?: TransactionEnvelope; signature?: string };
@@ -46,11 +47,13 @@ const chainSteps: Array<{ key: ProgressKey; label: string; detail: string }> = [
   { key: "approval", label: "Prepare launch", detail: "Store artwork and immutable metadata" },
   { key: "mint", label: "Create token", detail: "Wallet approval 1 of 2" },
   { key: "pool", label: "Approve Orca market", detail: "Wallet approval 2 signs the launch batch" },
-  { key: "liquidity", label: "Verify liquidity", detail: "Prove the opening position is active" },
+  { key: "prepare", label: "Prepare accounts", detail: "The pool is not tradable yet" },
+  { key: "funding", label: "Prepare buy funds", detail: "Convert SOL into the selected pair" },
+  { key: "liquidity", label: "Open the market", detail: "Activate liquidity and execute the dev buy together" },
   { key: "lock", label: "Lock liquidity", detail: "Permanently lock the verified position" },
-  { key: "devBuy", label: "Initial buy", detail: "Optional transaction after launch" },
+  { key: "devBuy", label: "Initial buy", detail: "Included in liquidity activation" },
 ];
-const initialProgress = (): Record<ProgressKey, ProgressState> => ({ approval: "waiting", mint: "waiting", pool: "waiting", liquidity: "waiting", lock: "waiting", devBuy: "waiting" });
+const initialProgress = (): Record<ProgressKey, ProgressState> => ({ approval: "waiting", mint: "waiting", pool: "waiting", prepare: "waiting", funding: "waiting", liquidity: "waiting", lock: "waiting", devBuy: "waiting" });
 const normaliseUrl = (value: string, prefix = "https://") => value.trim() ? (/^https?:\/\//i.test(value.trim()) ? value.trim() : `${prefix}${value.trim()}`) : null;
 const compactNumber = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
 const normaliseTelegram = (value: string) => {
@@ -388,7 +391,7 @@ export function Create() {
       setPending({ launchId: id, stage: activeStage });
       setStage(activeStage, "active");
       setRelayMessage("Approve the remaining launch transactions in your wallet.");
-      showLaunchStatus("Approve the Orca launch", "Review the market and liquidity transactions in your wallet.");
+      showLaunchStatus("Approve the Orca launch", batch.some(tx => tx.step === "prepare") ? "Review the launch and dev buy together. Trading opens when your buy executes." : "Review the market and liquidity transactions in your wallet.");
       const signedBatch = await wallet.signTransactionBatch(batch);
       controller.signal.throwIfAborted();
       try { localStorage.setItem(relayStorageKey, id); } catch { /* Storage may be unavailable. */ }
@@ -400,7 +403,8 @@ export function Create() {
       showLaunchStatus("Completing your launch", "AQUA is handling the transactions. This page no longer needs to stay connected.");
       const complete = accepted.status === "complete" ? accepted : await observeRelay(id, controller);
       controller.signal.throwIfAborted();
-      if (hasInitialBuy) {
+      if (complete.devBuyIncluded) setStage("devBuy", "done");
+      if (hasInitialBuy && !complete.devBuyIncluded) {
         try {
           setRelayMessage("Your coin is live. The optional first buy needs a separate wallet approval.");
           const plan = await api.launchDevBuyPlan(id, wallet.address!);
@@ -409,7 +413,7 @@ export function Create() {
           await executeDevBuyPlan(plan, controller.signal);
         } catch (error) {
           if (controller.signal.aborted) return;
-          toast.warning("Coin launched without the optional first buy", { description: error instanceof Error ? error.message : "The initial buy was not completed.", duration: 10_000 });
+          toast.warning(error instanceof TransactionOutcomeError && error.outcome === "pending" ? "Coin launched; buy confirmation pending" : "Coin launched; initial buy not completed", { description: error instanceof Error ? error.message : "The initial buy was not completed.", duration: 10_000 });
         }
       }
       finishLaunch(id, complete.mint, complete);
@@ -429,7 +433,10 @@ export function Create() {
       let signature = action.signature;
       if (!signature) {
         showLaunchStatus(action.stage === "mint" ? "Approve token creation" : "Approve transaction", "Review the request in your wallet to continue.");
-        signature = await wallet.sendTransaction(action.envelope);
+        signature = await wallet.sendTransaction(action.envelope, submitted => {
+          retryAction = { ...action, signature: submitted };
+          setPending(retryAction);
+        });
         retryAction = { ...action, signature };
         setPending(retryAction);
       }
@@ -447,7 +454,7 @@ export function Create() {
       if (confirmation.status === "live") {
         if (confirmation.devBuyPlan && hasInitialBuy) {
           try { await executeDevBuyPlan(confirmation); }
-          catch (error) { setStage("devBuy", "error"); toast.warning("Coin launched without the optional first buy", { description: error instanceof Error ? error.message : "The initial buy was not completed.", duration: 10_000 }); }
+          catch (error) { setStage("devBuy", "error"); toast.warning(error instanceof TransactionOutcomeError && error.outcome === "pending" ? "Coin launched; buy confirmation pending" : "Coin launched; initial buy not completed", { description: error instanceof Error ? error.message : "The initial buy was not completed.", duration: 10_000 }); }
         }
         if (confirmation.devBuyError) toast.warning("Coin launched without the optional first buy", { description: confirmation.devBuyError, duration: 10_000 });
         finishLaunch(action.launchId, confirmation.mint);
@@ -456,6 +463,9 @@ export function Create() {
       if (!confirmation.nextStep || !isEnvelope(confirmation)) throw new Error("The backend returned an incomplete launch step.");
       await continueLaunch({ envelope: confirmation, stage: confirmation.nextStep, launchId: action.launchId });
     } catch (error) {
+      if (error instanceof TransactionOutcomeError && error.outcome === "failed") {
+        retryAction = { ...action, signature: undefined };
+      }
       if (action.stage === "mint" && retryAction.signature) {
         setPending({ launchId: action.launchId, stage: "pool" });
         setStage("mint", "done"); setStage("pool", "error");
@@ -658,7 +668,7 @@ export function Create() {
           <button className="proposal-text-action" onClick={() => { setDexFundingEnabled(false); setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" }); setStep(devBuyStep); }}>Skip for now <ArrowRight/></button>
         </WizardSection>}
 
-        {step === devBuyStep && <WizardSection title="Optional dev buy" description="Enter an amount in SOL for your first buy. Leave it at zero to skip.">
+        {step === devBuyStep && <WizardSection title="Optional dev buy" description="Your buy executes as liquidity opens, before other buyers. Enter SOL or leave zero to skip.">
           <Field label={`Optional first buy in ${currencySymbol}`} wide><div className="unit-input launch-amount-input"><input inputMode="decimal" value={form.launchAmount} placeholder="0" onChange={(event) => update("launchAmount", event.target.value.replace(",", ".").replace(/[^0-9.]/g, ""))}/><span>{currencySymbol}</span></div></Field>
           {launchCost && <div className="launch-cost-card">
             <div><span><b>Estimated launch cost</b><small>before any optional first buy</small></span><strong>{launchCost.estimatedTotalSol.minimum.toFixed(2)}–{launchCost.estimatedTotalSol.maximum.toFixed(2)} SOL</strong></div>

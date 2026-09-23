@@ -1,3 +1,4 @@
+import { TransactionOutcomeError, waitForConfirmation } from "./transaction-confirmation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { SolanaClient } from "@metamask/connect-solana";
 import { toast } from "sonner";
@@ -88,7 +89,6 @@ type WalletValue = {
 const WalletContext = createContext<WalletValue | null>(null);
 const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const decodeBase64 = (value: string) => Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
-const wait = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 function friendlyWalletError(error: unknown) {
   const raw = error instanceof Error ? error.message : String(error);
@@ -107,24 +107,6 @@ function friendlyWalletError(error: unknown) {
   return "The wallet could not complete this transaction. Nothing was submitted.";
 }
 
-async function waitForConfirmation(connection: import("@solana/web3.js").Connection, signature: string, lastValidBlockHeight: number) {
-  for (;;) {
-    const [{ value }, blockHeight] = await Promise.all([
-      connection.getSignatureStatuses([signature], { searchTransactionHistory: true }),
-      connection.getBlockHeight("confirmed"),
-    ]);
-    const status = value[0];
-    if (status?.err) throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`);
-    if (status?.confirmationStatus === "confirmed" || status?.confirmationStatus === "finalized") return;
-    if (blockHeight > lastValidBlockHeight) {
-      const finalStatus = (await connection.getSignatureStatuses([signature], { searchTransactionHistory: true })).value[0];
-      if (finalStatus?.err) throw new Error(`Transaction failed: ${JSON.stringify(finalStatus.err)}`);
-      if (finalStatus?.confirmationStatus === "confirmed" || finalStatus?.confirmationStatus === "finalized") return;
-      throw new Error(`Signature ${signature} has expired: block height exceeded.`);
-    }
-    await wait(1_200);
-  }
-}
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const { config, loading: configLoading } = useRuntime();
@@ -334,7 +316,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       if (!adapter.current || !address) throw new Error("Connect your wallet first.");
       const [{ Connection, Transaction, VersionedTransaction }, { default: bs58 }] = await Promise.all([import("@solana/web3.js"), import("bs58")]);
-      const connection = new Connection(config.publicRpcUrl, "confirmed");
+      const connection = new Connection(config.publicRpcUrl, { commitment: "confirmed", disableRetryOnRateLimit: true, fetch: (url, options) => fetch(url, { ...options, signal: AbortSignal.timeout(15_000) }) });
       const bytes = decodeBase64(envelope.transactionBase64);
       let transaction: unknown;
       if (envelope.transactionVersion === 0) transaction = VersionedTransaction.deserialize(bytes);
@@ -367,7 +349,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       return signature;
     } catch (error) {
       console.error("AQUA wallet transaction failed", error);
-      if(submittedSignature)throw new Error("Transaction was submitted, but confirmation could not be completed. Check "+submittedSignature+" on the explorer before retrying.");
+      if (error instanceof TransactionOutcomeError) throw error;
+      if (submittedSignature) throw new TransactionOutcomeError(submittedSignature, "pending", "Transaction submitted. Confirmation is unavailable; check " + submittedSignature + " on the explorer before approving another transaction.");
       throw new Error(friendlyWalletError(error));
     }
   }, [address, config.network, config.publicRpcUrl]);
@@ -408,11 +391,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const submitSignedTransaction = useCallback(async (envelope: SignedTransactionEnvelope) => {
     try {
       const { Connection } = await import("@solana/web3.js");
-      const connection = new Connection(config.publicRpcUrl, "confirmed");
+      const connection = new Connection(config.publicRpcUrl, { commitment: "confirmed", disableRetryOnRateLimit: true, fetch: (url, options) => fetch(url, { ...options, signal: AbortSignal.timeout(15_000) }) });
       const signature = await connection.sendRawTransaction(decodeBase64(envelope.signedTransactionBase64), { maxRetries: 5, preflightCommitment: "confirmed" });
       await waitForConfirmation(connection, signature, envelope.lastValidBlockHeight);
       return signature;
     } catch (error) {
+      if (error instanceof TransactionOutcomeError) throw error;
       throw new Error(friendlyWalletError(error));
     }
   }, [config.publicRpcUrl]);
