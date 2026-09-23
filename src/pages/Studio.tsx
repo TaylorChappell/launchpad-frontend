@@ -699,6 +699,11 @@ function StudioWorkspace() {
   }
   async function applyJobChanges(job: StudioJob, automatic = false) {
     if (!project || job.project_id !== project.id) return;
+    if (automatic && job.result?.autoFillCA !== undefined && job.result.autoFillCA !== state?.autoFillCA) {
+      setReview(job);
+      setNotice("Review the website CA choice before applying it.");
+      return;
+    }
     if (automatic && (!autoApplyCurrent.current || dirty || job.revision !== project.revision)) {
       setReview(job);
       setNotice("Your project changed while Atlantis was working. Review the edits before applying them.");
@@ -1171,7 +1176,7 @@ function StudioWorkspace() {
       if (!selected) throw new Error("Export the backend to GitHub first.");
       const result = await request<{url:string}>(`/projects/${project.id}/railway`, {exportId:selected,token:railwayToken.trim(),variables});
       setRailwayUrl(result.url); setRailwayToken(""); setRailwayVariables("");
-      setNotice("Backend sent to Railway. Generate a public domain there, add it as API_BASE_URL in your frontend GitHub Variables, then run Publish website again.");
+      setNotice("Backend sent to Railway. Generate its public domain, paste it into Publish → Frontend variables → BACKEND_URL, then publish your website changes.");
     });
   }
   const actionDisabled = Boolean(busy);
@@ -1775,7 +1780,7 @@ function StudioWorkspace() {
                             </button>
                           </div>
                         ) : (
-                          <StudioSitePreview key={project?.id} files={state?.files ?? []} mobile={mobile}/>
+                          <StudioSitePreview key={project?.id} files={state?.files ?? []} variables={state?.frontendVariables} mobile={mobile}/>
                         )}
                       </div>
                       <div className="at-preview-footer">
@@ -2462,7 +2467,7 @@ function StudioWorkspace() {
               </div>
             </>
           ) : modal === "publish" && project ? (
-            <StudioPublish key={project.id} project={project} token={token} dirty={dirty} busy={actionDisabled} hasBackend={hasBackend} save={save} run={task}/>
+            <StudioPublish key={project.id} project={project} state={state ?? project.state} edit={edit} token={token} dirty={dirty} busy={actionDisabled} hasBackend={hasBackend} save={save} run={task}/>
           ) : modal === "export" ? (
             <>
               <p>

@@ -5,7 +5,7 @@ import { studioPreview } from "../studio-preview";
 import { studioPreviewPages, studioPreviewTarget } from "../studio-preview-paths";
 import type { PreviewStorage } from "../studio-preview-bridge";
 
-export function StudioSitePreview({files,mobile=false}:{files:StudioFile[];mobile?:boolean}) {
+export function StudioSitePreview({files,variables,mobile=false}:{files:StudioFile[];variables?:Record<string,string>;mobile?:boolean}) {
   const viewport=useRef<HTMLDivElement>(null);
   const [width,setWidth]=useState(0);
   useEffect(()=>{const element=viewport.current;if(!element)return;const observer=new ResizeObserver(entries=>setWidth(entries[0].contentRect.width));observer.observe(element);return()=>observer.disconnect();},[]);
@@ -23,8 +23,8 @@ export function StudioSitePreview({files,mobile=false}:{files:StudioFile[];mobil
   const location = current.location;
   const compiled = useMemo(() => {
     const issues:string[] = [];
-    return {html:studioPreview(files,current.path,{channel,location:current.path+current.search,storage:storage.current,onIssue:issue=>issues.push(issue)}),issues};
-  },[files,current.path,current.search,channel,reload]);
+    return {html:studioPreview(files,current.path,{variables,channel,location:current.path+current.search,storage:storage.current,onIssue:issue=>issues.push(issue)}),issues};
+  },[files,variables,current.path,current.search,channel,reload]);
   const scroll = useCallback(() => frame.current?.contentWindow?.postMessage({type:"aqua-preview-scroll",channel,hash:current.hash,location},"*"),[channel,current.hash,location]);
   useEffect(scroll,[scroll]);
   const move = useCallback((delta:number) => {

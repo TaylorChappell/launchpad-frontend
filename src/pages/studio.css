@@ -3090,3 +3090,11 @@
 .at-publish-confirm { padding-top: 12px; border-top: 1px solid #bedde8; }
 @media (max-width: 520px) { .at-publish-live { align-items: flex-start; flex-direction: column; } .at-publish-address { padding: 0 8px; } .at-publish-address span { font-size: 11px; } }
 @media (max-width: 760px) { .at-projectbar > div:last-child { flex-wrap: wrap; } }
+
+.at-public-variables { margin: 20px 0; padding: 16px; border: 1px solid #b7dce8; border-radius: 12px; min-width: 0; }
+.at-public-variables legend { padding: 0 6px; font-weight: 700; }
+.at-public-variables .at-field { margin: 12px 0; }
+.at-variable-add { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+.at-variable-add input { flex: 1; min-width: 120px; }
+.at-ca-choice { display: flex; align-items: flex-start; gap: 10px; margin-top: 20px; cursor: pointer; }
+.at-ca-choice input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 2px; accent-color: #087eae; }

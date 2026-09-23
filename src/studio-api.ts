@@ -27,12 +27,15 @@ export type StudioLaunch = {
 };
 export type StudioState = {
   name: string;
+  frontendVariables?: Record<string,string>;
+  autoFillCA?: boolean | null;
   launch: StudioLaunch;
   files: StudioFile[];
   folders: string[];
   lockedFields: Array<keyof StudioLaunch>;
 };
 export type StudioHosting = {
+  configurationSupported?: boolean;
   enabled: boolean;
   domain: string;
   prefix: string;
@@ -68,6 +71,8 @@ export type StudioJob = {
   created_at: number;
   result?: {
     message: string;
+    frontendVariables?: Record<string,string>;
+    autoFillCA?: boolean;
     launch?: Partial<StudioLaunch>;
     files: StudioFile[];
     deletePaths: string[];
