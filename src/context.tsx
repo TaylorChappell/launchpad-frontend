@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { api, API_URL } from "./api";
 import { ensureAccountSession, savedAccountSession, signInWithWallet, type WalletSignInInput, type WalletSignInOutput } from "./account-api";
 import { WalletSignInResponseError } from "./wallet-sign-in";
+import { getPhantomProvider, isMobileBrowser, phantomBrowseUrl } from "./phantom-mobile";
 import type { LaunchBatchEnvelope, RuntimeConfig, SignedTransactionEnvelope, TransactionEnvelope } from "./types";
 
 type PhantomProvider = {
@@ -27,6 +28,7 @@ type SolanaSignTransaction = { signTransaction: (...inputs: Array<{ account: Sol
 type WalletStandard = { accounts: readonly SolanaAccount[]; features: Record<string, unknown> };
 type MetaAdapter = { client: SolanaClient; wallet: WalletStandard; account: SolanaAccount };
 type Adapter = { kind: "phantom"; provider: PhantomProvider } | { kind: "metamask"; value: MetaAdapter };
+const readPhantomProvider = () => getPhantomProvider(window as Window & { phantom?: { solana?: PhantomProvider }; solana?: PhantomProvider });
 
 const fallback: RuntimeConfig = {
   brand: "AQUA",
@@ -136,7 +138,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const remember = (value: "phantom" | "metamask" | null) => {
     try { if (value) localStorage.setItem("aqua:wallet", value); else localStorage.removeItem("aqua:wallet"); } catch { /* Private browsing may disable storage. */ }
   };
-  const phantomInstalled = typeof window !== "undefined" && Boolean((window as Window & { phantom?: { solana?: PhantomProvider } }).phantom?.solana?.isPhantom);
+  const [phantomInstalled, setPhantomInstalled] = useState(() => typeof window !== "undefined" && Boolean(readPhantomProvider()));
+  useEffect(() => {
+    const detect = () => setPhantomInstalled(Boolean(readPhantomProvider()));
+    detect();
+    // Mobile browsers can inject the provider after the page has rendered.
+    const timer = window.setInterval(detect, 250);
+    const stop = window.setTimeout(() => window.clearInterval(timer), 10_000);
+    window.addEventListener("focus", detect);
+    window.addEventListener("pageshow", detect);
+    return () => { window.clearInterval(timer); window.clearTimeout(stop); window.removeEventListener("focus", detect); window.removeEventListener("pageshow", detect); };
+  }, [modalOpen]);
 
   const connectWallet = useCallback(async (next: "phantom" | "metamask", silent = false) => {
     const attempt = ++connectionAttempt.current;
@@ -144,8 +156,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setConnecting(next);
     try {
       if (next === "phantom") {
-        const provider = (window as Window & { phantom?: { solana?: PhantomProvider } }).phantom?.solana;
+        const provider = readPhantomProvider();
         if (!provider?.isPhantom) {
+          if (!silent && isMobileBrowser()) {
+            window.location.assign(phantomBrowseUrl(window.location.href));
+            return;
+          }
           if (!silent) window.open("https://phantom.com/download", "_blank", "noopener,noreferrer");
           throw new Error("Phantom is not installed.");
         }
@@ -162,7 +178,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           return connectedAddress;
         };
         let connectedAddress: string;
-        if (!silent && provider.signIn && !savedAccountSession(provider.publicKey?.toString() ?? null)) {
+        if (!silent && !isMobileBrowser() && provider.signIn && !savedAccountSession(provider.publicKey?.toString() ?? null)) {
           try {
             const account = await signInWithWallet(input => provider.signIn!(input), isCurrent);
             connectedAddress = account.address;

@@ -12,6 +12,7 @@ async function setup(page: Page, restored = false, authenticated = false, signIn
       connect: async () => ({ publicKey: { toString: () => address } }), on() {}, removeListener() {},
       signIn: async () => {
         calls.signIn++;
+        if (signInShape === "mobile-broken") throw new TypeError("Cannot read properties of undefined (reading 'address')");
         if (signInShape === "rejected") throw new Error("User rejected the request");
         if (signInShape === "undefined") return undefined;
         if (signInShape === "malformed" || signInShape === "fallback-rejected") return {};
@@ -24,7 +25,7 @@ async function setup(page: Page, restored = false, authenticated = false, signIn
       signMessage: async (message: Uint8Array) => {
         calls.signMessage++;
         if (signInShape === "fallback-rejected") throw new Error("User rejected the login signature");
-        if (["malformed", "undefined"].includes(signInShape) && new TextDecoder().decode(message) === "Fresh fallback proof") return { signature: new Uint8Array(64) };
+        if ((/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || ["malformed", "undefined"].includes(signInShape)) && new TextDecoder().decode(message) === "Fresh fallback proof") return { signature: new Uint8Array(64) };
         throw new Error("Unexpected message-signing request");
       },
     } } });
@@ -77,7 +78,7 @@ async function setup(page: Page, restored = false, authenticated = false, signIn
   return posts;
 }
 
-for (const shape of ["standard", "injected", "array", "address", "malformed", "undefined"]) test(`one wallet connection signs in with ${shape} response, then comments post without another wallet prompt`, async ({ page }) => {
+for (const shape of ["standard", "injected", "array", "address", "malformed", "undefined"]) test(`one wallet connection signs in with ${shape} response, then comments post without another wallet prompt`, async ({ page }, testInfo) => {
   const posts = await setup(page, false, false, shape);
   await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
   await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
@@ -88,10 +89,11 @@ for (const shape of ["standard", "injected", "array", "address", "malformed", "u
     await expect(page.locator(".market-comment-feed").getByText(body, { exact: true })).toBeVisible();
   }
   expect(posts).toEqual(["First comment", "Second comment"]);
-  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 1, signMessage: ["malformed", "undefined"].includes(shape) ? 1 : 0 });
+  const mobile = testInfo.project.name === "mobile";
+  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: mobile ? 0 : 1, signMessage: mobile || ["malformed", "undefined"].includes(shape) ? 1 : 0 });
 });
 
-test("rejecting the fallback login leaves the wallet unauthenticated", async ({ page }) => {
+test("rejecting the fallback login leaves the wallet unauthenticated", async ({ page }, testInfo) => {
   await setup(page, false, false, "fallback-rejected");
   let sessionRequests = 0;
   await page.route("**/account/auth/session", r => { sessionRequests++; return r.fulfill({ status: 400, json: { error: "Unexpected session request" } }); });
@@ -100,7 +102,7 @@ test("rejecting the fallback login leaves the wallet unauthenticated", async ({ 
   await expect(page.getByText("User rejected the login signature")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Connect your wallet" })).toBeVisible();
   expect(sessionRequests).toBe(0);
-  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 1, signMessage: 1 });
+  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: testInfo.project.name === "mobile" ? 0 : 1, signMessage: 1 });
   expect(await page.evaluate(address => localStorage.getItem(`aqua:studio:${address}`), address)).toBeNull();
 });
 
@@ -117,7 +119,8 @@ test("fallback requires a server-verified proof before creating an authenticated
   expect(await page.evaluate(address => localStorage.getItem(`aqua:studio:${address}`), address)).toBeNull();
 });
 
-for (const failure of ["rejected", "server"]) test(`a ${failure} sign-in does not open a fallback signing prompt`, async ({ page }) => {
+for (const failure of ["rejected", "server"]) test(`a ${failure} sign-in does not open a fallback signing prompt`, async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "mobile", "Mobile uses connect and verified message authentication, not signIn.");
   await setup(page, false, false, failure === "rejected" ? "rejected" : "standard");
   const message = failure === "rejected" ? "User rejected the request" : "Invalid wallet proof";
   if (failure === "server") await page.route("**/account/auth/sign-in/session", r => r.fulfill({ status: 401, json: { error: message } }));
@@ -126,6 +129,24 @@ for (const failure of ["rejected", "server"]) test(`a ${failure} sign-in does no
   await expect(page.getByText(message)).toBeVisible();
   expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 1, signMessage: 0 });
   expect(await page.evaluate(address => localStorage.getItem(`aqua:studio:${address}`), address)).toBeNull();
+});
+
+for (const android of [false, true]) for (const legacy of [false, true]) test(`${android ? "Android" : "iPhone"} login bypasses broken signIn with ${legacy ? "legacy" : "namespaced"} Phantom`, async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "Mobile authentication path.");
+  if (android) await page.addInitScript(() => Object.defineProperty(navigator, "userAgent", {value:"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36"}));
+  const posts = await setup(page, false, false, "mobile-broken");
+  if (legacy) await page.evaluate(() => {
+    (window as any).solana = (window as any).phantom.solana;
+    delete (window as any).phantom;
+  });
+  await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
+  await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
+  await expect(page.getByRole("dialog", { name: "Connect your wallet" })).toHaveCount(0);
+  await page.getByLabel("Your comment", { exact: true }).fill("Signed in on my phone");
+  await page.getByRole("button", { name: "Post comment", exact: true }).click();
+  await expect(page.locator(".market-comment-feed")).toContainText("Signed in on my phone");
+  expect(posts).toEqual(["Signed in on my phone"]);
+  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 0, signMessage: 1 });
 });
 
 test("a restored session can comment without signing in again", async ({ page }) => {
