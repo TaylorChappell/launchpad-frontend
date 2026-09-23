@@ -1,7 +1,7 @@
 import { useXFeature } from "../x-identity";
 import { useMemo, useState } from "react";
 import { Check, ChevronRight, Clipboard, Code2, ExternalLink, Radio, ShieldCheck, Webhook } from "lucide-react";
-import { API_URL } from "../api";
+import { AQUA_PUBLIC_API_ORIGIN as API_URL, LEGACY_PUBLIC_API_ORIGIN } from "../api-origin";
 import { AquaMark } from "../components/AquaMark";
 
 const endpoints = [
@@ -77,6 +77,7 @@ export function Developers() {
           <span className="dev-kicker"><Code2/>QUICKSTART</span><h2>A stable, indexed API</h2>
           <p>The AQUA API serves normalized data from AQUA’s indexers. Responses use JSON, event <code>created</code> timestamps are Unix milliseconds, scheduled round boundaries are Unix seconds, raw token quantities are strings, and monetary values are returned in human-readable units.</p>
           <div className="dev-code"><header><span>Request</span><CopyButton value={curlExample}/></header><pre><code>{curlExample}</code></pre></div>
+          <p>Use <code>{API_URL}/v1</code> for new integrations. The previous <code>{LEGACY_PUBLIC_API_ORIGIN}/v1</code> address remains supported. Public data reads work directly from browsers, including Atlantis websites.</p>
           <div className="dev-callout"><ShieldCheck/><div><b>Read-only by design</b><span>The public API does not expose keeper, admin or transaction-signing routes. Public reads need no account. Managing webhooks requires a wallet-authenticated AQUA session.</span></div></div>
         </section>
 

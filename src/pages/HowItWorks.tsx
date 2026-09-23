@@ -25,6 +25,8 @@ import { PageBubbles } from "../components/PageBubbles";
 import { DexScreenerIcon } from "../components/DexScreenerIcon";
 import { RewardModeIcon } from "../components/RewardModeIcon";
 import { useRuntime } from "../context";
+import { usePromotion } from "../usePromotion";
+import { AQUA_PUBLIC_API_ORIGIN } from "../api-origin";
 
 const navigation = [
   {
@@ -32,12 +34,14 @@ const navigation = [
     items: [
       ["what-is-aqua", "What AQUA is"],
       ["onchain", "What is on chain"],
+      ["wallets", "Connecting your wallet"],
     ],
   },
   {
     label: "Launching",
     items: [
       ["launch-flow", "What a launch creates"],
+      ["launch-recovery", "Interrupted launches"],
       ["liquidity", "How liquidity works"],
       ["launch-cost", "What launching costs"],
       ["pair-choice", "Pairs and first buys"],
@@ -47,6 +51,7 @@ const navigation = [
     label: "Atlantis Studio",
     items: [
       ["atlantis-studio", "Building with Atlantis"],
+      ["website-publishing", "Publishing and variables"],
     ],
   },
   {
@@ -64,8 +69,14 @@ const navigation = [
     items: [
       ["dex-funding", "DEX Funding Mode"],
       ["market-proposals", "Proposals and voting"],
+      ["dex-boosts", "DEX boost polls"],
+      ["automatic-funds", "Automatic momentum funds"],
       ["community-takeovers", "Community takeovers"],
     ],
+  },
+  {
+    label: "Community",
+    items: [["community", "Chat, updates and polls"]],
   },
   {
     label: "Creators",
@@ -77,6 +88,7 @@ const navigation = [
   {
     label: "Reference",
     items: [
+      ["public-api", "Building with the API"],
       ["numbers", "The fixed numbers"],
       ["accounts", "Programs and accounts"],
       ["risks", "Limits and risks"],
@@ -96,6 +108,7 @@ const solscanAccount = (address: string, useTestnet: boolean) =>
 
 export function HowItWorks() {
   const { config } = useRuntime();
+  const { promotion, active: freeStudio } = usePromotion();
   const launch = config.launchEconomics;
   const reward = config.rewardDistribution;
   const maximumAllocation = config.fees.platformAllocationAtMaximumCreatorScore ?? {
@@ -127,7 +140,7 @@ export function HowItWorks() {
 
     <section className="aqua-docs-hero" id="protocol-reference">
       <h1>How AQUA<br/><span>actually works.</span></h1>
-      <p>A detailed guide to launching, liquidity, trading fees, holder rewards, market governance and creator incentives. AQUA creates markets directly on Orca without a bonding curve or a separate token reserve.</p>
+      <p>A guide to launching, rewards, community, DEX funding and building with Atlantis. AQUA creates markets directly on Orca without a bonding curve or a separate token reserve.</p>
       <div className="aqua-docs-actions">
         <Link className="primary" to="/create">Launch a coin <ArrowRight size={17}/></Link>
         <button className="secondary-button" onClick={() => scrollTo("launch-flow")}>Read the launch flow</button>
@@ -155,7 +168,7 @@ export function HowItWorks() {
 
       <article className="aqua-docs-content">
         <DocSection id="what-is-aqua" eyebrow="THE PROTOCOL" title="What AQUA is">
-          <p className="lead">AQUA is a holder-first token launchpad built around direct Orca Whirlpool markets. A creator launches a fixed-supply Token-2022 coin, chooses SOL or an approved tokenized stock as its pair, and that same pair asset becomes the holder reward.</p>
+          <p className="lead">AQUA is a holder-first token launchpad built around direct Orca Whirlpool markets. A creator launches a fixed-supply Token-2022 coin, chooses SOL, a supported tokenized stock or an eligible custom token as its pair, and that same pair asset becomes the holder reward.</p>
           <p>There is no AQUA bonding curve, virtual reserve or off-chain sale inventory. Trading starts in a real Orca pool. The AQUA program validates the launch settings, records the market and controls fee allocation, while Orca executes swaps and holds the pool vaults.</p>
           <div className="aqua-docs-principles">
             <Principle icon={<Waves/>} title="Direct market" text="The coin launches into an Orca Whirlpool instead of moving through a separate AQUA curve."/>
@@ -178,8 +191,13 @@ export function HowItWorks() {
           </div>
         </DocSection>
 
+        <DocSection id="wallets" eyebrow="THE PROTOCOL" title="Connect the wallet that holds your coins">
+          <p>Choose Phantom, MetaMask or Solflare. Use the same Solana account you used to buy the coin; a different account has a different balance. Connecting lets AQUA read your public address. Signing in proves ownership, and transactions need a separate wallet approval.</p>
+          <p>On a phone, the Phantom connection can open its app to complete the connection. Return to AQUA when prompted. Keep some SOL in the connected account for transaction fees and any account rent, even when your rewards are another token.</p>
+        </DocSection>
+
         <DocSection id="launch-flow" eyebrow="LAUNCHING" title="What a launch creates">
-          <p>A launch is completed in two wallet approvals. The first transaction creates the mint, installs the fixed Token-2022 transfer fee, writes metadata, creates the AQUA market accounts and mints the fixed supply. The second approval creates and funds the Orca position, then permanently locks it.</p>
+          <p>The launch wizard prepares the required transactions and asks your wallet to approve them. They create the mint and fixed Token-2022 fee, write metadata, register the AQUA market, fund the Orca position and permanently lock liquidity. The number of approvals can vary with the pair, wallet and optional first buy.</p>
           <div className="aqua-docs-timeline">
             <TimelineStep number="01" title="Create the asset" text={"A " + totalSupply + " token supply with " + tokenDecimals + " decimals is created. The mint authority is removed after minting."}/>
             <TimelineStep number="02" title="Register the market" text="The AQUA program validates the pair, fee settings and Orca configuration, then creates the market and fee vault PDAs."/>
@@ -189,6 +207,11 @@ export function HowItWorks() {
           <Callout title="Why the creator wallet may briefly show the supply">
             The launch uses multiple signed transactions. The newly minted inventory can temporarily sit in the creator’s token account between approvals before it is moved into Orca. That temporary hand-off is not a creator allocation. If the flow is interrupted, AQUA keeps the launch pending instead of presenting it as live.
           </Callout>
+        </DocSection>
+
+        <DocSection id="launch-recovery" eyebrow="LAUNCHING" title="If a launch is interrupted">
+          <p>Loading a saved draft does not submit or resume a launch. Press <strong>Resume launch</strong> when you want AQUA to check the existing on-chain progress and prepare the remaining steps. Refreshing the page does not approve transactions.</p>
+          <p>A partial launch can already have a mint, so starting over is not an automatic rollback. AQUA keeps it pending until the required launch and lock checks pass. If confirmation is delayed, check the transaction status before retrying.</p>
         </DocSection>
 
         <DocSection id="liquidity" eyebrow="LAUNCHING" title="How the 100% liquidity model works">
@@ -225,12 +248,13 @@ export function HowItWorks() {
         </DocSection>
 
         <DocSection id="pair-choice" eyebrow="LAUNCHING" title="Pairs, rewards and first buys">
-          <p>The creator chooses either SOL or a supported xStock. That selection has two permanent jobs: it is the asset the coin trades against in Orca, and it is the asset holder rewards are funded in.</p>
+          <p>The creator chooses SOL, a supported xStock or an eligible custom pair when custom pairs are enabled. That selection has two permanent jobs: it is the asset the coin trades against in Orca, and it is the asset holder rewards are funded in.</p>
           <table className="aqua-docs-table">
             <thead><tr><th>Choice</th><th>What the market trades against</th><th>What holders earn</th></tr></thead>
             <tbody>
               <tr><td>SOL</td><td>The launch token trades against wrapped SOL inside Orca.</td><td>The SOL pair asset.</td></tr>
               <tr><td>Supported xStock</td><td>The launch token trades directly against that approved tokenized stock.</td><td>The same selected xStock.</td></tr>
+              <tr><td>Eligible custom pair</td><td>A token accepted by the custom-pair lookup and launch checks.</td><td>The selected pair token, subject to its transfer rules.</td></tr>
             </tbody>
           </table>
           <p>xStocks must have a live, supported Orca market and the required Orca TokenBadge. The eligibility checks reduce broken launches, but they do not remove market, issuer, liquidity or transfer restrictions.</p>
@@ -246,6 +270,10 @@ export function HowItWorks() {
             <Principle icon={<Gamepad2/>} title="Apps and mini-games" text="Build interactive community tools, lightweight games and meme generators when the idea calls for them."/>
             <Principle icon={<ImageIcon/>} title="Artwork and assets" text="Develop the token identity, imagery and shareable assets in the same project as the code."/>
           </div>
+          <h3>A short survey, tailored to your idea</h3>
+          <p>For websites and artwork, Atlantis can ask a few multiple-choice questions about unresolved details such as style, animation or how a feature should work. Each question includes a custom answer. Turn on <strong>Skip survey</strong> to let it work from your brief, or skip a single survey. Clear requests can proceed without questions.</p>
+          <h3>Your builder budget</h3>
+          {freeStudio ? <p>Atlantis is currently free with a <strong>${promotion?.allowanceUsd ?? 10} total AI budget per wallet</strong>, shared across projects. Actual generation usage reduces the balance; unused reservations are released. This is not a daily allowance, and deleting a project does not reset it. You can still edit and export after the budget is used.</p> : <p>When free builder access is enabled, each wallet has a $10 total AI budget shared across its projects. Check the current budget or credit balance in Studio before generating; availability follows the service’s current billing settings.</p>}
           <p>Atlantis adds a backend only when the project genuinely needs one. When it does, the Studio provides separate frontend and backend exports with short setup steps and the required environment variables. Simpler details such as a token address stay in the frontend configuration.</p>
           <Callout title="You remain in control of edits">
             Atlantis can list proposed file changes before applying them, or you can enable automatic application for the current project. Every project remains linked to the wallet that created it and can be exported for independent hosting.
@@ -253,6 +281,16 @@ export function HowItWorks() {
           <div className="aqua-docs-actions atlantis-docs-action">
             <Link className="primary" to="/studio">Open Atlantis Studio <PanelsTopLeft size={17}/></Link>
           </div>
+        </DocSection>
+
+        <DocSection id="website-publishing" eyebrow="ATLANTIS STUDIO" title="Publish when your website is ready">
+          <p>Use <strong>Publish</strong> to choose an available website address on aquafamily.fun. Edits stay private until published. If a publish fails, the previous published version stays in place. Frontend and backend exports are also available for independent hosting.</p>
+          <div className="aqua-docs-definition">
+            <div><b>Variables</b><span>Open the separate Variables menu to set the token CA, your deployed backend URL and other public values. These values are visible to site visitors, so never store private keys or secrets there.</span></div>
+            <div><b>Fill on launch</b><span>This is an explicit per-project choice. When enabled, a confirmed launch from that project fills connected CA fields and trading links and queues the hosted website update. Without consent, the manual CA stays under your control.</span></div>
+            <div><b>Connected fields</b><span>Older hardcoded addresses need to be connected in Atlantis first. A failed website update can be retried through Publish; launching a coin and publishing a website have separate statuses.</span></div>
+          </div>
+          <p>Atlantis can suggest known public variable values and provide an <strong>Open variables</strong> link in the conversation. A custom backend must be deployed before its URL will work. AQUA market-data integrations use the public AQUA API and do not require your own backend.</p>
         </DocSection>
 
         <DocSection id="trading-fees" eyebrow="FEES AND REWARDS" title={"The " + formatBps(config.fees.transferFeeBps) + " SOL-settled fee"}>
@@ -348,17 +386,18 @@ export function HowItWorks() {
         </DocSection>
 
         <DocSection id="market-proposals" eyebrow="MARKET GOVERNANCE" title="Who can propose, vote and update DEX details">
-          <p>Every holder-created proposal requires the connected wallet to currently own at least <strong>0.5% of that coin’s total supply</strong>. This applies to Fund Dex, Update Dex and Community Takeover proposals, including proposals created by the original developer. The button stays disabled below the threshold and shows the wallet’s current percentage.</p>
+          <p>Every holder-created proposal requires the connected wallet to currently own at least <strong>0.5% of that coin’s total supply</strong>. This applies to Fund Dex, DEX Boost, Update Dex and Community Takeover proposals, including proposals created by the original developer. The button stays disabled below the threshold and shows the wallet’s current percentage.</p>
           <p>Voting uses a separate eligibility check. A wallet needs at least 0.1% in both current and time-weighted holdings, preventing a brief last-second balance from carrying the same influence as a sustained holder.</p>
           <table className="aqua-docs-table">
             <thead><tr><th>Proposal</th><th>What holders approve</th><th>Normal vote rules</th></tr></thead>
             <tbody>
               <tr><td>Fund Dex</td><td>The funding campaign and exact first profile details.</td><td>15 minutes · More than 50% of voting power cast</td></tr>
+              <tr><td>DEX Boost</td><td>5%, 10%, 20% of incoming market rewards, or No.</td><td>15 minutes · Highest eligible voting weight wins</td></tr>
               <tr><td>Update Dex</td><td>A replacement description, banner and set of public links.</td><td>15 minutes · More than 50% of voting power cast</td></tr>
               <tr><td>Community Takeover</td><td>A named community lead, new developer wallet, evidence and transition plan.</td><td>24 hours · More than 50% of voting power cast</td></tr>
             </tbody>
           </table>
-          <p>All proposal votes use the eligible voting power actually cast, weighted by holdings and held time. There is no minimum turnout or supply participation requirement. Voting stays open for the full period; ties and no votes do not pass.</p>
+          <p>All proposal votes use the eligible voting power actually cast, weighted by holdings and held time. There is no minimum turnout or supply participation requirement. Voting stays open for the full period. Yes/no ties and no turnout do not pass. Boost polls use the option with the highest weight: a tied No wins, otherwise the lower tied funding percentage wins.</p>
           <h3>What an approved Update Dex proposal does</h3>
           <div className="aqua-docs-flow">
             <FlowCard icon={<DexScreenerIcon/>} label="Funding in progress" title="Replace the campaign details" text="The SOL already raised remains reserved. Spending pauses during the vote, then the approved profile replaces the prior details without restarting funding."/>
@@ -368,6 +407,33 @@ export function HowItWorks() {
             <FlowCard icon={<DexScreenerIcon/>} label="Externally controlled" title="Fund a profile takeover" text="If the profile is paid but AQUA cannot edit it, the approved change opens a $200 DEX Screener community-takeover funding route."/>
           </div>
           <p>Fund Dex, Update Dex and Community Takeover are separate proposal types, so different types can be active at the same time. A market cannot open a duplicate active Fund Dex or Update Dex proposal while one of the same type is already being processed.</p>
+        </DocSection>
+
+        <DocSection id="dex-boosts" eyebrow="MARKET GOVERNANCE" title="Fund a DEX boost together">
+          <p>A paid DEX profile is required before a boost can be funded. Eligible holders choose <strong>5%, 10%, 20% or No</strong>. An approved campaign reserves that percentage of incoming market rewards for one hour; the remaining share continues through the selected reward mode. These percentages apply to the reward stream, not total trading volume.</p>
+          <p>At the end, AQUA selects the largest pack the reserve can afford and releases unused SOL to holder rewards. If no pack is affordable, the whole reserve returns to holders. A funded campaign still needs external purchase and fulfillment; it is not marked delivered just because funding ended.</p>
+          <table className="aqua-docs-table">
+            <thead><tr><th>Boost pack</th><th>Configured price</th><th>Duration</th></tr></thead>
+            <tbody>
+              <tr><td>10×</td><td>$99</td><td>12 hours</td></tr>
+              <tr><td>30×</td><td>$249</td><td>12 hours</td></tr>
+              <tr><td>50×</td><td>$399</td><td>12 hours</td></tr>
+              <tr><td>100×</td><td>$899</td><td>24 hours</td></tr>
+              <tr><td>500×</td><td>$3,999</td><td>24 hours</td></tr>
+            </tbody>
+          </table>
+          <p>The reserve is held in SOL, so its dollar value can change. Before spending, AQUA checks affordability again and can reduce the pack instead of taking extra rewards. The campaign tracks funding, purchase and completion separately.</p>
+        </DocSection>
+
+        <DocSection id="automatic-funds" eyebrow="MARKET GOVERNANCE" title="Use market momentum to fund visibility">
+          <p>When verified trading activity picks up, AQUA can start a small automatic fund. The signal checks recent volume, distinct traders, sustained activity and fresh indexed data against the earlier baseline. A single trade is not enough.</p>
+          <div className="aqua-docs-definition">
+            <div><b>DEX profile unpaid: 10%</b><span>A mini DEX profile fund reserves 10% of incoming market rewards while activity qualifies, toward the $300 target. It expires after 24 hours and returns the reserve to holders if the target is not met.</span></div>
+            <div><b>DEX profile paid: 5%</b><span>A mini boost fund reserves 5% for at most one hour. It closes earlier when activity stays below the required level for five minutes. Under $100 at closing, all funds return to holders; from $100, it selects the largest affordable pack and returns the excess.</span></div>
+            <div><b>Holder votes still matter</b><span>A successful DEX funding vote carries the saved amount into the 80% campaign. A successful boost poll carries the mini fund into the chosen percentage without resetting its original one-hour deadline. An explicit winning No stops the unspent automatic fund and releases its reserve.</span></div>
+          </div>
+          <p>Automatic mini boosts are available to all eligible coins, including AQUA itself. AQUA does not have the regular holder-created market proposals or an automatic DEX profile fund. A boost always requires a verified paid DEX profile.</p>
+          <p>If an automatic profile fund reaches its goal without submitted details, Team AQUA can prepare the profile. Later changes use the Update Dex process. Cooldowns and activity checks limit repeated campaigns; profile funding takes priority over boost funding.</p>
         </DocSection>
 
         <DocSection id="community-takeovers" eyebrow="MARKET GOVERNANCE" title="How community takeovers work">
@@ -382,6 +448,16 @@ export function HowItWorks() {
             Approval does not silently rewrite a wallet address in the database. AQUA records the holder decision, then wallet authority and fee destinations change only after the required on-chain execution is verified.
           </Callout>
           <p>Rejected DEX proposals are removed from the active market interface instead of leaving a permanent rejected panel. Completed DEX funding is shown with the green DEX badge on the market.</p>
+        </DocSection>
+
+        <DocSection id="community" eyebrow="COMMUNITY" title="One home for the coin’s community">
+          <div className="aqua-docs-principles">
+            <Principle icon={<Globe2/>} title="Chat" text="Send messages and pictures, reply to a message and add reactions. Use the three-dot menu or right-click for message actions. Reactions accumulate into counts."/>
+            <Principle icon={<PanelsTopLeft/>} title="Updates" text="Creators publish full-width announcements with the coin’s ticker and image, formatted text and attachments. Anyone signed in can react; updates do not have replies or appear in chat."/>
+            <Principle icon={<CheckCircle2/>} title="Polls" text="Creators ask multiple-choice questions with a clear end time. They can restrict voting to holders with at least 0.1% of supply. Polls stay in their own feed."/>
+          </div>
+          <p>New activity indicators help you find unread chat, updates and polls. Markets can show an announcement bell during the first hour of a new update. Your last opened tab is remembered in this browser across refreshes and coin pages.</p>
+          <p>Community polls collect opinions; they do not authorize DEX spending or change protocol rules. Those actions use the separate holder-governance proposals. Reports go to AQUA admins and the moderation Discord webhook. Coin creators do not gain message deletion or report-review permissions simply by owning the coin.</p>
         </DocSection>
 
         <DocSection id="creator-locks" eyebrow="CREATORS" title="Creator locks">
@@ -404,6 +480,12 @@ export function HowItWorks() {
             <span>Supply score</span><b>×</b><span>Duration score</span><b>×</b><strong>{formatBps(maximumCreatorShareBps)} cap</strong>
           </div>
           <p className="fine-print">The fee share applies only while the lock is active. Values shown are simplified examples; the program calculates integer basis points from the exact token amount and duration.</p>
+        </DocSection>
+
+        <DocSection id="public-api" eyebrow="REFERENCE" title="Use AQUA data in your own tools">
+          <p>The public API lives at <code>{AQUA_PUBLIC_API_ORIGIN}/v1</code>. Read markets, trades, charts, rewards, buybacks, burns, jackpots, governance and events without an API key. Atlantis uses the same domain when building AQUA integrations.</p>
+          <p>Public reads allow 60 requests per minute per IP. Webhook management requires a signed-in wallet session. The previous Railway API address remains supported for existing integrations.</p>
+          <Link className="aqua-docs-inline-link" to="/developers">Read the API documentation <ArrowRight size={15}/></Link>
         </DocSection>
 
         <DocSection id="numbers" eyebrow="REFERENCE" title="The fixed numbers">

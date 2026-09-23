@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-The default API is `https://launchpad-backend-production-63dc.up.railway.app`. Set `VITE_API_URL` only when you need a different backend.
+The default API is `https://aquafamily.fun`. Set `VITE_API_URL` only when you need a different backend. Staging must keep its staging API URL. The former production Railway origin is upgraded to the canonical domain by the client; existing third-party integrations can continue calling the Railway origin.
 
 ## GitHub Pages deployment
 
@@ -35,7 +35,7 @@ The public API origin can be changed without editing application code:
 
 ```js
 window.AQUA_CONFIG = {
-  API_URL: "https://launchpad-backend-production-63dc.up.railway.app",
+  API_URL: "https://aquafamily.fun",
   X_URL: "https://x.com/your-aqua-handle",
 };
 ```
