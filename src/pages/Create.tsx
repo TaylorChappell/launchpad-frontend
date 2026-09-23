@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { ApiError, api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
+import { LaunchDetailsLoading } from "../components/LaunchDetailsLoading";
 import { PageBubbles } from "../components/PageBubbles";
 import { TokenMark } from "../components/TokenCard";
 import { RewardModeIcon } from "../components/RewardModeIcon";
@@ -72,8 +73,13 @@ export function Create() {
   const wallet = useWallet();
   const [searchParams] = useSearchParams();
   const importedStudio = useRef("");
+  const studioId = searchParams.get("studio");
+  const studioImportKey = `${wallet.address}:${studioId}`;
+  const [studioImport, setStudioImport] = useState<{key: string; status: "loading" | "ready" | "error"; error?: string}>({key:"",status:"loading"});
+  const [studioImportAttempt, setStudioImportAttempt] = useState(0);
+  const studioImportReady = !studioId || (studioImport.key === studioImportKey && studioImport.status === "ready");
   const [studioImportMessage, setStudioImportMessage] = useState("");
-  const { config } = useRuntime();
+  const { config, loading: runtimeLoading } = useRuntime();
   const dexProfileEnabled = config.marketGovernanceEnabled;
   const wizardSteps = dexProfileEnabled ? governanceWizardSteps : standardWizardSteps;
   const devBuyStep = dexProfileEnabled ? 4 : 3;
@@ -147,47 +153,64 @@ export function Create() {
     return()=>{active=false;};
   },[draftKey,stockLoading,pairsRefreshing]);
   useEffect(()=>{
-    if(draftReady!==draftKey||completedLaunch)return;
+    if(draftReady!==draftKey||completedLaunch||!studioImportReady)return;
     let active=true;
     const timer=window.setTimeout(()=>{void saveLaunchDraft(draftKey,{form,file,dexFundingEnabled,dexProfile,stockMint:stock?.mint}).then(()=>{if(active)setDraftStatus("Draft saved on this device.");}).catch(()=>{if(active)setDraftStatus("Draft could not save. Keep this page open until launch.");});},600);
     return()=>{active=false;window.clearTimeout(timer);};
-  },[draftKey,draftReady,form,file,dexFundingEnabled,dexProfile,stock?.mint,completedLaunch]);
+  },[draftKey,draftReady,form,file,dexFundingEnabled,dexProfile,stock?.mint,completedLaunch,studioImportReady]);
 
   useEffect(() => {
-    const id=searchParams.get("studio");
-    if(!id||!wallet.address||stockLoading||pairsRefreshing||!stocks.length||importedStudio.current===`${wallet.address}:${id}`)return;
-    const token=studioSession(wallet.address);
-    if(!token){setStudioImportMessage("Open Studio and sign in with this wallet, then choose Review launch again.");return;}
-    let cancelled=false;
-    void studioRequest<StudioProject>(`/projects/${encodeURIComponent(id)}`,token).then(async project=>{
-      if(cancelled)return;
-      const draft=project.state.launch;
-      setForm(old=>({...old,name:draft.name,symbol:draft.symbol,description:draft.description,xUrl:draft.xUrl,websiteUrl:draft.websiteUrl||project.hostedWebsiteUrl||"",telegramUrl:draft.telegramUrl,rewardMode:draft.rewardMode}));
-      let selected=stocks.find(item=>item.mint===draft.stockMint);
-      if(draft.stockMint && !selected){
-        setStock(null);
-        if(pairLookupEnabled){try{selected=(await api.lookupPair(draft.stockMint)).stock;}catch{/* Keep the requested pair unselected when verification fails. */}}
-        if(cancelled)return;
+    const id = studioId, address = wallet.address;
+    if (!id || !address || stockLoading || pairsRefreshing) return;
+    const key = `${address}:${id}`;
+    if (importedStudio.current === key) return;
+    if (!stocks.length) return;
+    const token = studioSession(address);
+    if (!token) {
+      setStudioImport({key,status:"error",error:"Open Studio and sign in with this wallet, then choose Review launch again."});
+      return;
+    }
+    let cancelled = false;
+    setStudioImport({key,status:"loading"});
+    setStudioImportMessage("");
+    void studioRequest<StudioProject>(`/projects/${encodeURIComponent(id)}`,token).then(async project => {
+      if (cancelled) return;
+      const draft = project.state.launch;
+      let selected = stocks.find(item => item.mint === draft.stockMint);
+      if (draft.stockMint && !selected && pairLookupEnabled) {
+        try { selected = (await api.lookupPair(draft.stockMint)).stock; }
+        catch { /* An unavailable saved pair must be explicitly replaced in the wizard. */ }
+        if (cancelled) return;
       }
-      if(selected)setStock(selected);
-      setDexFundingEnabled(config.marketGovernanceEnabled&&draft.dexFundingEnabled);
-      let importedProfile={...draft.dexProfile};
-      if(draft.dexProfile.bannerPath){
-        const banner=project.state.files.find(item=>item.path===draft.dexProfile.bannerPath);
-        if(!banner)throw Error("The assigned DEX banner is missing. Choose another image in Studio before reviewing the launch.");
-        const body=new FormData();body.set("file",studioAssetFile(banner));body.set("creatorWallet",wallet.address!);body.set("clientRequestId",crypto.randomUUID());
-        const upload=await api.upload(body,await ensureAccountSession(wallet.address!,wallet.signMessage));
-        if(cancelled)return;
-        importedProfile={...importedProfile,bannerUrl:upload.imageUrl};
+      let importedProfile = {...draft.dexProfile};
+      if (draft.dexProfile.bannerPath) {
+        const banner = project.state.files.find(item => item.path === draft.dexProfile.bannerPath);
+        if (!banner) throw Error("The assigned DEX banner is missing. Choose another image in Studio before reviewing the launch.");
+        const body = new FormData(); body.set("file",studioAssetFile(banner)); body.set("creatorWallet",address); body.set("clientRequestId",crypto.randomUUID());
+        const upload = await api.upload(body,await ensureAccountSession(address,wallet.signMessage));
+        if (cancelled) return;
+        importedProfile = {...importedProfile,bannerUrl:upload.imageUrl};
       }
+      const artwork = project.state.files.find(item => item.path === draft.imagePath);
+      if (draft.imagePath && !artwork) throw Error("The assigned coin artwork is missing. Choose another image in Studio before reviewing the launch.");
+      const artworkFile = artwork ? studioAssetFile(artwork) : null;
+      if (cancelled) return;
+      // Apply only a complete import. Launch must retain its Studio project link.
+      setForm({...empty,name:draft.name,symbol:draft.symbol,description:draft.description,xUrl:draft.xUrl,websiteUrl:draft.websiteUrl||project.hostedWebsiteUrl||"",telegramUrl:draft.telegramUrl,rewardMode:draft.rewardMode});
+      setStock(selected ?? (draft.stockMint ? null : stocks[0]));
+      setDexFundingEnabled(config.marketGovernanceEnabled && draft.dexFundingEnabled);
       setDexProfile(importedProfile);
-      const artwork=project.state.files.find(item=>item.path===draft.imagePath);
-      if(artwork)chooseArtwork(studioAssetFile(artwork));
-      importedStudio.current=`${wallet.address}:${id}`;
+      if (artworkFile) chooseArtwork(artworkFile);
+      else { setFile(null); setPreview(""); }
+      setStep(0);
+      importedStudio.current = key;
+      setStudioImport({key,status:"ready"});
       setStudioImportMessage(`Imported ${project.name}. Review every detail before launching.${draft.stockMint&&!selected?" Your saved pair is unavailable; choose a supported pair.":""}`);
-    }).catch(reason=>{if(!cancelled)setStudioImportMessage(reason instanceof Error?reason.message:"Could not import Studio draft.");});
-    return()=>{cancelled=true;};
-  },[wallet.address,searchParams,stockLoading,pairsRefreshing,stocks,config.marketGovernanceEnabled,pairLookupEnabled]);
+    }).catch(reason => {
+      if (!cancelled) setStudioImport({key,status:"error",error:reason instanceof Error ? reason.message : "Could not load your coin details."});
+    });
+    return () => { cancelled = true; };
+  },[wallet.address,studioId,stockLoading,pairsRefreshing,stocks,config.marketGovernanceEnabled,pairLookupEnabled,studioImportAttempt]);
 
   const update = <K extends keyof Form>(key: K, value: Form[K]) => { editedDraftKey.current=draftKey; setForm((current) => ({ ...current, [key]: value })); };
 
@@ -532,7 +555,7 @@ export function Create() {
   }
 
   async function beginLaunch() {
-    if (launching) return;
+    if (launching || !studioImportReady) return;
     if (!wallet.address) { wallet.setModalOpen(true); return; }
     if (!stock || !file || !validForStep.every(Boolean) || !acceptedTerms) { toast.error("Complete every required launch step and accept the Terms of Service first."); return; }
     if (!config.transactionsEnabled) { toast.error(config.transactionsDisabledReason ?? "On-chain launching is not enabled by the backend."); return; }
@@ -561,6 +584,17 @@ export function Create() {
       setStage("approval", "error");
       showLaunchError(error, "The launch could not be prepared.");
     }
+  }
+
+  if (!studioImportReady) {
+    const importError = studioImport.key === studioImportKey && studioImport.status === "error" ? studioImport.error : "";
+    const pairError = !stockLoading && !pairsRefreshing && !stocks.length ? stockError || "No trading pairs are available. Try loading them again." : "";
+    const message = !wallet.address ? (runtimeLoading || wallet.connecting ? "" : "Connect the wallet that owns this Studio project.") : importError || pairError;
+    return <LaunchDetailsLoading message={message || undefined}>{message && <>
+      {!wallet.address ? <button onClick={() => wallet.setModalOpen(true)}>Connect wallet</button>
+        : <button onClick={() => { setStudioImport({key:studioImportKey,status:"loading"}); if (pairError) { setStockLoading(true); setPairLoadVersion(value => value + 1); } else setStudioImportAttempt(value => value + 1); }}>Try again</button>}
+      <Link to="/studio">Back to Studio</Link>
+    </>}</LaunchDetailsLoading>;
   }
 
   return <main className="page launch-wizard-page launch-wizard-only">

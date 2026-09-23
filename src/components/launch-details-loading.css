@@ -1,0 +1,14 @@
+.wizard-launching-screen.launch-details-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  border: 0;
+  border-radius: 0;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 42%, #45b9ee33, transparent 35%), linear-gradient(145deg, #f8fdff, #d4edfc);
+  color: #174460;
+}
+.launch-details-loading h1 { margin: 20px 0 10px; font-size: clamp(26px, 5vw, 38px); letter-spacing: -.8px; }
+.launch-details-loading p { max-width: 440px; margin: 0 auto; line-height: 1.6; }
+.launch-details-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 24px; }
+.launch-details-actions button, .launch-details-actions a { padding: 12px 18px; border: 1px solid #abd6eb; border-radius: 12px; background: white; color: #174460; text-decoration: none; font: inherit; cursor: pointer; }
