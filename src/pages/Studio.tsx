@@ -1644,6 +1644,8 @@ function StudioWorkspace() {
                             <>
                               <StudioMessage
                                 text={job.message ?? "Your result is ready."}
+                                onOpenVariables={() => openModal("variables")}
+                                actionsDisabled={actionDisabled}
                               />
                               <div className="at-message-actions">
                                 {job.has_changes !== false && !job.applied_at && <button
@@ -2348,6 +2350,7 @@ function StudioWorkspace() {
       )}
       {modal && (
         <Dialog
+          className={modal === "variables" ? "at-variables-dialog" : ""}
           title={
             {
               credit: "Your Studio credit",
@@ -2488,11 +2491,11 @@ function StudioWorkspace() {
               </div>
               <details className="at-export-setup" open>
                 <summary>GitHub setup and frontend variables</summary>
-                <StudioMessage text={state?.files.find(file => file.path === "frontend/README.md")?.content.split("## Local or ZIP setup")[0].replace(/^# Publish your website\s*/, "") ?? "1. Export the frontend to GitHub.\n2. Choose GitHub Actions in Settings → Pages.\n3. Run Actions → Publish website.\n\nAsk Atlantis to add TOKEN_CA as a frontend variable if this older project does not have public-env.json and scripts/configure.mjs yet."} />
+                <StudioMessage onOpenVariables={() => openModal("variables")} actionsDisabled={actionDisabled} text={state?.files.find(file => file.path === "frontend/README.md")?.content.split("## Local or ZIP setup")[0].replace(/^# Publish your website\s*/, "") ?? "1. Export the frontend to GitHub.\n2. Choose GitHub Actions in Settings → Pages.\n3. Run Actions → Publish website.\n\nAsk Atlantis to add TOKEN_CA as a frontend variable if this older project does not have public-env.json and scripts/configure.mjs yet."} />
               </details>
               {hasBackend && <details className="at-export-setup">
                 <summary>Backend setup</summary>
-                <StudioMessage text={state?.files.find(file => file.path === "backend/README.md")?.content ?? "Open backend/.env.example for your project's variables. Set FRONTEND_ORIGIN to your frontend HTTPS origin. Railway supplies PORT. Ask Atlantis to update this older project's backend setup guide for any additional variables."} />
+                <StudioMessage onOpenVariables={() => openModal("variables")} actionsDisabled={actionDisabled} text={state?.files.find(file => file.path === "backend/README.md")?.content ?? "Open backend/.env.example for your project's variables. Set FRONTEND_ORIGIN to your frontend HTTPS origin. Railway supplies PORT. Ask Atlantis to update this older project's backend setup guide for any additional variables."} />
               </details>}
               <hr />
               <h3>Export to GitHub</h3>

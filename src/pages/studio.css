@@ -3091,10 +3091,52 @@
 @media (max-width: 520px) { .at-publish-live { align-items: flex-start; flex-direction: column; } .at-publish-address { padding: 0 8px; } .at-publish-address span { font-size: 11px; } }
 @media (max-width: 760px) { .at-projectbar > div:last-child { flex-wrap: wrap; } }
 
-.at-public-variables { margin: 20px 0; padding: 16px; border: 1px solid #b7dce8; border-radius: 12px; min-width: 0; }
-.at-public-variables legend { padding: 0 6px; font-weight: 700; }
-.at-public-variables .at-field { margin: 12px 0; }
-.at-variable-add { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
-.at-variable-add input { flex: 1; min-width: 120px; }
-.at-ca-choice { display: flex; align-items: flex-start; gap: 10px; margin-top: 20px; cursor: pointer; }
-.at-ca-choice input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 2px; accent-color: #087eae; }
+/* Website variables: one setting per row, with advanced fields tucked away. */
+.at-dialog.at-variables-dialog { width: 600px; padding: 26px 28px 20px; }
+.at-variables-dialog > header { margin-bottom: 8px; }
+.at-dialog .at-variables-intro { margin: 0 0 24px; color: #627e8c; font-size: 13px; }
+.at-variables-fields { min-width: 0; margin: 0; padding: 0; border: 0; }
+.at-variable-section { padding: 0 0 22px; margin: 0 0 22px; border-bottom: 1px solid #e0ecf1; min-width: 0; }
+.at-variable-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
+.at-variable-heading h3, .at-variable-heading label { margin: 0; color: #173f53; font-size: 14px; font-weight: 650; line-height: 1.4; }
+.at-variable-key, .at-variable-optional { font-size: 11px; font-weight: 500; color: #6b8490; }
+.at-variable-key { border: 1px solid #dce9ef; border-radius: 5px; padding: 2px 6px; letter-spacing: .03em; }
+.at-variable-section > input, .at-custom-variable input, .at-variable-new input { width: 100%; min-height: 44px; font-size: 13px; border-radius: 9px; background: #fff; }
+.at-variable-section input::placeholder { color: #8196a0; }
+.at-ca-mode { display: flex; gap: 3px; padding: 4px; background: #eaf2f6; border: 1px solid #e0ebf0; border-radius: 10px; margin-bottom: 12px; }
+.at-dialog .at-ca-mode button { flex: 1; min-height: 35px; padding: 8px; border: 0; border-radius: 7px; background: transparent; color: #657e8a; box-shadow: none; font-size: 12px; }
+.at-dialog .at-ca-mode button[aria-pressed="true"] { color: #096e97; background: #fff; box-shadow: 0 1px 4px #16475d15; }
+.at-dialog .at-ca-mode button:hover { color: #08688f; }
+.at-dialog .at-ca-automatic { display: flex; gap: 9px; align-items: center; min-height: 44px; margin: 0; padding: 9px 12px; background: #eaf7fa; border-radius: 9px; color: #20758b; font-size: 12px; line-height: 1.5; }
+.at-ca-automatic svg { flex: 0 0 auto; }
+.at-custom-variables { padding-bottom: 18px; margin-bottom: 0; border: 0; }
+.at-dialog .at-variables-disclosure { display: flex; width: 100%; padding: 0; min-height: 28px; justify-content: space-between; border: 0; background: transparent; color: #496978; font-size: 13px; font-weight: 550; }
+.at-variables-disclosure > span { display: flex; gap: 8px; align-items: center; }
+.at-variables-disclosure small { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: #e7f1f5; }
+.at-variables-disclosure[aria-expanded="true"] > svg { transform: rotate(180deg); }
+.at-custom-variable { margin-top: 15px; min-width: 0; }
+.at-custom-variable > label { display: block; font-size: 11px; font-family: ui-monospace, monospace; color: #486979; margin-bottom: 6px; overflow-wrap: anywhere; }
+.at-custom-variable > div { display: flex; align-items: center; gap: 6px; }
+.at-dialog .at-custom-variable button { border: 0; background: transparent; color: #77909b; padding: 10px; flex-shrink: 0; }
+.at-dialog .at-custom-variable button:hover { color: #a33d4b; background: #fff1f2; }
+.at-dialog .at-variable-add-button { margin-top: 14px; background: transparent; border-style: dashed; width: 100%; font-size: 12px; color: #487182; min-height: 39px; }
+.at-variable-new { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; margin-top: 14px; background: #f0f7fa; border: 1px solid #dfebf0; border-radius: 10px; }
+.at-variable-new > label { min-width: 0; display: grid; gap: 6px; font-size: 11px; color: #537582; }
+.at-variable-new-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 6px; }
+.at-dialog .at-variable-error { font-size: 12px; color: #a13c49; margin: 8px 0 0; grid-column: 1 / -1; }
+.at-variables-footer { position: sticky; bottom: -1px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 0 12px; border-top: 1px solid #dce9ef; background: #f9fdff; z-index: 1; }
+.at-variables-footer > div { display: grid; gap: 4px; }
+.at-variable-save-state { font-size: 12px; font-weight: 600; color: #486879; }
+.at-variables-footer small { font-size: 11px; color: #738b97; line-height: 1.5; }
+.at-variables-footer button { flex-shrink: 0; min-height: 40px; padding: 10px 17px; }
+.at-dialog .at-variables-public { margin: 8px 0 0; color: #7a919c; font-size: 10px; line-height: 1.5; }
+.at-chat-copy .at-chat-variable-action { display: inline-flex; vertical-align: middle; gap: 6px; margin: 3px 2px; padding: 6px 10px; border: 1px solid #b7dce9; border-radius: 7px; color: #087296; background: #edf8fc; font-size: 12px; text-decoration: none; }
+.at-chat-copy .at-chat-variable-action:hover { background: #dff2f9; border-color: #77b8d0; }
+@media(max-width:520px) {
+  .at-dialog.at-variables-dialog { padding: 22px 18px 16px; }
+  .at-variable-section { padding-bottom: 18px; margin-bottom: 18px; }
+  .at-custom-variables { margin-bottom: 0; padding-bottom: 15px; }
+  .at-variables-footer { align-items: flex-start; gap: 12px; }
+  .at-variables-footer small { max-width: 155px; }
+  .at-variable-new { grid-template-columns: 1fr; }
+}

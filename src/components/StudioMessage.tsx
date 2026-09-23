@@ -1,13 +1,16 @@
+import { SlidersHorizontal } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-export function StudioMessage({ text }: { text: string }) {
+export function StudioMessage({ text, onOpenVariables, actionsDisabled = false }: { text: string; onOpenVariables?: () => void; actionsDisabled?: boolean }) {
   return (
     <div className="at-chat-copy">
       <ReactMarkdown
         skipHtml
         remarkPlugins={[remarkGfm]}
         components={{
-          a: (props) => (
+          a: (props) => props.href === "#atlantis-variables" ? (
+            onOpenVariables ? <button type="button" className="at-chat-variable-action" disabled={actionsDisabled} onClick={onOpenVariables}><SlidersHorizontal size={14}/>Open variables</button> : <span>{props.children}</span>
+          ) : (
             <a
               href={props.href}
               title={props.title}

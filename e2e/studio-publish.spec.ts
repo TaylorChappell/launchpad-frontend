@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 const wallet = "11111111111111111111111111111111", token = "a".repeat(64), id = "11111111-1111-4111-8111-111111111111";
-async function setup(page: Page, enabled = true, configurationSupported = true) {
+async function setup(page: Page, enabled = true, configurationSupported = true, message = "") {
   let site: any = null;
   const calls: string[] = [];
   const project: any = {id,name:"Sea Cat",revision:1,updated_at:Date.now(),state:{name:"Sea Cat",launch:{name:"Sea Cat",symbol:"SEA",description:"",stockMint:"",rewardMode:"holder_rewards",imagePath:"",xUrl:"",websiteUrl:"",telegramUrl:"",dexFundingEnabled:false,dexProfile:{description:"",bannerUrl:"",websiteUrl:"",xUrl:"",telegramUrl:""}},files:[{path:"frontend/index.html",content:"<main>Sea Cat</main>",encoding:"utf8",locked:false}],folders:[],lockedFields:[]}};
@@ -27,7 +27,7 @@ async function setup(page: Page, enabled = true, configurationSupported = true) 
       if(r.request().method() === "POST") { project.state=r.request().postDataJSON().state;project.revision++;calls.push("save"); }
       return r.fulfill({json:project});
     }
-    if(path.endsWith("/jobs")) return r.fulfill({json:[]});
+    if(path.endsWith("/jobs")) return r.fulfill({json:message ? [{id:"job-variables",project_id:id,status:"complete",kind:"chat",prompt:"How do I change my backend URL?",message,has_changes:false,applied_at:1,created_at:Date.now(),charged_micro_usd:"0"}] : []});
     if(path.endsWith("/hosting")) {
       expect(r.request().headers().authorization).toBe(`Bearer ${token}`);
       if(r.request().method() === "POST") { expect(r.request().postDataJSON()).toEqual({slug:"sea-cat",revision:project.revision}); calls.push("publish");site={slug:"sea-cat",url:"https://stg-sea-cat.aquafamily.fun",revision:1,published:true,publishedAt:Date.now()}; }
@@ -73,14 +73,13 @@ test("saves configuration from its own Variables menu and then publishes",async(
   await dialog.getByRole("button",{name:"Close dialog"}).click();
   await page.getByRole("button",{name:"Variables",exact:true}).click();
   const variables=page.getByRole("dialog",{name:"Variables",exact:true});
-  const consent=variables.getByRole("checkbox",{name:"Fill the website CA automatically when I launch this coin"});
-  await expect(consent).not.toBeChecked();
-  await variables.getByRole("textbox",{name:"TOKEN_CA",exact:true}).fill("manual-mint");
-  await variables.getByRole("textbox",{name:"New variable name"}).fill("BACKEND_URL");
-  await variables.getByRole("button",{name:"Add variable",exact:true}).click();
-  await variables.getByRole("textbox",{name:"BACKEND_URL",exact:true}).fill("https://fish-api.example.com");
-  await consent.check();
-  await expect(variables.getByRole("textbox",{name:"TOKEN_CA",exact:true})).toBeDisabled();
+  const automatic=variables.getByRole("button",{name:"Fill on launch",exact:true});
+  await expect(automatic).toHaveAttribute("aria-pressed","false");
+  await expect(variables.getByRole("button",{name:"Other variables"})).toHaveAttribute("aria-expanded","false");
+  await variables.getByRole("textbox",{name:"Contract address",exact:true}).fill("manual-mint");
+  await variables.getByRole("textbox",{name:"Backend URL",exact:true}).fill("https://fish-api.example.com");
+  await automatic.click();
+  await expect(variables.getByRole("textbox",{name:"Contract address",exact:true})).toHaveCount(0);
   const saved=page.waitForRequest(r=>r.method()==="POST" && new URL(r.url()).pathname.endsWith(`/projects/${id}`));
   await variables.getByRole("button",{name:"Save variables",exact:true}).click();
   expect((await saved).postDataJSON().state).toMatchObject({autoFillCA:true,frontendVariables:{TOKEN_CA:"manual-mint",BACKEND_URL:"https://fish-api.example.com",API_BASE_URL:"https://fish-api.example.com"}});
@@ -88,8 +87,8 @@ test("saves configuration from its own Variables menu and then publishes",async(
   expect(calls).toEqual(["save"]);
   await variables.getByRole("button",{name:"Close dialog"}).click();
   await page.getByRole("button",{name:"Variables",exact:true}).click();
-  await expect(variables.getByRole("textbox",{name:"BACKEND_URL",exact:true})).toHaveValue("https://fish-api.example.com");
-  await expect(consent).toBeChecked();
+  await expect(variables.getByRole("textbox",{name:"Backend URL",exact:true})).toHaveValue("https://fish-api.example.com");
+  await expect(automatic).toHaveAttribute("aria-pressed","true");
   await variables.getByRole("button",{name:"Close dialog"}).click();
   await page.getByRole("button",{name:"Publish",exact:true}).click();
   await dialog.getByRole("button",{name:"Publish website",exact:true}).click();
@@ -101,4 +100,27 @@ test("an outdated backend cannot silently discard frontend configuration",async(
   const dialog=page.getByRole("dialog",{name:"Publish website",exact:true});
   await expect(dialog.getByRole("alert")).toContainText("backend needs the latest staging deployment");
   await expect(dialog.getByRole("button",{name:"Publish website",exact:true})).toBeDisabled();
+});
+
+test("chat opens Variables in place and advanced fields can be added and removed",async({page},testInfo)=>{
+  const message="Set your backend URL here: [Open variables](#atlantis-variables). [External guide](https://example.com/#atlantis-variables)";
+  const calls=await setup(page,true,true,message);
+  await page.getByRole("dialog").getByRole("button",{name:"Close dialog"}).click();
+  const before=page.url();
+  await page.getByRole("button",{name:"Open variables",exact:true}).click();
+  const variables=page.getByRole("dialog",{name:"Variables",exact:true});
+  await expect(variables.getByRole("textbox",{name:"Backend URL",exact:true})).toBeVisible();
+  expect(page.url()).toBe(before);expect(calls).toEqual([]);
+  await page.screenshot({path:testInfo.outputPath("variables-menu.png")});
+  await variables.getByRole("button",{name:"Other variables"}).click();
+  await variables.getByRole("button",{name:"Add variable",exact:true}).click();
+  await variables.getByRole("textbox",{name:"New variable name"}).fill("COMMUNITY_URL");
+  await variables.getByRole("textbox",{name:"New variable value"}).fill("https://community.example.com");
+  await variables.getByRole("button",{name:"Add",exact:true}).click();
+  await expect(variables.getByRole("textbox",{name:"COMMUNITY_URL",exact:true})).toHaveValue("https://community.example.com");
+  await variables.getByRole("button",{name:"Remove COMMUNITY_URL"}).click();
+  await expect(variables.getByRole("textbox",{name:"COMMUNITY_URL",exact:true})).toHaveCount(0);
+  expect(await variables.evaluate(el=>el.scrollWidth<=el.clientWidth+2)).toBe(true);
+  await variables.getByRole("button",{name:"Close dialog"}).click();
+  await expect(page.getByRole("link",{name:"External guide"})).toHaveAttribute("href","https://example.com/#atlantis-variables");
 });
