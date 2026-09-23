@@ -129,6 +129,9 @@ export type MarketProposal = {
   launchId: string;
   type: MarketProposalType;
   isDefault: boolean;
+  isAutomatic?: boolean;
+  collectionPaused?: boolean;
+  transferredLamports?: string;
   fundingPercent?: number | null;
   fundingStartsAt?: number | null;
   fundingEndsAt?: number | null;
@@ -171,6 +174,7 @@ export type MarketProposal = {
 
 export type MarketGovernanceResponse = {
   enabled: boolean;
+  automaticFundingEnabled?: boolean;
   testingMode: boolean;
   disabledReason: string | null;
   dexPaid: boolean;

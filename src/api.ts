@@ -1,5 +1,5 @@
 import {readWithRetry} from "./read-retry";
-import type { LaunchRelayStatus, SignedTransactionEnvelope } from "./types";
+import type { DexProfile, LaunchRelayStatus, SignedTransactionEnvelope } from "./types";
 import {cachedRead,clearReadCache} from "./read-cache";
 import type { WalletNotification, AdminDiagnostics, AnalyticsResponse, BatchStepValidation, CreatorLock, CreatorLockBalance, CreatorLockTransactionEnvelope, CumulativeRewardClaimConfirmation, CumulativeRewardClaimEnvelope, GovernanceMarket, GovernanceResponse, Launch, LaunchConfirmation, LaunchIntentResponse, LaunchRetryResponse, MarketGovernanceResponse, MarketProposalType, MarketSnapshot, RewardModeState, RuntimeConfig, StockOption, Trade, TransactionEnvelope, WalletRewardsResponse } from "./types";
 
@@ -97,6 +97,7 @@ export const api = {
   adminChallenge: (wallet: string) => request<{ challenge: string; message: string; expiresAt: number }>(`/api/admin/challenge?wallet=${encodeURIComponent(wallet)}`),
   adminSession: (body: { wallet: string; challenge: string; message: string; signature: string }) => request<{ token: string; expiresAt: number }>("/api/admin/session", json(body)),
   adminDiagnostics: (token: string, includeRuntime = false) => request<AdminDiagnostics>(`/api/admin/diagnostics?runtime=${includeRuntime}`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(includeRuntime ? 90_000 : 30_000) }),
+  adminAutomaticDexDetails: (token: string, id: string, details: DexProfile) => request<unknown>(`/api/admin/proposals/${encodeURIComponent(id)}/details`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(details) }),
   adminWithdrawProposal: (token: string, id: string) => request<{ signature: string; destination: string; lamports: string }>(`/api/admin/proposals/${encodeURIComponent(id)}/withdraw`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }),
   adminDexAccess: (token: string, id: string, managedByAqua: boolean, reference: string) => request<unknown>(`/api/admin/launches/${encodeURIComponent(id)}/dex-access`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ managedByAqua, reference }) }),
   adminMarkProposalPaid: (token: string, id: string, orderReference: string, managedByAqua = false) => request<unknown>(`/api/admin/proposals/${encodeURIComponent(id)}/mark-paid`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ orderReference, managedByAqua }) }),

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
 const address = "11111111111111111111111111111111";
-async function setup(page: Page, state = "voting") {
+async function setup(page: Page, state = "voting", automatic: "profile" | "boost" | "aqua" | null = null) {
   await page.addInitScript(address => {
     localStorage.setItem("aqua:update:holder-workspace-v2", "seen");
     localStorage.setItem("aqua:wallet", "phantom");
@@ -38,6 +38,10 @@ async function setup(page: Page, state = "voting") {
       fundingStartsAt: now - 1800, fundingEndsAt: now + 1800, fundedUsd: state === "completed" ? 98 : 250, fundedLamports: "2500000000", targetUsd: 0,
       returnedLamports: state === "completed" ? "980000000" : "0", outcome: state === "completed" ? "below_minimum" : null, createdAt: Date.now() - 60000 }],
   };
+  if (automatic) {
+    Object.assign(data, { automaticFundingEnabled: true, enabled: automatic !== "aqua", dexPaid: automatic !== "profile" });
+    Object.assign(data.proposals[0], { isAutomatic: true, collectionPaused: automatic === "profile", type: automatic === "profile" ? "dex_payment" : "dex_boost", fundingPercent: automatic === "profile" ? 10 : 5, fundedUsd: 74, targetUsd: automatic === "profile" ? 300 : 0 });
+  }
   await page.route("**/api/launches/coin/proposals**", r => {
     if (r.request().url().endsWith("/challenge")) return r.fulfill({ json: { challenge: "test-challenge", message: "Vote for " + r.request().postDataJSON().content.choice, expiresAt: Date.now() + 60000 } });
     if (r.request().url().endsWith("/vote")) {
@@ -82,4 +86,27 @@ test("a sub-minimum campaign shows its refund in the existing proposal history",
   await expect(card.getByRole("heading", { name: "Funds returned to holders" })).toBeVisible();
   await expect(card.getByText("0.98 SOL returned to holders.", { exact: true })).toBeVisible();
   await expect(card.getByText(/purchased/)).toHaveCount(0);
+});
+
+
+test("automatic profile funding stays compact and permits a holder funding vote", async ({ page }, info) => {
+  await setup(page, "funding", "profile");
+  const card = page.locator(".automatic-funding-card");
+  await expect(card.getByText("10% of incoming rewards", { exact: true })).toBeVisible();
+  await expect(card.getByText("Paused", { exact: true })).toBeVisible();
+  await expect(card.getByText(/Expires in/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Proposals", exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
+  await card.screenshot({ path: `/tmp/aqua-auto-profile-${info.project.name}.png` });
+});
+
+test("AQUA shows automatic mini boosts with no holder proposal controls", async ({ page }, info) => {
+  await setup(page, "funding", "aqua");
+  const card = page.locator(".boost-proposal-card");
+  await expect(card.getByRole("heading", { name: "Mini DEX boost", exact: true })).toBeVisible();
+  await expect(card.getByText("$100 minimum", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Proposals", exact: true })).toHaveCount(0);
+  await expect(card.locator(".boost-poll-options")).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
+  await card.screenshot({ path: `/tmp/aqua-auto-boost-${info.project.name}.png` });
 });
