@@ -1,7 +1,6 @@
 import { newerComment, readCommentCursor, type CommentCursor } from "../market-activity";
 import { WalletIdentity } from "../components/WalletIdentity";
-import { ProjectUpdates } from "../components/ProjectUpdates";
-import { MarketComments } from "../components/MarketComments";
+import { Community } from "../components/Community";
 import { MarketInformationTabs } from "../components/MarketProposals";
 import { WalletRewards } from "../components/WalletRewards";
 import {marketShareUrl} from "../share-market";
@@ -84,11 +83,11 @@ export function Token() {
   const [loadError, setLoadError] = useState("");
   const [range, setRange] = useState("24h");
   const [params] = useSearchParams();
-  const [section,setSection]=useState(params.get("tab") === "project" ? "Project" : "Transactions");
+  const [section,setSection]=useState(params.get("tab") === "community" || params.get("tab") === "comments" ? "Community" : params.get("tab") === "project" ? "Project" : "Transactions");
   const [positionOpen,setPositionOpen]=useState(false);
   const readKey = "aqua:comments:seen:" + (wallet.address ?? "visitor") + ":" + id;
   const [seen,setSeen]=useState<{key:string;cursor:CommentCursor|null}>(()=>({key:readKey,cursor:readCommentCursor(readKey)}));
-  useEffect(()=>{setSection(params.get("tab") === "project" ? "Project" : "Transactions");setPositionOpen(false);},[id,params]);
+  useEffect(()=>{setSection(params.get("tab") === "community" || params.get("tab") === "comments" ? "Community" : params.get("tab") === "project" ? "Project" : "Transactions");setPositionOpen(false);},[id,params]);
   useEffect(()=>{
     const sync=()=>setSeen({key:readKey,cursor:readCommentCursor(readKey)}); sync();
     window.addEventListener("storage",sync);return()=>window.removeEventListener("storage",sync);
@@ -198,8 +197,8 @@ export function Token() {
 
       <MarketInformationTabs section={section} onChange={setSection} newComments={newerComment(launch.latestComment,seen.key===readKey?seen.cursor:null)} latestProjectUpdateAt={launch.latestProjectUpdateAt}/>
       {section==="Holders"&&<MarketHolders key={launch.id} launch={launch} creatorLock={creatorLock}/>}
-      {section==="Comments"&&<MarketComments launch={launch} onRead={markCommentsRead}/>}
-      {section==="Project"&&<div className="market-project"><ProjectUpdates launch={launch}/><section className="dashboard-section"><h2>Project information</h2><p>{launch.description}</p><p>Opening LP lock: {launch.liquidityLockedPermanently?"Permanently locked":"Not verified"}{launch.lockConfig&&<> · <a href={solscanAccountUrl(launch.lockConfig,config.network)} target="_blank" rel="noreferrer">Verify LP lock ↗</a></>}</p><p>Creator token lock: {creatorLock?.status==="active"?"Active until "+new Date(creatorLock.unlockAt*1000).toLocaleString():"No active verified creator lock"}.</p><p>DEX profile payment is not an endorsement or security assessment.</p><a href={solscanAccountUrl(launch.mint,config.network)} target="_blank" rel="noreferrer">Inspect mint and authority state ↗</a></section></div>}
+      {section==="Community"&&<Community launch={launch} onRead={markCommentsRead}/>}
+      {section==="Project"&&<div className="market-project"><section className="dashboard-section"><h2>Project information</h2><p>{launch.description}</p><p>Opening LP lock: {launch.liquidityLockedPermanently?"Permanently locked":"Not verified"}{launch.lockConfig&&<> · <a href={solscanAccountUrl(launch.lockConfig,config.network)} target="_blank" rel="noreferrer">Verify LP lock ↗</a></>}</p><p>Creator token lock: {creatorLock?.status==="active"?"Active until "+new Date(creatorLock.unlockAt*1000).toLocaleString():"No active verified creator lock"}.</p><p>DEX profile payment is not an endorsement or security assessment.</p><a href={solscanAccountUrl(launch.mint,config.network)} target="_blank" rel="noreferrer">Inspect mint and authority state ↗</a></section></div>}
       {section==="Rewards"&&<>{rewardMode==="holder_rewards"&&<><WalletRewards launch={launch}/><section className="workspace-panel market-reward-activity"><header><h2>Market reward activity</h2></header><div className="info-grid single reward-mode-market-panel">
         {rewardMode === "holder_rewards" && <section className="market-reward-panel"><header><div><small>HOLDER REWARDS</small><h2>Earn {launch.stockSymbol}</h2></div><span className="reward-live-label">Accumulating</span></header><div className="reward-stat-row"><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Available to all holders" value={money.format(launch.rewardRedeemableUsd)}/></div><footer>Rewards follow your balance and time held.</footer></section>}
       </div></section></>}

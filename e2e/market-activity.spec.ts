@@ -19,7 +19,7 @@ async function setup(page:Page) {
     else if(path==='/api/launches/coin')json={launch:launch(),trades:[],creatorLock:null,rewardModeState:null};
     else if(path.endsWith('/market-data'))json={snapshots:[]};
     else if(path.endsWith('/project-updates'))json={updates:[{id:'update',launchId:'coin',authorWallet:mint,createdAt:state.updateAt,body:'Our new website is live.'}],hasMore:false};
-    else if(path.endsWith('/comments')){if(state.failComments)return r.fulfill({status:503,json:{error:'Temporarily unavailable'}});json={comments:[{...state.comment,launchId:'coin',authorWallet:mint,body:'Excited for the next release.',reply:null}],hasMore:false,nextCursor:null};}
+    else if(path.endsWith('/community')){if(state.failComments)return r.fulfill({status:503,json:{error:'Temporarily unavailable'}});json={posts:url.searchParams.get('filter')==='updates'?[{id:'update',kind:'update',launchId:'coin',authorWallet:mint,createdAt:state.updateAt,body:'Our new website is live.',reactions:[]}]:[{...state.comment,kind:'message',launchId:'coin',authorWallet:mint,body:'Excited for the next release.',reply:null,reactions:[]}],pinned:null,latest:state.comment,nextCursor:null};}
     else if(path==='/api/stocks')json={stocks:[]};
     else if(path.includes('/governance'))json={enabled:false};
     else if(path.includes('/notifications'))json={notifications:[]};
@@ -32,7 +32,7 @@ async function setup(page:Page) {
   return state;
 }
 
-test('project contains updates; position sits directly under trading; comments track unread across visits',async({page},info)=>{
+test('community replaces comments; position sits directly under trading; comments track unread across visits',async({page},info)=>{
   const state=await setup(page);
   await page.goto('/#/token/coin');
   const tabs=page.locator('.market-information-tabs');
@@ -40,7 +40,7 @@ test('project contains updates; position sits directly under trading; comments t
   await expect(tabs.getByRole('button',{name:'Your position',exact:true})).toHaveCount(0);
   await expect(tabs.locator('.market-unread-dot')).toBeVisible();
   await tabs.getByRole('button',{name:/^Project/}).click();
-  await expect(page.getByText('Our new website is live.')).toBeVisible();
+  await expect(page.getByText('Our new website is live.')).toHaveCount(0);
   await expect(page.getByRole('heading',{name:'Project information'})).toBeVisible();
   const position=page.locator('.market-position-dropdown');
   await expect(position.locator('.market-position')).toHaveCount(0);
@@ -53,11 +53,11 @@ test('project contains updates; position sits directly under trading; comments t
   await position.locator('summary').click();
   await expect(position.locator('.market-position')).toHaveCount(0);
   state.failComments=true;
-  await tabs.getByRole('button',{name:/^Comments/}).click();
-  await expect(page.locator('.market-comments')).toContainText('Temporarily unavailable');
+  await tabs.getByRole('button',{name:/^Community/}).click();
+  await expect(page.locator('.community')).toContainText('Temporarily unavailable');
   await expect(tabs.locator('.market-unread-dot')).toBeVisible();
   state.failComments=false;
-  await page.getByRole('button',{name:'Refresh comments'}).click();
+  await page.getByRole('button',{name:'Refresh community'}).click();
   await expect(page.getByText('Excited for the next release.')).toBeVisible();
   await expect(tabs.locator('.market-unread-dot')).toHaveCount(0);
   await page.reload();
@@ -72,7 +72,7 @@ test('project contains updates; position sits directly under trading; comments t
   await page.screenshot({path:`/tmp/market-ux-${info.project.name}.png`,fullPage:true});
 });
 
-test('market bells link to Project in cards and table; exact custom icon wins over preset symbol',async({page},info)=>{
+test('market bells link to Community in cards and table; exact custom icon wins over preset symbol',async({page},info)=>{
   await setup(page);
   await page.goto('/#/');
   const card=page.locator('.token-card').first();

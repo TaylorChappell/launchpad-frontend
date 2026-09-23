@@ -13,6 +13,6 @@ export function RecentUpdateBell({ at, launchId }: { at?: number | null; launchI
   }, [at]);
   if (!recentProjectUpdate(at, now)) return null;
   const icon = <Bell size={14} aria-hidden="true"/>;
-  return launchId ? <Link className="market-update-link" to={`/token/${launchId}?tab=project`} title="New project update" aria-label="Read new project update">{icon}</Link>
+  return launchId ? <Link className="market-update-link" to={`/token/${launchId}?tab=community&feed=updates`} title="New project update" aria-label="Read new project update">{icon}</Link>
     : <span className="market-update-indicator" title="New project update" aria-label="New project update">{icon}</span>;
 }
