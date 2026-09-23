@@ -86,8 +86,6 @@ export const api = {
   upload: (body: FormData, token: string) => request<{ imageId: string; imageUrl: string }>("/api/uploads", { method: "POST", body, headers: { Authorization: `Bearer ${token}` } }),
   createLaunch: (body: unknown) => request<LaunchIntentResponse>("/api/launches", json(body)),
   retryLaunchTransaction: (id: string, creator: string) => request<LaunchRetryResponse>(`/api/launches/${encodeURIComponent(id)}/retry-transaction`, json({ creator })),
-  launchWalletTransaction: (id: string, step: "mint" | "pool" | "liquidity" | "lock") => request<TransactionEnvelope>(`/api/launches/${encodeURIComponent(id)}/wallet-transaction`, json({ step })),
-  completeLaunchWalletApproval: (id: string, step: "mint" | "pool" | "liquidity" | "lock", signedTransactionBase64: string) => request<{ signedTransactionBase64: string; signature: string }>(`/api/launches/${encodeURIComponent(id)}/complete-wallet-approval`, json({ step, signedTransactionBase64 })),
   submitLaunchBatch: (id: string, transactions: SignedTransactionEnvelope[], signal?: AbortSignal) => request<LaunchRelayStatus>(`/api/launches/${encodeURIComponent(id)}/submit-batch`, { ...json({ transactions: transactions.map(({ step, signedTransactionBase64 }) => ({ step, signedTransactionBase64 })) }), signal }),
   launchSubmission: (id: string, signal?: AbortSignal) => uncachedRequest<LaunchRelayStatus>(`/api/launches/${encodeURIComponent(id)}/submission`, { signal }),
   launchDevBuyPlan: (id: string, creator: string) => request<LaunchConfirmation>(`/api/launches/${encodeURIComponent(id)}/dev-buy-plan`, json({ creator })),

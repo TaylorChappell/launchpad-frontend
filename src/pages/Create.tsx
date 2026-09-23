@@ -1,6 +1,5 @@
 import { pairCatalogPollDelay } from "../pair-catalog-refresh";
 import { handoffLaunchBatch, watchLaunchSubmission } from "../launch-relay";
-import { confirmLaunchPrerequisites } from "../launch-approval";
 import { readLaunchDraft,saveLaunchDraft } from "../launch-draft";
 import { ensureAccountSession } from "../account-api";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -380,15 +379,8 @@ export function Create() {
     return true;
   }
 
-  async function approveLaunchStep<Step extends "mint" | "pool" | "liquidity" | "lock">(id: string, step: Step) {
-    const envelope = await api.launchWalletTransaction(id, step);
-    const approval = await wallet.signTransaction(envelope);
-    const completed = await api.completeLaunchWalletApproval(id, step, approval.signedTransactionBase64);
-    return { ...envelope, ...completed, step };
-  }
-
   async function executeLaunchBatch(id: string, batch: LaunchBatchEnvelope[]) {
-    let activeStage: ChainStage = batch[0]?.step ?? "pool";
+    const activeStage: ChainStage = batch[0]?.step ?? "pool";
     relayController.current?.abort();
     const controller = new AbortController();
     relayController.current = controller;
@@ -396,22 +388,9 @@ export function Create() {
       if (!batch.length) throw new Error("The backend did not return the Orca launch batch.");
       setPending({ launchId: id, stage: activeStage });
       setStage(activeStage, "active");
-      try { localStorage.setItem(relayStorageKey, id); } catch { /* Storage may be unavailable. */ }
-      // Each approval is simulated against the confirmed result of its predecessor.
-      // Only the final lock is handed off after the last wallet prompt.
-      await confirmLaunchPrerequisites(batch, {
-        approve: step => approveLaunchStep(id, step),
-        submit: approved => wallet.submitSignedTransaction(approved),
-        confirm: signature => api.confirmLaunch(id, signature),
-        refresh: () => api.retryLaunchTransaction(id, wallet.address!),
-      }, controller.signal, (step, status) => {
-        activeStage = step; setPending({ launchId: id, stage: step }); setStage(step, status);
-        if (status === "active") setRelayMessage(step === "pool" ? "Approve your coin's market in your wallet." : "Approve your coin's liquidity in your wallet.");
-      });
-      activeStage = "lock"; setPending({ launchId: id, stage: "lock" }); setStage("lock", "active");
-      setRelayMessage("Approve the permanent liquidity lock in your wallet.");
-      showLaunchStatus("Approve the liquidity lock", "Review the final launch transaction in your wallet.");
-      const signedBatch = [await approveLaunchStep(id, "lock")];
+      setRelayMessage("Approve the remaining launch transactions in your wallet.");
+      showLaunchStatus("Approve the Orca launch", "Review the market and liquidity transactions in your wallet.");
+      const signedBatch = await wallet.signTransactionBatch(batch);
       controller.signal.throwIfAborted();
       try { localStorage.setItem(relayStorageKey, id); } catch { /* Storage may be unavailable. */ }
       setRelayMessage("Sending your approval to AQUA. Keep this page open until it is received.");
@@ -451,12 +430,7 @@ export function Create() {
       let signature = action.signature;
       if (!signature) {
         showLaunchStatus(action.stage === "mint" ? "Approve token creation" : "Approve transaction", "Review the request in your wallet to continue.");
-        if (action.stage !== "devBuy") {
-          const approved = await approveLaunchStep(action.launchId, action.stage);
-          signature = await wallet.submitSignedTransaction(approved, submitted => {
-            retryAction = { ...action, signature: submitted }; setPending(retryAction);
-          });
-        } else signature = await wallet.sendTransaction(action.envelope);
+        signature = await wallet.sendTransaction(action.envelope);
         retryAction = { ...action, signature };
         setPending(retryAction);
       }
@@ -713,3 +687,4 @@ function Field({ label, wide, children }: { label: string; wide?: boolean; child
 function CurrencyButton({ code, name, active, icon, onClick }: { code: string; name: string; active: boolean; icon: ReactNode; onClick: () => void }) { return <button type="button" role="radio" aria-checked={active} className={active ? "selected" : ""} onClick={onClick}><i>{icon}</i><span><b>{code}</b><small>{name}</small></span><em>{active && <Check/>}</em></button>; }
 function ModeButton({ active, disabled, onClick, icon, title, eyebrow, children }: { active: boolean; disabled?: boolean; onClick: () => void; icon: ReactNode; title: string; eyebrow: string; children: ReactNode }) { return <button type="button" role="radio" aria-checked={active} disabled={disabled} className={`reward-mode-option ${active ? "selected" : ""}`} onClick={onClick}><i>{icon}</i><div><small>{eyebrow}</small><b>{title}</b><p>{children}</p></div><em>{disabled ? "Coming soon" : active ? <Check/> : null}</em></button>; }
 function StockLogo({ stock }: { stock: StockOption }) { const [failed, setFailed] = useState(false); return <span className="stock-logo">{stock.mint === "So11111111111111111111111111111111111111112" ? <NetworkSolana className="currency-brand-icon" variant="branded"/> : stock.logoUrl && !failed ? <img src={stock.logoUrl} alt="" onError={() => setFailed(true)}/> : stock.underlyingSymbol.slice(0, 2)}</span>; }
+

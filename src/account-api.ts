@@ -1,7 +1,5 @@
 import { API_URL } from "./api";
 import { StudioApiError, studioSessionKey } from "./studio-api";
-import { normalizeWalletSignIn } from "./wallet-sign-in";
-export type { WalletSignInOutput } from "./wallet-sign-in";
 export type GithubConnection = {
   enabled: boolean;
   connected: boolean;
@@ -23,12 +21,14 @@ export async function ensureAccountSession(address: string, signMessage: (messag
 }
 
 export type WalletSignInInput = { domain: string; uri: string; statement: string; version: string; chainId: string; nonce: string; issuedAt: string; expirationTime: string };
-export async function signInWithWallet(signIn: (input: WalletSignInInput) => Promise<unknown>, isCurrent: () => boolean) {
+export type WalletSignInOutput = { account: { address: string }; signedMessage: Uint8Array; signature: Uint8Array; signatureType?: string };
+
+export async function signInWithWallet(signIn: (input: WalletSignInInput) => Promise<WalletSignInOutput>, isCurrent: () => boolean) {
   const challenge = await accountRequest<{ id: string; input: WalletSignInInput }>("/auth/sign-in/challenge", "", {});
   if (!isCurrent()) throw new Error("Wallet changed. Connect again.");
-  const result = await signIn(challenge.input);
+  const output = await signIn(challenge.input);
   if (!isCurrent()) throw new Error("Wallet changed. Connect again.");
-  const output = normalizeWalletSignIn(result);
+  if (output.signatureType && output.signatureType !== "ed25519") throw new Error("This wallet signature format is not supported.");
   const session = await accountRequest<{ token: string; expiresAt: number }>("/auth/sign-in/session", "", {
     id: challenge.id, wallet: output.account.address,
     message: new TextDecoder("utf-8", { fatal: true }).decode(output.signedMessage),

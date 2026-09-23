@@ -3,21 +3,19 @@ import type { SolanaClient } from "@metamask/connect-solana";
 import { toast } from "sonner";
 import { api, API_URL } from "./api";
 import { ensureAccountSession, savedAccountSession, signInWithWallet, type WalletSignInInput, type WalletSignInOutput } from "./account-api";
-import { WalletSignInResponseError } from "./wallet-sign-in";
 import type { LaunchBatchEnvelope, RuntimeConfig, SignedTransactionEnvelope, TransactionEnvelope } from "./types";
 
 type PhantomProvider = {
   isPhantom?: boolean;
   publicKey?: { toString: () => string } | null;
-  signIn?: (input: WalletSignInInput) => Promise<unknown>;
+  signIn?: (input: WalletSignInInput) => Promise<WalletSignInOutput>;
   connect: (options?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey: { toString: () => string } }>;
   on?: (event: string, listener: (...args: any[]) => void) => void;
   removeListener?: (event: string, listener: (...args: any[]) => void) => void;
   disconnect: () => Promise<void>;
   signMessage: (message: Uint8Array, encoding: string) => Promise<{ signature: Uint8Array }>;
   signAndSendTransaction: (transaction: unknown, options?: { preflightCommitment?: string; maxRetries?: number }) => Promise<{ signature: string } | string>;
-  signTransaction?: (transaction: unknown) => Promise<{ serialize: (options?: { requireAllSignatures?: boolean; verifySignatures?: boolean }) => Uint8Array }>;
-  signAllTransactions?: (transactions: unknown[]) => Promise<Array<{ serialize: (options?: { requireAllSignatures?: boolean; verifySignatures?: boolean }) => Uint8Array }>>;
+  signAllTransactions?: (transactions: unknown[]) => Promise<Array<{ serialize: () => Uint8Array }>>;
 };
 type SolanaAccount = { address: string };
 type StandardConnect = { connect: () => Promise<{ accounts?: readonly SolanaAccount[] }> };
@@ -82,7 +80,7 @@ type WalletValue = {
   sendTransaction: (envelope: TransactionEnvelope, onSubmitted?: (signature:string) => void) => Promise<string>;
   signTransaction: (envelope: TransactionEnvelope) => Promise<{ signedTransactionBase64: string }>;
   signTransactionBatch: (envelopes: LaunchBatchEnvelope[]) => Promise<SignedTransactionEnvelope[]>;
-  submitSignedTransaction: (envelope: TransactionEnvelope & { signedTransactionBase64: string }, onSubmitted?: (signature: string) => void) => Promise<string>;
+  submitSignedTransaction: (envelope: SignedTransactionEnvelope) => Promise<string>;
 };
 const WalletContext = createContext<WalletValue | null>(null);
 const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
@@ -150,33 +148,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           if (!silent) window.open("https://phantom.com/download", "_blank", "noopener,noreferrer");
           throw new Error("Phantom is not installed.");
         }
-        const connectAndAuthenticate = async () => {
+        let connectedAddress: string;
+        if (!silent && provider.signIn && !savedAccountSession(provider.publicKey?.toString() ?? null)) {
+          const account = await signInWithWallet(input => provider.signIn!(input), isCurrent);
+          connectedAddress = account.address;
+          if (provider.publicKey && provider.publicKey.toString() !== connectedAddress) throw new Error("Wallet changed. Connect again.");
+        } else {
           const result = await provider.connect(silent ? { onlyIfTrusted: true } : undefined);
-          if (!isCurrent()) throw new Error("Wallet changed. Connect again.");
-          const connectedAddress = result?.publicKey?.toString();
-          if (!connectedAddress) throw new Error("Phantom did not return a connected Solana account.");
+          if (!isCurrent()) return;
+          connectedAddress = result.publicKey.toString();
           if (!silent) await ensureAccountSession(connectedAddress, async message => {
-            if (!isCurrent() || (provider.publicKey && provider.publicKey.toString() !== connectedAddress)) throw new Error("Wallet changed. Connect again.");
             const signed = await provider.signMessage(new TextEncoder().encode(message), "utf8");
             return { signature: base64(signed.signature) };
           }, () => isCurrent() && (!provider.publicKey || provider.publicKey.toString() === connectedAddress));
-          return connectedAddress;
-        };
-        let connectedAddress: string;
-        if (!silent && provider.signIn && !savedAccountSession(provider.publicKey?.toString() ?? null)) {
-          try {
-            const account = await signInWithWallet(input => provider.signIn!(input), isCurrent);
-            connectedAddress = account.address;
-            if (provider.publicKey && provider.publicKey.toString() !== connectedAddress) throw new Error("Wallet changed. Connect again.");
-          } catch (error) {
-            // Some injected providers expose signIn but return an incompatible
-            // result. Obtain a fresh, server-verified message proof instead.
-            // Rejections, changed wallets and server errors must never retry.
-            if (!(error instanceof WalletSignInResponseError) || !isCurrent()) throw error;
-            connectedAddress = await connectAndAuthenticate();
-          }
-        } else {
-          connectedAddress = await connectAndAuthenticate();
         }
         if (!isCurrent()) return;
         adapter.current = { kind: "phantom", provider };
@@ -367,13 +351,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     });
     try {
       if (adapter.current.kind === "phantom") {
-        const provider = adapter.current.provider;
-        if ((!provider.signTransaction && !provider.signAllTransactions) || (transactions.length > 1 && !provider.signAllTransactions)) throw new Error("Update Phantom to sign these transactions.");
-        const signed = transactions.length === 1 && provider.signTransaction
-          ? [await provider.signTransaction(transactions[0])]
-          : await provider.signAllTransactions!(transactions);
+        if (!adapter.current.provider.signAllTransactions) throw new Error("Update Phantom to sign these transactions.");
+        const signed = await adapter.current.provider.signAllTransactions(transactions);
         if (signed.length !== envelopes.length) throw new Error("Phantom did not sign every transaction.");
-        return signed.map((transaction, index) => ({ ...envelopes[index], signedTransactionBase64: base64(transaction.serialize({ requireAllSignatures: false, verifySignatures: false })) }));
+        return signed.map((transaction, index) => ({ ...envelopes[index], signedTransactionBase64: base64(transaction.serialize()) }));
       }
       const { wallet, account } = adapter.current.value;
       const feature = wallet.features["solana:signTransaction"] as SolanaSignTransaction | undefined;
@@ -393,12 +374,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return signed.map((value, i) => ({ ...value, step: envelopes[i]!.step }));
   }, [signTransactions]);
 
-  const submitSignedTransaction = useCallback(async (envelope: TransactionEnvelope & { signedTransactionBase64: string }, onSubmitted?: (signature: string) => void) => {
+  const submitSignedTransaction = useCallback(async (envelope: SignedTransactionEnvelope) => {
     try {
       const { Connection } = await import("@solana/web3.js");
       const connection = new Connection(config.publicRpcUrl, "confirmed");
       const signature = await connection.sendRawTransaction(decodeBase64(envelope.signedTransactionBase64), { maxRetries: 5, preflightCommitment: "confirmed" });
-      onSubmitted?.(signature);
       await waitForConfirmation(connection, signature, envelope.lastValidBlockHeight);
       return signature;
     } catch (error) {
