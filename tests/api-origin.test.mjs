@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {resolveApiOrigin,AQUA_PUBLIC_API_ORIGIN,LEGACY_PUBLIC_API_ORIGIN} from '../src/api-origin.ts';
 test('prefers the canonical API even when an old production override remains',()=>{
+  assert.equal(AQUA_PUBLIC_API_ORIGIN,"https://aquaapi.fun");
+  assert.equal(resolveApiOrigin("https://aquafamily.fun/"),AQUA_PUBLIC_API_ORIGIN);
   assert.equal(resolveApiOrigin(),AQUA_PUBLIC_API_ORIGIN);
   assert.equal(resolveApiOrigin(` ${LEGACY_PUBLIC_API_ORIGIN}/ `),AQUA_PUBLIC_API_ORIGIN);
   assert.equal(resolveApiOrigin(undefined,LEGACY_PUBLIC_API_ORIGIN),AQUA_PUBLIC_API_ORIGIN);

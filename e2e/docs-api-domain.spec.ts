@@ -9,8 +9,8 @@ test('developer examples use the canonical public domain independently of stagin
  await page.route('**/config.js',r=>r.fulfill({contentType:'application/javascript',body:'window.AQUA_CONFIG={API_URL:"https://launchpad-backend-staging.up.railway.app"};'}));
  const backendRequests:string[]=[];page.on('request',r=>{if(r.url().includes('/api/config'))backendRequests.push(r.url());});
  await page.goto('/#/developers');
- await expect(page.locator('.dev-code').first()).toContainText('curl https://aquafamily.fun/v1/markets');
- await expect(page.locator('.dev-base')).toHaveAttribute('href','https://aquafamily.fun/v1');
+ await expect(page.locator('.dev-code').first()).toContainText('curl https://aquaapi.fun/v1/markets');
+ await expect(page.locator('.dev-base')).toHaveAttribute('href','https://aquaapi.fun/v1');
  await expect(page.locator('#overview')).toContainText('previous');
  expect(backendRequests).toContain('https://launchpad-backend-staging.up.railway.app/api/config');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
@@ -19,7 +19,7 @@ test('developer examples use the canonical public domain independently of stagin
 test('guide explains current builder, community and funding behavior without mobile overflow',async({page},info)=>{
  await page.goto('/#/how-it-works');
  await expect(page.locator('#atlantis-studio')).toContainText('$10 total AI budget per wallet');
- for(const [id,text] of [['launch-recovery','Resume launch'],['website-publishing','explicit per-project choice'],['dex-boosts','5%, 10%, 20% or No'],['automatic-funds','expires after 24 hours'],['community','Community polls collect opinions'],['public-api','https://aquafamily.fun/v1']])await expect(page.locator('#'+id)).toContainText(text);
+ for(const [id,text] of [['launch-recovery','Resume launch'],['website-publishing','explicit per-project choice'],['dex-boosts','5%, 10%, 20% or No'],['automatic-funds','expires after 24 hours'],['community','Community polls collect opinions'],['public-api','https://aquaapi.fun/v1']])await expect(page.locator('#'+id)).toContainText(text);
  const broken=await page.locator('nav[aria-label="How AQUA works sections"] button').evaluateAll(buttons=>buttons.length);expect(broken).toBeGreaterThan(20);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
  await page.locator('#automatic-funds').scrollIntoViewIfNeeded();await page.screenshot({path:`/tmp/aqua-guide-${info.project.name}.png`});

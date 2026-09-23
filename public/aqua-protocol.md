@@ -84,7 +84,7 @@ Publish a project to an available name on aquafamily.fun. Draft edits stay priva
 
 ## Public AQUA API
 
-Use https://aquafamily.fun/v1 for public markets, trades, charts, rewards, buybacks, burns, jackpots, governance and events. The previous production Railway API address remains supported. Public data reads work from third-party websites without an API key, with a limit of 60 requests per minute per IP. Webhook management requires a wallet session. Atlantis uses this canonical API for AQUA data and keeps it separate from a generated project’s own backend URL.
+Use https://aquaapi.fun/v1 for public markets, trades, charts, rewards, buybacks, burns, jackpots, governance and events. The previous production Railway API address remains supported. Public data reads work from third-party websites without an API key, with a limit of 60 requests per minute per IP. Webhook management requires a wallet session. Atlantis uses this canonical API for AQUA data and keeps it separate from a generated project’s own backend URL.
 
 ## Risks
 
