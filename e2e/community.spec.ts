@@ -10,7 +10,7 @@ async function setup(page:Page,role:'creator'|'holder'|'visitor'|'admin'='creato
  await page.route('**/api/**',async r=>{
   const path=new URL(r.request().url()).pathname,q=new URL(r.request().url()).searchParams,method=r.request().method();let json:any={};
   if(path==='/api/config')json={brand:'AQUA',network:'mainnet-beta',transactionsEnabled:false,marketGovernanceEnabled:false,adminWallet:'admin',publicRpcUrl:'https://rpc.invalid',whirlpools:{},fees:{transferFeeBps:200,platformBps:100,stockRewardsBps:100},creatorLocks:{minimumSeconds:86400,maximumSeconds:31536000,maximumFeeShareBps:5000},sniperDefense:{supported:false}};
-  else if(path==='/api/launches/coin')json={launch:{id:'coin',mint:creator,creatorWallet:creator,name:'Ocean Club',symbol:'OCEAN',description:'A community building together.',stockMint:creator,stockSymbol:'SOL',stockName:'Solana',stock:{mint:creator,symbol:'SOL',name:'Solana'},pairMint:creator,pairType:'sol',pairSymbol:'SOL',rewardMode:'holder_rewards',status:'live',txCount:0,marketCapUsd:124000,tvlUsd:21000,volume24hUsd:54000,change24h:12,holderCount:320,aquaIndexed:true,totalSupplyRaw:'1000000000',tokenDecimals:6,createdAt:now,launchedAt:Math.floor(now/1000),devBuySol:0,rewardAccumulatedUsd:750,rewardRedeemableUsd:420,latestComment:{id:'05',createdAt:now}},trades:[],creatorLock:null,rewardModeState:null};
+  else if(path==='/api/launches/coin')json={launch:{id:'coin',mint:creator,creatorWallet:creator,name:'Ocean Club',symbol:'OCEAN',imageUrl:'/api/launches/coin/image',description:'A community building together.',stockMint:creator,stockSymbol:'SOL',stockName:'Solana',stock:{mint:creator,symbol:'SOL',name:'Solana'},pairMint:creator,pairType:'sol',pairSymbol:'SOL',rewardMode:'holder_rewards',status:'live',txCount:0,marketCapUsd:124000,tvlUsd:21000,volume24hUsd:54000,change24h:12,holderCount:320,aquaIndexed:true,totalSupplyRaw:'1000000000',tokenDecimals:6,createdAt:now,launchedAt:Math.floor(now/1000),devBuySol:0,rewardAccumulatedUsd:750,rewardRedeemableUsd:420,latestComment:{id:'05',createdAt:now}},trades:[],creatorLock:null,rewardModeState:null};
   else if(path.endsWith('/market-data'))json={snapshots:[]};
   else if(path.endsWith('/image'))return r.fulfill({contentType:'image/svg+xml',body:image});
   else if(path.endsWith('/community')&&method==='GET'){
@@ -165,4 +165,33 @@ test('reactions update instantly, coalesce rapid toggles and roll back rejected 
  await post.getByRole('button',{name:'👍 reaction, 3'}).click();await expect(post.getByRole('button',{name:'👍 reaction, 4'})).toHaveAttribute('aria-pressed','true');await room.getByRole('button',{name:'Refresh community'}).click();await expect(post.getByRole('button',{name:'👍 reaction, 4'})).toHaveAttribute('aria-pressed','true');
  await post.getByRole('button',{name:'👍 reaction, 4'}).click();await expect(post.getByRole('button',{name:'👍 reaction, 3'})).toHaveAttribute('aria-pressed','false');release();await expect.poll(()=>calls.length).toBe(2);expect(calls).toEqual([true,false]);await expect(post.getByRole('button',{name:'👍 reaction, 3'})).toHaveAttribute('aria-pressed','false');
  fail=true;await post.getByRole('button',{name:'👍 reaction, 3'}).click();await expect(room.getByRole('alert')).toContainText('Please wait');await expect(post.getByRole('button',{name:'👍 reaction, 3'})).toHaveAttribute('aria-pressed','false');
+});
+
+
+test('updates and polls use the coin identity and feed layout, with live poll deadlines',async({page},info)=>{
+ const state=await setup(page,'holder');const room=page.locator('.community');
+ await room.getByRole('button',{name:'Updates',exact:true}).click();
+ const update=room.locator('.is-update');
+ await expect(update.locator('.community-post-byline')).toContainText('OCEAN');
+ await expect(update.locator('.community-post-byline time')).toContainText('ago');
+ await expect(update.getByRole('img',{name:'OCEAN profile picture'}).locator('img')).toHaveAttribute('src','/api/launches/coin/image');
+ await expect(update.locator('.wallet-identity,.community-badge,.community-message-footer time')).toHaveCount(0);
+ await expect(room.locator('.community-day')).toHaveCount(0);
+ expect(await update.locator('.community-bubble').evaluate(el=>{const style=getComputedStyle(el);return [style.borderTopWidth,style.borderRadius,style.boxShadow];})).toEqual(['0px','0px','none']);
+ await room.screenshot({path:`/tmp/community-post-updates-${info.project.name}.png`});
+ await page.clock.install();
+ const closesAt=await page.evaluate(()=>Date.now()+3600000);state.posts.find(p=>p.kind==='poll')!.poll!.closesAt=closesAt;
+ await room.getByRole('button',{name:'Polls',exact:true}).click();const poll=room.locator('.is-poll');
+ await expect(poll.locator('.community-post-byline')).toContainText('OCEAN');await expect(room.locator('.community-day')).toHaveCount(0);
+ await expect(poll.getByText('No funds involved')).toHaveCount(0);
+ await expect(poll.locator('.community-poll-deadline b')).toHaveText('Ends in 1h');
+ await expect(poll.locator('.community-poll-deadline time')).toHaveAttribute('datetime',new Date(closesAt).toISOString());
+ await expect(poll.locator('.community-poll>button').first()).toBeEnabled();
+ await room.screenshot({path:`/tmp/community-post-polls-${info.project.name}.png`});
+ // Expiry must still work when the server cannot refresh the feed.
+ state.fail=true;await page.clock.fastForward(3601000);
+ await expect(poll.locator('.community-poll-deadline b')).toHaveText('Poll ended');
+ await expect(poll.locator('.community-poll-deadline time')).toContainText('Ended');
+ for(const option of await poll.locator('.community-poll>button').all())await expect(option).toBeDisabled();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
 });
