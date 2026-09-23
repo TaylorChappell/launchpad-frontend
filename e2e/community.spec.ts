@@ -39,29 +39,29 @@ async function setup(page:Page,role:'creator'|'holder'|'visitor'='creator'){
 test('polished conversation supports creator updates, polls, filters and mobile layout',async({page},info)=>{
  const state=await setup(page);const room=page.locator('.community');
  await expect(page.getByRole('button',{name:'Comments',exact:true})).toHaveCount(0);
- await expect(room.getByRole('button',{name:'Create poll'})).toBeVisible();
+ await expect(room.getByRole('button',{name:'Create poll'})).toHaveCount(0);
  await room.getByRole('button',{name:'Polls',exact:true}).click();await expect(room.locator('.community-message')).toHaveCount(1);
  await room.getByRole('button',{name:/Weekly project updates/}).click();expect(state.calls.at(-1)).toMatchObject({action:'vote',choice:1});
  await room.getByRole('button',{name:'Updates',exact:true}).click();await expect(room.locator('.community-message')).toHaveCount(1);
- await room.getByRole('button',{name:'Post update',exact:true}).click();await page.getByLabel('Project update',{exact:true}).fill('Next community call is Friday. See you there!');await page.getByRole('button',{name:'Publish update',exact:true}).click();await expect(room.locator('.community-message').last()).toContainText('Next community call');
- await room.getByRole('button',{name:'Create poll'}).click();const dialog=page.getByRole('dialog',{name:'Ask your community'});await dialog.getByLabel('Question').fill('Which artwork should we make?');await dialog.getByLabel('Option 1').fill('Ocean');await dialog.getByLabel('Option 2').fill('Coral');await dialog.getByRole('button',{name:'Create poll',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(room.locator('.community-message').last()).toContainText('Which artwork');
+ await room.getByRole('button',{name:'Create update',exact:true}).click();await page.getByLabel('Project update',{exact:true}).fill('Next community call is Friday. See you there!');await page.getByRole('button',{name:'Publish update',exact:true}).click();await expect(room.locator('.community-message').last()).toContainText('Next community call');
+ await room.getByRole('button',{name:'Polls',exact:true}).click();await room.getByRole('button',{name:'Create poll'}).click();const dialog=page.getByRole('dialog',{name:'Ask your community'});await dialog.getByLabel('Question').fill('Which artwork should we make?');await dialog.getByLabel('Option 1').fill('Ocean');await dialog.getByLabel('Option 2').fill('Coral');await dialog.getByRole('button',{name:'Create poll',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(room.locator('.community-message').last()).toContainText('Which artwork');
  expect(state.calls.at(-1)).toMatchObject({kind:'poll',options:['Ocean','Coral'],durationHours:24});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
- await room.scrollIntoViewIfNeeded();
+ await room.getByRole('button',{name:'Chat',exact:true}).click();await room.scrollIntoViewIfNeeded();
  expect(await room.locator('.community-send').evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);
  await room.screenshot({path:`/tmp/community-${info.project.name}.png`});
 });
 test('messages retain failed drafts, support replies and image lightbox',async({page})=>{
  const state=await setup(page,'holder');const room=page.locator('.community');await expect(room.getByRole('button',{name:'Create poll'})).toHaveCount(0);
  const field=room.getByLabel('Your message');state.failSend=true;await field.fill('This should stay until sent');await room.getByRole('button',{name:'Send message'}).click();await expect(room.getByRole('alert')).toContainText('Could not send');await expect(field).toHaveValue('This should stay until sent');state.failSend=false;await room.getByRole('button',{name:'Send message'}).click();await expect(room.locator('.community-message').last()).toContainText('This should stay');
- await room.locator('.community-message').last().getByRole('button',{name:'Reply to message'}).click();await field.fill('Reply from the community');await room.getByRole('button',{name:'Send message'}).click();await expect(room.locator('.community-message').last().locator('.community-reply-preview')).toContainText('This should stay');
+ await room.locator('.community-message').last().getByRole('button',{name:'Message options'}).click();await page.getByRole('menuitem',{name:'Reply',exact:true}).click();await field.fill('Reply from the community');await room.getByRole('button',{name:'Send message'}).click();await expect(room.locator('.community-message').last().locator('.community-reply-preview')).toContainText('This should stay');
  await page.getByLabel('Attach a picture').setInputFiles({name:'wave.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1kAAAAASUVORK5CYII=','base64')});await expect(room.getByAltText('Picture ready to send')).toBeVisible();await room.getByRole('button',{name:'Send message'}).click();await expect(room.locator('.community-message').last().getByRole('button',{name:'Open picture'})).toBeVisible();await room.locator('.community-message').last().getByRole('button',{name:'Open picture'}).click();await expect(page.getByRole('dialog',{name:'Community picture'})).toBeVisible();await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 test('reactions, pinned messages and report/delete dialogs work',async({page})=>{
- const state=await setup(page);const room=page.locator('.community');const post=room.locator('#community-05');await post.getByRole('button',{name:'Message options'}).click();await post.getByRole('button',{name:'React 🔥'}).click();await expect(post.getByRole('button',{name:'🔥 reaction, 1'})).toHaveAttribute('aria-pressed','true');
- await post.getByRole('button',{name:'Message options'}).click();await post.getByRole('button',{name:'Pin message',exact:true}).click();await expect(room.locator('.community-pin')).toContainText('What would you like');
- await post.getByRole('button',{name:'Message options'}).click();await post.getByRole('button',{name:'Report',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Send report'}).click();expect(state.calls.at(-1)).toMatchObject({action:'report',reason:'Spam'});
- await post.getByRole('button',{name:'Message options'}).click();await post.getByRole('button',{name:'Delete message',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Delete message',exact:true}).click();await expect(post).toHaveCount(0);
+ const state=await setup(page);const room=page.locator('.community');const post=room.locator('#community-05');await post.getByRole('button',{name:'Message options'}).click();await page.getByRole('menuitemcheckbox',{name:'React 🔥'}).click();await expect(post.getByRole('button',{name:'🔥 reaction, 1'})).toHaveAttribute('aria-pressed','true');
+ await post.getByRole('button',{name:'Message options'}).click();await page.getByRole('menuitem',{name:'Pin message',exact:true}).click();await expect(room.locator('.community-pin')).toContainText('What would you like');
+ await post.getByRole('button',{name:'Message options'}).click();await page.getByRole('menuitem',{name:'Report',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Send report'}).click();expect(state.calls.at(-1)).toMatchObject({action:'report',reason:'Spam'});
+ await post.getByRole('button',{name:'Message options'}).click();await page.getByRole('menuitem',{name:'Delete message',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Delete message',exact:true}).click();await expect(post).toHaveCount(0);
 });
 test('reading older messages is not interrupted by incoming messages; pagination preserves older history',async({page})=>{
  const state=await setup(page);const room=page.locator('.community'),feed=room.locator('.community-scroll');
@@ -78,4 +78,30 @@ test('moderators can dismiss an older report without retaining it in the queue',
  await page.route('**/api/launches/coin/community-reports',r=>r.fulfill({json:{posts:[...reports].reverse()}}));
  await page.route('**/api/launches/coin/community/01/moderate',r=>{expect(r.request().postDataJSON()).toEqual({action:'dismiss'});reports=reports.filter(p=>p.id!=='01');return r.fulfill({json:{ok:true}});});
  const room=page.locator('.community');await room.getByRole('button',{name:'Reported posts'}).click();await expect(room.locator('.community-message')).toHaveCount(2);await room.locator('#community-01').getByRole('button',{name:'Dismiss reports'}).click();await expect(room.locator('#community-01')).toHaveCount(0);await expect(room.locator('.community-message')).toHaveCount(1);
+});
+test('floating message menu supports right click, more reactions and keyboard dismissal without changing the bubble',async({page},info)=>{
+ const state=await setup(page);const room=page.locator('.community'),post=room.locator('#community-05');
+ await post.getByRole('button',{name:'Message options'}).scrollIntoViewIfNeeded();
+ const before=await post.boundingBox();
+ await post.getByRole('button',{name:'Message options'}).click();
+ const menu=page.getByRole('menu',{name:'Message actions'});
+ await expect(menu).toBeVisible();await expect(post.getByRole('button',{name:'Reply to message'})).toHaveCount(0);
+ expect((await post.boundingBox())!.height).toBe(before!.height);expect(await menu.evaluate(el=>el.parentElement===document.body)).toBe(true);
+ await menu.getByRole('menuitem',{name:'More reactions'}).click();await expect(menu.getByRole('menuitemcheckbox',{name:'React 🚀'})).toBeVisible();
+ expect((await post.boundingBox())!.height).toBe(before!.height);
+ const bounds=await menu.boundingBox(),viewport=page.viewportSize()!;expect(bounds!.x).toBeGreaterThanOrEqual(0);expect(bounds!.x+bounds!.width).toBeLessThanOrEqual(viewport.width);expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(viewport.height);
+ await page.screenshot({path:`/tmp/community-menu-${info.project.name}.png`});
+ await menu.getByRole('menuitemcheckbox',{name:'React 🚀'}).click();await expect(menu).toHaveCount(0);expect(state.calls.at(-1)).toMatchObject({action:'react',emoji:'🚀',active:true});
+ await post.locator('.community-text').click({button:'right'});await expect(menu).toBeVisible();await expect(menu.getByRole('menuitem',{name:'Reply',exact:true})).toBeVisible();await expect(menu.getByRole('menuitem',{name:'Report',exact:true})).toBeVisible();await expect(menu.getByRole('menuitem',{name:'Delete message',exact:true})).toBeVisible();
+ await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);await expect(post.getByRole('button',{name:'Message options'})).toBeFocused();
+ await post.getByRole('button',{name:'Message options'}).click();await room.getByLabel('Your message').click();await expect(menu).toHaveCount(0);
+});
+for(const role of ['creator','holder','visitor'] as const)test(`${role} gets the correct filtered feed controls and replies return to chat`,async({page})=>{
+ await setup(page,role);const room=page.locator('.community');
+ if(role!=='visitor')await room.getByLabel('Your message').fill('Keep my chat draft');
+ await room.getByRole('button',{name:'Updates',exact:true}).click();await expect(room.getByLabel('Your message')).toHaveCount(0);await expect(room.getByPlaceholder('Message the community…')).toHaveCount(0);await expect(room.getByRole('button',{name:'Connect wallet'})).toHaveCount(0);
+ await expect(room.getByRole('button',{name:'Create update',exact:true})).toHaveCount(role==='creator'?1:0);await expect(room.getByRole('button',{name:'Create poll',exact:true})).toHaveCount(0);
+ if(role==='creator'){await room.getByRole('button',{name:'Create update',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Create update'});await expect(dialog.getByLabel('Project update')).toHaveValue('');await dialog.getByRole('button',{name:'Close',exact:true}).click();}
+ await room.getByRole('button',{name:'Polls',exact:true}).click();await expect(room.getByLabel('Your message')).toHaveCount(0);await expect(room.getByRole('button',{name:'Create poll',exact:true})).toHaveCount(role==='creator'?1:0);await expect(room.getByRole('button',{name:'Create update',exact:true})).toHaveCount(0);
+ if(role!=='visitor'){await room.locator('.community-message').last().getByRole('button',{name:'Message options'}).click();await page.getByRole('menuitem',{name:'Reply',exact:true}).click();await expect(room.getByRole('button',{name:'Chat',exact:true})).toHaveAttribute('aria-pressed','true');await expect(room.getByLabel('Your message')).toHaveValue('Keep my chat draft');await expect(room.getByLabel('Your message')).toBeFocused();await expect(room.locator('.community-composer-reply')).toContainText('What would you like to see next?');}
 });

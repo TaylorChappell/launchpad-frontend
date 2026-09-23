@@ -172,12 +172,14 @@ test("compact comments support reply previews, cancellation, refresh and keyboar
   expect((await page.locator(".community-composer").boundingBox())!.height).toBeLessThan(140);
   await field.fill("The new release is ready.");
   await page.getByRole("button", { name: "Send message", exact: true }).click();
-  await page.locator(".community-message").getByRole("button", { name: "Reply to message", exact: true }).click();
+  await page.locator(".community-message").getByRole("button", { name: "Message options", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Reply", exact: true }).click();
   await expect(page.locator(".community-composer-reply")).toContainText("Replying to");
   await expect(field).toBeFocused();
   await page.getByRole("button", { name: "Cancel reply", exact: true }).click();
   await expect(page.locator(".community-composer-reply")).toHaveCount(0);
-  await page.locator(".community-message").getByRole("button", { name: "Reply to message", exact: true }).click();
+  await page.locator(".community-message").getByRole("button", { name: "Message options", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Reply", exact: true }).click();
   await field.fill("Trying it now!");
   await field.press("Control+Enter");
   await expect(page.locator(".community-message").last().locator(".community-text")).toHaveText("Trying it now!");
