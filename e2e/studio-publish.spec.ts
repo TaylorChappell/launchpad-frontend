@@ -65,21 +65,34 @@ test("publishing stays disabled until hosting is configured",async({page})=>{
   expect(calls).toEqual([]);
 });
 
-test("saves public variables and explicit CA choice before publishing",async({page})=>{
+test("saves configuration from its own Variables menu and then publishes",async({page})=>{
   const calls=await setup(page);
   const dialog=page.getByRole("dialog",{name:"Publish website",exact:true});
   await expect(dialog.locator(".at-publish-address")).not.toContainText("stg-");
-  const consent=dialog.getByRole("checkbox",{name:"Fill the website CA automatically when I launch this coin"});
+  await expect(dialog.getByRole("textbox",{name:"TOKEN_CA",exact:true})).toHaveCount(0);
+  await dialog.getByRole("button",{name:"Close dialog"}).click();
+  await page.getByRole("button",{name:"Variables",exact:true}).click();
+  const variables=page.getByRole("dialog",{name:"Variables",exact:true});
+  const consent=variables.getByRole("checkbox",{name:"Fill the website CA automatically when I launch this coin"});
   await expect(consent).not.toBeChecked();
-  await dialog.getByRole("textbox",{name:"TOKEN_CA",exact:true}).fill("manual-mint");
-  await dialog.getByRole("textbox",{name:"New variable name"}).fill("BACKEND_URL");
-  await dialog.getByRole("button",{name:"Add variable",exact:true}).click();
-  await dialog.getByRole("textbox",{name:"BACKEND_URL",exact:true}).fill("https://fish-api.example.com");
+  await variables.getByRole("textbox",{name:"TOKEN_CA",exact:true}).fill("manual-mint");
+  await variables.getByRole("textbox",{name:"New variable name"}).fill("BACKEND_URL");
+  await variables.getByRole("button",{name:"Add variable",exact:true}).click();
+  await variables.getByRole("textbox",{name:"BACKEND_URL",exact:true}).fill("https://fish-api.example.com");
   await consent.check();
-  await expect(dialog.getByRole("textbox",{name:"TOKEN_CA",exact:true})).toBeDisabled();
+  await expect(variables.getByRole("textbox",{name:"TOKEN_CA",exact:true})).toBeDisabled();
   const saved=page.waitForRequest(r=>r.method()==="POST" && new URL(r.url()).pathname.endsWith(`/projects/${id}`));
-  await dialog.getByRole("button",{name:"Publish website",exact:true}).click();
+  await variables.getByRole("button",{name:"Save variables",exact:true}).click();
   expect((await saved).postDataJSON().state).toMatchObject({autoFillCA:true,frontendVariables:{TOKEN_CA:"manual-mint",BACKEND_URL:"https://fish-api.example.com",API_BASE_URL:"https://fish-api.example.com"}});
+  await expect(variables.getByRole("status")).toContainText("Variables saved");
+  expect(calls).toEqual(["save"]);
+  await variables.getByRole("button",{name:"Close dialog"}).click();
+  await page.getByRole("button",{name:"Variables",exact:true}).click();
+  await expect(variables.getByRole("textbox",{name:"BACKEND_URL",exact:true})).toHaveValue("https://fish-api.example.com");
+  await expect(consent).toBeChecked();
+  await variables.getByRole("button",{name:"Close dialog"}).click();
+  await page.getByRole("button",{name:"Publish",exact:true}).click();
+  await dialog.getByRole("button",{name:"Publish website",exact:true}).click();
   await expect(dialog.getByRole("link",{name:"Visit website"})).toHaveAttribute("href","https://sea-cat.aquafamily.fun");
   expect(calls).toEqual(["save","publish"]);
 });

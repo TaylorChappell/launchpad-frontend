@@ -1,3 +1,4 @@
+import { StudioVariables } from "../components/StudioVariables";
 import { StudioPublish } from "../components/StudioPublish";
 import { StudioLaunchKit } from "../components/StudioLaunchKit";
 import "./studio.css";
@@ -43,6 +44,7 @@ import {
   Pencil,
   RefreshCw,
   Save,
+  SlidersHorizontal,
   Send,
   Smartphone,
   Trash2,
@@ -112,6 +114,7 @@ type Modal =
   | "credit"
   | "export"
   | "publish"
+  | "variables"
   | "github"
   | "history"
   | "project"
@@ -1176,7 +1179,7 @@ function StudioWorkspace() {
       if (!selected) throw new Error("Export the backend to GitHub first.");
       const result = await request<{url:string}>(`/projects/${project.id}/railway`, {exportId:selected,token:railwayToken.trim(),variables});
       setRailwayUrl(result.url); setRailwayToken(""); setRailwayVariables("");
-      setNotice("Backend sent to Railway. Generate its public domain, paste it into Publish → Frontend variables → BACKEND_URL, then publish your website changes.");
+      setNotice("Backend sent to Railway. Generate its public domain, paste it into Variables → BACKEND_URL, then publish your website changes.");
     });
   }
   const actionDisabled = Boolean(busy);
@@ -1507,6 +1510,9 @@ function StudioWorkspace() {
                 >
                   <Save size={16} />
                   <span>Save</span>
+                </button>
+                <button disabled={actionDisabled} onClick={() => openModal("variables")}>
+                  <SlidersHorizontal size={16}/><span>Variables</span>
                 </button>
                 <button disabled={actionDisabled} onClick={() => openModal("publish")}>
                   <Globe size={16}/><span>Publish</span>
@@ -2347,6 +2353,7 @@ function StudioWorkspace() {
               credit: "Your Studio credit",
               export: "Take your project with you",
               publish: "Publish website",
+              variables: "Variables",
               github: "GitHub connection",
               history: "Project history",
               project: "Create a project",
@@ -2466,8 +2473,10 @@ function StudioWorkspace() {
                 )}
               </div>
             </>
+          ) : modal === "variables" && project ? (
+            <StudioVariables key={project.id} project={project} state={state ?? project.state} edit={edit} token={token} dirty={dirty} busy={actionDisabled} hasBackend={hasBackend} save={save} run={task}/>
           ) : modal === "publish" && project ? (
-            <StudioPublish key={project.id} project={project} state={state ?? project.state} edit={edit} token={token} dirty={dirty} busy={actionDisabled} hasBackend={hasBackend} save={save} run={task}/>
+            <StudioPublish key={project.id} project={project} token={token} dirty={dirty} busy={actionDisabled} save={save} run={task}/>
           ) : modal === "export" ? (
             <>
               <p>
