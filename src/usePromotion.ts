@@ -9,7 +9,7 @@ export function usePromotion(){
     void load();const timer=window.setInterval(()=>{if(document.visibilityState==="visible")void load();},60_000);
     return()=>{active=false;window.clearInterval(timer);};
   },[]);
-  useEffect(()=>{const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer);},[]);
+  useEffect(()=>{if(!promotion?.endsAt)return;const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer);},[promotion?.endsAt]);
   const remaining=promotion?.endsAt?Math.max(0,promotion.endsAt-(now+offset)):0;
-  return {promotion,active:Boolean(promotion?.active&&remaining>0),remaining,error};
+  return {promotion,active:Boolean(promotion?.active&&(promotion.endsAt===null||remaining>0)),remaining,error};
 }

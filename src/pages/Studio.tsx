@@ -84,6 +84,8 @@ type Account = {
   balanceMicroUsd: string;
   creditExempt?: boolean;
   promotionRemainingMicroUsd?:string;
+  freeAccessEnabled?:boolean;
+  freeBudgetMicroUsd?:string;
   legacyBalanceNotice?: string | null;
   ledger: Array<{
     id: string;
@@ -91,7 +93,7 @@ type Account = {
     amount_raw: string;
     amount_micro_usd: string | null;
     created_at: number;
-    details: { chargedRaw?: string };
+    details: { chargedRaw?: string; chargedMicroUsd?:string };
   }>;
 };
 type DepositQuote = TransactionEnvelope & {id:string;maximumCreditMicroUsd:string;expiresAt:number;price:{usdPrice:string;quotedAt:number}};
@@ -630,6 +632,10 @@ function StudioWorkspace() {
       ]);
       if (!mounted.current) return;
       setConfig(latestConfig);
+      if(account.freeAccessEnabled===true&&latestAccount.freeAccessEnabled===false){
+        setNotice("Free builder access has been switched off. New requests use paid credit. Review your balance before sending again.");
+        return;
+      }
       if (!latestConfig.paidEnabled) {
         setCreditGate(null);
         setError("AI setup is incomplete. The exact missing settings are listed below.");
@@ -1274,8 +1280,8 @@ function StudioWorkspace() {
       )}
     </div>
   );
-  const freeAccess = Boolean(promotion.active && account.creditExempt);
-  const creditLabel = freeAccess ? `Free allowance · ${usdCredit(account.promotionRemainingMicroUsd??"0")} left` : `${usdCredit(account.balanceMicroUsd)} credit`;
+  const freeAccess = Boolean(account.freeAccessEnabled ?? promotion.active);
+  const creditLabel = freeAccess ? `Free budget · ${usdCredit(account.promotionRemainingMicroUsd??"0")} left` : `${usdCredit(account.balanceMicroUsd)} credit`;
   const coinImage = state?.files.find(item => item.path === state.launch.imagePath && imageFile(item));
   const setupIssues =
     config && !config.paidEnabled
@@ -1464,7 +1470,7 @@ function StudioWorkspace() {
             <div className="at-sidebar-credit">
               <Droplets size={17} />
               <div>
-                <small>Studio credit</small>
+                <small>{freeAccess?"Builder budget":"Studio credit"}</small>
                 <strong>{creditLabel}</strong>
               </div>
               <button
@@ -1697,7 +1703,7 @@ function StudioWorkspace() {
                                 </button>}
                                 {job.applied_at && <small>Changes applied</small>}
                                 <small>
-                                  {job.charged_micro_usd != null ? `${usdCredit(job.charged_micro_usd)} used` : decimals !== null ? `${aquaAmount(job.charged_raw, decimals)} AQUA (legacy)` : "Legacy usage"}
+                                  {job.charged_micro_usd != null ? `${usdCredit(job.charged_micro_usd)} ${job.credit_exempt?"from free budget":"used"}` : decimals !== null ? `${aquaAmount(job.charged_raw, decimals)} AQUA (legacy)` : "Legacy usage"}
                                 </small>
                               </div>
                             </>
@@ -1775,7 +1781,7 @@ function StudioWorkspace() {
                       </div>
                   </div>
                   <div className="at-composer-hint">
-                    <span>Uses credits · Actual usage only</span>
+                    <span>{freeAccess?"Free builder budget · Actual usage only":"Uses credits · Actual usage only"}</span>
                   </div>
                   </div>
                 </aside>
@@ -2399,7 +2405,7 @@ function StudioWorkspace() {
           className={modal === "variables" ? "at-variables-dialog" : ""}
           title={
             {
-              credit: "Your Studio credit",
+              credit: freeAccess?"Your builder budget":"Your Studio credit",
               export: "Take your project with you",
               publish: "Publish website",
               variables: "Variables",
@@ -2442,13 +2448,14 @@ function StudioWorkspace() {
                 <small>AVAILABLE TO SPEND</small>
                 <strong>{creditLabel}</strong>
               </div>
-              <p className="at-muted">
+              {freeAccess?<p className="at-muted">Your wallet gets a {usdCredit(account.freeBudgetMicroUsd??"10000000")} total budget for websites, artwork and chat. No deposit needed. Only completed AI usage counts; unused reservations return to your budget.</p>:<p className="at-muted">
                 AQUA is valued in USD at deposit time. That value becomes prepaid
                 Studio credit and stays fixed when AQUA’s price changes. AI requests
                 deduct their USD usage cost. Credit is not withdrawable.
-              </p>
+              </p>}
+              {freeAccess&&BigInt(account.balanceMicroUsd)>0n&&<p className="at-muted">Your {usdCredit(account.balanceMicroUsd)} paid credit stays saved while free access is on.</p>}
               {account.legacyBalanceNotice && <p role="status" className="at-muted">{account.legacyBalanceNotice}</p>}
-              {(configChecking && !config?.depositsEnabled) ? (
+              {!freeAccess&&((configChecking && !config?.depositsEnabled) ? (
                 <p className="at-muted" role="status">Checking AQUA deposits and live price…</p>
               ) : config?.depositsEnabled ? (
                 <>
@@ -2488,7 +2495,7 @@ function StudioWorkspace() {
                   busy={actionDisabled}
                   onRetry={() => void checkStudioSetup()}
                 />
-              )}
+              ))}
               {pendingDeposit && (
                 <div className="at-pending" role="status">
                   <strong>Deposit submitted</strong>
@@ -2507,12 +2514,12 @@ function StudioWorkspace() {
                 {account.ledger.map((row) => (
                   <div key={row.id}>
                     <span>
-                      {{deposit:"Deposit",reserve:"Reserved for AI",settlement:"Unused credit returned",refund:"Reservation refunded",legacy_conversion:"Previous credit converted"}[row.kind] ?? row.kind}
+                      {{deposit:"Deposit",reserve:"Reserved for AI",settlement:"Unused credit returned",refund:"Reservation refunded",legacy_conversion:"Previous credit converted",free_usage:"Free builder usage"}[row.kind] ?? row.kind}
                       <small>
                         {new Date(Number(row.created_at)).toLocaleString()}
                       </small>
                     </span>
-                    <strong>{row.amount_micro_usd != null ? usdCredit(row.amount_micro_usd) : `${aquaAmount(row.amount_raw, decimals)} AQUA (legacy)`}</strong>
+                    <strong>{row.kind==="free_usage"?usdCredit(row.details.chargedMicroUsd??"0"):row.amount_micro_usd != null ? usdCredit(row.amount_micro_usd) : `${aquaAmount(row.amount_raw, decimals)} AQUA (legacy)`}</strong>
                   </div>
                 ))}
                 {!account.ledger.length && (

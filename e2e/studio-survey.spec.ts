@@ -90,3 +90,28 @@ test("survey answers survive a quote failure and chat requests go straight throu
  flow.jobs.length=0;flow.chat=false;flow.quoteFail=true;await page.reload();await send(page,"Create a DEX banner for Sea Cat");const dialog=surveyDialog(page);await dialog.getByRole("radio",{name:/Centre of the wave/}).check();await dialog.getByRole("button",{name:"Start creating"}).click();await expect(page.getByLabel("Message Atlantis")).toHaveValue("Create a DEX banner for Sea Cat");expect(flow.jobs).toHaveLength(0);
  flow.quoteFail=false;await page.getByRole("button",{name:"Send message",exact:true}).click();await expect.poll(()=>flow.jobs.length).toBe(1);expect(flow.surveys).toHaveLength(2);expect(flow.quotes.at(-1).surveyAnswers).toEqual([{question:"Where should Sea Cat sit in the banner?",answer:"Centre of the wave: Make the character the entire focus."}]);
 });
+
+for(const remaining of ["10000000","0"])test(`free builder budget remains visible with ${remaining} remaining and no countdown`,async({page},info)=>{
+ const flow=await setup(page);
+ await page.route("**/studio/promotion",route=>route.fulfill({json:{active:true,startsAt:null,endsAt:null,serverNow:Date.now(),allowanceUsd:10}}));
+ await page.route("**/studio/account",route=>route.fulfill({json:{balanceMicroUsd:"0",creditExempt:remaining!=="0",freeAccessEnabled:true,freeBudgetMicroUsd:"10000000",promotionRemainingMicroUsd:remaining,ledger:[{id:"free-usage:test",kind:"free_usage",amount_raw:"0",amount_micro_usd:"0",created_at:Date.now(),details:{chargedMicroUsd:"250000"}}]}}));
+ await page.reload();const label=`Free budget · $${remaining==="0"?"0.00":"10.00"} left`;
+ await expect(page.getByRole("button",{name:label,exact:true})).toBeVisible();await expect(page.locator('.at-composer-hint')).toContainText("Free builder budget");
+ await page.getByRole("button",{name:label,exact:true}).click();const dialog=page.getByRole("dialog",{name:"Your builder budget"});await expect(dialog).toContainText("$10.00 total budget");await expect(dialog).toContainText("No deposit needed");await expect(dialog.locator(".at-ledger")).toContainText("Free builder usage");await expect(dialog.locator(".at-ledger")).toContainText("$0.25");await expect(dialog.getByRole("button",{name:/Preview USD credit|Confirm deposit/})).toHaveCount(0);
+ await dialog.screenshot({path:`/tmp/atlantis-free-budget-${remaining}-${info.project.name}.png`});
+ await dialog.getByRole("button",{name:"Close dialog"}).click();await page.getByRole("switch",{name:"Skip survey",exact:true}).check();
+ if(remaining==="0")await page.route("**/studio/projects/*/quote",route=>route.fulfill({status:403,json:{error:"This request exceeds your remaining free builder budget ($0.00 left of $10). Choose a lower effort or a smaller request."}}));
+ await send(page,"Create a Sea Cat icon");
+ if(remaining==="0"){
+   await expect(page.getByText(/This request exceeds your remaining free builder budget/)).toBeVisible();expect(flow.jobs).toHaveLength(0);await expect(page.getByRole("dialog",{name:"Not enough credits"})).toHaveCount(0);await expect(page.getByLabel("Message Atlantis")).toHaveValue("Create a Sea Cat icon");
+ }else await expect.poll(()=>flow.jobs.length).toBe(1);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
+});
+
+
+test("switching off free access asks for a fresh send before spending paid credit",async({page})=>{
+ const flow=await setup(page);let free=true;
+ await page.route("**/studio/account",route=>route.fulfill({json:{balanceMicroUsd:"5000000",freeAccessEnabled:free,creditExempt:free,freeBudgetMicroUsd:"10000000",promotionRemainingMicroUsd:free?"10000000":"0",ledger:[]}}));
+ await page.reload();await expect(page.getByRole("button",{name:"Free budget · $10.00 left",exact:true})).toBeVisible();await page.getByRole("switch",{name:"Skip survey",exact:true}).check();
+ free=false;await send(page,"Create a Sea Cat icon");await expect(page.getByLabel("Message Atlantis")).toHaveValue("Create a Sea Cat icon");await expect(page.getByText(/Free builder access has been switched off/)).toBeVisible();expect(flow.quotes).toHaveLength(0);expect(flow.jobs).toHaveLength(0);await expect(page.getByRole("button",{name:"$5.00 credit",exact:true})).toBeVisible();
+});

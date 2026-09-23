@@ -150,3 +150,5 @@
   .atlantis-update-features article { padding: 13px; }
   .atlantis-update-free { align-items: flex-start; flex-direction: column; border-radius: 13px; text-align: left; }
 }
+
+.atlantis-update-builder-budget{display:flex;align-items:center;flex-direction:column;gap:9px;margin:28px 0;color:#31647d}.atlantis-update-builder-budget strong{font-size:64px;line-height:1.1;letter-spacing:-3px;color:#147bb6}.atlantis-update-builder-budget span{font-size:15px;font-weight:600}.atlantis-update-builder-budget small{font-size:12px;color:#6b899a;line-height:1.6;text-align:center}

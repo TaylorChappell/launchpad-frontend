@@ -25,8 +25,8 @@ export function AtlantisFreeUpdate() {
         <Feature icon={<ImageIcon/>} title="Memes & generators" copy="Build shareable artwork, meme concepts and generators around your token identity."/>
         <Feature icon={<PanelsTopLeft/>} title="One Aqua workspace" copy="Keep the concept, assets, code and website together from first idea to export."/>
       </div>
-      <div className="atlantis-update-free"><b>Launch event</b><span>{active ? "Free access is active for the remaining launch-event time." : "The 24-hour launch offer is time-limited. Studio remains available with credits."}</span></div>
-      {active && countdown ? <>
+      <div className="atlantis-update-free"><b>Builder access</b><span>{active ? `Create for free with a $${promotion?.allowanceUsd??10} AI budget per wallet.` : "Studio is available with credits while free access is switched off."}</span></div>
+      {active && promotion?.endsAt ? <>
         <div className="atlantis-update-countdown" aria-label={`${countdown.hours} hours, ${countdown.minutes} minutes and ${countdown.seconds} seconds remaining`}>
           <Time value={countdown.hours} label="Hours"/>
           <span>:</span>
@@ -34,8 +34,8 @@ export function AtlantisFreeUpdate() {
           <span>:</span>
           <Time value={countdown.seconds} label="Seconds"/>
         </div>
-        <small className="atlantis-update-live"><i/> Live countdown from the AQUA server. Up to ${promotion?.allowanceUsd ?? 5} of AI usage per wallet. Add credit to continue after your allowance.</small>
-      </> : config ? <div className="atlantis-update-ended"><Clock3/> This free period has ended.</div> : <div className="atlantis-update-loading"><Clock3/> {error || "Loading the live countdown…"}</div>}
+        <small className="atlantis-update-live"><i/> Live countdown from the AQUA server. Up to ${promotion?.allowanceUsd ?? 10} of AI usage per wallet.</small>
+      </> : active ? <div className="atlantis-update-builder-budget"><strong>${promotion?.allowanceUsd??10}</strong><span>Per builder wallet</span><small>One total budget for websites, artwork and chat. No deposit needed.</small></div> : config ? <div className="atlantis-update-ended"><Clock3/> Free builder access is currently switched off.</div> : <div className="atlantis-update-loading"><Clock3/> {error || "Checking free builder access…"}</div>}
       <Link className="atlantis-update-button" to="/studio">Open Atlantis Studio <ArrowRight size={18}/></Link>
       <strong className="atlantis-update-signoff">Launch on Aqua. Build on Orca.</strong>
     </section>
