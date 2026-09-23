@@ -83,7 +83,7 @@ test("saves configuration from its own Variables menu and then publishes",async(
   const saved=page.waitForRequest(r=>r.method()==="POST" && new URL(r.url()).pathname.endsWith(`/projects/${id}`));
   await variables.getByRole("button",{name:"Save variables",exact:true}).click();
   expect((await saved).postDataJSON().state).toMatchObject({autoFillCA:true,frontendVariables:{TOKEN_CA:"manual-mint",BACKEND_URL:"https://fish-api.example.com",API_BASE_URL:"https://fish-api.example.com"}});
-  await expect(variables.getByRole("status")).toContainText("Variables saved");
+  await expect(variables.getByRole("status").filter({hasText:"Variables saved"})).toContainText("Variables saved");
   expect(calls).toEqual(["save"]);
   await variables.getByRole("button",{name:"Close dialog"}).click();
   await page.getByRole("button",{name:"Variables",exact:true}).click();

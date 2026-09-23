@@ -30,21 +30,20 @@ export function CommunityMessageMenu({ anchor, moderator, canDelete, busy, onClo
     const outside = (event: PointerEvent) => {
       if (!menu.current?.contains(event.target as Node) && !anchor.trigger.contains(event.target as Node)) close.current();
     };
-    // A tap can finish a pending scroll-to-view event. Only dismiss if the trigger actually moves.
-    const triggerPosition=anchor.trigger.getBoundingClientRect();
+    // Close for an intentional scroll, not the send animation or browser scroll-to-view finishing.
     const dismissOnScroll = (event: Event) => {
-      if(menu.current?.contains(event.target as Node))return;
-      const current=anchor.trigger.getBoundingClientRect();
-      if(Math.abs(current.top-triggerPosition.top)>1||Math.abs(current.left-triggerPosition.left)>1)close.current();
+      if(!menu.current?.contains(event.target as Node))close.current();
     };
     const dismiss = () => close.current();
     document.addEventListener('pointerdown', outside, true);
-    window.addEventListener('scroll', dismissOnScroll, true);
+    window.addEventListener('wheel', dismissOnScroll, {capture:true,passive:true});
+    window.addEventListener('touchmove', dismissOnScroll, {capture:true,passive:true});
     window.addEventListener('resize', dismiss);
     window.visualViewport?.addEventListener('resize', dismiss);
     return () => {
       document.removeEventListener('pointerdown', outside, true);
-      window.removeEventListener('scroll', dismissOnScroll, true);
+      window.removeEventListener('wheel', dismissOnScroll, true);
+      window.removeEventListener('touchmove', dismissOnScroll, true);
       window.removeEventListener('resize', dismiss);
       window.visualViewport?.removeEventListener('resize', dismiss);
     };

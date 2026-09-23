@@ -88,7 +88,7 @@ for (const shape of ["standard", "injected", "array", "address", "malformed", "u
     await page.getByRole("button", { name: "Send message", exact: true }).click();
     await expect(page.locator(".community-scroll").getByText(body, { exact: true })).toBeVisible();
   }
-  expect(posts).toEqual(["First comment", "Second comment"]);
+  await expect.poll(()=>posts).toEqual(["First comment", "Second comment"]);
   const mobile = testInfo.project.name === "mobile";
   expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: mobile ? 0 : 1, signMessage: mobile || ["malformed", "undefined"].includes(shape) ? 1 : 0 });
 });
@@ -145,7 +145,7 @@ for (const android of [false, true]) for (const legacy of [false, true]) test(`$
   await page.getByLabel("Your message", { exact: true }).fill("Signed in on my phone");
   await page.getByRole("button", { name: "Send message", exact: true }).click();
   await expect(page.locator(".community-scroll")).toContainText("Signed in on my phone");
-  expect(posts).toEqual(["Signed in on my phone"]);
+  await expect.poll(()=>posts).toEqual(["Signed in on my phone"]);
   expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 0, signMessage: 1 });
 });
 
@@ -154,7 +154,7 @@ test("a restored session can comment without signing in again", async ({ page })
   await page.getByLabel("Your message", { exact: true }).fill("Still signed in");
   await page.getByRole("button", { name: "Send message", exact: true }).click();
   await expect(page.locator(".community-scroll").getByText("Still signed in", { exact: true })).toBeVisible();
-  expect(posts).toEqual(["Still signed in"]);
+  await expect.poll(()=>posts).toEqual(["Still signed in"]);
   expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 0, signMessage: 0 });
 });
 
@@ -186,7 +186,7 @@ test("compact comments support reply previews, cancellation, refresh and keyboar
   await expect(page.locator(".community-message").last().locator(".community-reply-preview")).toContainText("The new release is ready.");
   await page.getByRole("button", { name: "Refresh community", exact: true }).click();
   await expect(page.locator(".community-message")).toHaveCount(2);
-  expect(posts).toEqual(["The new release is ready.", "Trying it now!"]);
+  await expect.poll(()=>posts).toEqual(["The new release is ready.", "Trying it now!"]);
   expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 0, signMessage: 0 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
 });

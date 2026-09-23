@@ -58,7 +58,6 @@
 .community-message.is-message{margin-bottom:7px;max-width:88%}
 .community-message.is-message .community-bubble{padding:6px 11px 5px;min-width:120px}
 .community-message.is-message .community-text{line-height:1.45;margin:3px 0}
-.community-message.is-message.is-own .community-bubble>header .wallet-identity,.community-message.is-message.is-own .community-bubble>header .community-badge{display:none}
 .community-message.is-message.is-own .community-bubble>header{min-height:0;height:0;margin:0}
 .community-message.is-message.is-own .community-text{padding-right:22px}
 .community-message.is-message.is-own .community-more{top:3px}
@@ -89,3 +88,27 @@
 .community-dialog .community-holder-toggle input{width:17px;height:17px;margin:0;accent-color:#0786bd}
 .community-holder-toggle small{display:block;font-size:11px;color:#728a97;font-weight:400;margin-top:4px}
 @media(max-width:600px){.community-message.is-update .community-bubble,.community-message.is-poll .community-bubble{padding:15px 14px 11px}.community-message.is-message{max-width:95%}.community-filters>button{gap:6px}}
+
+/* Immediate sends and light feedback without moving the surrounding conversation. */
+.community-message.has-local-delivery .community-bubble{animation:community-arrive .2s cubic-bezier(.2,.7,.3,1) both;transform-origin:bottom right}
+.community-reaction-emoji{display:inline-block;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif!important;font-size:15px!important;line-height:1}
+.community-reaction-emoji.is-popping{animation:community-react .32s cubic-bezier(.2,.7,.3,1)}
+.community-reaction-count{font-variant-numeric:tabular-nums;transition:color .15s}
+.community-reactions>button{transition:background .16s,border-color .16s,box-shadow .16s,transform .12s}
+.community-reactions>button:active{transform:scale(.93)}
+.community-reactions>button[aria-pressed=true]{box-shadow:0 1px 4px #1684af12}
+.community-send{transition:background .16s,transform .14s,opacity .16s!important}
+.community-send:not(:disabled):hover{transform:translateY(-1px)}
+.community-send:not(:disabled):active{transform:scale(.91)}
+.community-send-motion{animation:community-send .25s ease-out}
+.community-pending{color:#6c98aa}
+.community-send-failed{display:flex;align-items:center;justify-content:space-between;gap:10px;max-width:300px;margin-top:5px;padding-top:6px;border-top:1px solid #d8e7ee;color:#986255;font-size:11px}
+.community-send-failed button{flex-shrink:0;border:0;border-radius:6px;background:#fff9;color:#84604d;font-weight:650;padding:5px 7px}
+.community-message.is-message.is-own .community-bubble>header{padding:0}
+.community-message.is-message.is-own .community-bubble .community-reply-preview{margin-top:22px}
+@keyframes community-arrive{from{opacity:.3;transform:translateY(7px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes community-react{0%{transform:scale(.75)}45%{transform:scale(1.28) rotate(-7deg)}75%{transform:scale(.96) rotate(3deg)}100%{transform:scale(1)}}
+@keyframes community-send{0%{transform:translate(-3px,3px);opacity:.4}100%{transform:translate(0,0);opacity:1}}
+@media(prefers-reduced-motion:reduce){.community .community-bubble,.community .community-reaction-emoji,.community .community-send-motion{animation:none!important}.community .community-send,.community .community-reactions>button{transition:none!important}}
+
+.community-bubble .community-more{z-index:1}
