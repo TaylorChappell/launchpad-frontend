@@ -1,8 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 
 const address = "11111111111111111111111111111111", token = "a".repeat(64);
-async function setup(page: Page, restored = false, authenticated = false) {
-  await page.addInitScript(({ address, token, restored, authenticated }) => {
+async function setup(page: Page, restored = false, authenticated = false, signInShape = "standard") {
+  await page.addInitScript(({ address, token, restored, authenticated, signInShape }) => {
     localStorage.setItem("aqua:update:holder-workspace-v2", "seen");
     if (restored) localStorage.setItem("aqua:wallet", "phantom");
     if (authenticated) localStorage.setItem(`aqua:studio:${address}`, JSON.stringify({ token, expiresAt: Date.now() + 86400000 }));
@@ -10,10 +10,25 @@ async function setup(page: Page, restored = false, authenticated = false) {
     Object.assign(window, { commentWalletCalls: calls, phantom: { solana: {
       isPhantom: true, publicKey: { toString: () => address },
       connect: async () => ({ publicKey: { toString: () => address } }), on() {}, removeListener() {},
-      signIn: async () => { calls.signIn++; return { account: { address }, signedMessage: new TextEncoder().encode("SIWS proof"), signature: new Uint8Array(64) }; },
-      signMessage: async () => { calls.signMessage++; throw new Error("A comment must not request a signature"); },
+      signIn: async () => {
+        calls.signIn++;
+        if (signInShape === "rejected") throw new Error("User rejected the request");
+        if (signInShape === "undefined") return undefined;
+        if (signInShape === "malformed" || signInShape === "fallback-rejected") return {};
+        const proof = { signedMessage: new TextEncoder().encode("SIWS proof"), signature: new Uint8Array(64) };
+        if (signInShape === "address") return { address, ...proof };
+        if (signInShape === "injected") return { publicKey: { toString: () => address }, ...proof };
+        const result = { account: { address }, ...proof };
+        return signInShape === "array" ? [result] : result;
+      },
+      signMessage: async (message: Uint8Array) => {
+        calls.signMessage++;
+        if (signInShape === "fallback-rejected") throw new Error("User rejected the login signature");
+        if (["malformed", "undefined"].includes(signInShape) && new TextDecoder().decode(message) === "Fresh fallback proof") return { signature: new Uint8Array(64) };
+        throw new Error("Unexpected message-signing request");
+      },
     } } });
-  }, { address, token, restored, authenticated });
+  }, { address, token, restored, authenticated, signInShape });
   await page.route("**/api/config", r => r.fulfill({ json: { brand: "AQUA", network: "mainnet-beta", useTestnet: false,
     transactionsEnabled: false, marketGovernanceEnabled: false, publicRpcUrl: "https://rpc.invalid", whirlpools: {},
     fees: { transferFeeBps: 200, platformBps: 100, stockRewardsBps: 100 }, creatorLocks: { minimumSeconds: 86400, maximumSeconds: 31536000, maximumFeeShareBps: 5000 }, sniperDefense: { supported: false } } }));
@@ -37,6 +52,14 @@ async function setup(page: Page, restored = false, authenticated = false) {
     expect(r.request().postDataJSON()).toMatchObject({ wallet: address, message: "SIWS proof" });
     return r.fulfill({ json: { token, expiresAt: Date.now() + 86400000 } });
   });
+  await page.route("**/account/auth/challenge", r => {
+    expect(r.request().postDataJSON()).toEqual({ wallet: address });
+    return r.fulfill({ json: { id: "fresh-challenge", message: "Fresh fallback proof" } });
+  });
+  await page.route("**/account/auth/session", r => {
+    expect(r.request().postDataJSON()).toEqual({ id: "fresh-challenge", wallet: address, signature: Buffer.alloc(64).toString("base64") });
+    return r.fulfill({ json: { token, expiresAt: Date.now() + 86400000 } });
+  });
   const posts: string[] = [];
   const comments: any[] = [];
   await page.route("**/api/launches/coin/comments", r => {
@@ -54,8 +77,8 @@ async function setup(page: Page, restored = false, authenticated = false) {
   return posts;
 }
 
-test("one wallet connection signs in, then comments post without another wallet prompt", async ({ page }) => {
-  const posts = await setup(page);
+for (const shape of ["standard", "injected", "array", "address", "malformed", "undefined"]) test(`one wallet connection signs in with ${shape} response, then comments post without another wallet prompt`, async ({ page }) => {
+  const posts = await setup(page, false, false, shape);
   await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
   await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
   await expect(page.getByRole("dialog", { name: "Connect your wallet" })).toHaveCount(0);
@@ -65,7 +88,44 @@ test("one wallet connection signs in, then comments post without another wallet 
     await expect(page.locator(".market-comment-feed").getByText(body, { exact: true })).toBeVisible();
   }
   expect(posts).toEqual(["First comment", "Second comment"]);
+  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 1, signMessage: ["malformed", "undefined"].includes(shape) ? 1 : 0 });
+});
+
+test("rejecting the fallback login leaves the wallet unauthenticated", async ({ page }) => {
+  await setup(page, false, false, "fallback-rejected");
+  let sessionRequests = 0;
+  await page.route("**/account/auth/session", r => { sessionRequests++; return r.fulfill({ status: 400, json: { error: "Unexpected session request" } }); });
+  await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
+  await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
+  await expect(page.getByText("User rejected the login signature")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Connect your wallet" })).toBeVisible();
+  expect(sessionRequests).toBe(0);
+  expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 1, signMessage: 1 });
+  expect(await page.evaluate(address => localStorage.getItem(`aqua:studio:${address}`), address)).toBeNull();
+});
+
+test("fallback requires a server-verified proof before creating an authenticated session", async ({ page }) => {
+  await setup(page, false, false, "malformed");
+  let sessionRequests = 0;
+  await page.route("**/account/auth/sign-in/session", r => { sessionRequests++; return r.fulfill({ status: 400, json: { error: "Unexpected session request" } }); });
+  await page.route("**/account/auth/session", r => r.fulfill({ status: 401, json: { error: "Invalid wallet proof" } }));
+  await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
+  await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
+  await expect(page.getByText("Invalid wallet proof")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Connect your wallet" })).toBeVisible();
+  expect(sessionRequests).toBe(0);
+  expect(await page.evaluate(address => localStorage.getItem(`aqua:studio:${address}`), address)).toBeNull();
+});
+
+for (const failure of ["rejected", "server"]) test(`a ${failure} sign-in does not open a fallback signing prompt`, async ({ page }) => {
+  await setup(page, false, false, failure === "rejected" ? "rejected" : "standard");
+  const message = failure === "rejected" ? "User rejected the request" : "Invalid wallet proof";
+  if (failure === "server") await page.route("**/account/auth/sign-in/session", r => r.fulfill({ status: 401, json: { error: message } }));
+  await page.locator(".market-comments").getByRole("button", { name: "Connect wallet", exact: true }).click();
+  await page.getByRole("button", { name: /Phantom.*Connect/ }).click();
+  await expect(page.getByText(message)).toBeVisible();
   expect(await page.evaluate(() => (window as any).commentWalletCalls)).toEqual({ signIn: 1, signMessage: 0 });
+  expect(await page.evaluate(address => localStorage.getItem(`aqua:studio:${address}`), address)).toBeNull();
 });
 
 test("a restored session can comment without signing in again", async ({ page }) => {

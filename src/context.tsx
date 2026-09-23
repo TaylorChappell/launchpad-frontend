@@ -3,12 +3,13 @@ import type { SolanaClient } from "@metamask/connect-solana";
 import { toast } from "sonner";
 import { api, API_URL } from "./api";
 import { ensureAccountSession, savedAccountSession, signInWithWallet, type WalletSignInInput, type WalletSignInOutput } from "./account-api";
+import { WalletSignInResponseError } from "./wallet-sign-in";
 import type { LaunchBatchEnvelope, RuntimeConfig, SignedTransactionEnvelope, TransactionEnvelope } from "./types";
 
 type PhantomProvider = {
   isPhantom?: boolean;
   publicKey?: { toString: () => string } | null;
-  signIn?: (input: WalletSignInInput) => Promise<WalletSignInOutput>;
+  signIn?: (input: WalletSignInInput) => Promise<unknown>;
   connect: (options?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey: { toString: () => string } }>;
   on?: (event: string, listener: (...args: any[]) => void) => void;
   removeListener?: (event: string, listener: (...args: any[]) => void) => void;
@@ -148,19 +149,33 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           if (!silent) window.open("https://phantom.com/download", "_blank", "noopener,noreferrer");
           throw new Error("Phantom is not installed.");
         }
-        let connectedAddress: string;
-        if (!silent && provider.signIn && !savedAccountSession(provider.publicKey?.toString() ?? null)) {
-          const account = await signInWithWallet(input => provider.signIn!(input), isCurrent);
-          connectedAddress = account.address;
-          if (provider.publicKey && provider.publicKey.toString() !== connectedAddress) throw new Error("Wallet changed. Connect again.");
-        } else {
+        const connectAndAuthenticate = async () => {
           const result = await provider.connect(silent ? { onlyIfTrusted: true } : undefined);
-          if (!isCurrent()) return;
-          connectedAddress = result.publicKey.toString();
+          if (!isCurrent()) throw new Error("Wallet changed. Connect again.");
+          const connectedAddress = result?.publicKey?.toString();
+          if (!connectedAddress) throw new Error("Phantom did not return a connected Solana account.");
           if (!silent) await ensureAccountSession(connectedAddress, async message => {
+            if (!isCurrent() || (provider.publicKey && provider.publicKey.toString() !== connectedAddress)) throw new Error("Wallet changed. Connect again.");
             const signed = await provider.signMessage(new TextEncoder().encode(message), "utf8");
             return { signature: base64(signed.signature) };
           }, () => isCurrent() && (!provider.publicKey || provider.publicKey.toString() === connectedAddress));
+          return connectedAddress;
+        };
+        let connectedAddress: string;
+        if (!silent && provider.signIn && !savedAccountSession(provider.publicKey?.toString() ?? null)) {
+          try {
+            const account = await signInWithWallet(input => provider.signIn!(input), isCurrent);
+            connectedAddress = account.address;
+            if (provider.publicKey && provider.publicKey.toString() !== connectedAddress) throw new Error("Wallet changed. Connect again.");
+          } catch (error) {
+            // Some injected providers expose signIn but return an incompatible
+            // result. Obtain a fresh, server-verified message proof instead.
+            // Rejections, changed wallets and server errors must never retry.
+            if (!(error instanceof WalletSignInResponseError) || !isCurrent()) throw error;
+            connectedAddress = await connectAndAuthenticate();
+          }
+        } else {
+          connectedAddress = await connectAndAuthenticate();
         }
         if (!isCurrent()) return;
         adapter.current = { kind: "phantom", provider };
