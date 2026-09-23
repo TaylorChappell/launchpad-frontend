@@ -32,7 +32,14 @@ export type StudioState = {
   folders: string[];
   lockedFields: Array<keyof StudioLaunch>;
 };
+export type StudioHosting = {
+  enabled: boolean;
+  domain: string;
+  prefix: string;
+  site: { slug: string; url: string; published: boolean; revision: number | null; publishedAt: number | null } | null;
+};
 export type StudioProject = {
+  hostedWebsiteUrl?: string | null;
   active_job?: { id: string; status: string; progress?: string } | null;
   id: string;
   name: string;
@@ -67,6 +74,7 @@ export type StudioJob = {
   };
 };
 export type StudioConfig = {
+  hosting?: Pick<StudioHosting, "enabled" | "domain" | "prefix">;
   efforts?: Array<{id: "low" | "medium" | "high";model:string;imageModel:string;imageQuality:string}>;
   enabled: boolean;
   paidEnabled: boolean;

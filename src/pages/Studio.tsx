@@ -1,3 +1,4 @@
+import { StudioPublish } from "../components/StudioPublish";
 import { StudioLaunchKit } from "../components/StudioLaunchKit";
 import "./studio.css";
 import { usePromotion } from "../usePromotion";
@@ -26,6 +27,7 @@ import {
   ChevronDown,
   Code2,
   Download,
+  Globe,
   Droplets,
   FilePlus2,
   FolderPlus,
@@ -109,6 +111,7 @@ type Version = {
 type Modal =
   | "credit"
   | "export"
+  | "publish"
   | "github"
   | "history"
   | "project"
@@ -1500,6 +1503,9 @@ function StudioWorkspace() {
                   <Save size={16} />
                   <span>Save</span>
                 </button>
+                <button disabled={actionDisabled} onClick={() => openModal("publish")}>
+                  <Globe size={16}/><span>Publish</span>
+                </button>
                 <button
                   disabled={actionDisabled}
                   onClick={() => openModal("export")}
@@ -2335,6 +2341,7 @@ function StudioWorkspace() {
             {
               credit: "Your Studio credit",
               export: "Take your project with you",
+              publish: "Publish website",
               github: "GitHub connection",
               history: "Project history",
               project: "Create a project",
@@ -2454,6 +2461,8 @@ function StudioWorkspace() {
                 )}
               </div>
             </>
+          ) : modal === "publish" && project ? (
+            <StudioPublish key={project.id} project={project} token={token} dirty={dirty} busy={actionDisabled} hasBackend={hasBackend} save={save} run={task}/>
           ) : modal === "export" ? (
             <>
               <p>

@@ -157,7 +157,7 @@ export function Create() {
     void studioRequest<StudioProject>(`/projects/${encodeURIComponent(id)}`,token).then(async project=>{
       if(cancelled)return;
       const draft=project.state.launch;
-      setForm(old=>({...old,name:draft.name,symbol:draft.symbol,description:draft.description,xUrl:draft.xUrl,websiteUrl:draft.websiteUrl,telegramUrl:draft.telegramUrl,rewardMode:draft.rewardMode}));
+      setForm(old=>({...old,name:draft.name,symbol:draft.symbol,description:draft.description,xUrl:draft.xUrl,websiteUrl:draft.websiteUrl||project.hostedWebsiteUrl||"",telegramUrl:draft.telegramUrl,rewardMode:draft.rewardMode}));
       let selected=stocks.find(item=>item.mint===draft.stockMint);
       if(draft.stockMint && !selected){
         setStock(null);

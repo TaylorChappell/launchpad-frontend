@@ -3074,3 +3074,19 @@
 .at-launch-kit-actions { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
 .at-launch-kit-actions button { padding:9px 13px; border:1px solid #b8dae9; border-radius:8px; background:#f0faff; color:#2474a0; }
 @media(min-width:901px){.at-workspace.at-tool-only { min-height:820px; height:calc(100dvh - 190px); }}
+
+/* Hosted website publishing */
+.at-publish { display: grid; gap: 16px; }
+.at-publish > p { margin: 0; }
+.at-publish-address { display: flex; align-items: center; gap: 2px; padding: 0 12px; border: 1px solid #bedde8; border-radius: 12px; background: #f7fcfe; color: #345968; }
+.at-publish-address input { min-width: 60px; width: 100%; padding: 12px 2px; border: 0; background: transparent; box-shadow: none; color: #113d51; }
+.at-publish-address:focus-within { outline: 2px solid #087f9e; outline-offset: 2px; }
+.at-publish-address input:focus { outline: none; }
+.at-publish-address span { flex-shrink: 0; font-size: 13px; }
+.at-publish-live { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px; border-radius: 12px; background: #e6f5f8; }
+.at-publish-live span { display: grid; gap: 4px; }
+.at-publish-live small { color: #3a5b6a; }
+.at-publish-live a { color: #00677f; font-weight: 700; }
+.at-publish-confirm { padding-top: 12px; border-top: 1px solid #bedde8; }
+@media (max-width: 520px) { .at-publish-live { align-items: flex-start; flex-direction: column; } .at-publish-address { padding: 0 8px; } .at-publish-address span { font-size: 11px; } }
+@media (max-width: 760px) { .at-projectbar > div:last-child { flex-wrap: wrap; } }
