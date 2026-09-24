@@ -1,0 +1,42 @@
+.address-claim-page { max-width:890px; padding-top:44px; padding-bottom:110px; }
+.address-claim-page .back { display:inline-flex; align-items:center; gap:7px; color:#4d829b; font-size:13px; }
+.address-claim-header { margin:36px 0 30px; }
+.address-claim-header h1 { margin:16px 0 10px; color:#164965; font-size:clamp(30px,4vw,46px); letter-spacing:-.045em; }
+.address-claim-header p { max-width:650px; color:#60859a; font-size:14px; line-height:1.8; }
+.address-claim-lookup,.address-claim-results,.address-claim-proof { padding:28px; border:1px solid #c9e1ec; border-radius:20px; background:#fff; box-shadow:0 8px 30px #174c6710; }
+.address-claim-lookup label,.address-claim-signature label { display:block; margin-bottom:12px; color:#225b78; font-size:13px; font-weight:700; }
+.address-claim-lookup>div,.address-claim-signature>div { display:flex; gap:10px; }
+.address-claim-lookup input,.address-claim-signature input { min-width:0; flex:1; padding:12px 14px; border:1px solid #bcd9e7; border-radius:10px; background:#f8fcfe; color:#173c51; font:inherit; }
+.address-claim-lookup input:focus,.address-claim-signature input:focus { outline:2px solid #7dd1e4; outline-offset:1px; }
+.address-claim-lookup button,.address-claim-market button,.address-claim-proof>.primary { display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+.address-claim-results,.address-claim-proof { margin-top:18px; }
+.address-claim-results h2,.address-claim-proof h2 { margin:0 0 18px; color:#174c67; font-size:21px; }
+.address-claim-market { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:20px 0; border-top:1px solid #e0edf3; }
+.address-claim-market a { color:#164d69; font-size:16px; font-weight:750; }
+.address-claim-market a span { color:#648aa0; font-size:12px; }
+.address-claim-market p { margin:10px 0 5px; color:#63889c; font-size:12px; }
+.address-claim-market strong { color:#173f5b; font-size:23px; }
+.address-claim-market small { display:block; margin-top:7px; color:#678aa0; }
+.address-claim-empty,.address-claim-note,.address-claim-proof>p,.address-claim-holder p { color:#608398; font-size:13px; line-height:1.7; }
+.address-claim-holder { padding:18px; margin-top:18px; border:1px solid #c9e7ed; border-radius:12px; background:#f1fbfd; }
+.address-claim-holder b { color:#195471; }
+.address-claim-holder p { margin:7px 0 0; }
+.address-claim-error { padding:12px 16px; margin:16px 0; border:1px solid #eabdb7; border-radius:10px; background:#fff5f3; color:#9c463b; font-size:13px; }
+.address-claim-payment { display:grid; grid-template-columns:105px minmax(0,1fr); align-items:center; gap:13px 18px; padding:20px; margin:19px 0; border-radius:13px; background:#eef9fd; }
+.address-claim-payment span { color:#5c8297; font-size:12px; font-weight:650; }
+.address-claim-payment code,.address-claim-destination code { min-width:0; overflow-wrap:anywhere; color:#174962; font-size:13px; }
+.address-claim-payment strong { color:#125c7b; font-size:19px; }
+.address-claim-destination { display:flex; align-items:center; gap:10px; min-width:0; }
+.address-claim-destination button { padding:8px; flex:none; border:1px solid #b4d5e2; border-radius:7px; background:white; color:#246e8e; cursor:pointer; }
+.address-claim-wait { display:flex; align-items:center; gap:8px; }
+.address-claim-signature { margin:20px 0 0; }
+.address-claim-success { display:flex; align-items:center; gap:8px; flex-wrap:wrap; color:#226f5b!important; }
+.address-claim-success a { text-decoration:underline; }
+@media(max-width:640px) {
+  .address-claim-page { padding-top:25px; }
+  .address-claim-lookup,.address-claim-results,.address-claim-proof { padding:20px; }
+  .address-claim-lookup>div,.address-claim-signature>div { flex-direction:column; }
+  .address-claim-market { align-items:flex-start; flex-direction:column; }
+  .address-claim-payment { grid-template-columns:1fr; gap:5px; }
+  .address-claim-payment span:not(:first-child) { margin-top:12px; }
+}
