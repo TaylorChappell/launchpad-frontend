@@ -22,6 +22,7 @@ const descriptions: Record<MarketProposalType, string> = {
   cto: "Nominate a new developer wallet and put a clear handover plan to a holder vote.",
 };
 const liveStatuses = ["voting", "funding", "approved", "ready", "withdrawing", "withdrawn"];
+const isFinishedMiniBoost = (proposal: MarketProposal) => proposal.isAutomatic && proposal.type === "dex_boost" && !liveStatuses.includes(proposal.status);
 const blankProfile: DexProfile = { description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" };
 type Dialog = { kind: "create"; type: MarketProposalType } | { kind: "details" | "challenge" | "activity"; proposal: MarketProposal };
 type GovernanceContextValue = {
@@ -38,7 +39,7 @@ export function MarketDexStatusBadge() {
 export function MarketInformationTabs({section,onChange,newComments=false,latestProjectUpdateAt}:{section:string;onChange:(value:string)=>void;newComments?:boolean;latestProjectUpdateAt?:number|null}){
   const {data}=useProposals();
   const activeCount = (data?.enabled || data?.automaticFundingEnabled) ? data.proposals.filter(proposal => liveStatuses.includes(proposal.status)).length : 0;
-  const hasGovernance=Boolean((data?.enabled||data?.automaticFundingEnabled)&&data.proposals.some(p=>p.isDefault?!["rejected","cancelled"].includes(p.status):(p.type==="cto"||p.type==="dex_boost")||!["rejected","cancelled"].includes(p.status)));
+  const hasGovernance=Boolean((data?.enabled||data?.automaticFundingEnabled)&&data.proposals.some(p=>!isFinishedMiniBoost(p)&&(p.isDefault?!["rejected","cancelled"].includes(p.status):(p.type==="cto"||p.type==="dex_boost")||!["rejected","cancelled"].includes(p.status))));
   useEffect(()=>{if(section==="Governance"&&data&&!hasGovernance)onChange("Transactions");},[section,data,hasGovernance,onChange]);
   return <div className="workspace-tabs market-information-tabs" aria-label="Market information">{["Transactions","Community","Holders","Rewards","Project",...(hasGovernance?["Governance"]:[])].map(label=><button key={label} aria-pressed={section===label} onClick={()=>onChange(label)}>{label}{label === "Community" && newComments && <span className="market-unread-dot" aria-label="New community posts" title="New community posts"/>}{label === "Community" && <RecentUpdateBell at={latestProjectUpdateAt}/>} {label === "Governance" && activeCount > 0 && <span className="governance-tab-count" aria-label={`${activeCount} active proposals`} title={`${activeCount} active proposals`}><Bell size={12} aria-hidden="true"/><b>{activeCount}</b></span>}</button>)}</div>;
 }
@@ -294,7 +295,7 @@ function BoostProposalCard({ proposal: p }: { proposal: MarketProposal }) {
 export function CommunityProposalVotes() {
   const { data } = useProposals();
   if (!data?.enabled && !data?.automaticFundingEnabled) return null;
-  const proposals = data.proposals.filter((item) => !item.isDefault && item.outcome !== "transferred_to_vote" && !(!item.isAutomatic && !["cto", "dex_boost"].includes(item.type) && ["rejected", "cancelled"].includes(item.status)));
+  const proposals = data.proposals.filter((item) => !item.isDefault && !isFinishedMiniBoost(item) && item.outcome !== "transferred_to_vote" && !(!item.isAutomatic && !["cto", "dex_boost"].includes(item.type) && ["rejected", "cancelled"].includes(item.status)));
   const active = proposals.filter((item) => liveStatuses.includes(item.status));
   const history = proposals.filter((item) => !liveStatuses.includes(item.status));
   if (!proposals.length) return null;

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
 const address = "11111111111111111111111111111111";
-async function setup(page: Page, state = "voting", automatic: "profile" | "boost" | "aqua" | null = null) {
+async function setup(page: Page, state = "voting", automatic: "profile" | "boost" | "aqua" | null = null, openGovernance = true) {
   await page.addInitScript(address => {
     localStorage.setItem("aqua:update:holder-workspace-v2", "seen");
     localStorage.setItem("aqua:wallet", "phantom");
@@ -51,7 +51,7 @@ async function setup(page: Page, state = "voting", automatic: "profile" | "boost
     return r.fulfill({ json: data });
   });
   await page.goto("/#/token/coin");
-  await page.getByRole("button", { name: /Governance/ }).click();
+  if (openGovernance) await page.getByRole("button", { name: /Governance/ }).click();
   return data;
 }
 
@@ -86,6 +86,12 @@ test("a sub-minimum campaign shows its refund in the existing proposal history",
   await expect(card.getByRole("heading", { name: "Funds returned to holders" })).toBeVisible();
   await expect(card.getByText("0.98 SOL returned to holders.", { exact: true })).toBeVisible();
   await expect(card.getByText(/purchased/)).toHaveCount(0);
+});
+
+test("completed automatic mini boosts disappear from proposal history", async ({ page }) => {
+  await setup(page, "completed", "boost", false);
+  await expect(page.getByRole("button", { name: "Governance" })).toHaveCount(0);
+  await expect(page.getByText(/Past proposals/)).toHaveCount(0);
 });
 
 
