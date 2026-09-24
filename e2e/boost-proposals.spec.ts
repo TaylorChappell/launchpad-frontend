@@ -40,7 +40,7 @@ async function setup(page: Page, state = "voting", automatic: "profile" | "boost
   };
   if (automatic) {
     Object.assign(data, { automaticFundingEnabled: true, enabled: automatic !== "aqua", dexPaid: automatic !== "profile" });
-    Object.assign(data.proposals[0], { isAutomatic: true, collectionPaused: automatic === "profile", type: automatic === "profile" ? "dex_payment" : "dex_boost", fundingPercent: automatic === "profile" ? 10 : 5, fundedUsd: 74, targetUsd: automatic === "profile" ? 300 : 0 });
+    Object.assign(data.proposals[0], { isAutomatic: true, collectionPaused: automatic === "profile", type: automatic === "profile" ? "dex_payment" : "dex_boost", fundingPercent: 10, fundedUsd: 74, targetUsd: automatic === "profile" ? 300 : 0 });
   }
   await page.route("**/api/launches/coin/proposals**", r => {
     if (r.request().url().endsWith("/challenge")) return r.fulfill({ json: { challenge: "test-challenge", message: "Vote for " + r.request().postDataJSON().content.choice, expiresAt: Date.now() + 60000 } });

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronRight, Clock3, Loader2, Search, Trophy, X } from "lucide-react";
@@ -167,7 +168,7 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
         <div className="governance-compact-copy"><small>DAILY AQUA BOOST</small><h2>{data.votingOpen ? "VOTE FOR THE NEXT BOOSTED MARKET" : data.activeBonus ? `$${data.activeBonus.symbol} IS BOOSTED TODAY` : "PREPARING THE NEXT BOOST VOTE"}</h2><p>{data.votingOpen ? `Vote daily. The winner receives ${data.bonusBps / 100}% of AQUA platform fees for the next 24 hours, starting at 00:00 UTC.` : "A new vote opens every day at 00:00 UTC while the current winner’s boost continues."}</p></div>
         <span className="governance-compact-time"><Clock3/> {data.votingOpen ? "Closes" : "Opens"} in {timeLeft(data.votingOpen ? data.round.endsAt : data.round.startsAt, now)}</span>
         {selected && <span className="governance-current-vote"><Check/> ${selected.symbol}</span>}
-        <button className="governance-open-vote" disabled={!data.votingOpen} onClick={() => setSelectorOpen(true)}>{data.votingOpen ? selected ? "CHANGE" : "VOTE" : "BOOSTING"}{data.votingOpen && <ChevronRight/>}</button>
+        <Link className="governance-open-vote" to="/boost">VIEW RACE <ChevronRight/></Link>
       </div>
 
       {selected && <div className="governance-top-preview">
@@ -176,7 +177,7 @@ export function GovernanceVote({ market, compact = false }: { market?: Launch; c
           {data.leaders.slice(0, 3).map((leader) => <div key={leader.launchId} className={leader.mint === selected.mint ? "your-pick" : ""}><b>#{leader.rank}</b><MarketMark market={leader} launch={launchByMint.get(leader.mint)}/><span><strong>{leader.name}</strong><small>${leader.symbol} · {leader.voters} {leader.voters === 1 ? "voter" : "voters"}</small></span></div>)}
           {!data.leaders.length && <p>No eligible votes are ranked yet.</p>}
         </div>
-        <button className="governance-view-more" onClick={() => setLeaderboardOpen(true)}>VIEW MORE <ChevronRight/></button>
+        <Link className="governance-view-more" to="/boost">COMMUNITY BOOST <ChevronRight/></Link>
       </div>}
 
       {data.activeBonus && <div className="governance-active-boost"><Trophy/><span><b>${data.activeBonus.symbol}</b> is receiving the current 24-hour boost.</span></div>}

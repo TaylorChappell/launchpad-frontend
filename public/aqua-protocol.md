@@ -62,13 +62,17 @@ Creators choose a permanent reward mode: time-weighted holder rewards, buyback a
 
 Holders with at least 0.5% of supply can create eligible proposals once proposals unlock. Voting requires 0.1% current and time-weighted holdings. Approved DEX profile funding reserves 80% of incoming market rewards toward the $300 initial profile target. Update Dex and Community Takeover have separate votes. Governance approval, funding and external fulfillment are distinct stages.
 
+## Community Boost
+
+Community Boost is the daily AQUA-holder vote for the next market to receive a share of AQUA platform fees for 24 hours. The leaderboard at https://aquafamily.fun/#/boost shows ranked coins, today’s boosted market and your vote. Vote next to a coin or search by name, ticker or CA. One choice per holder, changeable until 00:00 UTC. Voting power uses average AQUA holdings capped by the current balance. This is separate from DEX Screener funding.
+
 ## DEX boost polls
 
 A paid DEX profile is required. Holders choose 5%, 10%, 20% or No; the winning approved percentage funds a one-hour campaign from incoming market rewards. At closing, the largest affordable boost is selected and surplus SOL returns to holder rewards. Configured packs are 10× for $99 (12 hours), 30× for $249 (12 hours), 50× for $399 (12 hours), 100× for $899 (24 hours), and 500× for $3,999 (24 hours). Affordability is checked again before purchase.
 
 ## Automatic momentum funds
 
-Sustained, verified volume and trader activity can start a mini fund. Unpaid profiles reserve 10% toward DEX funding for up to 24 hours; an unmet target returns funds to holders. Paid profiles can reserve 5% for a mini boost lasting up to one hour, closing earlier after five minutes of insufficient activity. Mini boosts under $100 return all funds; at $100 or more they select the largest affordable pack and return excess. Successful holder votes inherit accumulated funds and change the percentage; an inherited boost keeps its original deadline. All eligible coins, including AQUA, can have mini boosts. AQUA has no ordinary market proposals or automatic profile fund. Team AQUA can prepare missing profile details for a successful automatic profile fund; later changes go through Update Dex.
+Sustained, verified volume and trader activity can start a mini fund. Unpaid profiles reserve 10% toward DEX funding for up to 24 hours; an unmet target returns funds to holders. Paid profiles can reserve 10% for a mini boost lasting up to one hour, closing earlier after ten minutes of insufficient activity. Mini boosts under $100 return all funds; at $100 or more they select the largest affordable pack and return excess. Successful holder votes inherit accumulated funds and change the percentage; an inherited boost keeps its original deadline. All eligible coins, including AQUA, can have mini boosts. AQUA has no ordinary market proposals or automatic profile fund. Team AQUA can prepare missing profile details for a successful automatic profile fund; later changes go through Update Dex.
 
 ## Community chat, updates and polls
 

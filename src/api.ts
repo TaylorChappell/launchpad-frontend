@@ -59,7 +59,7 @@ export const api = {
   pairCatalog: (signal?: AbortSignal) => uncachedRequest<{ stocks: StockOption[]; refreshing?: boolean; retryAfterMs?: number; customPairsEnabled?: boolean; customPairWarning?: string; warning?: string }>("/api/stocks?progressive=true", { signal }),
   lookupPair: (mint: string, signal?: AbortSignal) => uncachedRequest<{ stock: StockOption }>(`/api/pairs/lookup?mint=${encodeURIComponent(mint)}`, { signal }),
   rewards: (wallet: string) => request<WalletRewardsResponse>(`/api/rewards/${encodeURIComponent(wallet)}`),
-  governance: (wallet?: string | null) => request<GovernanceResponse>(`/api/governance${wallet ? `?wallet=${encodeURIComponent(wallet)}` : ""}`),
+  governance: (wallet?: string | null, signal?: AbortSignal) => request<GovernanceResponse>(`/api/governance${wallet ? `?wallet=${encodeURIComponent(wallet)}` : ""}`, {signal}),
   governanceVoteChallenge: (wallet: string, targetMint: string) => request<{ challenge: string; message: string; expiresAt: number; market: GovernanceMarket }>("/api/governance/vote-challenge", json({ wallet, targetMint })),
   governanceVote: (body: { wallet: string; targetMint: string; challenge: string; message: string; signature: string }) => request<GovernanceResponse>("/api/governance/vote", json(body)),
   governanceUnboostChallenge: (wallet: string) => request<{ challenge: string; message: string; expiresAt: number }>("/api/governance/unboost-challenge", json({ wallet })),

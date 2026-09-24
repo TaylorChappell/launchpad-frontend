@@ -69,6 +69,7 @@ const navigation = [
     items: [
       ["dex-funding", "DEX Funding Mode"],
       ["market-proposals", "Proposals and voting"],
+      ["community-boost", "Community Boost"],
       ["dex-boosts", "DEX boost polls"],
       ["automatic-funds", "Automatic momentum funds"],
       ["community-takeovers", "Community takeovers"],
@@ -409,6 +410,12 @@ export function HowItWorks() {
           <p>Fund Dex, Update Dex and Community Takeover are separate proposal types, so different types can be active at the same time. A market cannot open a duplicate active Fund Dex or Update Dex proposal while one of the same type is already being processed.</p>
         </DocSection>
 
+        <DocSection id="community-boost" eyebrow="MARKET GOVERNANCE" title="Back a coin in the daily Community Boost">
+          <p>Eligible AQUA holders vote for one live market to receive the configured share of AQUA platform fees for the following 24 hours. Voting runs daily and closes at 00:00 UTC. Weight reflects average AQUA holdings during the round, capped by the current balance. The main AQUA coin cannot be nominated.</p>
+          <p>The Community Boost page shows the live leaderboard, today’s boosted coin and your current choice. Vote directly from a ranked coin or search by name, ticker or contract address. You can change or remove your vote before the round closes.</p>
+          <Link className="aqua-docs-inline-link" to="/boost">Open Community Boost <ArrowRight size={15}/></Link>
+        </DocSection>
+
         <DocSection id="dex-boosts" eyebrow="MARKET GOVERNANCE" title="Fund a DEX boost together">
           <p>A paid DEX profile is required before a boost can be funded. Eligible holders choose <strong>5%, 10%, 20% or No</strong>. An approved campaign reserves that percentage of incoming market rewards for one hour; the remaining share continues through the selected reward mode. These percentages apply to the reward stream, not total trading volume.</p>
           <p>At the end, AQUA selects the largest pack the reserve can afford and releases unused SOL to holder rewards. If no pack is affordable, the whole reserve returns to holders. A funded campaign still needs external purchase and fulfillment; it is not marked delivered just because funding ended.</p>
@@ -429,7 +436,7 @@ export function HowItWorks() {
           <p>When verified trading activity picks up, AQUA can start a small automatic fund. The signal checks recent volume, distinct traders, sustained activity and fresh indexed data against the earlier baseline. A single trade is not enough.</p>
           <div className="aqua-docs-definition">
             <div><b>DEX profile unpaid: 10%</b><span>A mini DEX profile fund reserves 10% of incoming market rewards while activity qualifies, toward the $300 target. It expires after 24 hours and returns the reserve to holders if the target is not met.</span></div>
-            <div><b>DEX profile paid: 5%</b><span>A mini boost fund reserves 5% for at most one hour. It closes earlier when activity stays below the required level for five minutes. Under $100 at closing, all funds return to holders; from $100, it selects the largest affordable pack and returns the excess.</span></div>
+            <div><b>DEX profile paid: 10%</b><span>A mini boost fund reserves 10% for at most one hour. It closes earlier when activity stays below the required level for ten minutes. Under $100 at closing, all funds return to holders; from $100, it selects the largest affordable pack and returns the excess.</span></div>
             <div><b>Holder votes still matter</b><span>A successful DEX funding vote carries the saved amount into the 80% campaign. A successful boost poll carries the mini fund into the chosen percentage without resetting its original one-hour deadline. An explicit winning No stops the unspent automatic fund and releases its reserve.</span></div>
           </div>
           <p>Automatic mini boosts are available to all eligible coins, including AQUA itself. AQUA does not have the regular holder-created market proposals or an automatic DEX profile fund. A boost always requires a verified paid DEX profile.</p>
