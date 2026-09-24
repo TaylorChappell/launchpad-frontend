@@ -3,9 +3,8 @@ import type { DexProfile, LaunchRelayStatus, SignedTransactionEnvelope } from ".
 import {cachedRead,clearReadCache} from "./read-cache";
 import type { WalletNotification, AdminDiagnostics, AnalyticsResponse, BatchStepValidation, CreatorLock, CreatorLockBalance, CreatorLockTransactionEnvelope, CumulativeRewardClaimConfirmation, CumulativeRewardClaimEnvelope, GovernanceMarket, GovernanceResponse, Launch, LaunchConfirmation, LaunchIntentResponse, LaunchRetryResponse, MarketGovernanceResponse, MarketProposalType, MarketSnapshot, RewardModeState, RuntimeConfig, StockOption, Trade, TransactionEnvelope, WalletRewardsResponse } from "./types";
 
-const DEFAULT_API_URL = "https://launchpad-backend-production-63dc.up.railway.app";
-const cleanUrl = (value: unknown) => typeof value === "string" && /^https?:\/\//i.test(value.trim()) ? value.trim().replace(/\/$/, "") : null;
-export const API_URL = cleanUrl(import.meta.env.VITE_API_URL) ?? cleanUrl(window.AQUA_CONFIG?.API_URL) ?? DEFAULT_API_URL;
+import { resolveApiOrigin } from "./api-origin";
+export const API_URL = resolveApiOrigin(import.meta.env.VITE_API_URL, window.AQUA_CONFIG?.API_URL);
 
 export class ApiError extends Error {
   status: number;
