@@ -61,7 +61,7 @@ export function MarketGovernanceProvider({ launch, children }: { launch: Launch;
   const currentIdentity = useRef(identity);
   currentIdentity.current = identity;
   const refresh = useCallback(async () => {
-    if (!config.marketGovernanceEnabled) return;
+    if (!config.marketGovernanceEnabled && !launch.showcase) return;
     try {
       const result = await api.marketGovernance(launch.id, wallet.address);
       if (currentIdentity.current === identity) { setData(result); setError(""); }
@@ -75,6 +75,7 @@ export function MarketGovernanceProvider({ launch, children }: { launch: Launch;
   useEffect(() => { const clock = window.setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000); return () => window.clearInterval(clock); }, []);
 
   async function sign(action: "create" | "vote" | "details" | "challenge" | "activity", proposalId: string | undefined, content: unknown) {
+    if (launch.showcase) throw new Error("Staging previews are read-only.");
     if (!wallet.address) throw new Error("Connect a wallet first.");
     const address = wallet.address;
     const approval = await api.marketProposalChallenge(launch.id, { action, wallet: address, proposalId, content });

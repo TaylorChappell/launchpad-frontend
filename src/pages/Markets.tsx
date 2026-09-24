@@ -1,3 +1,4 @@
+import { StagingShowcase } from "../components/StagingShowcase";
 import { RecentUpdateBell } from "../components/RecentUpdateBell";
 import { DexStatusBadge } from "../components/DexStatusBadge";
 import { dexBadgeState } from "../dex-status";
@@ -44,6 +45,7 @@ export function Markets(){
   return <main className="explore-page">
     <section className="explore-intro"><span className="explore-aqua-logo"><AquaMark/></span><div className="explore-intro-copy"><h1>Coins that reward the people who hold.</h1><p>Launch on <a href="https://www.orca.so/" target="_blank" rel="noreferrer">Orca</a>. Build your community with holder rewards, buybacks or jackpots, and bring your ideas to life in Atlantis Studio.</p></div><div className="explore-intro-actions"><Link className="discovery-launch" to="/create"><span>Launch a coin</span><ArrowRight size={16}/></Link><Link to="/how-it-works"><span>How it works</span><ArrowRight size={14}/></Link></div></section>
     <PersonalStrip/>
+    <StagingShowcase/>
     <section className="market-workspace" id="markets">
       <header className="workspace-heading"><div><h2>Explore markets</h2><p>Discover a community. See what holding earns.</p></div><button className="discovery-refresh" aria-label="Refresh market rankings" title="Refresh market rankings" onClick={()=>setVersion(v=>v+1)}><RefreshCw size={14}/>Refresh</button></header>
       <div className="discovery-toolbar"><div className="discovery-tabs" aria-label="Market sorting">{sorts.map(([value,label])=><button key={value} aria-pressed={sort===value} onClick={()=>update("sort",value)}>{value==="watchlist"&&<Star size={14}/>}<span>{label}</span></button>)}</div><div className="discovery-tools"><button className="discovery-filter-toggle" aria-expanded={filtersOpen} aria-controls="discovery-filters" onClick={()=>setFiltersOpen(open=>!open)}><SlidersHorizontal size={15}/><span>Filters</span>{filterCount>0&&<b>{filterCount}</b>}</button><div className="discovery-view" aria-label="Market layout"><button aria-label="Card view" title="Card view" aria-pressed={view==="cards"} onClick={()=>update("view","cards")}><Grid2X2 size={16}/></button><button aria-label="Table view" title="Table view" aria-pressed={view==="table"} onClick={()=>update("view","table")}><List size={17}/></button></div></div></div>

@@ -39,8 +39,8 @@ export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecim
   const inputDecimals = side === "sell" ? launch.tokenDecimals : routed ? 9 : pairDecimals;
   const outputDecimals = side === "buy" ? launch.tokenDecimals : pairDecimals;
   const buyCurrency = routed ? "SOL" : "PAIR";
-  const balance = useAssetBalance(side === "sell" ? launch.mint : inputSymbol === "SOL" ? null : launch.pairMint, refresh);
-  const canTrade = launch.status === "live" && config.transactionsEnabled;
+  const balance = useAssetBalance(side === "sell" ? launch.mint : inputSymbol === "SOL" ? null : launch.pairMint, refresh, !launch.showcase);
+  const canTrade = !launch.showcase && launch.status === "live" && config.transactionsEnabled;
   let raw = "";
   try { if (inputDecimals !== null && /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(amount)) raw = decimalToRaw(amount, inputDecimals); } catch { /* Invalid precision must not produce a quote. */ }
   const valid = validSlippage && /^\d+$/.test(raw) && BigInt(raw) > 0n && outputDecimals !== null;
@@ -78,6 +78,7 @@ export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecim
   }, [key, valid, canTrade, busy, refresh, launch.id, side, buyCurrency, raw, slippage, assetKey]);
 
   async function execute() {
+    if(launch.showcase)return;
     if (!wallet.address) { wallet.setModalOpen(true); return; }
     if (insufficient || (highSlippage && !acceptedRisk) || !current || quoteError || !valid || !canTrade || executing.current || Date.now() - current.receivedAt >= 25_000) return;
     executing.current = true; setBusy(true); setSignature(""); setStatus("Preparing your transaction…");
@@ -123,8 +124,8 @@ export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecim
     {insufficient && <p role="alert" className="danger-note">Insufficient {inputSymbol}. Reduce the amount or add funds to your wallet.</p>}
     {(!validSlippage || quoteError || (amount && !valid) || (!displayed && !busy)) && <div className="quote-status" aria-live="polite"><span className={quoteError ? "quote-error" : ""}>{!validSlippage ? "Enter a slippage percentage from 0 to 50%." : quoteError || (pending ? "Getting quote…" : amount && !valid ? "Enter a valid amount within the asset’s decimal precision." : "Enter an amount to get a quote.")}</span></div>}
     {current?.route === "jupiter_then_orca" && <p className="trade-route-note">Two wallet approvals: SOL converts to {launch.pairSymbol}, then buys {launch.symbol}. The estimate uses the minimum conversion output.</p>}
-    <button className="primary full" disabled={busy || (Boolean(wallet.address) && (!canTrade || !current || Boolean(quoteError) || pending || insufficient || (highSlippage && !acceptedRisk)))} onClick={() => void execute()}>{busy ? <><Loader2 className="spin"/>Waiting for confirmation</> : !wallet.address ? "Connect wallet" : !canTrade ? "Trading unavailable" : !current ? "Quote required" : `${side === "buy" ? "Buy" : "Sell"} ${launch.symbol}`}</button>
-    {!canTrade && <p className="trade-route-note">{launch.status !== "live" ? "Trading opens after launch confirmation." : "Transactions are currently unavailable."}</p>}
+    <button className="primary full" disabled={Boolean(launch.showcase) || busy || (Boolean(wallet.address) && (!canTrade || !current || Boolean(quoteError) || pending || insufficient || (highSlippage && !acceptedRisk)))} onClick={() => void execute()}>{busy ? <><Loader2 className="spin"/>Waiting for confirmation</> : launch.showcase ? "Preview only" : !wallet.address ? "Connect wallet" : !canTrade ? "Trading unavailable" : !current ? "Quote required" : `${side === "buy" ? "Buy" : "Sell"} ${launch.symbol}`}</button>
+    {!canTrade && <p className="trade-route-note">{launch.showcase ? "Sample market. Trading is disabled." : launch.status !== "live" ? "Trading opens after launch confirmation." : "Transactions are currently unavailable."}</p>}
     {status && <p className="trade-result" role="status">{status}{signature && <a href={`https://solscan.io/tx/${signature}${config.network === "devnet" ? "?cluster=devnet" : ""}`} target="_blank" rel="noreferrer">View transaction <ExternalLink size={12}/></a>}</p>}
     <details className="execution-breakdown"><summary>Fees &amp; execution</summary><dl><div><dt>Route</dt><dd>{current ? current.route === "orca" ? "Orca Whirlpool" : current.route === "jupiter" ? "Jupiter" : `Jupiter → ${launch.pairSymbol} → Orca` : "Quoted before approval"}</dd></div><div><dt>Token transfer fee</dt><dd>{(launch.transferFeeBps / 100).toFixed(2)}%</dd></div></dl><p>Swap quotes account for applicable token transfer fees. Solana transaction fees and account rent are additional and shown in your wallet. Quotes can change before approval.</p></details>
   </section>;
