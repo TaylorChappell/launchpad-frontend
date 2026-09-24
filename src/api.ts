@@ -21,7 +21,7 @@ export class ApiError extends Error {
 }
 
 export type AddressClaimMarket = { launchId: string; name: string; symbol: string; availableLamports: string; pendingLamports: string };
-export type AddressClaimChallenge = { id: string; token: string; wallet: string; launchId: string; depositAddress: string; amountLamports: number; expiresAt: number };
+export type AddressClaimChallenge = { id: string; token: string; wallet: string; launchId: string; kind: "creator" | "cumulative" | "legacy"; epochId: string | null; depositAddress: string; amountLamports: number; expiresAt: number };
 const addressClaimAuth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
 async function uncachedRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -45,9 +45,9 @@ async function request<T>(path:string,init?:RequestInit):Promise<T>{
 const json = (body: unknown): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 export const api = {
-  addressClaimLookup: (wallet: string) => uncachedRequest<{ wallet: string; claimsEnabled: boolean; markets: AddressClaimMarket[] }>(`/api/address-claims/${encodeURIComponent(wallet)}`),
-  addressClaimStart: (wallet: string, launchId: string) => request<AddressClaimChallenge>("/api/address-claims/challenges", json({wallet,launchId})),
-  addressClaimStatus: (id: string, token: string) => uncachedRequest<{ verified: boolean; signature: string | null; expiresAt: number; claimed: boolean }>(`/api/address-claims/challenges/${encodeURIComponent(id)}`,{headers:addressClaimAuth(token)}),
+  addressClaimLookup: (wallet: string) => uncachedRequest<{ wallet: string; claimsEnabled: boolean; rewardClaimsEnabled: boolean; markets: AddressClaimMarket[] }>(`/api/address-claims/${encodeURIComponent(wallet)}`),
+  addressClaimStart: (wallet: string, launchId: string, kind: "creator" | "cumulative" | "legacy" = "creator", epochId?: string) => request<AddressClaimChallenge>("/api/address-claims/challenges", json({wallet,launchId,kind, ...(epochId ? {epochId} : {})})),
+  addressClaimStatus: (id: string, token: string) => uncachedRequest<{ verified: boolean; signature: string | null; expiresAt: number; claimed: boolean; payout: {status:string;signature:string|null}|null }>(`/api/address-claims/challenges/${encodeURIComponent(id)}`,{headers:addressClaimAuth(token)}),
   addressClaimVerify: (id: string, token: string, signature: string) => request<{verified:boolean;signature:string}>(`/api/address-claims/challenges/${encodeURIComponent(id)}/verify`,{...json({signature}),headers:{"Content-Type":"application/json",...addressClaimAuth(token)}}),
   addressClaimPayout: (id: string, token: string) => request<{id:string;status:string;signature:string|null}>(`/api/address-claims/challenges/${encodeURIComponent(id)}/claim`,{...json({}),headers:{"Content-Type":"application/json",...addressClaimAuth(token)}}),
   showcase: (signal?:AbortSignal) => request<{enabled:boolean;launches:Launch[]}>("/api/showcase",{signal}),
