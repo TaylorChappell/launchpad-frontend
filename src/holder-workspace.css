@@ -120,11 +120,49 @@
 .lifetime-rewards small { font-size:11px; color:#7a97a8; }
 .lifetime-rewards strong { font-size:23px; color:#36738d; }
 .lifetime-rewards strong span { font-size:12px; font-weight:500; }
-.creator-market-list { padding:0 26px; }
-.creator-market-list article { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 0; border-bottom:1px solid #d2e4ee; }
-.creator-market-list article:last-child { border:0; }
-.creator-market-list article > div { display:flex; gap:22px; font-size:12px; color:#2583b1; }
-.creator-market-list article > div a { display:inline-flex; align-items:center; gap:4px; }
+.portfolio-created-panel { background:#fff; }
+.portfolio-created-panel > header { padding-bottom:18px; }
+.portfolio-created-panel > header p { margin:5px 0 0; color:#6a899b; font-size:12px; }
+.creator-market-list { display:grid; gap:10px; padding:0 24px 24px; }
+.creator-market-list .created-market-row { display:flex; align-items:center; gap:24px; min-width:0; padding:17px 20px; border:1px solid #d6e8f1; border-radius:14px; background:#fff; transition:border-color .18s ease,box-shadow .18s ease; }
+.creator-market-list .created-market-row:hover { border-color:#a9d6e9; box-shadow:0 6px 20px #1f6c8710; }
+.created-market-info { display:grid; gap:9px; min-width:0; flex:1; }
+.created-market-info .market-identity { display:inline-flex; align-items:center; gap:12px; width:fit-content; max-width:100%; min-width:0; }
+.created-market-info .market-identity .token-mark { flex-shrink:0; width:40px; height:40px; }
+.created-market-info .market-identity span { display:grid; gap:5px; min-width:0; }
+.created-market-info .market-identity b { color:#214f69; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.created-market-info .market-identity small { color:#7291a3; font-size:11px; }
+.created-market-links { display:flex; gap:16px; flex-wrap:wrap; padding-left:52px; }
+.created-market-links a { display:inline-flex; align-items:center; gap:4px; color:#167eae; font-size:11px; }
+.created-market-links a:hover { color:#0c6393; }
+.created-market-row .creator-earnings-compact { flex:0 1 410px; min-width:0; margin:0; border:0; border-radius:0; background:transparent; overflow:visible; }
+.created-market-row .creator-earnings-main { display:flex; flex-direction:row; align-items:center; justify-content:flex-end; gap:18px; min-height:0; padding:0; background:transparent; }
+.created-market-row .creator-earnings-balance { min-width:0; text-align:right; }
+.created-market-row .creator-eyebrow { color:#7191a3; font-size:10px; letter-spacing:.02em; text-transform:none; font-weight:500; }
+.created-market-row .creator-earnings-balance h3 { margin:5px 0 0; color:#175e86; font-size:clamp(17px,1.7vw,23px); font-weight:700; line-height:1.25; letter-spacing:-.03em; overflow-wrap:anywhere; }
+.created-market-row .creator-earnings-balance h3 span { font-size:12px; font-weight:600; color:#5b8297; }
+.created-market-row .creator-earnings-action { display:block; flex-shrink:0; }
+.created-market-row .creator-earnings-action .primary { min-width:86px; min-height:40px; padding:10px 15px; border-radius:9px; }
+.created-market-row .creator-earnings-action .primary:disabled { background:#e6f0f5; border-color:#d4e4ed; color:#648298; cursor:not-allowed; }
+.created-market-row .creator-earnings-error { margin:6px 0 0; text-align:right; }
+.created-market-setup { display:flex; align-items:center; justify-content:flex-end; gap:22px; min-width:0; }
+.created-market-setup > div { display:grid; gap:4px; text-align:right; }
+.created-market-setup small { color:#7393a4; font-size:10px; font-weight:650; letter-spacing:.05em; }
+.created-market-setup span { color:#426e85; font-size:11px; }
+.created-market-setup .primary { flex-shrink:0; min-height:40px; white-space:nowrap; }
+.creator-market-more { margin:0 24px 24px; }
+@media(max-width:750px) {
+  .creator-market-list { padding:0 16px 16px; }
+  .creator-market-list .created-market-row { align-items:stretch; flex-direction:column; gap:18px; padding:17px; }
+  .created-market-row .creator-earnings-compact { flex:none; width:100%; }
+  .created-market-row .creator-earnings-main,.created-market-setup { justify-content:space-between; padding-top:14px; border-top:1px solid #e4f0f5; }
+  .created-market-row .creator-earnings-balance,.created-market-setup > div { text-align:left; }
+  .creator-market-more { margin:0 16px 16px; }
+}
+@media(max-width:420px) {
+  .created-market-setup { align-items:stretch; flex-direction:column; gap:12px; }
+  .created-market-setup .primary { width:100%; }
+}
 .network-metrics { display:grid; grid-template-columns:1.25fr 1fr 1fr .9fr; gap:16px; }
 .network-metrics article { display:flex; flex-direction:column; padding:24px; min-width:0; border:1px solid #c2deed; border-radius:17px; background:linear-gradient(135deg,#fff,#edf8fee8); }
 .network-metrics article > span { display:flex; align-items:center; gap:8px; font-size:11px; color:#5b8299; }

@@ -166,6 +166,7 @@ export function Token() {
   if (!loadError && !launch && loaded) return <main className="page empty-state"><h2>Market not found</h2><p>This market is not present in the AQUA index.</p><Link className="primary" to="/">Return to Explore</Link></main>;
   if (loadError && !launch) return <main className="page"><section className="empty-state"><h1>Market unavailable</h1><p>{loadError}</p><button onClick={() => window.location.reload()}>Retry</button></section></main>;
   if (!launch) return <main className="page"><div className="page-loading">Loading market…</div></main>;
+  if (launch.status !== "live") return <main className="page empty-state"><h2>Market not available</h2><p>This coin does not have a live market yet.</p><Link className="primary" to="/">Return to Explore</Link></main>;
 
   const activeLaunch = launch;
   const stockDecimals = stock?.decimals ?? 6;
