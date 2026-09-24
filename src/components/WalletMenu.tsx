@@ -35,9 +35,9 @@ export function WalletMenu() {
     if (!address) { setCoins([]); return; }
     let active = true;
     setLoading(true);
-    api.launches({creator: address, status:"all", limit:100}).then(({ launches }) => {
+    api.launches({creator: address, status:"live", limit:100}).then(({ launches }) => {
       if (!active) return;
-      setCoins(launches.filter((launch) => launch.creatorWallet === address).sort((a,b) => b.createdAt - a.createdAt));
+      setCoins(launches.filter((launch) => launch.creatorWallet === address && launch.status === "live").sort((a,b) => b.createdAt - a.createdAt));
     }).catch(() => { if (active) setCoins([]); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [address]);
@@ -51,7 +51,7 @@ export function WalletMenu() {
       <Link className="wallet-launch-link" to="/portfolio">My holdings &amp; creator dashboard</Link><section>
         <div className="wallet-dropdown-title"><span><WalletCards size={14}/>Your coins</span><b>{coins.length}</b></div>
         <div className="wallet-coins">
-          {loading ? <small className="wallet-coins-empty">Loading your launches…</small> : coins.length ? coins.slice(0, visibleCoins).map((coin) => <Link key={coin.id} to={"/manage/" + coin.id} role="menuitem"><TokenMark launch={coin}/><span><b>{"$" + coin.symbol}</b><small>{coin.pairSymbol} market · {coin.status === "live" ? "Live" : "Launching"}</small></span><Settings2 size={14}/></Link>) : <small className="wallet-coins-empty">Coins launched by this wallet will appear here.</small>}
+          {loading ? <small className="wallet-coins-empty">Loading your coins…</small> : coins.length ? coins.slice(0, visibleCoins).map((coin) => <Link key={coin.id} to={"/manage/" + coin.id} role="menuitem"><TokenMark launch={coin}/><span><b>{"$" + coin.symbol}</b><small>{coin.pairSymbol} market · Live</small></span><Settings2 size={14}/></Link>) : <small className="wallet-coins-empty">Your live coins will appear here.</small>}
         </div>
         {!loading && remainingCoins > 0 && <button className="wallet-coins-load-more" type="button" role="menuitem" onClick={() => setVisibleCoins((count) => Math.min(count + COINS_PER_PAGE, coins.length))}><span>Load more</span><small>{remainingCoins} remaining</small><ChevronDown size={14}/></button>}
       </section>
@@ -61,4 +61,3 @@ export function WalletMenu() {
     </div>}
   </div>;
 }
-

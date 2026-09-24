@@ -6,11 +6,11 @@ import { useRuntime, useWallet } from "../context";
 import { displayTokenAmount } from "../trade-quote";
 import type { CreatorFeeSummary, Launch } from "../types";
 
-export function CreatorFeeClaim({ launch, onClaimed }: { launch: Launch; onClaimed?: () => void }) {
+export function CreatorFeeClaim({ launch, onClaimed, compact = false }: { launch: Launch; onClaimed?: () => void; compact?: boolean }) {
   const wallet = useWallet(), { config } = useRuntime();
-  return <CreatorClaim key={`${config.network}:${wallet.address}:${launch.id}`} launch={launch} onClaimed={onClaimed} />;
+  return <CreatorClaim key={`${config.network}:${wallet.address}:${launch.id}`} launch={launch} onClaimed={onClaimed} compact={compact} />;
 }
-function CreatorClaim({ launch, onClaimed }: { launch: Launch; onClaimed?: () => void }) {
+function CreatorClaim({ launch, onClaimed, compact }: { launch: Launch; onClaimed?: () => void; compact: boolean }) {
   const wallet = useWallet(), { config } = useRuntime();
   const [summary, setSummary] = useState<CreatorFeeSummary | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [readError, setReadError] = useState(false);
@@ -59,6 +59,16 @@ function CreatorClaim({ launch, onClaimed }: { launch: Launch; onClaimed?: () =>
   const pending = summary?.pendingClaim;
   const processing = Boolean(pending && (pending.mode === "manual" || pending.signature));
   const balance = summary ? BigInt(summary.availableLamports) + BigInt(summary.pendingLamports) : 0n;
+  const claimButton = <button className="primary" disabled={busy || processing || readError || !summary?.claimsEnabled || balance === 0n} onClick={() => void claim()}>
+    {busy || processing ? <Loader2 size={17} className="spin" /> : <ArrowDownToLine size={17} />}
+    {busy ? "Requesting…" : processing ? "Claiming…" : "Claim"}
+  </button>;
+  if (compact) return <section className="creator-earnings creator-earnings-compact" aria-label="Creator earnings">
+    <div className="creator-earnings-main"><div className="creator-earnings-balance"><span className="creator-eyebrow">Available SOL</span><h3>{summary ? displayTokenAmount(balance.toString(), 9) : "—"} <span>SOL</span></h3></div><div className="creator-earnings-action">{claimButton}</div></div>
+    {error && <p className="creator-earnings-error" role="alert">{error}</p>}
+    {readError && <p className="creator-earnings-error" role="status">Balance unavailable. Retrying…</p>}
+    {summary && !summary.claimsEnabled && <p className="creator-earnings-error" role="status">SOL payouts are temporarily unavailable.</p>}
+  </section>;
   return <section className="creator-earnings" aria-label="Creator earnings">
     <div className="creator-earnings-main">
       <div className="creator-earnings-balance">
@@ -67,10 +77,7 @@ function CreatorClaim({ launch, onClaimed }: { launch: Launch; onClaimed?: () =>
         <p>Balances over $50 are paid automatically.</p>
       </div>
       <div className="creator-earnings-action">
-        <button className="primary" disabled={busy || processing || readError || !summary?.claimsEnabled || balance === 0n} onClick={() => void claim()}>
-          {busy || processing ? <Loader2 size={17} className="spin" /> : <ArrowDownToLine size={17} />}
-          {busy ? "Requesting…" : processing ? "Claiming…" : "Claim"}
-        </button>
+        {claimButton}
       </div>
     </div>
     {error && <p className="creator-earnings-error" role="alert">{error}</p>}

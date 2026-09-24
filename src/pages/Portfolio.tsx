@@ -6,6 +6,7 @@ import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { TokenMark } from "../components/TokenCard";
 import { CreatorFeeClaim } from "../components/CreatorFeeClaim";
+import { activeCreatorLock, creatorLockPercentLabel } from "../creator-lock";
 import { WalletRewards } from "../components/WalletRewards";
 import { HoldingUpdates } from "../components/HoldingUpdates";
 import { displayTokenAmount } from "../trade-quote";
@@ -45,7 +46,7 @@ function PortfolioContent({address}:{address:string|null}){
   },[address,revision]);
   useEffect(()=>{
     if(!address||tab!=="Created")return;let active=true;
-    api.launches({creator:address,status:"all",limit:24,sort:"creator_claims"}).then(d=>{if(active){setCreated(d.launches);setMore(d.hasMore);setOffset(d.nextOffset);setErrors(e=>({...e,created:""}));}}).catch(()=>{if(active)setErrors(e=>({...e,created:"Your created markets could not load."}));});
+    api.launches({creator:address,status:"live",limit:24,sort:"creator_claims"}).then(d=>{if(active){setCreated(d.launches.filter(l=>l.status==="live"));setMore(d.hasMore);setOffset(d.nextOffset);setErrors(e=>({...e,created:""}));}}).catch(()=>{if(active)setErrors(e=>({...e,created:"Your created markets could not load."}));});
     return()=>{active=false;};
   },[address,tab,revision]);
   const selectTab=(name:string)=>setParams(name==="Holdings"?{}:{tab:name.toLowerCase()});
@@ -81,7 +82,18 @@ function PortfolioContent({address}:{address:string|null}){
       {history?.lifetime.length?<div className="lifetime-rewards">{history.lifetime.map(t=><div key={t.stock_mint}><small>Total {t.symbol} claimed</small><strong>{displayTokenAmount(t.amount_raw,t.decimals)} <span>{t.symbol}</span></strong></div>)}</div>:null}
       {history===null?<div className="workspace-loading">{errors.activity?"History unavailable":"Loading claim receipts…"}</div>:history.claims.length?<div className="table-scroll"><table className="market-table"><thead><tr><th>Market</th><th>Claimed</th><th>Date</th><th>Receipt</th></tr></thead><tbody>{history.claims.map(c=><tr key={c.signature+c.launch_id}><td><Link to={"/token/"+c.launch_id}>{c.name}</Link></td><td>{displayTokenAmount(c.amount_raw,Number(c.stock_decimals))} {c.reward_symbol}</td><td>{new Date(Number(c.claimed_at)).toLocaleDateString()}</td><td><a href={"https://solscan.io/tx/"+c.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View <ArrowUpRight size={13}/></a></td></tr>)}</tbody></table></div>:<div className="workspace-empty"><Gift/><h3>No claims yet.</h3><p>Your confirmed reward claims will appear here.</p></div>}
     </section>{config.marketGovernanceEnabled&&<HoldingUpdates wallet={address}/>}</>}
-    {tab==="Created"&&<section className="workspace-panel"><header><h2>Your coins</h2><Link to="/studio">Atlantis Studio <ArrowUpRight size={14}/></Link></header><div className="creator-market-list">{created?.map(l=><article key={l.id}><Link className="market-identity" to={"/token/"+l.id}><TokenMark launch={l}/><span><b>{l.name}</b><small>{l.status==="live"?"Live market":"Launch in progress"}</small></span></Link><div><CreatorFeeClaim launch={l} onClaimed={refresh}/><Link to={l.status==="live"?"/manage/"+l.id:"/create"}>{l.status==="live"?"Manage":"Resume launch"} <ArrowUpRight size={13}/></Link><Link to={"/studio?token="+encodeURIComponent(l.mint)}>Build <ArrowUpRight size={13}/></Link></div></article>)}</div>{created===null?<div className="workspace-loading">{errors.created?"Markets unavailable":"Loading your coins…"}</div>:!created.length&&<div className="workspace-empty"><Layers3/><h3>Build your own community.</h3><p>Launch a coin, then create its website or experience in Atlantis Studio.</p><Link className="primary" to="/create">Launch a coin <ArrowRight size={15}/></Link></div>}{more&&<button className="soft-button" disabled={loadingMore} onClick={async()=>{setLoadingMore(true);try{const d=await api.launches({creator:address,status:"all",limit:24,sort:"creator_claims",offset});setCreated(c=>[...(c??[]),...d.launches]);setMore(d.hasMore);setOffset(d.nextOffset);}catch{setErrors(e=>({...e,created:"Could not load more coins."}));}finally{setLoadingMore(false);}}}>Load more</button>}</section>}
+    {tab==="Created"&&<section className="workspace-panel portfolio-created-panel">
+      <header><div><h2>Your coins</h2><p>Markets you launched and the fees they’ve earned.</p></div><Link to="/studio">Atlantis Studio <ArrowUpRight size={14}/></Link></header>
+      <div className="creator-market-list">{created?.map(l=>{
+        const lock=activeCreatorLock(l.creatorLock);
+        return <article className="created-market-row" key={l.id}>
+          <div className="created-market-info"><Link className="market-identity" to={"/token/"+l.id}><TokenMark launch={l}/><span><b>{l.name}</b><small>${l.symbol} · {lock?`${creatorLockPercentLabel(lock)} locked`:"No creator lock"}</small></span></Link>
+            <div className="created-market-links"><Link to={"/manage/"+l.id}>Manage coin <ArrowUpRight size={13}/></Link><Link to={"/studio?token="+encodeURIComponent(l.mint)}>Build website <ArrowUpRight size={13}/></Link></div></div>
+          {lock?<CreatorFeeClaim launch={l} onClaimed={refresh} compact/>:<div className="created-market-setup"><div><small>CREATOR FEES</small><span>Set up your lock to start earning</span></div><Link className="primary" to={"/manage/"+l.id+"?tab=fees"}>Set up creator fees <ArrowRight size={15}/></Link></div>}
+        </article>;
+      })}</div>
+      {created===null?<div className="workspace-loading">{errors.created?"Markets unavailable":"Loading your coins…"}</div>:!created.length&&<div className="workspace-empty"><Layers3/><h3>Build your own community.</h3><p>Launch a coin, then create its website or experience in Atlantis Studio.</p><Link className="primary" to="/create">Launch a coin <ArrowRight size={15}/></Link></div>}
+      {more&&<button className="soft-button creator-market-more" disabled={loadingMore} onClick={async()=>{setLoadingMore(true);try{const d=await api.launches({creator:address,status:"live",limit:24,sort:"creator_claims",offset});setCreated(c=>[...(c??[]),...d.launches.filter(l=>l.status==="live")]);setMore(d.hasMore);setOffset(d.nextOffset);}catch{setErrors(e=>({...e,created:"Could not load more coins."}));}finally{setLoadingMore(false);}}}>Load more</button>}
+    </section>}
   </main>;
 }
-
