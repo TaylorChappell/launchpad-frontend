@@ -1,4 +1,5 @@
 export type RuntimeConfig = {
+  stagingShowcaseEnabled?: boolean;
   brand: "AQUA";
   useTestnet: boolean;
   network: "devnet" | "mainnet-beta";
@@ -227,6 +228,7 @@ export type LaunchStatus = "mint_pending" | "pool_pending" | "liquidity_pending"
 export type IndexingStatus = "pending_indexing" | "orca_indexed" | "indexed";
 
 export type Launch = {
+  showcase?: { feature: string; tab: string };
   id: string;
   mint: string;
   bondingCurve: string;

@@ -14,6 +14,7 @@ function savedClaim(key:string):PendingClaim|null{
 }
 export function WalletRewards({launch,data,launches=[],onClaimed}:{launch?:Launch;data?:WalletRewardsResponse|null;launches?:Launch[];onClaimed?:()=>void}){
   const wallet=useWallet(),{config}=useRuntime();
+  if(launch?.showcase)return <div className="wallet-rewards"><div className="reward-claim-list"><article className="reward-claim-row ready"><div className="reward-claim-coin"><TokenMark launch={launch}/><div><b>{launch.name}</b><small>Sample allocation</small></div></div><div className="reward-row-amount"><strong>$12.50</strong><small>Preview only</small></div><button className="primary" disabled>Claim</button></article></div></div>;
   // Remount on wallet/network change: pending receipts always belong to their signer.
   return <RewardContent key={config.network+":"+wallet.address+":"+(launch?.id??"all")} launch={launch} data={data} launches={launches} onClaimed={onClaimed}/>;
 }

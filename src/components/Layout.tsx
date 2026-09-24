@@ -19,6 +19,7 @@ const links = [
 ];
 const bottomLinks = links;
 const moreLinks = [
+  { to: "/boost", label: "Community Boost" },
   { to: "/promotions", label: "Promotions" },
   { to: "/analytics", label: "Analytics" },
   { to: "/how-it-works", label: "How it works" },

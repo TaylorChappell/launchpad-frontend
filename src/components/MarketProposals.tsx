@@ -22,6 +22,7 @@ const descriptions: Record<MarketProposalType, string> = {
   cto: "Nominate a new developer wallet and put a clear handover plan to a holder vote.",
 };
 const liveStatuses = ["voting", "funding", "approved", "ready", "withdrawing", "withdrawn"];
+const isFinishedMiniBoost = (proposal: MarketProposal) => proposal.isAutomatic && proposal.type === "dex_boost" && !liveStatuses.includes(proposal.status);
 const blankProfile: DexProfile = { description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" };
 type Dialog = { kind: "create"; type: MarketProposalType } | { kind: "details" | "challenge" | "activity"; proposal: MarketProposal };
 type GovernanceContextValue = {
@@ -38,7 +39,7 @@ export function MarketDexStatusBadge() {
 export function MarketInformationTabs({section,onChange,newComments=false,latestProjectUpdateAt}:{section:string;onChange:(value:string)=>void;newComments?:boolean;latestProjectUpdateAt?:number|null}){
   const {data}=useProposals();
   const activeCount = (data?.enabled || data?.automaticFundingEnabled) ? data.proposals.filter(proposal => liveStatuses.includes(proposal.status)).length : 0;
-  const hasGovernance=Boolean((data?.enabled||data?.automaticFundingEnabled)&&data.proposals.some(p=>p.isDefault?!["rejected","cancelled"].includes(p.status):(p.type==="cto"||p.type==="dex_boost")||!["rejected","cancelled"].includes(p.status)));
+  const hasGovernance=Boolean((data?.enabled||data?.automaticFundingEnabled)&&data.proposals.some(p=>!isFinishedMiniBoost(p)&&(p.isDefault?!["rejected","cancelled"].includes(p.status):(p.type==="cto"||p.type==="dex_boost")||!["rejected","cancelled"].includes(p.status))));
   useEffect(()=>{if(section==="Governance"&&data&&!hasGovernance)onChange("Transactions");},[section,data,hasGovernance,onChange]);
   return <div className="workspace-tabs market-information-tabs" aria-label="Market information">{["Transactions","Community","Holders","Rewards","Project",...(hasGovernance?["Governance"]:[])].map(label=><button key={label} aria-pressed={section===label} onClick={()=>onChange(label)}>{label}{label === "Community" && newComments && <span className="market-unread-dot" aria-label="New community posts" title="New community posts"/>}{label === "Community" && <RecentUpdateBell at={latestProjectUpdateAt}/>} {label === "Governance" && activeCount > 0 && <span className="governance-tab-count" aria-label={`${activeCount} active proposals`} title={`${activeCount} active proposals`}><Bell size={12} aria-hidden="true"/><b>{activeCount}</b></span>}</button>)}</div>;
 }
@@ -61,7 +62,7 @@ export function MarketGovernanceProvider({ launch, children }: { launch: Launch;
   const currentIdentity = useRef(identity);
   currentIdentity.current = identity;
   const refresh = useCallback(async () => {
-    if (!config.marketGovernanceEnabled) return;
+    if (!config.marketGovernanceEnabled && !launch.showcase) return;
     try {
       const result = await api.marketGovernance(launch.id, wallet.address);
       if (currentIdentity.current === identity) { setData(result); setError(""); }
@@ -75,6 +76,7 @@ export function MarketGovernanceProvider({ launch, children }: { launch: Launch;
   useEffect(() => { const clock = window.setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000); return () => window.clearInterval(clock); }, []);
 
   async function sign(action: "create" | "vote" | "details" | "challenge" | "activity", proposalId: string | undefined, content: unknown) {
+    if (launch.showcase) throw new Error("Staging previews are read-only.");
     if (!wallet.address) throw new Error("Connect a wallet first.");
     const address = wallet.address;
     const approval = await api.marketProposalChallenge(launch.id, { action, wallet: address, proposalId, content });
@@ -275,7 +277,7 @@ function BoostProposalCard({ proposal: p }: { proposal: MarketProposal }) {
       <details className="proposal-vote-rules"><summary>Voting rules</summary><p>15-minute vote, weighted by holdings and held time. Most voting power wins. Ties favour No, then the lower percentage. No votes means no boost.</p></details></> : <>
       {p.fundingPercent && <div className="proposal-funding-terms"><span>Reward allocation <b>{p.fundingPercent}%</b></span><span>{p.status === "funding" ? "Funding ends in" : "Funding period"}<b>{p.status === "funding" && p.fundingEndsAt ? countdown(p.fundingEndsAt, now) : "1 hour"}</b></span></div>}
       {p.status === "funding" && <div className="proposal-funded"><div><span>{affordable && p.fundedUsd >= minimum ? `${affordable.boosts}x affordable` : `$${minimum} minimum`}</span><b>${p.fundedUsd.toFixed(2)}</b></div><progress aria-label="Boost funding" value={p.fundedUsd} max={p.fundedUsd < minimum ? minimum : nextPack ? nextPack.cents / 100 : 3999}/><small>{p.isAutomatic && p.fundedUsd < minimum ? "$100 starts a 10x purchase; the pack costs $99." : nextPack ? `$${(nextPack.cents / 100).toLocaleString()} unlocks ${nextPack.boosts}x` : "Largest pack funded. Surplus returns to holders."}</small></div>}
-      {p.isAutomatic && p.status === "funding" && <p className="proposal-detail-note">{p.collectionPaused ? "Activity has slowed. Collection is paused; the fund closes after five quiet minutes." : "Closes after one hour or five minutes of sustained slowdown."}</p>}
+      {p.isAutomatic && p.status === "funding" && <p className="proposal-detail-note">{p.collectionPaused ? "Activity has slowed. Collection is paused; the fund closes after ten quiet minutes." : "Closes after one hour or ten minutes of sustained slowdown."}</p>}
       {Boolean(p.payload.inheritedAutomaticFund) && <p className="proposal-detail-note">Includes the automatic fund. The original funding deadline is unchanged.</p>}
       {p.status === "approved" && <p className="proposal-detail-note">The hour starts once the DEX profile is paid and any open challenges are resolved.</p>}
       {p.boostPack && <div className="boost-selected-pack"><b>{p.boostPack}x · {p.boostHours} hours</b><span>${p.targetUsd.toFixed(0)}</span></div>}
@@ -293,7 +295,7 @@ function BoostProposalCard({ proposal: p }: { proposal: MarketProposal }) {
 export function CommunityProposalVotes() {
   const { data } = useProposals();
   if (!data?.enabled && !data?.automaticFundingEnabled) return null;
-  const proposals = data.proposals.filter((item) => !item.isDefault && item.outcome !== "transferred_to_vote" && !(!item.isAutomatic && !["cto", "dex_boost"].includes(item.type) && ["rejected", "cancelled"].includes(item.status)));
+  const proposals = data.proposals.filter((item) => !item.isDefault && !isFinishedMiniBoost(item) && item.outcome !== "transferred_to_vote" && !(!item.isAutomatic && !["cto", "dex_boost"].includes(item.type) && ["rejected", "cancelled"].includes(item.status)));
   const active = proposals.filter((item) => liveStatuses.includes(item.status));
   const history = proposals.filter((item) => !liveStatuses.includes(item.status));
   if (!proposals.length) return null;

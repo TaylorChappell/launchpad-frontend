@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { useRuntime, useWallet } from "./context";
 
-export function useAssetBalance(mint: string | null, refresh: number) {
+export function useAssetBalance(mint: string | null, refresh: number, enabled = true) {
   const {config,loading}=useRuntime(), {address}=useWallet();
   const key=[address,mint,config.publicRpcUrl].join(":");
   const [balance,setBalance]=useState<{key:string;raw:string}|null>(null);
   useEffect(()=>{
     let active=true,pending=false;
     setBalance(null);
-    if(!address || loading) return;
+    if(!enabled || !address || loading) return;
     const load=async()=>{
       if(pending || document.visibilityState==="hidden")return;
       pending=true;
@@ -22,6 +22,6 @@ export function useAssetBalance(mint: string | null, refresh: number) {
     };
     void load();const timer=window.setInterval(()=>void load(),15_000);window.addEventListener("focus",load);
     return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",load);};
-  },[address,mint,refresh,config.publicRpcUrl,loading]);
+  },[address,mint,refresh,config.publicRpcUrl,loading,enabled]);
   return balance?.key===key?balance.raw:null;
 }
