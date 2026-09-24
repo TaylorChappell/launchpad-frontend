@@ -56,7 +56,7 @@ function PortfolioContent({address}:{address:string|null}){
   const refresh=()=>setRevision(n=>n+1);
   if(!address)return <main className="page holder-workspace">
     <header className="workspace-heading"><div><h1>My holdings</h1><p>A home for the coins and communities you hold.</p></div></header>
-    <section className="portfolio-connect"><div className="portfolio-connect-copy"><span className="workspace-icon"><Wallet size={25}/></span><h1>Your holdings.<br/>Your rewards.</h1><p>Follow your positions, collect your rewards and see what your communities are building.</p><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet <ArrowRight size={17}/></button></div><div className="portfolio-connect-features">
+    <section className="portfolio-connect"><div className="portfolio-connect-copy"><span className="workspace-icon"><Wallet size={25}/></span><h1>Your holdings.<br/>Your rewards.</h1><p>Follow your positions, collect your rewards and see what your communities are building.</p><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet <ArrowRight size={17}/></button><Link className="portfolio-connect-help" to="/claim-by-address">Can’t connect your wallet?</Link></div><div className="portfolio-connect-features">
       <div><Coins/><span><b>Every position, one view</b><p>Your token balances and current market values.</p></span></div>
       <div><Gift/><span><b>Rewards within reach</b><p>See what’s available and claim directly to your wallet.</p></span></div>
       <div><Layers3/><span><b>Your community activity</b><p>Claim receipts, governance and the coins you’ve created.</p></span></div>
