@@ -15,7 +15,8 @@ export function ClaimByAddress() {
   const [rewards,setRewards]=useState<WalletRewardsResponse|null>(null),[claimsEnabled,setClaimsEnabled]=useState(false);
   const [challenge,setChallenge]=useState<AddressClaimChallenge|null>(null),[verified,setVerified]=useState(false);
   const [signature,setSignature]=useState(""),[payout,setPayout]=useState<{status:string;signature:string|null}|null>(null);
-  const [busy,setBusy]=useState(false),[error,setError]=useState("");
+  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[now,setNow]=useState(Date.now());
+  useEffect(()=>{if(!challenge || verified) return;const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer);},[challenge?.id,verified]);
 
   async function lookup(event: FormEvent) {
     event.preventDefault(); setError(""); setMarkets(null); setRewards(null); setChallenge(null); setPayout(null); setVerified(false);
@@ -84,6 +85,7 @@ export function ClaimByAddress() {
   }
   const holderTotal=rewards?.markets.reduce((sum,market)=>sum+market.grossRedeemableUsdCents,0)??0;
   const selected=markets?.find(m=>m.launchId===challenge?.launchId);
+  const expired=Boolean(challenge && !verified && now>=challenge.expiresAt);
 
   return <main className="page address-claim-page">
     <Link className="back" to="/portfolio"><ArrowLeft size={16}/> My holdings</Link>
@@ -100,9 +102,9 @@ export function ClaimByAddress() {
     {challenge&&<section className="address-claim-proof">
       <h2>{verified?"Wallet verified":"Verify your wallet"}</h2>
       <p>{verified?"This transfer has been recorded and cannot be reused for another verification.":"Send exactly 0.001 SOL from the address above to the AQUA address below. Only send after starting this request. We check for a finalized transfer automatically."}</p>
-      <div className="address-claim-payment"><span>Send from</span><code>{challenge.wallet}</code><span>Send exactly</span><strong>0.001 SOL</strong><span>Send to</span><div className="address-claim-destination"><code>{challenge.depositAddress}</code><button aria-label="Copy deposit address" onClick={()=>void navigator.clipboard.writeText(challenge.depositAddress)}><Copy size={15}/></button></div></div>
+      {!expired&&<div className="address-claim-payment"><span>Send from</span><code>{challenge.wallet}</code><span>Send exactly</span><strong>0.001 SOL</strong><span>Send to</span><div className="address-claim-destination"><code>{challenge.depositAddress}</code><button aria-label="Copy deposit address" onClick={()=>void navigator.clipboard.writeText(challenge.depositAddress)}><Copy size={15}/></button></div></div>}
       <p className="address-claim-note">This 0.001 SOL verification payment is not returned. AQUA will send creator fees only to the address that sent it. Never enter a seed phrase or private key.</p>
-      {!verified&&<><p className="address-claim-wait"><Loader2 className="spin" size={15}/> Waiting for a finalized transfer. Request expires {new Date(challenge.expiresAt).toLocaleTimeString()}.</p><div className="address-claim-signature"><label htmlFor="claim-tx">Have a transaction signature? Check it directly</label><div><input id="claim-tx" value={signature} onChange={e=>setSignature(e.target.value)} placeholder="Transaction signature"/><button className="soft-button" disabled={busy||signature.trim().length<64} onClick={()=>void verify()}>Check transfer</button></div></div></>}
+      {expired?<div className="address-claim-expired"><p>This request expired. Do not send SOL to the old address for this request.</p>{selected&&<button className="primary" disabled={busy} onClick={()=>void start(selected)}>Start a new request</button>}</div>:!verified&&<><p className="address-claim-wait"><Loader2 className="spin" size={15}/> Waiting for a finalized transfer. Request expires {new Date(challenge.expiresAt).toLocaleTimeString()}.</p><div className="address-claim-signature"><label htmlFor="claim-tx">Have a transaction signature? Check it directly</label><div><input id="claim-tx" value={signature} onChange={e=>setSignature(e.target.value)} placeholder="Transaction signature"/><button className="soft-button" disabled={busy||signature.trim().length<64} onClick={()=>void verify()}>Check transfer</button></div></div></>}
       {verified&&!payout&&<button className="primary" disabled={busy} onClick={()=>void claim()}>{busy?<Loader2 size={16} className="spin"/>:<CheckCircle2 size={16}/>} Claim {selected?.name??"creator fees"} to this wallet</button>}
       {payout&&<p className="address-claim-success"><CheckCircle2 size={16}/> Payout queued to {address.slice(0,5)}…{address.slice(-5)}. {payout.signature?<a href={`https://solscan.io/tx/${payout.signature}`} target="_blank" rel="noreferrer">View transaction</a>:"It will appear on-chain when processed."}</p>}
     </section>}
