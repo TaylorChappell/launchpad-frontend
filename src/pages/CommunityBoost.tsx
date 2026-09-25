@@ -24,7 +24,7 @@ export function CommunityBoost(){
  const open=Boolean(enabled?.votingOpen&&now>=enabled.round.startsAt&&now<enabled.round.endsAt);
  const activeBonus=enabled?.activeBonus&&now<enabled.activeBonus.endsAt?enabled.activeBonus:null;
  const currentFunding=activeBonus?enabled?.funding?.activeRound:null;
- const sol=(lamports:string)=>{const raw=BigInt(lamports);const fraction=(raw%1_000_000_000n).toString().padStart(9,'0').replace(/0+$/,'');return `${(raw/1_000_000_000n).toLocaleString()}${fraction?'.'+fraction:''}`;};
+ const sol=(lamports:string)=>{const cents=(BigInt(lamports)+5_000_000n)/10_000_000n;return `${(cents/100n).toLocaleString()}.${(cents%100n).toString().padStart(2,'0')}`;};
  useEffect(()=>{if(notice&&!notice.includes('is confirmed')&&notice!=='Your vote has been removed.')toast.error(notice);},[notice]);
  const leaders=enabled?.leaders??[],lead=leaders[0];
  const leadingWeight=BigInt(lead?.votingPowerRaw||'0');

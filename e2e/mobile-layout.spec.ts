@@ -3,7 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 const mint = "11111111111111111111111111111111";
 const launch = {
   id: "mobile", mint, creatorWallet: mint, name: "Ocean Club", symbol: "OCEAN",
-  description: "A community building together.", stockMint: mint, stockSymbol: "ORCA", stockName: "Orca",
+  description: "A community building together.", xUrl: "https://x.com/aquafamily", marketPolicyAddress: mint, stockMint: mint, stockSymbol: "ORCA", stockName: "Orca",
   stock: { mint, symbol: "ORCA", name: "Orca", logoUrl: null },
   pairMint: mint, pairType: "stock", pairSymbol: "ORCA", rewardMode: "holder_rewards", status: "live",
   txCount: 0, marketCapUsd: 124000, tvlUsd: 21000, volume24hUsd: 54000, change24h: 12,
@@ -343,4 +343,15 @@ test("More details sits below trading and preserves the page when dismissed", as
   await sheet.getByRole("button",{name:"Close details"}).click();
   await expect(page).toHaveURL(/tab=transactions/);
   await expect(page.getByRole("navigation",{name:"Market navigation"}).getByRole("button",{name:"Transactions",exact:true})).toHaveAttribute("aria-pressed","true");
+});
+
+test("market header keeps social icons and launch age together", async ({page},info)=>{
+ await setup(page);await page.goto('/#/token/mobile');await expect(page.locator('.market-identity-heading')).toContainText('Ocean Club');
+ await expect(page.locator('.market-identity-heading .market-launch-age')).toBeVisible();
+ await expect(page.locator('.token-hero').getByRole('link',{name:/Explorer|Mode policy/})).toHaveCount(0);
+ if(info.project.name==='desktop') {
+  await expect(page.getByRole('link',{name:'Visit on X',exact:true}).locator('svg')).toBeVisible();
+  await expect(page.locator('.token-identity footer').getByRole('button',{name:'Share market',exact:true}).locator('svg')).toBeVisible();
+ }
+ await page.locator('.token-hero').screenshot({path:'/tmp/aqua-market-header-'+info.project.name+'.png'});
 });

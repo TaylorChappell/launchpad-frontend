@@ -30,12 +30,13 @@ test("legacy rewards opens the combined portfolio and retries an existing receip
 test("analytics prioritizes totals, handles empty history and stays within the viewport",async({page})=>{
   await page.route("**/api/analytics",r=>r.fulfill({json:{
     generatedAt:Date.now(),oldestIndexedAt:Date.now(),stalePriceMarkets:0,marketBreakdownLimit:100,
-    totals:{buybackSol:1.25,buybackFundedSol:1.5,rewardsClaimedAllocationUsd:2,rewardsAccumulatedUsd:45,rewardsRedeemableUsd:12,liveMarkets:7,totalMarketCapUsd:8000,volume24hUsd:650},
+    totals:{buybackSol:1.25,buybackFundedSol:1.5,rewardsClaimedAllocationUsd:2,rewardsAccumulatedUsd:45,rewardsRedeemableUsd:12,dexFundedMarkets:3,liveMarkets:7,totalMarketCapUsd:8000,volume24hUsd:650},
     markets:[],claimedAssets:[],recentBuybacks:[],rewardHistory:[],buybackHistory:[]
   }}));
   await page.goto("/#/analytics");
   await expect(page.getByRole("heading",{name:"Analytics",exact:true})).toBeVisible();
   await expect(page.locator(".network-metric-featured").getByText("Holder rewards",{exact:true})).toBeVisible();
+  await expect(page.locator(".network-metrics article").filter({hasText:"AQUA DEX funded"}).locator("strong")).toHaveText("3");
   await page.getByRole("button",{name:"Buybacks",exact:true}).click();
   await expect(page.getByRole("heading",{name:"No buybacks recorded in this period."})).toBeVisible();
   await expect(page.locator(".workspace-disclosure")).not.toHaveAttribute("open","");

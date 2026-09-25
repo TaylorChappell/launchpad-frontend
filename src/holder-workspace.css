@@ -164,7 +164,7 @@
   .created-market-setup { align-items:stretch; flex-direction:column; gap:12px; }
   .created-market-setup .primary { width:100%; }
 }
-.network-metrics { display:grid; grid-template-columns:1.25fr 1fr 1fr .9fr; gap:16px; }
+.network-metrics { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:16px; }
 .network-metrics article { display:flex; flex-direction:column; padding:24px; min-width:0; border:1px solid #c2deed; border-radius:17px; background:linear-gradient(135deg,#fff,#edf8fee8); }
 .network-metrics article > span { display:flex; align-items:center; gap:8px; font-size:11px; color:#5b8299; }
 .network-metrics article > span svg { color:#418eaf; flex-shrink:0; }

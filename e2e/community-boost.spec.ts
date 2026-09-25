@@ -74,7 +74,7 @@ test('a delayed refresh cannot overwrite a confirmed vote',async({page})=>{
 test('shows reward totals inside Boosted today without an extra panel',async({page},info)=>{
  if(info.project.name==='mobile')await page.setViewportSize({width:320,height:740});
  const s=await setup(page);const today=page.locator('.cb-today');
- await expect(today).toContainText('BOOSTED TODAY');await expect(today.locator('.cb-today-rewards strong')).toContainText('1.250000001');await expect(today).toContainText('1.25 SOL to DEX funding');
+ await expect(today).toContainText('BOOSTED TODAY');await expect(today.locator('.cb-today-rewards strong')).toHaveText('1.25 SOL');await expect(today).toContainText('1.25 SOL to DEX funding');
  await expect(page.locator('.cb-funding')).toHaveCount(0);await expect(page.getByText('All-time rewards:',{exact:false})).toHaveCount(0);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
  await today.scrollIntoViewIfNeeded();await today.screenshot({path:`/tmp/boosted-today-${info.project.name}.png`,animations:'disabled'});
