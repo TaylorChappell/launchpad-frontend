@@ -8,7 +8,6 @@ import type { CreatorLock, Launch } from "../types";
 import { MarketSheet } from "./MarketSheet";
 import { Metric } from "./TokenCard";
 import { WalletIdentity } from "./WalletIdentity";
-import { CommunityProposalVotes, DexFundingVote, useMarketProposalDialogOpen } from "./MarketProposals";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
 
@@ -18,19 +17,18 @@ export function MarketDetails({ launch, creatorLock, developerBuy }: {
   const { config } = useRuntime();
   const [params, setParams] = useSearchParams();
   const legacyTab = params.get("tab");
-  const [open, setOpen] = useState(() => legacyTab === "project" || legacyTab === "governance");
-  const covered = useMarketProposalDialogOpen();
-  useEffect(() => { setOpen(legacyTab === "project" || legacyTab === "governance"); }, [launch.id, legacyTab]);
+  const [open, setOpen] = useState(() => legacyTab === "project");
+  useEffect(() => { setOpen(legacyTab === "project"); }, [launch.id, legacyTab]);
   const close = () => {
     setOpen(false);
-    if (legacyTab === "project" || legacyTab === "governance") setParams(previous => {
+    if (legacyTab === "project") setParams(previous => {
       const next = new URLSearchParams(previous); next.set("tab", "transactions"); return next;
     }, { replace: true });
   };
   const mode = launch.rewardMode ?? "holder_rewards";
   return <>
     <button className="market-more-details" aria-haspopup="dialog" onClick={() => setOpen(true)}><Info size={18}/><span>More details</span><ChevronRight size={18}/></button>
-    {open && <MarketSheet launch={launch} title="Market details" closeLabel="Close details" covered={covered} onClose={close}>
+    {open && <MarketSheet launch={launch} title="Market details" closeLabel="Close details" onClose={close}>
       <div className="market-details-content">
         <section className="market-details-about"><h3>About {launch.name}</h3><p>{launch.description || "This market has no description yet."}</p>
           {(launch.xUrl || launch.websiteUrl) && <div className="market-details-links">{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink size={14}/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2 size={15}/>Website <ExternalLink size={14}/></a>}</div>}
@@ -56,7 +54,6 @@ export function MarketDetails({ launch, creatorLock, developerBuy }: {
           <a href={solscanAccountUrl(launch.mint, config.network)} target="_blank" rel="noreferrer">Inspect mint <ExternalLink size={14}/></a>
           <a href={solscanAccountUrl(launch.whirlpoolAddress || launch.mint, config.network)} target="_blank" rel="noreferrer">Pool explorer <ExternalLink size={14}/></a>
         </div></section>}
-        <CommunityProposalVotes/><DexFundingVote/>
       </div>
     </MarketSheet>}
   </>;

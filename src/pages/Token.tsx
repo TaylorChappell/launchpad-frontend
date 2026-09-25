@@ -2,7 +2,7 @@ import { ShowcaseBanner } from "../components/StagingShowcase";
 import { newerComment, readCommentCursor, type CommentCursor } from "../market-activity";
 import { WalletIdentity } from "../components/WalletIdentity";
 import { Community } from "../components/Community";
-import { MarketInformationTabs } from "../components/MarketProposals";
+import { MarketInformationTabs, MARKET_INFORMATION_SECTIONS, CommunityProposalVotes, DexFundingVote } from "../components/MarketProposals";
 import { WalletRewards } from "../components/WalletRewards";
 import {marketShareUrl} from "../share-market";
 import { MarketHolders,MarketPosition } from "../components/MarketHolders";
@@ -86,12 +86,13 @@ export function Token() {
   const [range, setRange] = useState("24h");
   const [params,setParams] = useSearchParams();
   const preferredSection=()=>{
-    const names=['Transactions','Community','Rewards','Holders'];
-    const explicit=params.get('tab')==='comments'?'community':params.get('tab');
+    const names=MARKET_INFORMATION_SECTIONS;
+    const requested=params.get('tab');
+    const explicit=requested==='comments'?'community':requested==='governance'?'proposals':requested;
     let saved='';try{saved=localStorage.getItem('aqua:market-tab')??'';}catch{}
     return (explicit ? names.find(name=>name.toLowerCase()===explicit) : names.find(name=>name===saved)) ?? 'Transactions';
   };
-  const [section,setSection]=useState(preferredSection);
+  const [section,setSection]=useState<string>(preferredSection);
   const selectSection=(next:string)=>{try{localStorage.setItem('aqua:market-tab',next);}catch{}setSection(next);setParams(previous=>{const query=new URLSearchParams(previous);query.set('tab',next.toLowerCase());query.delete('feed');return query;},{replace:true});};
   const scrollFrame = useRef<number | null>(null);
   const userNavigation = useRef(false);
@@ -242,6 +243,7 @@ export function Token() {
       <section id="market-information" className="market-information" aria-label="Market information panel">
       {section==="Holders"&&<MarketHolders key={launch.id} launch={launch} creatorLock={creatorLock}/>}
       {section==="Community"&&<Community launch={launch} onRead={markCommentsRead}/>}
+      {section==="Proposals"&&<><CommunityProposalVotes/><DexFundingVote/></>}
       {section==="Rewards"&&<>{rewardMode==="holder_rewards"&&<><WalletRewards launch={launch}/><section className="workspace-panel market-reward-activity"><header><h2>Market reward activity</h2></header><div className="info-grid single reward-mode-market-panel">
         {rewardMode === "holder_rewards" && <section className="market-reward-panel"><header><div><small>HOLDER REWARDS</small><h2>Earn {launch.stockSymbol}</h2></div><span className="reward-live-label">Accumulating</span></header><div className="reward-stat-row"><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Available to all holders" value={money.format(launch.rewardRedeemableUsd)}/></div><footer>Rewards follow your balance and time held.</footer></section>}
       </div></section></>}

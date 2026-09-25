@@ -39,11 +39,20 @@ export function MarketDexStatusBadge() {
 }
 export function useMarketProposalDialogOpen() { return useProposals().dialogOpen; }
 
+export const MARKET_INFORMATION_SECTIONS = ["Transactions", "Community", "Proposals", "Rewards", "Holders"] as const;
+
 export function MarketInformationTabs({ section, onChange, newComments = false, latestProjectUpdateAt }: {
   section: string; onChange: (value: string) => void; newComments?: boolean; latestProjectUpdateAt?: number | null;
 }) {
-  return <nav id="market-navigation" className="workspace-tabs market-information-tabs" aria-label="Market navigation">
-    {["Transactions", "Community", "Rewards", "Holders"].map(label => <button key={label} aria-pressed={section === label} aria-controls="market-information" onClick={() => onChange(label)}>
+  const navigation = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = navigation.current, selected = nav?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]');
+    if (!nav || !selected) return;
+    const button = selected.getBoundingClientRect(), bounds = nav.getBoundingClientRect();
+    nav.scrollTo({ left: nav.scrollLeft + button.left - bounds.left - (nav.clientWidth - button.width) / 2, behavior: "instant" });
+  }, [section]);
+  return <nav ref={navigation} id="market-navigation" className="workspace-tabs market-information-tabs" aria-label="Market navigation">
+    {MARKET_INFORMATION_SECTIONS.map(label => <button key={label} aria-pressed={section === label} aria-controls="market-information" onClick={() => onChange(label)}>
       <span className="market-tab-label">{label}</span>
       {label === "Community" && <span className="market-tab-indicators">{newComments && <span className="market-unread-dot" aria-label="New community posts" title="New community posts"/>}<RecentUpdateBell at={latestProjectUpdateAt}/></span>}
     </button>)}
@@ -162,7 +171,7 @@ export function MarketProposals() {
     : "Start a holder vote to fund DEX Screener, update the DEX profile or propose a community takeover.";
   if (data && !data.enabled) return null;
   return <div className="market-proposal-menu" ref={root}>
-    <MarketActionHint text={hint} disabled={!eligible}><button className="market-corner-action proposal" disabled={!eligible} aria-expanded={eligible && expanded} aria-controls="market-proposal-options" onClick={() => setExpanded(!expanded)}>Proposals <ChevronDown/></button></MarketActionHint>
+    <MarketActionHint text={hint} disabled={!eligible}><button className="market-corner-action proposal" disabled={!eligible} aria-expanded={eligible && expanded} aria-controls="market-proposal-options" onClick={() => setExpanded(!expanded)}>New proposal <ChevronDown/></button></MarketActionHint>
     {eligible && expanded && <div className="proposal-dropdown" id="market-proposal-options" aria-label="Proposal options">
       <small>Start a proposal</small>
       {(Object.keys(labels) as MarketProposalType[]).map((type) => {
@@ -307,13 +316,14 @@ function BoostProposalCard({ proposal: p }: { proposal: MarketProposal }) {
 }
 
 export function CommunityProposalVotes() {
-  const { data } = useProposals();
-  if (!data?.enabled && !data?.automaticFundingEnabled) return null;
+  const { data, error, refresh, launch } = useProposals();
+  const { config } = useRuntime();
+  if ((!config.marketGovernanceEnabled && !launch.showcase) || (data && !data.enabled && !data.automaticFundingEnabled)) return <section className="community-proposals"><h2>Proposals</h2><p>{data?.disabledReason ?? "Proposals are unavailable for this market."}</p></section>;
+  if (!data) return <section className="community-proposals"><h2>Proposals</h2>{error ? <div role="alert"><p>Proposals could not be loaded.</p><button className="soft-button" onClick={() => void refresh()}>Retry proposals</button></div> : <p role="status">Loading proposals…</p>}</section>;
   const proposals = data.proposals.filter((item) => !item.isDefault && !isFinishedMiniBoost(item) && item.outcome !== "transferred_to_vote" && !(!item.isAutomatic && !["cto", "dex_boost"].includes(item.type) && ["rejected", "cancelled"].includes(item.status)));
   const active = proposals.filter((item) => liveStatuses.includes(item.status));
   const history = proposals.filter((item) => !liveStatuses.includes(item.status));
-  if (!proposals.length) return null;
-  return <section className="community-proposals"><header><div><small>{data.enabled ? "HOLDER GOVERNANCE" : "MARKET ACTIVITY"}</small><h2>{data.enabled ? "Community proposals" : "Automatic boost funding"}</h2></div><span>{active.length} active</span></header><div className="community-proposal-grid">{active.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal}/>)}</div>{history.length > 0 && <details className="community-proposal-history"><summary>Past proposals · {history.length}</summary>{history.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal}/>)}</details>}</section>;
+  return <section className="community-proposals"><header><div><small>{data.enabled ? "HOLDER GOVERNANCE" : "MARKET ACTIVITY"}</small><h2>{data.enabled ? "Community proposals" : "Automatic boost funding"}</h2></div><span>{active.length} active</span></header>{error && <p role="alert">Showing the last proposal update. <button className="proposal-text-action" onClick={() => void refresh()}>Retry proposals</button></p>}{!proposals.length && <p>No community proposals yet.</p>}<div className="community-proposal-grid">{active.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal}/>)}</div>{history.length > 0 && <details className="community-proposal-history"><summary>Past proposals · {history.length}</summary>{history.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal}/>)}</details>}</section>;
 }
 
 function ProposalSurvey({ dialog, draft, launch, busy, close, submit, returnFocus }: { returnFocus: HTMLElement | null; dialog: Dialog; draft: Partial<DexProfile>; launch: Launch; busy: boolean; close: () => void; submit: (content: Record<string, unknown>) => Promise<void> }) {
