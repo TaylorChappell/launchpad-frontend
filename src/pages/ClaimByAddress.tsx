@@ -3,7 +3,7 @@ import { PublicKey } from "@solana/web3.js";
 import { ArrowLeft, ArrowRight, CheckCircle2, Copy, Loader2, Search, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api, type AddressClaimChallenge, type AddressClaimMarket } from "../api";
-import type { WalletRewardsResponse } from "../types";
+import type { WalletRewardMarket, WalletRewardsResponse } from "../types";
 import "../address-claims.css";
 
 const formatSol = (lamports: string) => (Number(lamports) / 1_000_000_000).toLocaleString("en", { maximumFractionDigits: 6 });
@@ -91,6 +91,10 @@ export function ClaimByAddress() {
   const holderTotal=rewards?.markets.reduce((sum,market)=>sum+market.grossRedeemableUsdCents,0)??0;
   const selected=markets?.find(m=>m.launchId===challenge?.launchId);
   const rewardSelected=challenge?.kind==="cumulative" || challenge?.kind==="legacy";
+  const rewardTicker=(market:WalletRewardMarket)=>{
+    const ticker=market.symbol??markets?.find(item=>item.launchId===market.launchId)?.symbol;
+    return ticker?`$${ticker}`:"Coin";
+  };
   const expired=Boolean(challenge && !verified && now>=challenge.expiresAt);
 
   return <main className="page address-claim-page">
@@ -105,8 +109,8 @@ export function ClaimByAddress() {
       {!claimsEnabled&&markets.length>0&&<p className="address-claim-note">Address verification is temporarily unavailable. Do not send SOL until a verification request appears here.</p>}
       {holderTotal>0&&<div className="address-claim-holder"><b>Holder rewards: {formatUsd(holderTotal)}</b><p>Each claim sends rewards to this wallet. Claimable amounts must exceed the minimum after network costs.</p></div>}
       {rewards?.markets.filter(m=>m.grossRedeemableUsdCents>0).map(m=>m.claimMode==="cumulative"
-        ? <article className="address-claim-market" key={`reward-${m.launchId}`}><div><Link to={`/token/${m.launchId}`}>Holder rewards · {markets.find(x=>x.launchId===m.launchId)?.name??m.launchId.slice(0,8)}</Link><p>Available at the current checkpoint</p><strong>{formatUsd(m.grossRedeemableUsdCents)}</strong>{!m.canClaim&&<small>Accumulating until the minimum claim amount is reached.</small>}</div><button className="primary" disabled={!rewardClaimsEnabled||!m.canClaim||busy} onClick={()=>void start(m.launchId,"cumulative")}>Claim rewards <ArrowRight size={15}/></button></article>
-        : m.claimableEpochIds.map(epochId=>{const epoch=rewards.rewards.find(r=>r.epochId===epochId);const eligible=m.canClaim&&Boolean(epoch&&epoch.amountUsdCents>m.minimumClaimUsdCents+m.estimatedClaimFeeUsdCents);return <article className="address-claim-market" key={epochId}><div><Link to={`/token/${m.launchId}`}>Holder rewards · {markets.find(x=>x.launchId===m.launchId)?.name??m.launchId.slice(0,8)}</Link><p>Reward epoch {epochId.slice(0,8)}</p><strong>{formatUsd(epoch?.amountUsdCents??0)}</strong>{!eligible&&<small>This individual reward is below the claim minimum after costs.</small>}</div><button className="primary" disabled={!rewardClaimsEnabled||!eligible||busy} onClick={()=>void start(m.launchId,"legacy",epochId)}>Claim rewards <ArrowRight size={15}/></button></article>;}))}
+        ? <article className="address-claim-market" key={`reward-${m.launchId}`}><div><Link to={`/token/${m.launchId}`}>Holder rewards · {rewardTicker(m)}</Link><p>Available at the current checkpoint</p><strong>{formatUsd(m.grossRedeemableUsdCents)}</strong>{!m.canClaim&&<small>Accumulating until the minimum claim amount is reached.</small>}</div><button className="primary" disabled={!rewardClaimsEnabled||!m.canClaim||busy} onClick={()=>void start(m.launchId,"cumulative")}>Claim rewards <ArrowRight size={15}/></button></article>
+        : m.claimableEpochIds.map(epochId=>{const epoch=rewards.rewards.find(r=>r.epochId===epochId);const eligible=m.canClaim&&Boolean(epoch&&epoch.amountUsdCents>m.minimumClaimUsdCents+m.estimatedClaimFeeUsdCents);return <article className="address-claim-market" key={epochId}><div><Link to={`/token/${m.launchId}`}>Holder rewards · {rewardTicker(m)}</Link><p>Reward epoch {epochId.slice(0,8)}</p><strong>{formatUsd(epoch?.amountUsdCents??0)}</strong>{!eligible&&<small>This individual reward is below the claim minimum after costs.</small>}</div><button className="primary" disabled={!rewardClaimsEnabled||!eligible||busy} onClick={()=>void start(m.launchId,"legacy",epochId)}>Claim rewards <ArrowRight size={15}/></button></article>;}))}
       {!rewardClaimsEnabled&&holderTotal>0&&<p className="address-claim-note">Wallet verified reward payouts are awaiting the AQUA reward program upgrade. Do not send SOL for rewards until a verification request is available.</p>}
     </section>}
     {challenge&&<section className="address-claim-proof">
