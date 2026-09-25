@@ -167,13 +167,13 @@ function AutomaticProfileCard({ proposal: p }: { proposal: MarketProposal }) {
   const { now } = useProposals();
   const funding = p.status === "funding";
   return <article className="proposal-vote-card automatic-funding-card">
-    <header><div><DexScreenerIcon/><h3>DEX profile</h3></div><span className="proposal-state">{funding ? p.collectionPaused ? "Paused" : "Auto funding" : p.status === "ready" ? "Ready to purchase" : p.status}</span></header>
+    <header><div><DexScreenerIcon/><h3>DEX profile</h3></div><span className="proposal-state">{funding ? "Auto funding" : p.status === "ready" ? "Ready to purchase" : p.status}</span></header>
     <div className="proposal-funded"><div><span>{funding ? "10% of incoming rewards" : "Profile fund"}</span><b>${p.fundedUsd.toFixed(2)} / $300</b></div><progress value={p.fundedUsd} max={300}/></div>
-    {funding && <p className="proposal-detail-note">{p.collectionPaused ? "Waiting for trading activity. " : ""}Expires in {countdown(p.fundingEndsAt ?? now, now)}.</p>}
+    {funding && <p className="proposal-detail-note">Expires in {countdown(p.fundingEndsAt ?? now, now)}.</p>}
     {p.outcome === "funding_expired" && <p className="proposal-detail-note">The target was not reached within 24 hours. All funds returned to holders.</p>}
     {BigInt(p.returnedLamports ?? "0") > 0n && <p className="proposal-detail-note">{(Number(p.returnedLamports)/1e9).toLocaleString(undefined,{maximumFractionDigits:9})} SOL returned to holders.</p>}
     {p.outcome === "holder_no" && <p className="proposal-detail-note">Holders voted No. Automatic funding is paused for 24 hours.</p>}
-    <details className="proposal-public-details"><summary>How automatic funding works</summary><p>Sustained trading activity sets aside 10% of incoming market rewards. Collection pauses when activity slows; the 24-hour deadline continues. A successful Fund DEX vote carries this balance into 80% funding. If the target is not met, the reserve returns to holders.</p><p>Team AQUA can prepare missing profile details. An approved Update DEX proposal replaces them.</p>{p.payload.dexDetails && typeof p.payload.dexDetails === "object" ? <p>{String((p.payload.dexDetails as Record<string, unknown>).description ?? "")}</p> : null}</details>
+    <details className="proposal-public-details"><summary>How automatic funding works</summary><p>Sustained trading activity starts the fund. It then reserves 10% of incoming market rewards for up to 24 hours. A successful Fund DEX vote carries this balance into 80% funding. If the target is not met, the reserve returns to holders.</p><p>Team AQUA can prepare missing profile details. An approved Update DEX proposal replaces them.</p>{p.payload.dexDetails && typeof p.payload.dexDetails === "object" ? <p>{String((p.payload.dexDetails as Record<string, unknown>).description ?? "")}</p> : null}</details>
   </article>;
 }
 
