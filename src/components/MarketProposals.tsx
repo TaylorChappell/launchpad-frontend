@@ -36,22 +36,33 @@ export function MarketDexStatusBadge() {
   const { launch, data } = useProposals();
   return <DexStatusBadge state={dexBadgeState(launch, data)}/>;
 }
-export function MarketInformationTabs({section,onChange,newComments=false,latestProjectUpdateAt}:{section:string;onChange:(value:string)=>void;newComments?:boolean;latestProjectUpdateAt?:number|null}){
+export function MarketInformationTabs({section,mobileSection=section,onChange,onJump,newComments=false,latestProjectUpdateAt}:{section:string;mobileSection?:string;onChange:(value:string)=>void;onJump?:(value:string)=>void;newComments?:boolean;latestProjectUpdateAt?:number|null}){
   const {data}=useProposals();
+  const tabsRef=useRef<HTMLElement>(null);
+  const [mobile,setMobile]=useState(()=>window.matchMedia("(max-width: 1100px)").matches);
+  useEffect(()=>{
+    const media=window.matchMedia("(max-width: 1100px)");
+    const update=()=>setMobile(media.matches);
+    media.addEventListener("change",update);
+    return()=>media.removeEventListener("change",update);
+  },[]);
   const activeCount = (data?.enabled || data?.automaticFundingEnabled) ? data.proposals.filter(proposal => liveStatuses.includes(proposal.status)).length : 0;
   const hasGovernance=Boolean((data?.enabled||data?.automaticFundingEnabled)&&data.proposals.some(p=>!isFinishedMiniBoost(p)&&(p.isDefault?!["rejected","cancelled"].includes(p.status):(p.type==="cto"||p.type==="dex_boost")||!["rejected","cancelled"].includes(p.status))));
   useEffect(()=>{if(section==="Governance"&&data&&!hasGovernance)onChange("Transactions");},[section,data,hasGovernance,onChange]);
+  const activeSection=mobile?mobileSection:section;
   useEffect(()=>{
-    const tabs=document.querySelector<HTMLElement>(".market-information-tabs");
+    const tabs=tabsRef.current;
     const active=tabs?.querySelector<HTMLElement>('[aria-pressed="true"]');
     if(tabs&&active&&tabs.scrollWidth>tabs.clientWidth) {
       const container=tabs.getBoundingClientRect(),button=active.getBoundingClientRect();
-      if(button.left<container.left)tabs.scrollLeft+=button.left-container.left;
-      else if(button.right>container.right)tabs.scrollLeft+=button.right-container.right;
+      const offset=button.left<container.left?button.left-container.left-6:button.right>container.right?button.right-container.right+6:0;
+      if(offset)tabs.scrollBy({left:offset,behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth"});
     }
-  },[section,hasGovernance]);
-  return <div className="workspace-tabs market-information-tabs" aria-label="Market information">{["Transactions","Community","Holders","Rewards","Project",...(hasGovernance?["Governance"]:[])].map(label=><button key={label} aria-pressed={section===label} onClick={()=>onChange(label)}>{label}{label === "Community" && newComments && <span className="market-unread-dot" aria-label="New community posts" title="New community posts"/>}{label === "Community" && <RecentUpdateBell at={latestProjectUpdateAt}/>} {label === "Governance" && activeCount > 0 && <span className="governance-tab-count" aria-label={`${activeCount} active proposals`} title={`${activeCount} active proposals`}><Bell size={12} aria-hidden="true"/><b>{activeCount}</b></span>}</button>)}</div>;
+  },[activeSection,mobile,hasGovernance]);
+  const sections=mobile&&onJump?["Chart","Trade","Community","Rewards","Transactions","Holders","Project"]:["Transactions","Community","Holders","Rewards","Project"];
+  return <nav id="market-navigation" ref={tabsRef} className="workspace-tabs market-information-tabs" aria-label="Market navigation">{[...sections,...(hasGovernance?["Governance"]:[])].map(label=><button key={label} aria-pressed={activeSection===label} onClick={()=>label==="Chart"||label==="Trade"?onJump?.(label):onChange(label)}>{label}{label === "Community" && newComments && <span className="market-unread-dot" aria-label="New community posts" title="New community posts"/>}{label === "Community" && <RecentUpdateBell at={latestProjectUpdateAt}/>} {label === "Governance" && activeCount > 0 && <span className="governance-tab-count" aria-label={`${activeCount} active proposals`} title={`${activeCount} active proposals`}><Bell size={12} aria-hidden="true"/><b>{activeCount}</b></span>}</button>)}</nav>;
 }
+
 function countdown(at: number, now: number) {
   const seconds = Math.max(0, at - now);
   const hours = Math.floor(seconds / 3600);

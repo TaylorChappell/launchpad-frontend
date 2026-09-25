@@ -6,33 +6,38 @@
   --aqua-bottom-space: calc(72px + env(safe-area-inset-bottom, 0px));
 }
 .market-information { min-width: 0; }
-.market-mobile-shortcuts { display: none; }
-#market-chart, #market-trade, #market-information { scroll-margin-top: calc(var(--aqua-header-height) + 16px); }
+#market-chart, #market-trade, #market-information, #market-navigation { scroll-margin-top: calc(var(--aqua-header-height) + 16px); }
 
 @media (max-width: 1100px) {
-  .market-mobile-shortcuts {
-    position: sticky; top: var(--aqua-header-height); z-index: 35;
-    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px; padding: 6px; margin: 0 0 16px;
-    border: 1px solid #c8e0ec; border-radius: 12px;
-    background: #f6fbff; box-shadow: 0 4px 12px #214d7110;
-  }
-  .market-mobile-shortcuts button {
-    min-height: 44px; padding: 8px 4px; border: 0; border-radius: 8px;
-    background: transparent; color: #32627c; font-size: 13px; font-weight: 650;
-  }
-  .market-mobile-shortcuts button:hover, .market-mobile-shortcuts button:focus-visible { background: #e1f1fa; color: #126ba0; }
-  .market-mobile-shortcuts button:nth-child(2) { color: #fff; background: #167fba; }
-  #market-chart, #market-trade, #market-information { scroll-margin-top: calc(var(--aqua-header-height) + 72px); }
+  .token-page { --market-bottom-space: 0px; }
+  .token-page .token-side { align-self: stretch; width: 100%; }
+  /* One navigation row spans the entire mobile market, including its chart. */
   .token-page .market-information-tabs {
-    display: flex; flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain;
-    gap: 6px; margin: 0 0 16px; padding: 4px 0 8px; scrollbar-width: thin;
+    position: sticky; top: calc(var(--aqua-header-height) + 8px); z-index: 35; order: 0;
+    display: flex; flex-wrap: nowrap; gap: 4px; margin: 0; padding: 5px;
+    min-width: 0; overflow-x: auto; overscroll-behavior-x: contain;
+    scrollbar-width: none; scroll-padding-inline: 6px;
+    border: 1px solid #c8e1ed; border-radius: 14px;
+    background: #f3fafff5; box-shadow: 0 4px 16px #214d7112;
+    backdrop-filter: blur(16px);
   }
-  .token-page .market-information-tabs > button { flex: 0 0 auto; min-height: 44px; padding: 10px 12px; white-space: nowrap; }
-  .token-page .market-information-tabs > button[aria-pressed=true] { background: #e3f2fa; border-radius: 8px 8px 0 0; }
+  .token-page .market-information-tabs::-webkit-scrollbar { display: none; }
+  .token-page .market-information-tabs > button {
+    flex: 0 0 auto; min-height: 44px; padding: 10px 13px; margin: 0;
+    white-space: nowrap; border: 0; border-radius: 9px;
+    color: #52758a; background: transparent; font-size: 13px; font-weight: 650;
+    transition: background .18s ease, color .18s ease, box-shadow .18s ease;
+  }
+  .token-page .market-information-tabs > button:hover { color: #126e9e; background: #e6f3fa; }
+  .token-page .market-information-tabs > button[aria-pressed=true] { color: #fff; background: #137fb6; box-shadow: 0 2px 5px #126d9b20; }
+  .token-page .market-information-tabs > button::after { display: none; }
+  .token-page .market-information-tabs > button[aria-pressed=true] .market-unread-dot { background: #fff; }
+  .token-page .market-information-tabs > button:focus-visible { outline: 2px solid #1783b9; outline-offset: -2px; }
+  #market-chart, #market-trade, #market-information { scroll-margin-top: calc(var(--aqua-header-height) + 78px); }
+  .token-page .market-information { min-height: calc(var(--aqua-viewport-height) - var(--aqua-header-height) - var(--market-bottom-space) - 94px); }
   .token-page .community {
-    height: clamp(360px, calc(var(--aqua-viewport-height) - var(--aqua-header-height) - 216px), 700px);
-    min-height: 360px; margin: 0; isolation: isolate;
+    height: clamp(340px, calc(var(--aqua-viewport-height) - var(--aqua-header-height) - var(--market-bottom-space) - 94px), 740px);
+    min-height: 340px; margin: 0; isolation: isolate;
   }
   .token-page .community-scroll { overscroll-behavior-y: contain; }
 }
@@ -64,6 +69,8 @@
   /* Keep wide tables and decorative layers from enlarging the layout viewport
      independently of the visible phone viewport and shifting tap coordinates. */
   html { overflow-x: clip; scroll-padding-bottom: var(--aqua-bottom-space); }
+  /* Clipping must not create a second vertical scroller around sticky controls. */
+  body { overflow-x: clip; }
   .app-shell { padding-bottom: var(--aqua-bottom-space); }
   .app-shell .site-header { padding-top: env(safe-area-inset-top, 0px); background: #f2fafff5; }
   .app-shell .header-inner { height: 64px; min-height: 64px; gap: 8px; padding: 0 12px; }
@@ -108,12 +115,30 @@
   .app-shell .workspace-heading-actions { flex-wrap: wrap; gap: 10px; }
   .app-shell .table-scroll, .token-page .activity-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
 
-  /* Coin pages: compact identity, then chart, trading, and a single information group. */
+  /* Coin pages: one quiet identity card, a single navigation rail, then content. */
+  .token-page { --market-bottom-space: var(--aqua-bottom-space); }
+  .trading-shell .token-hero { border: 1px solid #d0e4ee; border-radius: 18px; background: #f7fcffba; padding: 16px; }
+  .token-page .token-identity > .token-mark { width: 48px; height: 48px; border-radius: 14px; }
+  .token-page .token-identity > div > div { gap: 6px 8px; }
+  .token-page .token-identity h1 { width: 100%; margin: 0; }
+  .token-page .token-identity em { font-size: 9px; padding: 4px 6px; letter-spacing: .03em; }
+  .token-page .token-identity p:empty { display: none; }
+  .token-page .hero-metrics { padding-top: 14px; border-top: 1px solid #dbe9f0; }
+  .token-page .hero-metrics .metric > small { font-size: 11px; }
+  .token-page .hero-metrics .metric > b { font-size: 16px; }
+  .token-page .community-header { padding: 14px 14px 10px; gap: 10px; }
+  .token-page .community-title h2 { font-size: 16px; gap: 6px; }
+  .token-page .community-title p { font-size: 11px; line-height: 1.45; }
+  .token-page .community-filters { padding: 0 10px 10px; gap: 4px; }
+  .token-page .community-scroll { padding: 14px; }
+  .token-page .chart-panel { border-radius: 16px; overflow: hidden; }
+  .token-page .market-facts, .token-page .market-position-dropdown { border-radius: 12px; }
+
   .trading-shell .token-market-toolbar { flex-wrap: wrap; gap: 8px; padding-bottom: 8px; margin-bottom: 8px; }
   .token-page .token-market-toolbar .back { min-height: 40px; font-size: 12px; }
   .token-page .token-market-actions { flex-wrap: wrap; gap: 8px; max-width: 100%; }
   .token-page .market-corner-action, .token-page .creator-manage-button { min-height: 40px; font-size: 12px; }
-  .trading-shell .token-hero { margin-bottom: 12px; padding-bottom: 14px; gap: 14px; }
+  .trading-shell .token-hero { margin-bottom: 16px; gap: 14px; }
   .token-page .token-identity { gap: 12px; min-width: 0; width: 100%; max-width: 100%; }
   .token-page .token-identity > div { min-width: 0; }
   .token-page .token-identity h1 { overflow-wrap: anywhere; font-size: 23px; line-height: 1.2; }
@@ -191,7 +216,7 @@
   .app-shell .wallet-button { max-width: 132px; }
   .app-shell .header-inner:has(.wallet-button.connected) .header-search { display: none; }
   .token-page .community-connect { flex-wrap: wrap; }
-  .market-mobile-shortcuts button { font-size: 12px; padding-inline: 2px; }
+  .token-page .market-information-tabs > button { padding-inline: 11px; }
   .app-shell .discovery-filters { grid-template-columns: minmax(0, 1fr); }
   .app-shell .explore-page .workspace-heading h2 { font-size: 22px; }
 }

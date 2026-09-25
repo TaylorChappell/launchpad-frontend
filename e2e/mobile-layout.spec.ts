@@ -35,44 +35,83 @@ async function setup(page: Page) {
   await page.route("**/account/**", route => route.fulfill({ json: { enabled: false, profiles: [] } }));
 }
 
-test("community stays below chart and trading at phone, tablet and desktop sizes", async ({ page }, info) => {
+test("one market navigation keeps content clear at phone, tablet and desktop sizes", async ({ page }, info) => {
   test.skip(info.project.name === "mobile", "One explicit viewport sweep covers both layouts.");
   test.setTimeout(60_000);
   await setup(page);
-  for (const width of [320, 360, 390, 430, 820, 1100, 1440]) {
+  for (const width of [320, 390, 430, 820, 1100, 1440]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/#/token/mobile?tab=community");
     await expect(page.locator(".community-scroll")).toContainText("Welcome to the Ocean community");
+    const tabs=page.getByRole("navigation",{name:"Market navigation",exact:true});
+    await expect(tabs).toHaveCount(1);
+    await expect(tabs.getByRole("button",{name:"Community",exact:true})).toHaveCount(1);
     const boxes = await page.evaluate(() => {
       const box = (selector: string) => { const r = document.querySelector(selector)!.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right }; };
       return { chart: box("#market-chart"), trade: box("#market-trade"), tabs: box(".market-information-tabs"), community: box(".community"), overflow: document.documentElement.scrollWidth - innerWidth };
     });
-    expect(boxes.community.top, `community after tabs at ${width}px`).toBeGreaterThanOrEqual(boxes.tabs.bottom);
-    expect(boxes.tabs.top, `tabs after chart at ${width}px`).toBeGreaterThanOrEqual(boxes.chart.bottom);
-    if(boxes.overflow>2) {
-      console.log(await page.locator('body *').evaluateAll(elements=>elements.filter(el=>el.getBoundingClientRect().right>innerWidth+2&&getComputedStyle(el).position!=="absolute").map(el=>({tag:el.tagName,classes:el.className,width:el.getBoundingClientRect().width,right:el.getBoundingClientRect().right})).slice(0,30)));
-      await page.screenshot({path:info.outputPath("mobile-overflow.png"),fullPage:true});
-    }
+    expect(boxes.community.top).toBeGreaterThanOrEqual(boxes.chart.bottom);
     expect(boxes.overflow, `no page overflow at ${width}px`).toBeLessThanOrEqual(2);
     if (width <= 1100) {
       expect(boxes.trade.top).toBeGreaterThanOrEqual(boxes.chart.bottom);
-      expect(boxes.tabs.top).toBeGreaterThanOrEqual(boxes.trade.bottom);
-      await page.getByRole("button", { name: "Open trading panel", exact: true }).click();
-      await expect.poll(async()=> (await page.locator(".trade-card").boundingBox())!.y).toBeGreaterThanOrEqual(120);
-      const trade = await page.locator(".trade-card").boundingBox();
-      const shortcuts = await page.locator(".market-mobile-shortcuts").boundingBox();
-      expect(trade!.y).toBeGreaterThanOrEqual(shortcuts!.y + shortcuts!.height);
-      expect(trade!.y).toBeLessThan(220);
-      await page.getByRole("button", { name: "Open community", exact: true }).click();
-      await expect(page.locator(".market-information-tabs").getByRole("button", { name: "Community", exact: true })).toHaveAttribute("aria-pressed", "true");
-      await expect.poll(async()=> (await page.locator(".market-information-tabs").boundingBox())!.y).toBeLessThan(220);
-      const tabs = await page.locator(".market-information-tabs").boundingBox();
-      expect(tabs!.y).toBeGreaterThanOrEqual(shortcuts!.y + shortcuts!.height);
+      expect(Math.abs(boxes.trade.right-boxes.chart.right)).toBeLessThanOrEqual(1);
+      expect(boxes.community.top).toBeGreaterThanOrEqual(boxes.trade.bottom);
+      const clearMenu=async(selector:string)=>page.evaluate(selector=>{
+        const panel=document.querySelector(selector)!.getBoundingClientRect();
+        const menu=document.querySelector(".market-information-tabs")!.getBoundingClientRect();
+        return panel.top-menu.bottom;
+      },selector);
+      await tabs.getByRole("button", { name: "Trade", exact: true }).click();
+      await expect.poll(()=>clearMenu("#market-trade")).toBeGreaterThanOrEqual(8);
+      await expect.poll(()=>clearMenu("#market-trade")).toBeLessThan(35);
+      const menuTop=(await tabs.boundingBox())!.y;
+      expect(menuTop).toBeGreaterThanOrEqual(64);
+      expect(menuTop).toBeLessThan(120);
+      await expect(tabs.getByRole("button", { name: "Trade", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await tabs.getByRole("button", { name: "Community", exact: true }).click();
+      await expect(tabs.getByRole("button", { name: "Community", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await expect.poll(()=>clearMenu(".community")).toBeGreaterThanOrEqual(8);
+      await expect.poll(()=>clearMenu(".community")).toBeLessThan(35);
       if (width === 390) await page.screenshot({ path: info.outputPath("mobile-community.png") });
+      await tabs.getByRole("button", { name: "Chart", exact: true }).click();
+      await expect.poll(()=>clearMenu("#market-chart")).toBeGreaterThanOrEqual(8);
+      await expect.poll(()=>clearMenu("#market-chart")).toBeLessThan(35);
+      if (width === 390) {
+        await page.screenshot({ path: info.outputPath("mobile-chart.png") });
+        await page.evaluate(()=>window.scrollTo({top:0,behavior:"instant"}));
+        await page.screenshot({ path: info.outputPath("mobile-market-header.png") });
+      }
     } else {
+      expect(boxes.tabs.top).toBeGreaterThanOrEqual(boxes.chart.bottom);
       expect(boxes.trade.left).toBeGreaterThanOrEqual(boxes.chart.right);
+      await expect(tabs.getByRole("button", { name: "Chart", exact: true })).toHaveCount(0);
     }
   }
+});
+
+test("phone market navigation scrolls smoothly and keeps later tabs reachable",async({page},info)=>{
+  test.skip(info.project.name!=="mobile","Phone section navigation.");
+  await setup(page);
+  await page.goto("/#/token/mobile?tab=transactions");
+  const tabs=page.getByRole("navigation",{name:"Market navigation",exact:true});
+  await expect(tabs).toBeVisible();
+  await page.evaluate(()=>{
+    const positions:number[]=[];
+    Object.assign(window,{marketScrollPositions:positions});
+    window.addEventListener("scroll",()=>positions.push(window.scrollY));
+  });
+  await tabs.getByRole("button",{name:"Community",exact:true}).click();
+  await expect.poll(()=>page.locator(".community").evaluate(el=>Math.round(el.getBoundingClientRect().top))).toBeLessThan(170);
+  await expect.poll(()=>page.evaluate(()=>new Set((window as unknown as {marketScrollPositions:number[]}).marketScrollPositions.map(Math.round)).size)).toBeGreaterThan(2);
+  await tabs.getByRole("button",{name:"Project",exact:true}).click();
+  await expect(page.getByRole("heading",{name:"Project information",exact:true})).toBeVisible();
+  await expect(tabs.getByRole("button",{name:"Project",exact:true})).toBeInViewport();
+  await page.emulateMedia({reducedMotion:"reduce"});
+  await tabs.getByRole("button",{name:"Trade",exact:true}).click();
+  await tabs.getByRole("button",{name:"Community",exact:true}).click();
+  await expect(tabs.getByRole("button",{name:"Community",exact:true})).toHaveAttribute("aria-pressed","true");
+  await expect.poll(()=>page.locator(".community").evaluate(el=>Math.round(el.getBoundingClientRect().top))).toBeLessThan(170);
+  await expect(page.locator(".community")).toBeInViewport();
 });
 
 test("phone navigation locks the page, closes with Escape and opens destinations at the top", async ({ page }, info) => {

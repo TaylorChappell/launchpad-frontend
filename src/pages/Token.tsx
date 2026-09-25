@@ -8,7 +8,7 @@ import {marketShareUrl} from "../share-market";
 import { MarketHolders,MarketPosition } from "../components/MarketHolders";
 import { mergeTrades, tradeTime } from "../trade-history";
 import { formatJackpotAmount } from "../jackpot-format";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Copy, ExternalLink, Globe2, Loader2, LockKeyhole, Settings2 } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -92,10 +92,41 @@ export function Token() {
   };
   const [section,setSection]=useState(preferredSection);
   const selectSection=(next:string)=>{try{localStorage.setItem('aqua:market-tab',next);}catch{}setSection(next);setParams(previous=>{const query=new URLSearchParams(previous);query.set('tab',next.toLowerCase());query.delete('feed');return query;},{replace:true});};
-  const jumpTo = (area: string) => requestAnimationFrame(() => document.getElementById(area)?.scrollIntoView({ block: "start", behavior: "instant" }));
-  const openInformation = (next: string) => { selectSection(next); if (window.matchMedia("(max-width: 1100px)").matches || next === "Community") jumpTo("market-information"); };
-  // Deep links and remembered tabs retain their navigation context.
-  useEffect(() => { if (loaded && section !== "Transactions" && (window.matchMedia("(max-width: 1100px)").matches || section === "Community")) jumpTo("market-information"); }, [id, loaded, section]);
+  const [mobileSection, setMobileSection] = useState(() => section === "Transactions" ? "Chart" : section);
+  const scrollFrame = useRef<number | null>(null);
+  const userNavigation = useRef(false);
+  const jumpTo = useCallback((area: string, animate = true) => {
+    if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current);
+    scrollFrame.current = requestAnimationFrame(() => {
+      const mobile = window.matchMedia("(max-width: 1100px)").matches;
+      const target = area === "market-information" && !mobile ? "market-navigation" : area;
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      document.getElementById(target)?.scrollIntoView({ block: "start", behavior: animate && !reducedMotion ? "smooth" : "instant" });
+      scrollFrame.current = null;
+    });
+  }, []);
+  useEffect(() => () => { if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current); }, []);
+  const openInformation = (next: string) => {
+    setMobileSection(next);
+    userNavigation.current = true;
+    selectSection(next);
+    if (next === section) {
+      if (window.matchMedia("(max-width: 1100px)").matches || next === "Community") jumpTo("market-information");
+      userNavigation.current = false;
+    }
+  };
+  // One scroll per selection, after its panel has rendered. Initial deep links
+  // land directly on their content; deliberate navigation animates between areas.
+  useEffect(() => {
+    if (!loaded) return;
+    const animate = userNavigation.current;
+    userNavigation.current = false;
+    if ((section !== "Transactions" || animate) && (window.matchMedia("(max-width: 1100px)").matches || section === "Community")) {
+      setMobileSection(section);
+      jumpTo("market-information", animate);
+    }
+  }, [id, loaded, section, jumpTo]);
+  const openMarketArea = (area: string) => { setMobileSection(area); jumpTo(area === "Chart" ? "market-chart" : "market-trade"); };
   const [positionOpen,setPositionOpen]=useState(false);
   const readKey = "aqua:comments:seen:" + (wallet.address ?? "visitor") + ":" + id;
   const [seen,setSeen]=useState<{key:string;cursor:CommentCursor|null}>(()=>({key:readKey,cursor:readCommentCursor(readKey)}));
@@ -206,17 +237,11 @@ export function Token() {
       <div className="hero-metrics"><Metric label="Orca pair" value={`${launch.symbol} / ${launch.pairSymbol}`}/><Metric label={rewardMode === "buyback_burn" ? "Burn asset" : rewardMode === "jackpot" ? "Prize asset" : "Reward asset"} value={rewardMode === "buyback_burn" ? launch.symbol : rewardMode === "jackpot" ? "SOL" : launch.stockSymbol}/><Metric label="TVL" value={launch.aquaIndexed ? `$${compact.format(launch.tvlUsd)}` : "Indexing"}/><Metric label="Market cap" value={launch.aquaIndexed ? `$${compact.format(launch.marketCapUsd)}` : "Indexing"}/></div>
     </section>
 
-    <nav className="market-mobile-shortcuts" aria-label="Market shortcuts">
-      <button onClick={() => jumpTo("market-chart")} aria-label="View market chart">Chart</button>
-      <button onClick={() => jumpTo("market-trade")} aria-label="Open trading panel">Trade</button>
-      <button onClick={() => openInformation("Community")} aria-label="Open community">Community</button>
-      <button onClick={() => openInformation("Rewards")} aria-label="View market rewards">Rewards</button>
-    </nav>
     <div className="token-layout"><section className="token-main">
       <div id="market-chart" className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div></header><div className="chart market-line-shell"><MarketCapLine snapshots={withLatestMarketPoint(snapshots,launch)} range={range} onRangeChange={setRange}/></div></div>
 
+      <MarketInformationTabs section={section} mobileSection={mobileSection} onChange={openInformation} onJump={openMarketArea} newComments={newerComment(launch.latestComment,seen.key===readKey?seen.cursor:null)} latestProjectUpdateAt={launch.latestProjectUpdateAt}/>
       <section id="market-information" className="market-information" aria-label="Market information panel">
-      <MarketInformationTabs section={section} onChange={openInformation} newComments={newerComment(launch.latestComment,seen.key===readKey?seen.cursor:null)} latestProjectUpdateAt={launch.latestProjectUpdateAt}/>
       {section==="Holders"&&<MarketHolders key={launch.id} launch={launch} creatorLock={creatorLock}/>}
       {section==="Community"&&<Community launch={launch} onRead={markCommentsRead}/>}
       {section==="Project"&&<div className="market-project"><section className="dashboard-section"><h2>Project information</h2><p>{launch.description}</p><p>Opening LP lock: {launch.liquidityLockedPermanently?"Permanently locked":"Not verified"}{launch.lockConfig&&<> · <a href={solscanAccountUrl(launch.lockConfig,config.network)} target="_blank" rel="noreferrer">Verify LP lock ↗</a></>}</p><p>Creator token lock: {creatorLock?.status==="active"?"Active until "+new Date(creatorLock.unlockAt*1000).toLocaleString():"No active verified creator lock"}.</p><p>DEX profile payment is not an endorsement or security assessment.</p>{!launch.showcase&&<a href={solscanAccountUrl(launch.mint,config.network)} target="_blank" rel="noreferrer">Inspect mint and authority state ↗</a>}</section></div>}

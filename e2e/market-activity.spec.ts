@@ -45,7 +45,10 @@ test('community replaces comments; position sits directly under trading; comment
   const position=page.locator('.market-position-dropdown');
   await expect(position.locator('.market-position')).toHaveCount(0);
   expect(await position.evaluate(el=>el.previousElementSibling?.classList.contains('trade-card'))).toBe(true);
-  const tradeBox=await page.locator('.trade-card').boundingBox(),positionBox=await position.boundingBox();
+  // Measure both boxes in the same frame while section navigation may animate.
+  const [tradeBox,positionBox]=await page.evaluate(()=>['.trade-card','.market-position-dropdown'].map(selector=>{
+    const {y,height}=document.querySelector(selector)!.getBoundingClientRect();return {y,height};
+  }));
   expect(positionBox!.y).toBeGreaterThanOrEqual(tradeBox!.y+tradeBox!.height-1);
   expect(positionBox!.y-(tradeBox!.y+tradeBox!.height)).toBeLessThan(40);
   await position.locator('summary').click();
