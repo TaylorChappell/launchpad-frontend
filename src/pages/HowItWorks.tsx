@@ -417,7 +417,7 @@ export function HowItWorks() {
         </DocSection>
 
         <DocSection id="dex-boosts" eyebrow="MARKET GOVERNANCE" title="Fund a DEX boost together">
-          <p>A paid DEX profile is required before a boost can be funded. Eligible holders choose <strong>5%, 10%, 20% or No</strong>. An approved campaign reserves that percentage of incoming market rewards for one hour; the remaining share continues through the selected reward mode. These percentages apply to the reward stream, not total trading volume.</p>
+          <p>A paid DEX profile is required before a boost can be funded. Eligible holders choose <strong>5%, 10%, 20% or No</strong>. An approved campaign reserves that percentage of incoming market rewards for one hour; the remaining share continues through the selected reward mode. Reaching $100, $250, $400, $900 or $4,000 adds 20 minutes per milestone, once each.</p>
           <p>At the end, AQUA selects the largest pack the reserve can afford and releases unused SOL to holder rewards. If no pack is affordable, the whole reserve returns to holders. A funded campaign still needs external purchase and fulfillment; it is not marked delivered just because funding ended.</p>
           <table className="aqua-docs-table">
             <thead><tr><th>Boost pack</th><th>Configured price</th><th>Duration</th></tr></thead>
@@ -436,8 +436,8 @@ export function HowItWorks() {
           <p>When verified trading activity picks up, AQUA can start a small automatic fund. The signal checks recent volume, distinct traders, sustained activity and fresh indexed data against the earlier baseline. A single trade is not enough.</p>
           <div className="aqua-docs-definition">
             <div><b>DEX profile unpaid: 10%</b><span>A mini DEX profile fund reserves 10% of incoming market rewards while activity qualifies, toward the $300 target. It expires after 24 hours and returns the reserve to holders if the target is not met.</span></div>
-            <div><b>DEX profile paid: 10%</b><span>A mini boost fund reserves 10% for at most one hour. It closes earlier when activity stays below the required level for ten minutes. Under $100 at closing, all funds return to holders; from $100, it selects the largest affordable pack and returns the excess.</span></div>
-            <div><b>Holder votes still matter</b><span>A successful DEX funding vote carries the saved amount into the 80% campaign. A successful boost poll carries the mini fund into the chosen percentage without resetting its original one-hour deadline. An explicit winning No stops the unspent automatic fund and releases its reserve.</span></div>
+            <div><b>DEX profile paid: 10%</b><span>A mini boost fund starts with 90 minutes and gains 20 minutes at each boost milestone. It closes early after ten quiet minutes. Under $100 at closing, all funds return to holders; from $100, it selects the largest affordable pack and returns the excess.</span></div>
+            <div><b>Holder votes still matter</b><span>A successful DEX funding vote carries the saved amount into the 80% campaign. A successful boost poll carries the mini fund’s balance, remaining time and milestone progress into the chosen percentage. An explicit winning No stops the unspent automatic fund and releases its reserve.</span></div>
           </div>
           <p>Automatic mini boosts are available to all eligible coins, including AQUA itself. AQUA does not have the regular holder-created market proposals or an automatic DEX profile fund. A boost always requires a verified paid DEX profile.</p>
           <p>If an automatic profile fund reaches its goal without submitted details, Team AQUA can prepare the profile. Later changes use the Update Dex process. Cooldowns and activity checks limit repeated campaigns; profile funding takes priority over boost funding.</p>
@@ -601,4 +601,3 @@ function AccountRow({ label, address, useTestnet }: { label: string; address: st
 function Risk({ title, children }: { title: string; children: ReactNode }) {
   return <div><BadgeDollarSign/><h3>{title}</h3><p>{children}</p></div>;
 }
-
