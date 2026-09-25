@@ -23,6 +23,9 @@ export function CommunityBoost(){
  const selected=enabled?.wallet?.vote;
  const open=Boolean(enabled?.votingOpen&&now>=enabled.round.startsAt&&now<enabled.round.endsAt);
  const activeBonus=enabled?.activeBonus&&now<enabled.activeBonus.endsAt?enabled.activeBonus:null;
+ const funding=enabled?.funding;
+ const currentFunding=activeBonus?funding?.activeRound:funding?.total;
+ const sol=(lamports:string)=>{const raw=BigInt(lamports);const fraction=(raw%1_000_000_000n).toString().padStart(9,'0').replace(/0+$/,'');return `${(raw/1_000_000_000n).toLocaleString()}${fraction?'.'+fraction:''}`;};
  useEffect(()=>{if(notice&&!notice.includes('is confirmed')&&notice!=='Your vote has been removed.')toast.error(notice);},[notice]);
  const leaders=enabled?.leaders??[],lead=leaders[0];
  const leadingWeight=BigInt(lead?.votingPowerRaw||'0');
@@ -31,9 +34,17 @@ export function CommunityBoost(){
  return <main className="cb-page">
   <section className="cb-hero">
    <div className="cb-water" aria-hidden="true"><i/><i/><i/></div>
-   <div className="cb-hero-copy"><h1>Community<br/><em>Boost.</em></h1><p>Your community. The next wave.<br/>Back a coin to receive {enabled?enabled.bonusBps/100:10}% of AQUA platform fees for 24 hours.</p></div>
+   <div className="cb-hero-copy"><h1>Community<br/><em>Boost.</em></h1><p>Your community. The next wave.<br/>Back a coin to receive {enabled?enabled.bonusBps/100:10}% of AQUA treasury fees for 24 hours.</p></div>
    <div className="cb-hero-display"><div className="cb-orbit" aria-hidden="true"><div><Zap/></div></div><div className="cb-countdown"><strong aria-label="Round countdown">{enabled?countdown(open?enabled.round.endsAt:enabled.round.startsAt,now):'— : — : —'}</strong><small>A new winner at 00:00 UTC</small></div></div>
   </section>
+  {enabled&&<section className="cb-funding" aria-label="Community Boost allocations">
+   <header><div><span className="cb-eyebrow">{activeBonus?'TODAY’S BOOST':'ALL-TIME BOOSTS'}</span><h2>{activeBonus?`Backing $${activeBonus.symbol}`:'Community funding'}</h2></div><span className="cb-funding-total">{currentFunding?`${sol(currentFunding.totalLamports)} SOL allocated`:'Allocation totals unavailable'}</span></header>
+   <div className="cb-funding-grid">
+    <div className="cb-funding-rewards"><span>Allocated to rewards</span><strong>{currentFunding?sol(currentFunding.rewardLamports):'—'}<small>SOL</small></strong><p>For the boosted coin’s holders</p></div>
+    <div><span>Allocated to DEX funding</span><strong>{currentFunding?sol(currentFunding.fundLamports):'—'}<small>SOL</small></strong><p>Profile and boost funds</p></div>
+   </div>
+   <footer><span>{enabled.bonusBps/100}% of settled treasury fees supports the winning coin. While an eligible DEX fund is collecting, half goes to that fund and the rest to holder rewards.</span>{activeBonus&&funding&&<span>All-time rewards: <b>{sol(funding.total.rewardLamports)} SOL</b></span>}</footer>
+  </section>}
   {error&&<div className="cb-alert" role="alert"><span><b>Leaderboard connection interrupted.</b> {data?'Showing the last update. Voting is paused until refreshed.':error}</span><button onClick={refresh} disabled={Boolean(busy)}><RefreshCw/> Retry</button></div>}
   {data&&!data.enabled&&<section className="cb-unavailable"><h2>Voting is currently unavailable</h2><p>{data.reason}</p><button onClick={refresh}>Check again</button></section>}
   <div className={`cb-content ${activeBonus?'':'cb-content-wide'}`}>
@@ -53,9 +64,9 @@ export function CommunityBoost(){
     {leaders.length>visible&&<button className="cb-more" onClick={()=>setVisible(n=>n+10)}>Show more coins <ArrowDown/></button>}
    </section>
    <aside className="cb-side">
-    {enabled?.activeBonus&&now<enabled.activeBonus.endsAt&&<section className="cb-today"><span className="cb-eyebrow"><Zap/> BOOSTED TODAY</span><Link to={`/token/${encodeURIComponent(enabled.activeBonus.launchId)}`}><CoinArt coin={enabled.activeBonus}/><span><b>{enabled.activeBonus.name}</b><small>${enabled.activeBonus.symbol}</small></span><ArrowUpRight/></Link><p>Receiving {enabled.bonusBps/100}% of AQUA platform fees.</p><small><Clock3/> {countdown(enabled.activeBonus.endsAt,now)} remaining</small></section>}
+    {enabled?.activeBonus&&now<enabled.activeBonus.endsAt&&<section className="cb-today"><span className="cb-eyebrow"><Zap/> BOOSTED TODAY</span><Link to={`/token/${encodeURIComponent(enabled.activeBonus.launchId)}`}><CoinArt coin={enabled.activeBonus}/><span><b>{enabled.activeBonus.name}</b><small>${enabled.activeBonus.symbol}</small></span><ArrowUpRight/></Link><p>Receiving {enabled.bonusBps/100}% of AQUA treasury fees.</p><small><Clock3/> {countdown(enabled.activeBonus.endsAt,now)} remaining</small></section>}
    </aside>
   </div>
-  <details className="cb-rules"><summary>How Community Boost works</summary><div><p>Eligible AQUA holders back one live coin per daily round. You can change or remove your vote. Signing a vote records your choice; it does not buy tokens or transfer funds.</p><p>Voting weight uses your average AQUA balance during the round, capped by your current balance. The highest eligible weight wins at 00:00 UTC and receives the configured share of platform fees for the following 24 hours. AQUA itself cannot be nominated.</p><p>This community vote is separate from a coin’s DEX Screener boost fund. DEX mini boosts keep reserving 10% of incoming market rewards while open. They start at 90 minutes, plus 20 minutes per funding milestone, and close after 30 minutes without a qualifying market trade.</p></div></details>
+  <details className="cb-rules"><summary>How Community Boost works</summary><div><p>Eligible AQUA holders back one live coin per daily round. You can change or remove your vote. Signing a vote records your choice; it does not buy tokens or transfer funds.</p><p>Voting weight uses your average AQUA balance during the round, capped by your current balance. The highest eligible weight wins at 00:00 UTC and receives the configured share of treasury fees for the following 24 hours. AQUA itself cannot be nominated.</p><p>Half of the winner’s Community Boost allocation goes to an eligible DEX profile or boost fund while it is collecting; otherwise the full allocation goes to holder rewards. A profile fund stops collecting once its target is reached. DEX mini boosts keep reserving 10% of incoming market rewards while open. They start at 90 minutes, plus 20 minutes per funding milestone, and close after 30 minutes without a qualifying market trade.</p></div></details>
  </main>;
 }

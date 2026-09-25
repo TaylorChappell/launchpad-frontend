@@ -10,6 +10,7 @@ async function setup(page:Page,opts:{guest?:boolean;eligible?:boolean;empty?:boo
  const outsider={launchId:'outsider',mint:'outsider-mint',name:'Hidden Treasure',symbol:'GOLD',imageId:null,rewardMode:'holder_rewards'};
  const now=Math.floor(Date.now()/1000);
  const data:any={enabled:!opts.disabled,reason:'Voting is paused for maintenance.',governanceMint:'AQUA',totalSupplyRaw:'1000000000000000',decimals:6,minimumHoldingBps:10,bonusBps:1000,votingOpen:true,round:{id:'today',startsAt:now-300,endsAt:now+3600},leaders:opts.empty?[]:coins,wallet:opts.guest?null:{eligible:opts.eligible!==false,votingPowerRaw:'2300000000000',currentBalanceRaw:'2300000000000',averageBalanceRaw:'2300000000000',vote:null},activeBonus:coins[2]&&{...coins[2],endsAt:now+3600},previousWinner:null};
+ data.funding={total:{totalLamports:'10000000000',rewardLamports:'7500000000',fundLamports:'2500000000'},activeRound:{totalLamports:'2500000001',rewardLamports:'1250000001',fundLamports:'1250000000'}};
  const state={data,calls:[] as any[],fail:false,searchFail:false,hold:false,release:null as null|(()=>void)};
  await page.route('**/studio/promotion',r=>r.fulfill({json:{active:false,endsAt:null,serverNow:Date.now()}}));
  await page.route('**/account/x/**',r=>r.fulfill({json:{enabled:false,profiles:[]}}));
@@ -68,4 +69,14 @@ test('closed, empty and disabled rounds have no actionable votes',async({page})=
 test('a delayed refresh cannot overwrite a confirmed vote',async({page})=>{
  await page.clock.install();const s=await setup(page);await expect(page.locator('.cb-leader')).toHaveCount(10);s.hold=true;await page.clock.fastForward(15000);await expect.poll(()=>Boolean(s.release)).toBe(true);
  const first=page.locator('.cb-leader').first();await first.getByRole('button',{name:'Vote for OCEAN'}).click();await expect(first.getByRole('button',{name:'Remove vote for OCEAN'})).toHaveAttribute('aria-pressed','true');s.release!();await page.waitForTimeout(200);await expect(first.getByRole('button',{name:'Remove vote for OCEAN'})).toHaveAttribute('aria-pressed','true');
+});
+
+test('shows settled reward and DEX allocations, preserves small amounts, and switches to all-time totals between boosts',async({page},info)=>{
+ if(info.project.name==='mobile')await page.setViewportSize({width:320,height:740});
+ const s=await setup(page);const summary=page.getByRole('region',{name:'Community Boost allocations'});
+ await expect(summary.locator('.cb-funding-rewards strong')).toContainText('1.250000001');await expect(summary.locator('.cb-funding-grid>div').nth(1).locator('strong')).toContainText('1.25');await expect(summary).toContainText('2.500000001 SOL allocated');await expect(summary).toContainText('All-time rewards: 7.5 SOL');await expect(summary).toContainText('half goes to that fund');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
+ await page.screenshot({path:`/tmp/community-funding-${info.project.name}.png`,fullPage:true,animations:'disabled'});
+ s.data.activeBonus=null;await page.getByRole('button',{name:'Refresh leaderboard'}).click();await expect(summary).toContainText('ALL-TIME BOOSTS');await expect(summary.locator('.cb-funding-rewards strong')).toContainText('7.5');await expect(summary).toContainText('10 SOL allocated');
+ delete s.data.funding;await page.getByRole('button',{name:'Refresh leaderboard'}).click();await expect(summary).toContainText('Allocation totals unavailable');await expect(summary.getByText('0',{exact:true})).toHaveCount(0);
 });

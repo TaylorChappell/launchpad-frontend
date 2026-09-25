@@ -73,6 +73,12 @@ export type RuntimeConfig = {
 };
 
 export type AdminDiagnostics = {
+  marketMetrics?: {
+    volumeUsd: Record<"1h" | "24h" | "max", number>;
+    unpricedVolumeMarkets: number;
+    unclaimedUsd: number;
+    unclaimedMarkets: Array<{ id: string; name: string; symbol: string; unclaimedUsd: number; entitlements: number }>;
+  };
   generatedAt: number;
   dexReservedLamports?: string;
   alerts?: { configured: boolean; valid: boolean; lastDeliveredAt: number | null; failedDeliveries: number };
@@ -381,6 +387,10 @@ export type GovernanceResponse = {
   decimals: number;
   minimumHoldingBps: number;
   bonusBps: number;
+  funding?: {
+    total: { totalLamports: string; fundLamports: string; rewardLamports: string };
+    activeRound: { totalLamports: string; fundLamports: string; rewardLamports: string } | null;
+  };
   votingOpen: boolean;
   round: { id: string | null; startsAt: number; endsAt: number };
   leaders: Array<GovernanceMarket & { rank: number; votingPowerRaw: string; voters: number }>;
