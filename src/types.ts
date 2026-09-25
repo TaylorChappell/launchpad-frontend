@@ -480,6 +480,7 @@ export type WalletRewardHolding = {
 
 export type WalletRewardMarket = {
   launchId: string;
+  symbol?: string | null;
   balanceRaw: string;
   claimMode?: "legacy" | "cumulative";
   claimSequence?: string | null;
