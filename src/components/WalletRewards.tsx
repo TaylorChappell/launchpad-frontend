@@ -6,6 +6,7 @@ import { useRuntime, useWallet } from "../context";
 import type { Launch, WalletRewardMarket, WalletRewardsResponse } from "../types";
 import { TokenMark } from "./TokenCard";
 import { displayTokenAmount } from "../trade-quote";
+import { RewardClaimShare, type SharedRewardClaim } from "./RewardClaimShare";
 
 const usd=(cents:number)=>new Intl.NumberFormat("en",{style:"currency",currency:"USD"}).format(cents/100);
 type PendingClaim={wallet:string;launchId:string;name:string;signature:string;sequence?:string;epochId?:string;amountUsd:number;lastValidBlockHeight?:number;submittedAt?:number};
@@ -25,6 +26,8 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
   const [error,setError]=useState(""),[revision,setRevision]=useState(0),[busy,setBusy]=useState(false),[status,setStatus]=useState("");
   const [pending,setPending]=useState<PendingClaim|null>(()=>savedClaim(storageKey));
   const [success,setSuccess]=useState<{signature:string;amount:string}|null>(null);
+  const [share,setShare]=useState<SharedRewardClaim|null>(null);
+  const [shareOpen,setShareOpen]=useState(false);
   const running=useRef(false),alive=useRef(true);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
   const rewardData=data===undefined?loaded:data;
@@ -52,6 +55,7 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
       setSuccess({signature:receipt.signature,amount});
       setStatus("");setRevision(n=>n+1);onClaimed?.();
     }
+    return {name:receipt.name,signature:receipt.signature,amount};
   }
   async function submittedState(receipt:PendingClaim){
     const {Connection}=await import("@solana/web3.js");
@@ -75,7 +79,7 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
   }
   async function retry(){
     if(!pending||running.current)return;running.current=true;setBusy(true);setError("");setStatus("Checking confirmation…");
-    try{await confirm(pending);}
+    try{const receipt=await confirm(pending);if(alive.current){setShare({wallet:address!,network:config.network,receipts:[receipt]});setShareOpen(true);}}
     catch{
       try{
         const state=await submittedState(pending);
@@ -100,7 +104,7 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
       };
       const signature=await wallet.sendTransaction(envelope,onSubmitted);
       if(!submitted)onSubmitted(signature);
-      await confirm(submitted!);
+      return await confirm(submitted!);
     }catch(e){
       if(submitted){
         try{
@@ -116,23 +120,25 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
     if(!address||running.current||pending||savedClaim(storageKey))return;
     const eligible=selected.filter(m=>m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1));
     if(!eligible.length)return;
-    running.current=true;setBusy(true);setError("");setSuccess(null);
+    running.current=true;setBusy(true);setError("");setSuccess(null);setShare(null);setShareOpen(false);
     let completed=0;
+    const receipts:SharedRewardClaim["receipts"]=[];
     try{
       for(const market of eligible){
         if(!alive.current)break;
-        await executeClaim(market);completed++;
+        const receipt=await executeClaim(market);receipts.push(receipt);completed++;
       }
       if(alive.current&&eligible.length>1)setStatus(`${completed} rewards claimed.`);
     }catch{/* executeClaim keeps the submitted receipt and stops the queue. */}
-    finally{running.current=false;if(alive.current)setBusy(false);}
+    finally{running.current=false;if(alive.current){setBusy(false);if(receipts.length){setShare({wallet:address,network:config.network,receipts});setShareOpen(true);}}}
   }
   const claimable=markets.filter(m=>m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1));
   if(launch&&(!address||(rewardData&&!markets.length&&!pending&&!success&&!error)))return null;
   if(!address)return <section className="wallet-inline"><Gift size={24}/><div><h3>Your rewards are here.</h3><p>Connect your wallet to see your allocation and claim it.</p></div><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet</button></section>;
   return <div className="wallet-rewards">
+    {share&&shareOpen&&<RewardClaimShare claim={share} onClose={()=>setShareOpen(false)}/>}
     {!launch&&<div className="claim-all-bar"><span>{claimable.length} coin{claimable.length===1?"":"s"} ready to claim{claimable.length>1&&<small>Approve each coin in your wallet.</small>}</span><button className="primary" disabled={busy||Boolean(pending)||!claimable.length} onClick={()=>void claimBatch(claimable)}>{busy?<><Loader2 size={15} className="spin"/> Claiming…</>:"Claim all"}</button></div>}
-    {success&&<div className="claim-notice success" role="status"><Check size={20}/><div><b>{success.amount} claimed</b><a href={"https://solscan.io/tx/"+success.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View receipt <ArrowUpRight size={13}/></a></div></div>}
+    {success&&<div className="claim-notice success" role="status"><Check size={20}/><div><b>{success.amount} claimed</b><a href={"https://solscan.io/tx/"+success.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View receipt <ArrowUpRight size={13}/></a></div>{share&&<button className="soft-button" onClick={()=>setShareOpen(true)}>Share</button>}</div>}
     {pending&&<div className="claim-notice"><Loader2 size={20} className={busy?"spin":""}/><div><b>{pending.name} · claim submitted</b><a href={"https://solscan.io/tx/"+pending.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View transaction <ArrowUpRight size={13}/></a></div><button className="soft-button" disabled={busy} onClick={()=>void retry()}>Check confirmation</button></div>}
     {status&&<p className="claim-status" role="status">{busy&&<Loader2 className="spin" size={16}/>}{status}</p>}
     {error&&<p className="danger-note" role="alert">{error} {!pending&&!busy&&<button className="text-button" onClick={()=>{setRevision(n=>n+1);onClaimed?.();}}>Try again</button>}</p>}

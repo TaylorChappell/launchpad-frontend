@@ -6,8 +6,8 @@ import { PageBubbles } from "../components/PageBubbles";
 import { AssetMark, TokenMark } from "../components/TokenCard";
 import { useRuntime, useWallet } from "../context";
 import type { Launch, WalletRewardMarket, WalletRewardsResponse } from "../types";
-import { openXComposer, rewardClaimShareText } from "../share";
 import { GovernanceVote } from "../components/GovernanceVote";
+import { RewardClaimShare } from "../components/RewardClaimShare";
 
 const EMPTY_REWARDS: WalletRewardsResponse = { rewards: [], holdings: [], markets: [] };
 
@@ -16,6 +16,7 @@ type ClaimExperience = {
   launchId: string;
   name: string;
   amountUsd: string;
+  wallet: string;
   signature?: string;
   amountRaw?: string;
   stockSymbol?: string;
@@ -54,6 +55,7 @@ export function Rewards() {
   const [refreshKey,setRefreshKey] = useState(0);
   const [claiming, setClaiming] = useState("");
   const [claimExperience, setClaimExperience] = useState<ClaimExperience | null>(null);
+  const [shareOpen,setShareOpen]=useState(false);
 
   async function refresh(address: string) {
     const rewardData=await api.rewards(address);
@@ -100,9 +102,11 @@ export function Rewards() {
       launchId: market.launchId,
       name: launch?.name ?? "AQUA rewards",
       amountUsd,
+      wallet: wallet.address,
       stockSymbol: launch?.stockSymbol,
     };
     setClaiming(market.launchId);
+    setShareOpen(false);
     setClaimExperience(baseExperience);
     try {
       if (cumulative) {
@@ -112,6 +116,7 @@ export function Rewards() {
         setClaimExperience((current) => current ? { ...current, phase: "confirming", signature } : current);
         const confirmed = await api.confirmCumulativeRewardClaim(market.launchId, wallet.address, signature, envelope.sequence);
         setClaimExperience({ ...baseExperience, phase: "success", signature, amountRaw: confirmed.amountRaw, stockSymbol: confirmed.stockSymbol, stockDecimals: confirmed.stockDecimals });
+        setShareOpen(true);
       } else {
         const epochId = market.claimableEpochIds[0];
         const envelope = await api.rewardClaim(epochId, wallet.address);
@@ -120,6 +125,7 @@ export function Rewards() {
         setClaimExperience({ ...baseExperience, phase: "confirming", signature });
         await api.confirmRewardClaim(epochId, wallet.address, signature);
         setClaimExperience({ ...baseExperience, phase: "success", signature });
+        setShareOpen(true);
       }
       await refresh(wallet.address);
     } catch (error) {
@@ -142,6 +148,7 @@ export function Rewards() {
           : "Rewards claimed";
     return <main className="page rewards-page rewards-vault-page reward-claim-experience">
       <PageBubbles count={14}/>
+      {success&&shareOpen&&claimExperience.signature&&<RewardClaimShare claim={{wallet:claimExperience.wallet,network:config.network,receipts:[{name:claimExperience.name,signature:claimExperience.signature,amount:claimExperience.amountRaw?tokenAmount(claimExperience.amountRaw,claimExperience.stockDecimals,claimExperience.stockSymbol):undefined}]}} onClose={()=>setShareOpen(false)}/>}
       <section className={`reward-claim-card ${success ? "complete" : "processing"}`}>
         <span className="reward-claim-icon">{success ? <CheckCircle2/> : <Loader2 className="spin"/>}</span>
         <small>{claimExperience.name}</small>
@@ -150,7 +157,7 @@ export function Rewards() {
         {success ? <>
           <p>{tokenAmount(claimExperience.amountRaw, claimExperience.stockDecimals, claimExperience.stockSymbol)} arrived in your wallet.</p>
           <div className="reward-claim-actions">
-            <button className="primary" onClick={() => openXComposer(rewardClaimShareText(claimExperience.amountUsd))}><Share2/>Post on X</button>
+            <button className="primary" onClick={() => setShareOpen(true)}><Share2/>Share reward</button>
             {claimExperience.signature && <a href={solscanTransactionUrl(claimExperience.signature, config.network)} target="_blank" rel="noreferrer">View transaction <ExternalLink/></a>}
             <button className="reward-claim-back" onClick={() => setClaimExperience(null)}><ArrowLeft/>Back to rewards</button>
           </div>

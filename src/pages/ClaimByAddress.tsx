@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { PublicKey } from "@solana/web3.js";
 import { ArrowLeft, ArrowRight, CheckCircle2, Copy, Loader2, Search, Wallet, X } from "lucide-react";
 import { createPortal } from "react-dom";
@@ -6,21 +6,27 @@ import { Link } from "react-router-dom";
 import { api, type AddressClaimChallenge, type AddressClaimMarket } from "../api";
 import type { WalletRewardMarket, WalletRewardsResponse } from "../types";
 import "../address-claims.css";
+import { RewardClaimShare, type SharedRewardClaim } from "../components/RewardClaimShare";
+import { useRuntime } from "../context";
 
 const formatSol = (lamports: string) => (Number(lamports) / 1_000_000_000).toLocaleString("en", { maximumFractionDigits: 6 });
 const formatUsd = (cents: number) => new Intl.NumberFormat("en", { style: "currency", currency: "USD" }).format(cents/100);
 const storageKey = (wallet: string) => `aqua:address-claim:${wallet}`;
 
 export function ClaimByAddress() {
+  const {config}=useRuntime();
   const [input,setInput]=useState(""),[address,setAddress]=useState(""),[markets,setMarkets]=useState<AddressClaimMarket[]|null>(null);
   const [rewards,setRewards]=useState<WalletRewardsResponse|null>(null),[claimsEnabled,setClaimsEnabled]=useState(false),[rewardClaimsEnabled,setRewardClaimsEnabled]=useState(false);
   const [challenge,setChallenge]=useState<AddressClaimChallenge|null>(null),[verified,setVerified]=useState(false);
   const [payout,setPayout]=useState<{status:string;signature:string|null}|null>(null),[claimed,setClaimed]=useState(false),[popupOpen,setPopupOpen]=useState(false);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[now,setNow]=useState(Date.now());
+  const [share,setShare]=useState<SharedRewardClaim|null>(null);
+  const [shareOpen,setShareOpen]=useState(false);
+  const sharedSignature=useRef("");
   useEffect(()=>{if(!challenge || verified) return;const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer);},[challenge?.id,verified]);
 
   async function lookup(event: FormEvent) {
-    event.preventDefault(); setError(""); setMarkets(null); setRewards(null); setChallenge(null); setPayout(null); setClaimed(false); setPopupOpen(false); setVerified(false);
+    event.preventDefault(); setError(""); setMarkets(null); setRewards(null); setChallenge(null); setPayout(null); setClaimed(false); setPopupOpen(false); setVerified(false);setShare(null);setShareOpen(false);sharedSignature.current="";
     let wallet: string;
     try { wallet = new PublicKey(input.trim()).toBase58(); if(wallet!==input.trim()) throw new Error(); }
     catch { setError("Enter a valid Solana wallet address."); return; }
@@ -32,7 +38,9 @@ export function ClaimByAddress() {
         const saved=localStorage.getItem(storageKey(wallet));
         if(saved) {
           const previous=JSON.parse(saved) as AddressClaimChallenge;
-          if(previous.wallet===wallet && previous.expiresAt>Date.now()-24*60*60_000) { setChallenge(previous); setPopupOpen(true); }
+          if(previous.wallet===wallet && previous.expiresAt>Date.now()-24*60*60_000) {
+            setChallenge(previous); setPopupOpen(true);
+          }
           else localStorage.removeItem(storageKey(wallet));
         }
       } catch { /* The claim still works without local storage. */ }
@@ -52,7 +60,16 @@ export function ClaimByAddress() {
           setVerified(result.verified);
           if(!result.verified) setError("");
           if(result.payout) setPayout(result.payout);
-          if(result.claimed) setClaimed(true);
+          if(result.claimed) {
+            setClaimed(true);
+            const signature=result.payout?.signature;
+            if(challenge.kind!=="creator" && signature && sharedSignature.current!==signature){
+              sharedSignature.current=signature;
+              setShare({wallet:challenge.wallet,network:config.network,receipts:[{name:rewards?.markets.find(m=>m.launchId===challenge.launchId)?.symbol??"AQUA reward",signature}]});
+              setShareOpen(true);
+              setPopupOpen(false);
+            }
+          }
           if(result.claimed && challenge.kind !== "creator") setRewards(await api.rewards(challenge.wallet).catch(()=>null));
         }
       } catch(e) { if(active) setError(e instanceof Error?e.message:"Verification status unavailable."); }
@@ -74,7 +91,7 @@ export function ClaimByAddress() {
 
   async function start(launchId:string,kind:"creator"|"cumulative"|"legacy"="creator",epochId?:string) {
     if(challenge && challenge.launchId===launchId && challenge.kind===kind && challenge.epochId===(epochId??null) && challenge.expiresAt>Date.now() && !claimed) { setPopupOpen(true); return; }
-    setError("");setBusy(true);setPayout(null);setClaimed(false);setVerified(false);
+    setError("");setBusy(true);setPayout(null);setClaimed(false);setVerified(false);setShare(null);setShareOpen(false);sharedSignature.current="";
     try {
       const result=await api.addressClaimStart(address,launchId,kind,epochId);
       setChallenge(result);
@@ -105,6 +122,7 @@ export function ClaimByAddress() {
   const expired=Boolean(challenge && !verified && now>=challenge.expiresAt);
 
   return <main className="page address-claim-page">
+    {share&&shareOpen&&<RewardClaimShare claim={share} onClose={()=>setShareOpen(false)}/>}
     <Link className="back" to="/portfolio"><ArrowLeft size={16}/> My holdings</Link>
     <header className="address-claim-header"><span className="workspace-icon"><Wallet size={24}/></span><h1>Claim with your address</h1><p>Enter your Solana wallet to find rewards and fees.</p></header>
     <form className="address-claim-lookup" onSubmit={e=>void lookup(e)}>
@@ -112,7 +130,7 @@ export function ClaimByAddress() {
     </form>
     {error&&!popupOpen&&<p className="address-claim-error" role="alert">{error}</p>}
     {markets&&<section className="address-claim-results"><h2>Fees and rewards for {address.slice(0,5)}…{address.slice(-5)}</h2>
-      {challenge&&<button className="soft-button address-claim-resume" onClick={()=>setPopupOpen(true)}>Continue {challenge.kind==="creator"?"fee":"reward"} claim <ArrowRight size={15}/></button>}
+      {share?<button className="soft-button address-claim-resume" onClick={()=>setShareOpen(true)}>Share reward <ArrowRight size={15}/></button>:challenge&&<button className="soft-button address-claim-resume" onClick={()=>setPopupOpen(true)}>Continue {challenge.kind==="creator"?"fee":"reward"} claim <ArrowRight size={15}/></button>}
       {markets.length?markets.map(m=><article className="address-claim-market" key={m.launchId}><div><Link to={`/token/${m.launchId}`}>{m.name} <span>${m.symbol}</span></Link><p>Creator fees</p><strong>{formatSol(m.availableLamports)} SOL</strong>{BigInt(m.pendingLamports)>0n&&<small>{formatSol(m.pendingLamports)} SOL processing</small>}{BigInt(m.availableLamports)>0n&&BigInt(m.availableLamports)<=1_000_000n&&<small>Below verification cost.</small>}</div><button className="primary" disabled={!claimsEnabled || busy || BigInt(m.availableLamports)<=1_000_000n} onClick={()=>void start(m.launchId)}>Claim <ArrowRight size={15}/></button></article>):<p className="address-claim-empty">No creator fees available.</p>}
       {!claimsEnabled&&markets.length>0&&<p className="address-claim-note">Creator claims are currently unavailable.</p>}
       {holderTotal>0&&<div className="address-claim-holder"><b>Holder rewards: {formatUsd(holderTotal)}</b></div>}
