@@ -54,28 +54,12 @@ body:has(.mobile-trade-backdrop) .wallet-overlay { z-index: 450; }
 @media (max-width: 1100px) {
   .token-page { --market-bottom-space: 0px; }
   .token-page .token-side { align-self: stretch; width: 100%; }
-  /* One navigation row spans the entire mobile market, including its chart. */
+  /* The four content tabs follow the chart and trading actions, then stay in reach. */
   .token-page .market-information-tabs {
-    position: sticky; top: calc(var(--aqua-header-height) + 8px); z-index: 35; order: 0;
-    display: flex; flex-wrap: nowrap; gap: 4px; margin: 0; padding: 5px;
-    min-width: 0; overflow-x: auto; overscroll-behavior-x: contain;
-    scrollbar-width: none; scroll-padding-inline: 6px;
-    border: 1px solid #c8e1ed; border-radius: 14px;
-    background: #f3fafff5; box-shadow: 0 4px 16px #214d7112;
-    backdrop-filter: blur(16px);
+    position: sticky; top: calc(var(--aqua-header-height) + 8px); z-index: 35; order: 3;
+    margin: 0; backdrop-filter: blur(16px);
   }
-  .token-page .market-information-tabs::-webkit-scrollbar { display: none; }
-  .token-page .market-information-tabs > button {
-    flex: 0 0 auto; min-height: 44px; padding: 10px 13px; margin: 0;
-    white-space: nowrap; border: 0; border-radius: 9px;
-    color: #52758a; background: transparent; font-size: 13px; font-weight: 650;
-    transition: background .18s ease, color .18s ease, box-shadow .18s ease;
-  }
-  .token-page .market-information-tabs > button:hover { color: #126e9e; background: #e6f3fa; }
-  .token-page .market-information-tabs > button[aria-pressed=true] { color: #fff; background: #137fb6; box-shadow: 0 2px 5px #126d9b20; }
-  .token-page .market-information-tabs > button::after { display: none; }
-  .token-page .market-information-tabs > button[aria-pressed=true] .market-unread-dot { background: #fff; }
-  .token-page .market-information-tabs > button:focus-visible { outline: 2px solid #1783b9; outline-offset: -2px; }
+  .token-page .market-information { order: 4; }
   #market-chart, #market-trade, #market-information { scroll-margin-top: calc(var(--aqua-header-height) + 78px); }
   .token-page .market-information { min-height: calc(var(--aqua-viewport-height) - var(--aqua-header-height) - var(--market-bottom-space) - 94px); }
   .token-page .community {
@@ -259,7 +243,6 @@ body:has(.mobile-trade-backdrop) .wallet-overlay { z-index: 450; }
   .app-shell .wallet-button { max-width: 132px; }
   .app-shell .header-inner:has(.wallet-button.connected) .header-search { display: none; }
   .token-page .community-connect { flex-wrap: wrap; }
-  .token-page .market-information-tabs > button { padding-inline: 11px; }
   .app-shell .discovery-filters { grid-template-columns: minmax(0, 1fr); }
   .app-shell .explore-page .workspace-heading h2 { font-size: 22px; }
 }
@@ -270,4 +253,88 @@ body:has(.mobile-trade-backdrop) .wallet-overlay { z-index: 450; }
   .app-shell .header-inner:has(.wallet-button.connected) .header-actions { gap: 4px; }
   .app-shell .header-inner:has(.wallet-button.connected) .wallet-menu { min-width: 0; }
   .app-shell .header-inner:has(.x-connect):has(.wallet-button.connected) .header-search { display: none; }
+}
+
+/* Market navigation and details share the same quiet, rounded surfaces. */
+.token-page .market-information-tabs {
+  display: grid; grid-template-columns: 1.2fr 1.15fr 1fr .9fr; gap: 3px;
+  min-width: 0; overflow: visible; padding: 5px; margin-block: 0;
+  border: 1px solid #d2e5ee; border-radius: 15px; background: #edf6fbf5;
+  box-shadow: 0 3px 14px #214d7108;
+}
+.token-page .market-information-tabs > button {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  min-width: 0; min-height: 44px; margin: 0; padding: 10px 4px;
+  border: 0; border-radius: 10px; background: transparent; color: #658194;
+  font-size: clamp(11px, 2.9vw, 13px); font-weight: 650; white-space: nowrap;
+  transition: color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.token-page .market-information-tabs > button > span { padding: 0; background: transparent; font-size: inherit; }
+.token-page .market-information-tabs > button:hover { color: #126e9e; background: #e5f2f9; }
+.token-page .market-information-tabs > button[aria-pressed=true] { color: #0e759f; background: #fff; box-shadow: 0 2px 7px #16496712; }
+.token-page .market-information-tabs > button::after { display: none; }
+.token-page .market-information-tabs > button:focus-visible { outline: 2px solid #1783b9; outline-offset: -2px; }
+.token-page .market-tab-indicators { position: absolute; top: 3px; right: 5px; display: inline-flex; align-items: center; gap: 3px; }
+.token-page .market-tab-indicators .market-unread-dot { width: 5px; height: 5px; flex-basis: 5px; }
+.token-page .market-tab-indicators svg { width: 10px; height: 10px; }
+.market-more-details {
+  display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%;
+  min-height: 46px; padding: 10px 14px; border: 1px solid #d2e5ef; border-radius: 13px;
+  color: #527b91; background: #f2f9fc; font-size: 13px; font-weight: 650;
+}
+.market-more-details:hover { background: #e5f2f9; color: #146f9c; }
+.market-more-details:focus-visible, .market-mobile-share:focus-visible { outline: 2px solid #1686bb; outline-offset: 3px; }
+.market-more-details > svg:last-child { width: 15px; margin-left: auto; }
+.market-more-details > span { flex: 1; text-align: left; }
+.market-details-content { display: grid; gap: 24px; min-width: 0; }
+.market-details-content > section { min-width: 0; }
+.market-details-content h3 { margin: 0 0 12px; color: #2b536b; font-size: 14px; font-weight: 750; }
+.market-details-about p { margin: 0; color: #607f93; font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.market-details-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 16px; border: 1px solid #d7e8f0; border-radius: 14px; background: #edf6fb; }
+.market-details-metrics .metric { min-width: 0; padding: 0; border: 0; }
+.market-details-metrics .metric > small { color: #6d899b; font-size: 11px; }
+.market-details-metrics .metric > b { color: #265771; font-size: 17px; overflow-wrap: anywhere; }
+.market-details-facts { margin: 10px 0 0; }
+.market-details-facts > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid #e0ecf2; font-size: 12px; }
+.market-details-facts dt { flex-shrink: 0; color: #718b9b; }
+.market-details-facts dd { min-width: 0; margin: 0; color: #355e76; text-align: right; overflow-wrap: anywhere; }
+.market-details-facts .wallet-identity { max-width: 100%; }
+.market-details-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.market-details-links a { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 9px 12px; border: 1px solid #d4e5ee; border-radius: 10px; background: #fff; color: #357693; font-size: 12px; }
+.market-details-note { margin: 12px 0 0; color: #8198a6; font-size: 11px; line-height: 1.6; }
+.market-mint { position: relative; padding: 14px 56px 14px 14px; border: 1px solid #d7e8f0; border-radius: 12px; background: #edf6fb; }
+.market-mint small { display: block; margin-bottom: 8px; color: #7191a3; font-size: 11px; }
+.market-mint code { color: #406d86; font-size: 12px; overflow-wrap: anywhere; }
+.market-mint button { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #4c7b94; }
+.market-details-content .community-proposals { margin: 0; }
+.market-details-content .community-proposal-grid { grid-template-columns: minmax(0, 1fr); }
+.market-mobile-share, .token-page .market-mobile-age, .market-mobile-metrics { display: none; }
+.market-identity-heading, .market-identity-badges { flex-wrap: wrap; }
+.market-identity-badges { margin-top: 10px; }
+@media (min-width: 1101px) {
+  .mobile-trade-backdrop { align-items: center; padding: 24px; }
+  .mobile-trade-sheet { max-height: calc(var(--aqua-viewport-height) - 48px); border-bottom: 1px solid #c5dfeb; border-radius: 24px; }
+  .mobile-trade-handle { display: none; }
+}
+@media (max-width: 1100px) {
+  .trading-shell .token-hero { padding: 18px; gap: 16px; border: 1px solid #d5e7ef; border-radius: 20px; background: #f8fcff; }
+  .token-page .token-identity { display: grid; grid-template-columns: 52px minmax(0, 1fr) 44px; align-items: center; gap: 14px 12px; width: 100%; }
+  .token-page .token-identity > .token-mark { grid-column: 1; grid-row: 1; width: 52px; height: 52px; border-radius: 16px; }
+  .token-page .token-identity > div { display: contents; }
+  .token-page .market-identity-heading { grid-column: 2; grid-row: 1; flex-wrap: wrap; gap: 6px 8px; }
+  .token-page .token-identity h1 { width: 100%; font-size: 23px; line-height: 1.2; overflow-wrap: anywhere; }
+  .token-page .market-identity-heading > span { font: 600 11px/1.3 "Manrope", sans-serif; color: #7792a3; }
+  .token-page .market-mobile-age { display: inline; font-weight: 400; }
+  .token-page .market-mobile-age::before { content: "·"; margin-right: 8px; }
+  .token-page .market-identity-badges { grid-column: 1 / -1; margin: 0; gap: 8px; }
+  .token-page .market-identity-badges > em.live { display: none; }
+  .token-page .token-identity em { padding: 6px 9px; border-radius: 6px; font-size: 9px; letter-spacing: .04em; }
+  .token-page .token-identity p, .token-page .token-identity footer, .token-page .hero-metrics { display: none; }
+  .market-mobile-share { grid-column: 3; grid-row: 1; display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #dceaf1; border-radius: 13px; background: #fff; color: #5c8196; }
+  .market-mobile-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; padding-top: 14px; border-top: 1px solid #e0ecf2; }
+  .market-mobile-metrics .metric { padding: 0; border: 0; }
+  .market-mobile-metrics .metric + .metric { padding-left: 18px; border-left: 1px solid #e0ecf2; }
+  .market-mobile-metrics .metric > small { font-size: 11px; color: #7792a3; }
+  .market-mobile-metrics .metric > b { margin-top: 4px; font-size: 18px; color: #315e79; }
+  .token-page .token-side { gap: 10px; }
 }

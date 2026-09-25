@@ -51,7 +51,7 @@ async function setup(page: Page, state = "voting", automatic: "profile" | "boost
     return r.fulfill({ json: data });
   });
   await page.goto("/#/token/coin");
-  if (openGovernance) await page.getByRole("button", { name: /Governance/ }).click();
+  if (openGovernance) await page.getByRole("button", { name: "More details", exact: true }).click();
   return data;
 }
 
@@ -65,6 +65,7 @@ test("boost funding uses the existing governance view and signs the chosen perce
   await expect(page.locator(".market-information-tabs").getByRole("button", { name: "Promotions", exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
   await card.screenshot({ path: `/tmp/aqua-boost-poll-${info.project.name}.png` });
+  await page.getByRole("button", { name: "Close details", exact: true }).click();
   await page.getByRole("button", { name: "Proposals", exact: true }).click();
   await page.getByRole("button", { name: "Fund DEX boost", exact: true }).click();
   await expect(page.getByRole("dialog").getByText("5% · 10% · 20% · No", { exact: true })).toBeVisible();
@@ -115,4 +116,23 @@ test("AQUA shows automatic mini boosts with no holder proposal controls", async 
   await expect(card.locator(".boost-poll-options")).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
   await card.screenshot({ path: `/tmp/aqua-auto-boost-${info.project.name}.png` });
+});
+
+
+test("a proposal survey returns to the details sheet with focus and scroll locked", async ({page})=>{
+  await setup(page,"funding");
+  await page.getByRole("button",{name:"Challenge proposal",exact:true}).click();
+  const survey=page.getByRole("dialog",{name:"Challenge this proposal",exact:true});
+  await expect(survey).toBeVisible();
+  await page.keyboard.press("Shift+Tab");
+  expect(await survey.evaluate(el=>el.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(survey).toHaveCount(0);
+  const details=page.getByRole("dialog",{name:"Market details",exact:true});
+  await expect(details).toBeVisible();
+  await expect(details.getByRole("button",{name:"Challenge proposal",exact:true})).toBeFocused();
+  expect(await page.evaluate(()=>document.documentElement.style.overflow)).toBe("hidden");
+  await page.keyboard.press("Escape");
+  await expect(details).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.style.overflow)).not.toBe("hidden");
 });

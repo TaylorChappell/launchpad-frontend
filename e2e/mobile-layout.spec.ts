@@ -45,6 +45,8 @@ test("one market navigation keeps content clear at phone, tablet and desktop siz
     await expect(page.locator(".community-scroll")).toContainText("Welcome to the Ocean community");
     const tabs=page.getByRole("navigation",{name:"Market navigation",exact:true});
     await expect(tabs).toHaveCount(1);
+    await expect(tabs.locator(".market-tab-label")).toHaveText(["Transactions", "Community", "Rewards", "Holders"]);
+    expect(await tabs.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
     await expect(tabs.getByRole("button",{name:"Community",exact:true})).toHaveCount(1);
     const boxes = await page.evaluate(() => {
       const box = (selector: string) => { const r = document.querySelector(selector)!.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right }; };
@@ -63,22 +65,13 @@ test("one market navigation keeps content clear at phone, tablet and desktop siz
         const menu=document.querySelector(".market-information-tabs")!.getBoundingClientRect();
         return panel.top-menu.bottom;
       },selector);
-      await tabs.getByRole("button", { name: "Trade", exact: true }).click();
-      await expect.poll(()=>clearMenu("#market-trade")).toBeGreaterThanOrEqual(8);
-      await expect.poll(()=>clearMenu("#market-trade")).toBeLessThan(35);
-      const menuTop=(await tabs.boundingBox())!.y;
-      expect(menuTop).toBeGreaterThanOrEqual(64);
-      expect(menuTop).toBeLessThan(120);
-      await expect(tabs.getByRole("button", { name: "Trade", exact: true })).toHaveAttribute("aria-pressed", "true");
       await tabs.getByRole("button", { name: "Community", exact: true }).click();
       await expect(tabs.getByRole("button", { name: "Community", exact: true })).toHaveAttribute("aria-pressed", "true");
       await expect.poll(()=>clearMenu(".community")).toBeGreaterThanOrEqual(8);
       await expect.poll(()=>clearMenu(".community")).toBeLessThan(35);
       if (width === 390) await page.screenshot({ path: info.outputPath("mobile-community.png") });
-      await tabs.getByRole("button", { name: "Chart", exact: true }).click();
-      await expect.poll(()=>clearMenu("#market-chart")).toBeGreaterThanOrEqual(8);
-      await expect.poll(()=>clearMenu("#market-chart")).toBeLessThan(35);
       if (width === 390) {
+        await page.locator("#market-chart").scrollIntoViewIfNeeded();
         await page.screenshot({ path: info.outputPath("mobile-chart.png") });
         await page.evaluate(()=>window.scrollTo({top:0,behavior:"instant"}));
         await page.screenshot({ path: info.outputPath("mobile-market-header.png") });
@@ -99,6 +92,7 @@ test("phone market navigation scrolls smoothly and keeps later tabs reachable",a
   await page.goto("/#/token/mobile?tab=transactions");
   const tabs=page.getByRole("navigation",{name:"Market navigation",exact:true});
   await expect(tabs).toBeVisible();
+  await tabs.scrollIntoViewIfNeeded();
   await page.evaluate(()=>{
     const positions:number[]=[];
     Object.assign(window,{marketScrollPositions:positions});
@@ -107,11 +101,11 @@ test("phone market navigation scrolls smoothly and keeps later tabs reachable",a
   await tabs.getByRole("button",{name:"Community",exact:true}).click();
   await expect.poll(()=>page.locator(".community").evaluate(el=>Math.round(el.getBoundingClientRect().top))).toBeLessThan(170);
   await expect.poll(()=>page.evaluate(()=>new Set((window as unknown as {marketScrollPositions:number[]}).marketScrollPositions.map(Math.round)).size)).toBeGreaterThan(2);
-  await tabs.getByRole("button",{name:"Project",exact:true}).click();
-  await expect(page.getByRole("heading",{name:"Project information",exact:true})).toBeVisible();
-  await expect(tabs.getByRole("button",{name:"Project",exact:true})).toBeInViewport();
+  await tabs.getByRole("button",{name:"Holders",exact:true}).click();
+  await expect(page.locator(".holder-activity")).toContainText("320 wallets");
+  await expect(tabs.getByRole("button",{name:"Holders",exact:true})).toBeInViewport();
   await page.emulateMedia({reducedMotion:"reduce"});
-  await tabs.getByRole("button",{name:"Trade",exact:true}).click();
+  await tabs.getByRole("button",{name:"Transactions",exact:true}).click();
   await tabs.getByRole("button",{name:"Community",exact:true}).click();
   await expect(tabs.getByRole("button",{name:"Community",exact:true})).toHaveAttribute("aria-pressed","true");
   await expect.poll(()=>page.locator(".community").evaluate(el=>Math.round(el.getBoundingClientRect().top))).toBeLessThan(170);
@@ -298,4 +292,48 @@ test("a pending mobile trade stays mounted through dismiss attempts and a resize
   await expect(sheet.getByRole("button",{name:"Close trade",exact:true})).toBeEnabled();
   await sheet.getByRole("button",{name:"Close trade",exact:true}).click();
   await expect(page.locator("#market-trade .trade-card")).toBeVisible();
+});
+
+
+test("More details sits below trading and preserves the page when dismissed", async ({page},info)=>{
+  await setup(page);
+  await page.goto("/#/token/mobile?tab=transactions");
+  const more=page.getByRole("button",{name:"More details",exact:true});
+  await expect(more).toBeVisible();
+  const selector=info.project.name==="mobile"?".market-trade-actions":".trade-card";
+  const positions=await page.evaluate(selector=>[selector,".market-more-details"].map(s=>{const r=document.querySelector(s)!.getBoundingClientRect();return{top:r.top,bottom:r.bottom};}),selector);
+  expect(positions[1].top).toBeGreaterThanOrEqual(positions[0].bottom);
+  expect(positions[1].top-positions[0].bottom).toBeLessThan(24);
+  await more.click();
+  const sheet=page.getByRole("dialog",{name:"Market details",exact:true});
+  await expect(sheet.getByRole("heading",{name:"About Ocean Club",exact:true})).toBeVisible();
+  await expect(sheet.getByText("A community building together.", {exact:true})).toBeVisible();
+  await expect(sheet.getByText("OCEAN / ORCA", {exact:true})).toBeVisible();
+  expect(await sheet.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+  const scroll=await page.evaluate(()=>scrollY);
+  await sheet.getByRole("button",{name:"Copy token mint"}).scrollIntoViewIfNeeded();
+  await expect(sheet.getByRole("button",{name:"Close details"})).toBeInViewport();
+  await expect(sheet.getByRole("link",{name:"Inspect mint"})).toHaveAttribute("href",`https://solscan.io/account/${mint}`);
+  expect(await page.evaluate(()=>scrollY)).toBe(scroll);
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+  await expect(more).toBeFocused();
+  expect(await page.evaluate(()=>scrollY)).toBe(scroll);
+  expect(await page.evaluate(()=>document.documentElement.style.overflow)).not.toBe("hidden");
+  await more.click();
+  await page.screenshot({path:info.outputPath("market-details-sheet.png"),animations:"disabled"});
+  await sheet.getByRole("button",{name:"Close details"}).click();
+  if(info.project.name==="mobile"){
+    await page.setViewportSize({width:320,height:568});
+    await more.click();
+    expect(await sheet.evaluate(el=>el.getBoundingClientRect().right)).toBeLessThanOrEqual(320);
+    await sheet.getByRole("link",{name:"Pool explorer"}).scrollIntoViewIfNeeded();
+    await expect(sheet.getByRole("link",{name:"Pool explorer"})).toBeInViewport();
+    await sheet.getByRole("button",{name:"Close details"}).click();
+  }
+  await page.goto("/#/token/mobile?tab=project");
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole("button",{name:"Close details"}).click();
+  await expect(page).toHaveURL(/tab=transactions/);
+  await expect(page.getByRole("navigation",{name:"Market navigation"}).getByRole("button",{name:"Transactions",exact:true})).toHaveAttribute("aria-pressed","true");
 });

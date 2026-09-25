@@ -6,13 +6,13 @@ const dialogs: Array<{ element: HTMLElement | null }> = [];
 let originalOverflow = "";
 let originalRootOverflow = "";
 
-export function useDialog<T extends HTMLElement = HTMLElement>(open: boolean, onClose: () => void) {
+export function useDialog<T extends HTMLElement = HTMLElement>(open: boolean, onClose: () => void, returnFocus?: HTMLElement | null) {
   const ref = useRef<T>(null);
   const close = useRef(onClose);
   close.current = onClose;
   useEffect(() => {
     if (!open) return;
-    const prior = document.activeElement as HTMLElement | null;
+    const prior = returnFocus ?? document.activeElement as HTMLElement | null;
     const entry = { element: ref.current };
     if (!dialogs.length) {
       originalOverflow = document.body.style.overflow;

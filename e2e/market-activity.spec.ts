@@ -32,26 +32,27 @@ async function setup(page:Page) {
   return state;
 }
 
-test('community replaces comments; position sits directly under trading; comments track unread across visits',async({page},info)=>{
+test('community replaces comments; details and position sit under trading; comments track unread across visits',async({page},info)=>{
   const state=await setup(page);
   await page.goto('/#/token/coin');
   const tabs=page.locator('.market-information-tabs');
   await expect(tabs.getByRole('button',{name:'Updates',exact:true})).toHaveCount(0);
   await expect(tabs.getByRole('button',{name:'Your position',exact:true})).toHaveCount(0);
   await expect(tabs.locator('.market-unread-dot')).toBeVisible();
-  await tabs.getByRole('button',{name:/^Project/}).click();
+  await page.getByRole('button',{name:'More details',exact:true}).click();
   await expect(page.getByText('Our new website is live.')).toHaveCount(0);
-  await expect(page.getByRole('heading',{name:'Project information'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'About Ocean Club'})).toBeVisible();
+  await page.getByRole('button',{name:'Close details',exact:true}).click();
   const position=page.locator('.market-position-dropdown');
   await expect(position.locator('.market-position')).toHaveCount(0);
   const tradeSelector=info.project.name==='mobile'?'.market-trade-actions':'.trade-card';
-  expect(await position.evaluate((el,selector)=>el.previousElementSibling?.matches(selector),tradeSelector)).toBe(true);
+  expect(await position.evaluate(el=>el.previousElementSibling?.matches('.market-more-details'))).toBe(true);
   // Measure both boxes in the same frame while section navigation may animate.
   const [tradeBox,positionBox]=await page.evaluate(tradeSelector=>[tradeSelector,'.market-position-dropdown'].map(selector=>{
     const {y,height}=document.querySelector(selector)!.getBoundingClientRect();return {y,height};
   }),tradeSelector);
   expect(positionBox!.y).toBeGreaterThanOrEqual(tradeBox!.y+tradeBox!.height-1);
-  expect(positionBox!.y-(tradeBox!.y+tradeBox!.height)).toBeLessThan(40);
+  expect(positionBox!.y-(tradeBox!.y+tradeBox!.height)).toBeLessThan(100);
   await position.locator('summary').click();
   await expect(position.getByRole('button',{name:'Connect wallet'})).toBeVisible();
   await position.locator('summary').click();
@@ -70,7 +71,7 @@ test('community replaces comments; position sits directly under trading; comment
   state.comment={id:'00000000-0000-4000-8000-000000000002',createdAt:Date.now()};
   await page.reload();
   await expect(tabs.locator('.market-unread-dot')).toBeVisible();
-  await tabs.getByRole('button',{name:/^Project/}).click();
+  await tabs.getByRole('button',{name:'Transactions',exact:true}).click();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:`/tmp/market-ux-${info.project.name}.png`,fullPage:true});
