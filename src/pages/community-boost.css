@@ -19,3 +19,5 @@
 @media(prefers-reduced-motion:reduce){.cb-page *,.cb-page *:before,.cb-page *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 .cb-content-wide{grid-template-columns:1fr}.cb-content-wide>.cb-side{display:none}
+
+.cb-today-rewards{margin:18px 0;padding:16px 0 0;border-top:1px solid #41708a}.cb-today-rewards>span{display:block;font-size:11px;color:#b0cddc}.cb-today-rewards>strong{color:#f2fcff;display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;margin-top:7px;font-size:25px;font-weight:700;letter-spacing:-.025em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;line-height:1.35}.cb-today-rewards>strong small{font-size:11px;font-weight:600;letter-spacing:0;color:#8fd8ed}.cb-today-rewards>.cb-today-dex{margin-top:8px;font-size:10px;line-height:1.6;color:#93bbce;overflow-wrap:anywhere}
