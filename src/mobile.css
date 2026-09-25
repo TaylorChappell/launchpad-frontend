@@ -54,7 +54,7 @@ body:has(.mobile-trade-backdrop) .wallet-overlay { z-index: 450; }
 @media (max-width: 1100px) {
   .token-page { --market-bottom-space: 0px; }
   .token-page .token-side { align-self: stretch; width: 100%; }
-  /* The four content tabs follow the chart and trading actions, then stay in reach. */
+  /* The content tabs follow the chart and trading actions, then stay in reach. */
   .token-page .market-information-tabs {
     position: sticky; top: calc(var(--aqua-header-height) + 8px); z-index: 35; order: 3;
     margin: 0; backdrop-filter: blur(16px);
@@ -257,18 +257,19 @@ body:has(.mobile-trade-backdrop) .wallet-overlay { z-index: 450; }
 
 /* Market navigation and details share the same quiet, rounded surfaces. */
 .token-page .market-information-tabs {
-  display: grid; grid-template-columns: 1.2fr 1.15fr 1fr .9fr; gap: 3px;
-  min-width: 0; overflow: visible; padding: 5px; margin-block: 0;
+  display: flex; gap: 3px;
+  min-width: 0; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; padding: 5px; margin-block: 0;
   border: 1px solid #d2e5ee; border-radius: 15px; background: #edf6fbf5;
   box-shadow: 0 3px 14px #214d7108;
 }
 .token-page .market-information-tabs > button {
   position: relative; display: flex; align-items: center; justify-content: center;
-  min-width: 0; min-height: 44px; margin: 0; padding: 10px 4px;
+  flex: 1 0 auto; min-width: max-content; min-height: 44px; margin: 0; padding: 10px 12px;
   border: 0; border-radius: 10px; background: transparent; color: #658194;
   font-size: clamp(11px, 2.9vw, 13px); font-weight: 650; white-space: nowrap;
   transition: color .18s ease, background .18s ease, box-shadow .18s ease;
 }
+.token-page .market-information-tabs::-webkit-scrollbar { display: none; }
 .token-page .market-information-tabs > button > span { padding: 0; background: transparent; font-size: inherit; }
 .token-page .market-information-tabs > button:hover { color: #126e9e; background: #e5f2f9; }
 .token-page .market-information-tabs > button[aria-pressed=true] { color: #0e759f; background: #fff; box-shadow: 0 2px 7px #16496712; }

@@ -45,8 +45,7 @@ test("one market navigation keeps content clear at phone, tablet and desktop siz
     await expect(page.locator(".community-scroll")).toContainText("Welcome to the Ocean community");
     const tabs=page.getByRole("navigation",{name:"Market navigation",exact:true});
     await expect(tabs).toHaveCount(1);
-    await expect(tabs.locator(".market-tab-label")).toHaveText(["Transactions", "Community", "Rewards", "Holders"]);
-    expect(await tabs.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
+    await expect(tabs.locator(".market-tab-label")).toHaveText(["Transactions", "Community", "Proposals", "Rewards", "Holders"]);
     await expect(tabs.getByRole("button",{name:"Community",exact:true})).toHaveCount(1);
     const boxes = await page.evaluate(() => {
       const box = (selector: string) => { const r = document.querySelector(selector)!.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right }; };
@@ -110,6 +109,14 @@ test("phone market navigation scrolls smoothly and keeps later tabs reachable",a
   await expect(tabs.getByRole("button",{name:"Community",exact:true})).toHaveAttribute("aria-pressed","true");
   await expect.poll(()=>page.locator(".community").evaluate(el=>Math.round(el.getBoundingClientRect().top))).toBeLessThan(170);
   await expect(page.locator(".community")).toBeInViewport();
+  for (const tab of ["governance", "proposals"]) {
+    await page.goto(`/#/token/mobile?tab=${tab}`);
+    await expect(tabs.getByRole("button",{name:"Proposals",exact:true})).toHaveAttribute("aria-pressed","true");
+    await expect(tabs.getByRole("button",{name:"Proposals",exact:true})).toBeInViewport();
+    await expect(page.locator(".community-proposals")).toContainText("Proposals are unavailable for this market.");
+    await expect(page.getByRole("dialog",{name:"Market details",exact:true})).toHaveCount(0);
+  }
+  await page.screenshot({path:"/tmp/aqua-market-proposals-mobile.png",animations:"disabled"});
 });
 
 test("phone navigation locks the page, closes with Escape and opens destinations at the top", async ({ page }, info) => {
