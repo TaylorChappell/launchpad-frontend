@@ -194,15 +194,13 @@
 @media(max-width:1100px) {
   .token-page .token-layout { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
   .token-page .token-main > *,.token-page .token-side > * { min-width: 0; width: 100%; }
-  .token-page .token-main,.token-page .token-side { display: contents; }
-  .token-page .trade-card { order: 1; }
-  .token-page .default-dex-vote,.token-page .dex-completed { order: 2; }
-  .token-page .chart-panel { order: 3; }
-  .token-page .reward-mode-market-panel { order: 4; }
-  .token-page .community-proposals { order: 5; }
-  .token-page .jackpot-recent-winners { order: 6; }
-  .token-page .jackpot-leaderboard { order: 7; }
-  .token-page .activity { order: 9; }
+  /* Only the chart and information group participate in the mobile stack.
+     Keep every tab panel with its tabs and every trading control in its aside. */
+  .token-page .token-main { display: contents; }
+  .token-page .token-side { display: flex; flex-direction: column; gap: 14px; order: 2; }
+  .token-page .token-side > * { order: 0; }
+  .token-page .chart-panel { order: 1; }
+  .token-page .market-information { order: 3; }
 }
 @media(max-width:1000px) {
   .launch-wizard-only .wizard-rail { grid-template-columns: repeat(5,minmax(0,1fr)); }
@@ -487,7 +485,7 @@
 .market-facts { padding: 16px 18px; border: 1px solid #d4e3ec; border-radius: 10px; background: #f7fcff; }
 .execution-panel button:disabled { opacity: .55; cursor: not-allowed; }
 .execution-panel button:focus-visible,.chart-controls button:focus-visible,.search-modal button:focus-visible { outline: 2px solid #167cae; outline-offset: 3px; }
-@media(max-width:1100px) { .trading-shell .token-layout { display: flex; } .trading-shell .chart-panel { order: 1; } .trading-shell .trade-card { order: 2; } .trading-shell .default-dex-vote { order: 3; } .market-facts { order: 8; } }
+@media(max-width:1100px) { .trading-shell .token-layout { display: flex; } }
 @media(max-width:600px) { .aqua-search-overlay { padding: 12px; } .aqua-search-overlay .search-modal { padding: 20px 16px; max-height: calc(100dvh - 24px); border-radius: 12px; } .chart-canvas { height: 270px; } .chart-controls { padding: 4px 10px 12px; } .chart-controls > span { display: none; } .trading-shell .token-identity h1 { font-size: 23px; } .execution-panel { padding: 18px; } }
 
 .custom-slippage { display: flex; align-items: center; gap: 6px; color: #173e55; }
@@ -575,11 +573,6 @@
 .market-position-dropdown .position-overview { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .market-position-dropdown .position-overview strong { font-size: 18px; overflow-wrap: anywhere; }
 .market-position-dropdown .wallet-inline { flex-wrap: wrap; }
-@media(max-width:1100px) {
-  .token-page .market-position-dropdown { order: 2; }
-  .token-page .market-information-tabs { order: 8; }
-  .token-page .market-project,.token-page .market-comments { order: 9; }
-}
 .market-information-tabs button > .market-unread-dot { padding: 0; border-radius: 50%; background: #007ca8; }
 .market-information-tabs button > .market-update-indicator { padding: 0; background: transparent; }
 
@@ -589,5 +582,4 @@
 .watch-card .market-update-link { right: 50px; }
 .watch-card:has(.market-update-link) .token-head { padding-right: 60px; }
 
-@media(max-width:1100px) { .token-page .market-facts { order: 2; } }
 .watch-card:has(.market-update-link) .token-title { flex-wrap: wrap; row-gap: 5px; }

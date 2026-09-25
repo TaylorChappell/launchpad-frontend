@@ -47,7 +47,6 @@ function CommunityRoom({launch,onRead}:{launch:Launch;onRead?:(cursor:CommentCur
   const [updateBody,setUpdateBody]=useState(''),[updateFile,setUpdateFile]=useState<File|null>(null),[updatePreview,setUpdatePreview]=useState(''),updateText=useRef<HTMLTextAreaElement>(null),updateImage=useRef<HTMLInputElement>(null),updateDraft=useRef<{key:string;id:string}|null>(null);
   const [question,setQuestion]=useState(''),[options,setOptions]=useState(['','']),[hours,setHours]=useState(24),[holdersOnly,setHoldersOnly]=useState(false),[report,setReport]=useState('Spam'),[busy,setBusy]=useState(false);
   const room=useRef<HTMLElement>(null);
-  useEffect(()=>{const frame=requestAnimationFrame(()=>{const el=room.current;if(el)window.scrollTo({top:Math.max(0,window.scrollY+el.getBoundingClientRect().top-100),behavior:"instant"});});return()=>cancelAnimationFrame(frame);},[]);
   const scroll=useRef<HTMLDivElement>(null),text=useRef<HTMLTextAreaElement>(null),imageInput=useRef<HTMLInputElement>(null),alive=useRef(true),atBottom=useRef(true),read=useRef(onRead),latest=useRef<CommentCursor|null>(null);
   const postsRef=useRef(posts),retryAfter=useRef(0);postsRef.current=posts;
   const request=useRef<AbortController|null>(null),first=useRef(true),scrollMode=useRef<'bottom'|'send'|'preserve'|null>(null),oldHeight=useRef(0),busyRef=useRef(false),composeLocked=useRef(false),pollDraft=useRef<{key:string;id:string}|null>(null);

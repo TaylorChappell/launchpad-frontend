@@ -1,0 +1,205 @@
+/* Shared phone layout. Offsets follow the real header and visual viewport,
+   including wallet browsers, landscape and the on-screen keyboard. */
+:root {
+  --aqua-header-height: 64px;
+  --aqua-viewport-height: 100dvh;
+  --aqua-bottom-space: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+.market-information { min-width: 0; }
+.market-mobile-shortcuts { display: none; }
+#market-chart, #market-trade, #market-information { scroll-margin-top: calc(var(--aqua-header-height) + 16px); }
+
+@media (max-width: 1100px) {
+  .market-mobile-shortcuts {
+    position: sticky; top: var(--aqua-header-height); z-index: 35;
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px; padding: 6px; margin: 0 0 16px;
+    border: 1px solid #c8e0ec; border-radius: 12px;
+    background: #f6fbff; box-shadow: 0 4px 12px #214d7110;
+  }
+  .market-mobile-shortcuts button {
+    min-height: 44px; padding: 8px 4px; border: 0; border-radius: 8px;
+    background: transparent; color: #32627c; font-size: 13px; font-weight: 650;
+  }
+  .market-mobile-shortcuts button:hover, .market-mobile-shortcuts button:focus-visible { background: #e1f1fa; color: #126ba0; }
+  .market-mobile-shortcuts button:nth-child(2) { color: #fff; background: #167fba; }
+  #market-chart, #market-trade, #market-information { scroll-margin-top: calc(var(--aqua-header-height) + 72px); }
+  .token-page .market-information-tabs {
+    display: flex; flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain;
+    gap: 6px; margin: 0 0 16px; padding: 4px 0 8px; scrollbar-width: thin;
+  }
+  .token-page .market-information-tabs > button { flex: 0 0 auto; min-height: 44px; padding: 10px 12px; white-space: nowrap; }
+  .token-page .market-information-tabs > button[aria-pressed=true] { background: #e3f2fa; border-radius: 8px 8px 0 0; }
+  .token-page .community {
+    height: clamp(360px, calc(var(--aqua-viewport-height) - var(--aqua-header-height) - 216px), 700px);
+    min-height: 360px; margin: 0; isolation: isolate;
+  }
+  .token-page .community-scroll { overscroll-behavior-y: contain; }
+}
+
+.mobile-navigation-backdrop {
+  position: fixed; inset: 0; z-index: 310; display: flex; align-items: flex-end;
+  padding: 12px; background: #173f5a66; backdrop-filter: blur(6px);
+}
+.mobile-navigation-sheet {
+  width: min(520px, 100%); max-height: calc(var(--aqua-viewport-height) - 24px);
+  overflow-y: auto; overscroll-behavior: contain; margin: 0 auto;
+  padding: 20px 18px max(18px, env(safe-area-inset-bottom, 0px));
+  border: 1px solid #bfdce9; border-radius: 22px; background: #f8fcff; color: #1d4b65;
+  box-shadow: 0 20px 70px #173f5a40;
+}
+.mobile-navigation-sheet > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.mobile-navigation-sheet header small { color: #63869a; font-size: 11px; letter-spacing: .12em; }
+.mobile-navigation-sheet h2 { font-size: 23px; margin: 5px 0 0; }
+.mobile-navigation-sheet header button { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #d0e4ee; border-radius: 12px; background: #fff; color: #3d708b; }
+.mobile-navigation-search { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; margin: 20px 0 12px; padding: 12px; border: 1px solid #bfdce9; border-radius: 12px; background: #fff; color: #50758c; text-align: left; font-size: 13px; }
+.mobile-navigation-search svg { flex-shrink: 0; }
+.mobile-navigation-sheet nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.mobile-navigation-sheet nav a { display: flex; align-items: center; min-height: 48px; padding: 12px; border-radius: 10px; font-size: 14px; color: #315d78; }
+.mobile-navigation-sheet nav a.active { background: #e1f1fa; color: #0877ad; font-weight: 700; }
+.mobile-navigation-sheet footer { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; padding-top: 10px; border-top: 1px solid #d5e7ef; }
+.mobile-navigation-sheet footer a { display: inline-flex; align-items: center; min-height: 44px; color: #52778d; font-size: 12px; }
+
+@media (max-width: 760px) {
+  /* Keep wide tables and decorative layers from enlarging the layout viewport
+     independently of the visible phone viewport and shifting tap coordinates. */
+  html { overflow-x: clip; scroll-padding-bottom: var(--aqua-bottom-space); }
+  .app-shell { padding-bottom: var(--aqua-bottom-space); }
+  .app-shell .site-header { padding-top: env(safe-area-inset-top, 0px); background: #f2fafff5; }
+  .app-shell .header-inner { height: 64px; min-height: 64px; gap: 8px; padding: 0 12px; }
+  .app-shell .header-inner > nav { display: none; }
+  .app-shell .header-actions { gap: 6px; min-width: 0; margin-left: auto; }
+  .app-shell .brand { gap: 5px; flex-shrink: 0; }
+  .app-shell .brand b { font-size: 19px; }
+  .app-shell .brand .aqua-mark { width: 33px; height: 33px; }
+  .app-shell .header-search { display: grid; place-items: center; width: 44px; height: 44px; min-width: 44px; padding: 0; flex: 0 0 44px; }
+  .app-shell .header-search > span, .app-shell .header-search > kbd { display: none; }
+  .app-shell .wallet-button { min-height: 44px; padding: 0 12px; font-size: 12px; max-width: 148px; }
+  .app-shell .wallet-button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* The thumb-reachable More control replaces the duplicate header menu. */
+  .app-shell .mobile-menu { display: none; }
+  .app-shell .bottom-nav {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+    left: 0; right: 0; bottom: 0; width: 100%; height: var(--aqua-bottom-space);
+    padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px));
+    border: 0; border-top: 1px solid #c8e1ed; border-radius: 0;
+    background: #f7fcfff5; box-shadow: 0 -4px 20px #214d7110;
+  }
+  .app-shell .bottom-nav a, .app-shell .bottom-nav button {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 5px; min-height: 52px; min-width: 0; border: 0; border-radius: 10px;
+    padding: 6px 2px; color: #597a8e; background: transparent; font-size: 11px; font-weight: 600;
+  }
+  .app-shell .bottom-nav .active { color: #087cb7; background: #e5f3fc; }
+  body:has(input:not([type=checkbox]):not([type=radio]):focus, textarea:focus, [contenteditable=true]:focus) .bottom-nav { display: none; }
+  .app-shell .page, .app-shell .holder-workspace { width: 100%; padding-left: 14px; padding-right: 14px; }
+  .app-shell .site-footer { padding: 24px 16px; margin-bottom: 0; gap: 16px; }
+  .app-shell .site-footer nav { gap: 4px 14px; }
+  .app-shell .site-footer nav a { display: inline-flex; align-items: center; min-height: 40px; }
+  .environment-bar { flex-wrap: wrap; gap: 3px 8px; padding: 7px 12px; text-align: center; }
+  .environment-bar p { font-size: 11px; }
+  .system-banner { flex-wrap: wrap; gap: 5px; padding: 12px 14px; }
+  .app-shell input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),
+  .app-shell textarea, .app-shell select { font-size: max(16px, 1em); }
+  .app-shell .workspace-tabs { flex-wrap: nowrap; overflow-x: auto; gap: 6px; scrollbar-width: thin; }
+  .app-shell .workspace-tabs > button { flex: 0 0 auto; min-height: 44px; padding: 10px 12px; white-space: nowrap; }
+  .app-shell .workspace-refresh { width: 44px; height: 44px; }
+  .app-shell .workspace-heading { align-items: flex-start; gap: 16px; }
+  .app-shell .workspace-heading-actions { flex-wrap: wrap; gap: 10px; }
+  .app-shell .table-scroll, .token-page .activity-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+
+  /* Coin pages: compact identity, then chart, trading, and a single information group. */
+  .trading-shell .token-market-toolbar { flex-wrap: wrap; gap: 8px; padding-bottom: 8px; margin-bottom: 8px; }
+  .token-page .token-market-toolbar .back { min-height: 40px; font-size: 12px; }
+  .token-page .token-market-actions { flex-wrap: wrap; gap: 8px; max-width: 100%; }
+  .token-page .market-corner-action, .token-page .creator-manage-button { min-height: 40px; font-size: 12px; }
+  .trading-shell .token-hero { margin-bottom: 12px; padding-bottom: 14px; gap: 14px; }
+  .token-page .token-identity { gap: 12px; min-width: 0; width: 100%; max-width: 100%; }
+  .token-page .token-identity > div { min-width: 0; }
+  .token-page .token-identity h1 { overflow-wrap: anywhere; font-size: 23px; line-height: 1.2; }
+  .token-page .token-identity p { font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+  .token-page .token-identity footer { flex-wrap: wrap; gap: 4px 12px; }
+  .token-page .token-identity footer > a, .token-page .token-identity footer > button { min-height: 36px; font-size: 12px; }
+  .token-page .hero-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; }
+  .token-page .hero-metrics > div { min-width: 0; padding: 0; border: 0; }
+  .token-page .hero-metrics b { overflow-wrap: anywhere; }
+  .token-page .chart-canvas { height: 260px; }
+  .token-page .chart-controls { flex-wrap: wrap; gap: 6px; padding: 6px 10px 10px; }
+  .token-page .chart-controls > div { flex: 1 1 100%; justify-content: space-between; min-width: 0; }
+  .token-page .chart-controls > div:last-child { justify-content: flex-start; }
+  .token-page .chart-controls button { min-width: 40px; min-height: 44px; padding: 8px; }
+  .token-page .execution-panel { padding: 16px; }
+  .token-page .trade-presets button, .token-page .trade-tabs button { min-height: 44px; }
+  .token-page .market-position-dropdown > summary, .token-page .market-facts > summary { min-height: 44px; display: flex; align-items: center; }
+  .token-page .community-filters { overflow-x: auto; flex-wrap: nowrap; }
+  .token-page .community-filters > button { flex-shrink: 0; min-height: 44px; padding: 10px 12px; }
+  .token-page .community-icon, .token-page .community-send { min-width: 44px; min-height: 44px; }
+  .token-page .community-connect { flex-direction: row; align-items: center; }
+  .token-page .community-connect button { min-height: 44px; }
+  .token-page .community-compose-area { padding: 10px; }
+  .token-page .community-more { min-width: 36px; min-height: 36px; }
+  .token-page .activity > header { flex-wrap: wrap; gap: 12px; }
+  .token-page .activity-load-more { min-height: 44px; }
+
+  /* Discovery and account controls stay readable without overflowing the page. */
+  .app-shell .explore-intro { grid-template-columns: minmax(0, 1fr); padding: 22px 18px; gap: 16px; }
+  .app-shell .explore-aqua-logo { display: none; }
+  .app-shell .explore-intro-copy, .app-shell .explore-intro-actions { grid-column: 1; min-width: 0; }
+  .app-shell .explore-intro-actions { width: 100%; }
+  .app-shell .explore-intro-actions a { min-height: 44px; }
+  .app-shell .explore-intro h1 { font-size: clamp(25px, 7vw, 34px); line-height: 1.15; }
+  .app-shell .explore-intro p { font-size: 13px; line-height: 1.6; }
+  .app-shell .discovery-toolbar { align-items: stretch; gap: 12px; }
+  .app-shell .discovery-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 4px; }
+  .app-shell .discovery-tabs button { min-height: 44px; min-width: 0; padding: 8px 4px; font-size: 12px; justify-content: center; }
+  .app-shell .discovery-tools { justify-content: space-between; width: 100%; }
+  .app-shell .discovery-filter-toggle, .app-shell .discovery-view button { min-height: 44px; }
+  .app-shell .discovery-view button { min-width: 44px; }
+  .app-shell .discovery-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-shell .discovery-search { grid-column: 1 / -1; }
+  .app-shell .discovery-filters > .discovery-search { min-height: 44px; min-width: 0; }
+  .app-shell .discovery-filters > label { min-width: 0; }
+  .app-shell .discovery-filters select { width: 100%; min-width: 0; min-height: 44px; }
+  .app-shell .wallet-dropdown { position: fixed; top: calc(var(--aqua-header-height) + 10px); left: 12px; right: 12px; width: auto; max-height: calc(var(--aqua-viewport-height) - var(--aqua-header-height) - var(--aqua-bottom-space) - 24px); overflow-y: auto; overscroll-behavior: contain; }
+  .app-shell .wallet-launch-link, .app-shell .wallet-disconnect { min-height: 44px; }
+  .app-shell .notification-trigger, .app-shell .x-connect-bubble { width: 40px; height: 44px; }
+  .app-shell .notification-panel { top: calc(var(--aqua-header-height) + 10px); max-height: calc(var(--aqua-viewport-height) - var(--aqua-header-height) - 24px); overflow-y: auto; }
+  .app-shell .x-connect-popover { position: fixed; top: calc(var(--aqua-header-height) + 10px); left: 12px; right: 12px; width: auto; }
+  .aqua-search-overlay { padding: max(12px, env(safe-area-inset-top, 0px)) 10px 12px; }
+  .aqua-search-overlay .market-search-palette { max-height: calc(var(--aqua-viewport-height) - 24px); }
+  .aqua-search-overlay .palette-input { gap: 10px; padding: 16px 12px; }
+  .aqua-search-overlay .palette-input input { font-size: 16px; }
+  .aqua-search-overlay .palette-input button { min-width: 44px; min-height: 44px; }
+  .aqua-search-overlay .market-search-palette > footer { display: none; }
+
+  .app-shell .wizard-actions { gap: 12px; }
+  .app-shell .wizard-actions button { min-height: 48px; }
+  .app-shell .wizard-rail > button { min-height: 48px; padding: 8px 4px; }
+  .app-shell .wizard-rail > button b { font-size: 11px; }
+  .app-shell .at-projectbar button, .app-shell .at-mobile-tools button,
+  .app-shell .at-projectbar select { min-height: 44px; }
+  .app-shell .at-projectbar > div { flex-wrap: wrap; }
+  .app-shell .at-composer-area .at-send-message { width: 44px; min-height: 44px; flex-basis: 44px; }
+  .app-shell .at-effort-picker select { font-size: 16px; width: 140px; min-height: 44px; }
+  .app-shell .at-compose-settings { flex-wrap: wrap; gap: 6px 10px; }
+  .app-shell .at-compose-settings .at-auto-apply { min-height: 44px; }
+}
+
+@media (max-width: 380px) {
+  .app-shell .brand b { display: none; }
+  .app-shell .header-inner { padding-inline: 10px; }
+  .app-shell .wallet-button { max-width: 132px; }
+  .app-shell .header-inner:has(.wallet-button.connected) .header-search { display: none; }
+  .token-page .community-connect { flex-wrap: wrap; }
+  .market-mobile-shortcuts button { font-size: 12px; padding-inline: 2px; }
+  .app-shell .discovery-filters { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .explore-page .workspace-heading h2 { font-size: 22px; }
+}
+
+@media (max-width: 600px) {
+  .app-shell .header-inner:has(.wallet-button.connected) .brand b { display: none; }
+  .app-shell .header-inner:has(.wallet-button.connected) .wallet-button { max-width: 112px; padding-inline: 8px; }
+  .app-shell .header-inner:has(.wallet-button.connected) .header-actions { gap: 4px; }
+  .app-shell .header-inner:has(.wallet-button.connected) .wallet-menu { min-width: 0; }
+  .app-shell .header-inner:has(.x-connect):has(.wallet-button.connected) .header-search { display: none; }
+}
