@@ -85,6 +85,8 @@ export function Create() {
   const devBuyStep = dexProfileEnabled ? 4 : 3;
   const [form, setForm] = useState<Form>(empty);
   const [dexFundingEnabled, setDexFundingEnabled] = useState(false);
+  const [marketingMode, setMarketingMode] = useState<"off"|"proposal"|"automatic">("automatic");
+  const [dexFundingMode, setDexFundingMode] = useState<"proposal"|"automatic">("automatic");
   const [dexProfile, setDexProfile] = useState<DexProfile>({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" });
   const [step, setStep] = useState(0);
   const [stocks, setStocks] = useState<StockOption[]>([]);
@@ -140,11 +142,11 @@ export function Create() {
     if(stockLoading||pairsRefreshing||draftReady===draftKey)return;
     let active=true;const carryGuest=priorDraftKey.current==="launch:"+config.network+":guest";priorDraftKey.current=draftKey;setDraftStatus("Loading local draft…");
     if(searchParams.get("studio")){setDraftReady(draftKey);return;}
-    readLaunchDraft<{form:Omit<Form,"devBuyCurrency"> & {devBuyCurrency?:"SOL"|"USDC"};file:File|null;dexFundingEnabled:boolean;dexProfile:DexProfile;stockMint:string}>(draftKey).then(async draft=>{
+    readLaunchDraft<{form:Omit<Form,"devBuyCurrency"> & {devBuyCurrency?:"SOL"|"USDC"};file:File|null;dexFundingEnabled:boolean;marketingMode?:"off"|"proposal"|"automatic";dexFundingMode?:"proposal"|"automatic";dexProfile:DexProfile;stockMint:string}>(draftKey).then(async draft=>{
       if(!active)return;
       if(editedDraftKey.current===draftKey){setDraftStatus("Draft will be saved on this device.");return;}
-      if(draft||!carryGuest){setForm(empty);setFile(null);setPreview("");setDexFundingEnabled(false);setDexProfile({description:"",bannerUrl:"",websiteUrl:"",xUrl:"",telegramUrl:""});setStock(stocks[0]??null);setStep(0);}
-      if(draft?.form){setForm({...empty,...draft.form,devBuyCurrency:"SOL",launchAmount:draft.form.devBuyCurrency==="USDC"?"":draft.form.launchAmount??""});setDexFundingEnabled(Boolean(draft.dexFundingEnabled));if(draft.dexProfile)setDexProfile(draft.dexProfile);if(draft.file instanceof File)chooseArtwork(draft.file);const saved=stocks.find(s=>s.mint===draft.stockMint);if(saved)setStock(saved);else if(draft.stockMint){
+      if(draft||!carryGuest){setForm(empty);setFile(null);setPreview("");setDexFundingEnabled(false);setMarketingMode("automatic");setDexFundingMode("automatic");setDexProfile({description:"",bannerUrl:"",websiteUrl:"",xUrl:"",telegramUrl:""});setStock(stocks[0]??null);setStep(0);}
+      if(draft?.form){setForm({...empty,...draft.form,devBuyCurrency:"SOL",launchAmount:draft.form.devBuyCurrency==="USDC"?"":draft.form.launchAmount??""});setDexFundingEnabled(Boolean(draft.dexFundingEnabled));setMarketingMode(draft.marketingMode??"automatic");setDexFundingMode(draft.dexFundingMode??"automatic");if(draft.dexProfile)setDexProfile(draft.dexProfile);if(draft.file instanceof File)chooseArtwork(draft.file);const saved=stocks.find(s=>s.mint===draft.stockMint);if(saved)setStock(saved);else if(draft.stockMint){
         setStock(null);
         if(pairLookupEnabled){try{const found=await api.lookupPair(draft.stockMint);if(!active)return;setStock(found.stock);}catch{if(!active)return;setDraftStatus("Draft restored. Your saved pair is unavailable; choose another pair.");return;}}
       }}
@@ -155,9 +157,9 @@ export function Create() {
   useEffect(()=>{
     if(draftReady!==draftKey||completedLaunch||!studioImportReady)return;
     let active=true;
-    const timer=window.setTimeout(()=>{void saveLaunchDraft(draftKey,{form,file,dexFundingEnabled,dexProfile,stockMint:stock?.mint}).then(()=>{if(active)setDraftStatus("Draft saved on this device.");}).catch(()=>{if(active)setDraftStatus("Draft could not save. Keep this page open until launch.");});},600);
+    const timer=window.setTimeout(()=>{void saveLaunchDraft(draftKey,{form,file,dexFundingEnabled,marketingMode,dexFundingMode,dexProfile,stockMint:stock?.mint}).then(()=>{if(active)setDraftStatus("Draft saved on this device.");}).catch(()=>{if(active)setDraftStatus("Draft could not save. Keep this page open until launch.");});},600);
     return()=>{active=false;window.clearTimeout(timer);};
-  },[draftKey,draftReady,form,file,dexFundingEnabled,dexProfile,stock?.mint,completedLaunch,studioImportReady]);
+  },[draftKey,draftReady,form,file,dexFundingEnabled,marketingMode,dexFundingMode,dexProfile,stock?.mint,completedLaunch,studioImportReady]);
 
   useEffect(() => {
     const id = studioId, address = wallet.address;
@@ -576,7 +578,7 @@ export function Create() {
         devBuyStockRaw: "0", devBuyLamports: "0",
         devBuyCurrency: "SOL", devBuyAmountRaw: initialBuyRaw, rewardMode: form.rewardMode,
         sniperDefense: false, xUrl: normaliseUrl(form.xUrl), websiteUrl: normaliseUrl(form.websiteUrl), telegramUrl: normaliseTelegram(form.telegramUrl),
-        ...(dexProfileEnabled ? { dexFundingEnabled, dexProfile: Object.fromEntries(Object.entries(dexProfile).filter(([, value]) => value.trim()).map(([key, value]) => [key, value.trim()])) } : {}),
+        ...(dexProfileEnabled ? { dexFundingEnabled, marketingMode, dexFundingMode, dexProfile: Object.fromEntries(Object.entries(dexProfile).filter(([, value]) => value.trim()).map(([key, value]) => [key, value.trim()])) } : {}),
       });
       setStage("approval", "done");
       await continueLaunch({ envelope: intent, stage: "mint", launchId: intent.launchId });
@@ -687,11 +689,15 @@ export function Create() {
           {!config.rewardModes?.enabled && <div className="reward-mode-notice"><Info/> Alternative modes will unlock after the staged program upgrade is enabled. Holder Rewards remains available.</div>}
         </WizardSection>}
 
-        {dexProfileEnabled && step === 3 && <WizardSection title="DEX Funding Mode" description="Optional. Fund your DEX Screener profile together using market fees.">
-          <label className="launch-dex-toggle"><input type="checkbox" checked={dexFundingEnabled} onChange={event => setDexFundingEnabled(event.target.checked)}/><span><b>Enable DEX Funding Mode</b><small>Open a holder vote five minutes after launch. If approved, 80% of incoming market rewards funds the $300 profile target; 20% continues to holder rewards.</small></span></label><div className="launch-dex-intro"><DexScreenerIcon/><div><b>Let holders decide</b><p>Save an optional initial profile below. Eligible holders can propose replacement information and vote on it. If disabled here, holders can propose funding later.</p></div></div>
+        {dexProfileEnabled && step === 3 && <WizardSection title="Marketing & DEX profile" description="Choose how your community funds its growth. Profile details can be added later.">
+          <details className="launch-advanced-options"><summary>Advanced launch options <span>{marketingMode === "off" ? "Marketing off" : marketingMode === "proposal" ? "Marketing by proposal" : "Automatic marketing"} · {dexFundingMode === "proposal" ? "DEX by proposal" : "Automatic DEX fund"}</span></summary>
+            <div className="launch-advanced-fields"><label htmlFor="launch-marketing-mode">Marketing<select id="launch-marketing-mode" aria-label="Marketing" aria-describedby="launch-marketing-help" value={marketingMode} onChange={event=>setMarketingMode(event.target.value as typeof marketingMode)}><option value="off">Off</option><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></select><small id="launch-marketing-help">{marketingMode === "off" ? "No DEX boost proposals or automatic marketing campaigns." : marketingMode === "proposal" ? "Holders propose and vote on DEX boost campaigns." : "Automatic momentum campaigns plus holder proposals and voting."}</small></label>
+            <label htmlFor="launch-dex-funding-mode">DEX fund<select id="launch-dex-funding-mode" aria-label="DEX fund" aria-describedby="launch-dex-help" value={dexFundingMode} onChange={event=>setDexFundingMode(event.target.value as typeof dexFundingMode)}><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></select><small id="launch-dex-help">{dexFundingMode === "proposal" ? "Holders propose and vote to fund the DEX profile." : "Automatic momentum funding plus holder proposals and voting."} DEX funding stays available.</small></label></div>
+          </details>
+          <div className="launch-dex-intro"><DexScreenerIcon/><div><b>Your DEX Screener profile</b><p>Save an optional initial profile below. Eligible holders can propose replacement information and vote on it.</p></div></div>
           <div className="launch-dex-fields"><DexProfileFields profile={dexProfile} update={(key, value) => setDexProfile((current) => ({ ...current, [key]: value }))} optional/></div>
           {!dexDraftValid && <p className="survey-error">Use full https:// URLs, or leave these fields empty.</p>}
-          <button className="proposal-text-action" onClick={() => { setDexFundingEnabled(false); setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" }); setStep(devBuyStep); }}>Skip for now <ArrowRight/></button>
+          <button className="proposal-text-action" onClick={() => { setDexFundingEnabled(false); setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" }); setStep(devBuyStep); }}>Skip profile details <ArrowRight/></button>
         </WizardSection>}
 
         {step === devBuyStep && <WizardSection title="Optional dev buy" description="Your buy executes as liquidity opens, before other buyers. Enter SOL or leave zero to skip.">

@@ -34,6 +34,7 @@ export function Analytics(){
         <article><span><Coins size={18}/> AQUA buybacks</span><strong><SolAmount value={sol.format(data.totals.buybackSol)}/></strong><small>Verified purchases on-chain</small></article>
         <article><span><ArrowDownUp size={18}/> 24h trading volume</span><strong>{compactUsd.format(data.totals.volume24hUsd)}</strong><small>Across AQUA markets</small></article>
         <article><span><ChartNoAxesCombined size={18}/> Live markets</span><strong>{data.totals.liveMarkets.toLocaleString()}</strong><small>{compactUsd.format(data.totals.totalMarketCapUsd)} combined market cap</small></article>
+        <article><span><Coins size={18}/> AQUA DEX funded</span><strong>{data.totals.dexFundedMarkets?.toLocaleString() ?? "—"}</strong><small>Coins with profiles paid through AQUA</small></article>
       </section>
       <div className="analytics-focus-grid">
         <section className="workspace-panel allocation-chart"><header><div><small className="workspace-eyebrow">LAST 30 DAYS</small><h2>{metric==="rewards"?"Holder rewards":"AQUA bought back"}</h2></div><div className="workspace-switch"><button aria-pressed={metric==="rewards"} onClick={()=>setMetric("rewards")}>Rewards</button><button aria-pressed={metric==="buybacks"} onClick={()=>setMetric("buybacks")}>Buybacks</button></div></header>

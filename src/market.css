@@ -583,3 +583,21 @@
 .watch-card:has(.market-update-link) .token-head { padding-right: 60px; }
 
 .watch-card:has(.market-update-link) .token-title { flex-wrap: wrap; row-gap: 5px; }
+
+.token-page .market-identity-heading { flex-wrap: wrap; gap: 10px; }
+.token-page .market-identity-heading .market-launch-age { padding: 5px 9px; border-radius: 7px; background: #eaf5fa; color: #658799; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.token-page .token-identity footer { align-items: center; gap: 8px; flex-wrap: wrap; }
+.token-page .token-identity footer > a, .token-page .token-identity footer > button { min-height: 36px; padding: 7px 10px; border: 1px solid #d8e8ef; border-radius: 9px; background: #f8fcfe; }
+.token-page .token-identity footer .market-social-button { width: 38px; display: inline-flex; align-items: center; justify-content: center; color: #245e78; }
+.token-page .token-identity footer .market-social-button:hover { background: #e4f3fa; border-color: #9cc9dd; }
+
+.launch-advanced-options { border: 1px solid #c9e2ed; border-radius: 14px; background: #f4faff; margin-bottom: 20px; overflow: hidden; }
+.launch-advanced-options summary { cursor: pointer; padding: 18px; font-weight: 700; color: #245e7b; }
+.launch-advanced-options summary > span { display: block; margin-top: 7px; font-size: 11px; font-weight: 400; color: #6b8a9c; }
+.launch-advanced-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; padding: 0 18px 18px; }
+.launch-advanced-fields label { display: grid; gap: 9px; font-size: 13px; font-weight: 600; color: #315e76; align-content: start; }
+.launch-advanced-fields select { width: 100%; min-height: 44px; padding: 10px; background: #fff; border: 1px solid #b8d8e7; border-radius: 9px; color: #245e7b; }
+.launch-advanced-fields small { font-size: 11px; line-height: 1.6; font-weight: 400; color: #6b8a9c; }
+@media(max-width:600px) { .launch-advanced-fields { grid-template-columns: minmax(0,1fr); } }
+
+.token-page .token-identity footer .market-social-button svg { width: 18px; height: 18px; }

@@ -1,3 +1,4 @@
+import { getJupiterWallet, onJupiterWalletsChanged } from "./jupiter-wallet";
 import { TransactionOutcomeError, waitForConfirmation } from "./transaction-confirmation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { SolanaClient } from "@metamask/connect-solana";
@@ -9,8 +10,8 @@ import { getPhantomProvider, isMobileBrowser, phantomBrowseUrl } from "./phantom
 import { getSolflareProvider, solflareBrowseUrl, messageSignature } from "./solflare";
 import type { LaunchBatchEnvelope, RuntimeConfig, SignedTransactionEnvelope, TransactionEnvelope } from "./types";
 
-export type WalletKind = "phantom" | "solflare" | "metamask";
-const walletNames: Record<WalletKind, string> = { phantom: "Phantom", solflare: "Solflare", metamask: "MetaMask" };
+export type WalletKind = "phantom" | "solflare" | "metamask" | "jupiter";
+const walletNames: Record<WalletKind, string> = { phantom: "Phantom", solflare: "Solflare", metamask: "MetaMask", jupiter: "Jupiter" };
 
 type InjectedProvider = {
   isPhantom?: boolean;
@@ -32,8 +33,8 @@ type SolanaSignMessage = { signMessage: (input: { account: SolanaAccount; messag
 type SolanaSignAndSend = { signAndSendTransaction: (input: { account: SolanaAccount; transaction: Uint8Array; chain: string; options?: { preflightCommitment?: string; maxRetries?: number } }) => Promise<readonly { signature: Uint8Array }[]> };
 type SolanaSignTransaction = { signTransaction: (...inputs: Array<{ account: SolanaAccount; transaction: Uint8Array; chain: string }>) => Promise<readonly { signedTransaction: Uint8Array }[]> };
 type WalletStandard = { accounts: readonly SolanaAccount[]; features: Record<string, unknown> };
-type MetaAdapter = { client: SolanaClient; wallet: WalletStandard; account: SolanaAccount };
-type Adapter = { kind: "phantom" | "solflare"; provider: InjectedProvider } | { kind: "metamask"; value: MetaAdapter };
+type MetaAdapter = { client?: SolanaClient; wallet: WalletStandard; account: SolanaAccount };
+type Adapter = { kind: "phantom" | "solflare"; provider: InjectedProvider } | { kind: "metamask" | "jupiter"; value: MetaAdapter };
 const readPhantomProvider = () => getPhantomProvider(window as Window & { phantom?: { solana?: InjectedProvider }; solana?: InjectedProvider });
 
 const readSolflareProvider = () => getSolflareProvider(window as Window & { solflare?: InjectedProvider });
@@ -86,6 +87,7 @@ type WalletValue = {
   setModalOpen: (open: boolean) => void;
   phantomInstalled: boolean;
   solflareInstalled: boolean;
+  jupiterInstalled: boolean;
   connect: (kind: WalletKind) => Promise<void>;
   disconnect: () => Promise<void>;
   signMessage: (message: string) => Promise<{ message: string; signature: string }>;
@@ -130,15 +132,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
   const [phantomInstalled, setPhantomInstalled] = useState(() => typeof window !== "undefined" && Boolean(readPhantomProvider()));
   const [solflareInstalled, setSolflareInstalled] = useState(() => typeof window !== "undefined" && Boolean(readSolflareProvider()));
+  const [jupiterInstalled, setJupiterInstalled] = useState(() => Boolean(getJupiterWallet()));
   useEffect(() => {
-    const detect = () => { setPhantomInstalled(Boolean(readPhantomProvider())); setSolflareInstalled(Boolean(readSolflareProvider())); };
+    const detect = () => { setPhantomInstalled(Boolean(readPhantomProvider())); setSolflareInstalled(Boolean(readSolflareProvider())); setJupiterInstalled(Boolean(getJupiterWallet())); };
+    const stopDiscovery = onJupiterWalletsChanged(detect);
     detect();
     // Mobile browsers can inject the provider after the page has rendered.
     const timer = window.setInterval(detect, 250);
     const stop = window.setTimeout(() => window.clearInterval(timer), 10_000);
     window.addEventListener("focus", detect);
     window.addEventListener("pageshow", detect);
-    return () => { window.clearInterval(timer); window.clearTimeout(stop); window.removeEventListener("focus", detect); window.removeEventListener("pageshow", detect); };
+    return () => { stopDiscovery(); window.clearInterval(timer); window.clearTimeout(stop); window.removeEventListener("focus", detect); window.removeEventListener("pageshow", detect); };
   }, [modalOpen]);
 
   const connectWallet = useCallback(async (next: WalletKind, silent = false) => {
@@ -146,7 +150,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const isCurrent = () => attempt === connectionAttempt.current;
     setConnecting(next);
     try {
-      if (next !== "metamask") {
+      if (next === "phantom" || next === "solflare") {
         const provider = next === "phantom" ? readPhantomProvider() : readSolflareProvider();
         if (!provider) {
           if (!silent && isMobileBrowser()) {
@@ -188,15 +192,26 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         adapter.current = { kind: next, provider };
         setAddress(connectedAddress);
       } else {
-        const { createSolanaClient } = await import("@metamask/connect-solana");
-        const client = await (metaClient.current ??= createSolanaClient({
-          dapp: { name: "AQUA", url: window.location.origin, iconUrl: `${window.location.origin}${import.meta.env.BASE_URL}aqua-logo.png` },
-          api: { supportedNetworks: config.network === "devnet" ? { devnet: config.publicRpcUrl } : { mainnet: config.publicRpcUrl } },
-          analytics: { enabled: false, integrationType: "direct" },
-        }));
-        const wallet = client.getWallet() as unknown as WalletStandard;
+        let client: SolanaClient | undefined;
+        let wallet: WalletStandard;
+        if (next === "jupiter") {
+          const installed = getJupiterWallet();
+          if (!installed) {
+            if (!silent) window.open("https://jup.ag/wallet", "_blank", "noopener,noreferrer");
+            throw new Error("Jupiter Wallet is not installed. Install it or open AQUA in its browser.");
+          }
+          wallet = installed;
+        } else {
+          const { createSolanaClient } = await import("@metamask/connect-solana");
+          client = await (metaClient.current ??= createSolanaClient({
+            dapp: { name: "AQUA", url: window.location.origin, iconUrl: `${window.location.origin}${import.meta.env.BASE_URL}aqua-logo.png` },
+            api: { supportedNetworks: config.network === "devnet" ? { devnet: config.publicRpcUrl } : { mainnet: config.publicRpcUrl } },
+            analytics: { enabled: false, integrationType: "direct" },
+          }));
+          wallet = client.getWallet() as unknown as WalletStandard;
+        }
         const feature = wallet.features["standard:connect"] as StandardConnect | undefined;
-        if (!feature) throw new Error("MetaMask does not expose a Solana account.");
+        if (!feature) throw new Error("This wallet does not expose a Solana account.");
         const signIn = wallet.features["solana:signIn"] as StandardSignIn | undefined;
         // The SDK restores an existing Solana session during initialization.
         // Never request a new session automatically when permission is absent.
@@ -204,7 +219,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         if (!silent && signIn && !savedAccountSession(wallet.accounts[0]?.address ?? null)) {
           account = await signInWithWallet(async input => {
             const [output] = await signIn.signIn(input);
-            if (!output) throw new Error("MetaMask did not return a sign-in result.");
+            if (!output) throw new Error("The wallet did not return a sign-in result.");
             return output;
           }, isCurrent);
           if (!wallet.accounts.some(current => current.address === account!.address)) throw new Error("Wallet changed. Connect again.");
@@ -215,16 +230,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             const selected = account.address;
             await ensureAccountSession(selected, async message => {
               const signing = wallet.features["solana:signMessage"] as SolanaSignMessage | undefined;
-              if (!signing) throw new Error("MetaMask does not support Solana message signing.");
+              if (!signing) throw new Error("This wallet does not support Solana message signing.");
               const [signed] = await signing.signMessage({ account: account!, message: new TextEncoder().encode(message) });
-              if (!signed) throw new Error("MetaMask did not return a message signature.");
+              if (!signed) throw new Error("The wallet did not return a message signature.");
               return { signature: base64(signed.signature) };
             }, () => isCurrent() && wallet.accounts.some(current => current.address === selected));
           }
         }
         if (!isCurrent()) return;
         if (!account) throw new Error("No Solana account was returned.");
-        adapter.current = { kind: "metamask", value: { client, wallet, account } };
+        adapter.current = { kind: next, value: { client, wallet, account } };
         setAddress(account.address);
       }
       remember(next);
@@ -246,7 +261,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (configLoading || adapter.current) return;
     let saved: string | null = null;
     try { saved = localStorage.getItem("aqua:wallet"); } catch { /* No persisted preference. */ }
-    if (saved === "phantom" || saved === "solflare" || saved === "metamask") void connectWallet(saved, true);
+    if (saved === "phantom" || saved === "solflare" || saved === "metamask" || saved === "jupiter") void connectWallet(saved, true);
     return () => { connectionAttempt.current++; };
   }, [configLoading, connectWallet]);
 
@@ -272,8 +287,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setConnecting(null);
     setModalOpen(false);
     try {
-      if (previous && previous.kind !== "metamask") await previous.provider.disconnect();
-      if (previous?.kind === "metamask") await previous.value.client.disconnect();
+      if (previous && "provider" in previous) await previous.provider.disconnect();
+      if (previous?.kind === "metamask") await previous.value.client?.disconnect();
+      if (previous?.kind === "jupiter") await (previous.value.wallet.features["standard:disconnect"] as { disconnect: () => Promise<void> } | undefined)?.disconnect();
     } catch { /* AQUA remains signed out even if the extension is unavailable. */ }
     await Promise.allSettled(revoke);
   }, []);
@@ -286,7 +302,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       ++connectionAttempt.current;
       adapter.current = null; remember(null); setAddress(null); setKind(null);
     };
-    if (current.kind !== "metamask") {
+    if ("provider" in current) {
       const changed = (key: { toString: () => string } | null) => {
         if (adapter.current !== current) return;
         if (key) setAddress(key.toString()); else clear();
@@ -309,14 +325,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const signMessage = useCallback(async (message: string) => {
     if (!adapter.current || !address) throw new Error("Connect your wallet first.");
     const encoded = new TextEncoder().encode(message);
-    if (adapter.current.kind !== "metamask") {
+    if ("provider" in adapter.current) {
       const result = await adapter.current.provider.signMessage(encoded, "utf8");
       return { message, signature: base64(messageSignature(result)) };
     }
     const feature = adapter.current.value.wallet.features["solana:signMessage"] as SolanaSignMessage | undefined;
-    if (!feature) throw new Error("MetaMask does not support Solana message signing.");
+    if (!feature) throw new Error("This wallet does not support Solana message signing.");
     const [result] = await feature.signMessage({ account: adapter.current.value.account, message: encoded });
-    if (!result) throw new Error("MetaMask did not return a message signature.");
+    if (!result) throw new Error("The wallet did not return a message signature.");
     return { message, signature: base64(result.signature) };
   }, [address]);
 
@@ -332,7 +348,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       else transaction = Transaction.from(bytes);
       let signature: string;
 
-      if (adapter.current.kind !== "metamask") {
+      if ("provider" in adapter.current) {
         const result = await adapter.current.provider.signAndSendTransaction(transaction, { preflightCommitment: "confirmed", maxRetries: 5 });
         signature = typeof result === "string" ? result : result.signature;
       } else {
@@ -341,13 +357,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const sendFeature = wallet.features["solana:signAndSendTransaction"] as SolanaSignAndSend | undefined;
         if (sendFeature) {
           const [result] = await sendFeature.signAndSendTransaction({ account, transaction: bytes, chain, options: { preflightCommitment: "confirmed", maxRetries: 5 } });
-          if (!result) throw new Error("MetaMask did not return a transaction signature.");
+          if (!result) throw new Error("The wallet did not return a transaction signature.");
           signature = bs58.encode(result.signature);
         } else {
           const signFeature = wallet.features["solana:signTransaction"] as SolanaSignTransaction | undefined;
-          if (!signFeature) throw new Error("MetaMask does not support Solana transactions.");
+          if (!signFeature) throw new Error("This wallet does not support Solana transactions.");
           const [result] = await signFeature.signTransaction({ account, transaction: bytes, chain });
-          if (!result) throw new Error("MetaMask did not return a signed transaction.");
+          if (!result) throw new Error("The wallet did not return a signed transaction.");
           signature = await connection.sendRawTransaction(result.signedTransaction, { maxRetries: 5, preflightCommitment: "confirmed" });
         }
       }
@@ -373,7 +389,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       return envelope.transactionVersion === 0 ? VersionedTransaction.deserialize(bytes) : Transaction.from(bytes);
     });
     try {
-      if (adapter.current.kind !== "metamask") {
+      if ("provider" in adapter.current) {
         if (!adapter.current.provider.signAllTransactions) throw new Error(`Update ${walletNames[adapter.current.kind]} to sign these transactions.`);
         const signed = await adapter.current.provider.signAllTransactions(transactions);
         if (signed.length !== envelopes.length) throw new Error(`${walletNames[adapter.current.kind]} did not sign every transaction.`);
@@ -381,10 +397,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
       const { wallet, account } = adapter.current.value;
       const feature = wallet.features["solana:signTransaction"] as SolanaSignTransaction | undefined;
-      if (!feature) throw new Error("MetaMask does not support transaction batch signing.");
+      if (!feature) throw new Error("This wallet does not support transaction batch signing.");
       const chain = config.network === "devnet" ? "solana:devnet" : "solana:mainnet";
       const results = await feature.signTransaction(...envelopes.map((envelope) => ({ account, transaction: decodeBase64(envelope.transactionBase64), chain })));
-      if (results.length !== envelopes.length) throw new Error("MetaMask did not sign every transaction.");
+      if (results.length !== envelopes.length) throw new Error("The wallet did not sign every transaction.");
       return results.map((result, index) => ({ ...envelopes[index], signedTransactionBase64: base64(result.signedTransaction) }));
     } catch (error) {
       throw new Error(friendlyWalletError(error));
@@ -410,7 +426,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [config.publicRpcUrl]);
 
-  const value = useMemo(() => ({ address, kind, connecting, modalOpen, setModalOpen, phantomInstalled, solflareInstalled, connect, disconnect, signMessage, sendTransaction, signTransaction, signTransactionBatch, submitSignedTransaction }), [address, kind, connecting, modalOpen, phantomInstalled, solflareInstalled, connect, disconnect, signMessage, sendTransaction, signTransaction, signTransactionBatch, submitSignedTransaction]);
+  const value = useMemo(() => ({ address, kind, connecting, modalOpen, setModalOpen, phantomInstalled, solflareInstalled, jupiterInstalled, connect, disconnect, signMessage, sendTransaction, signTransaction, signTransactionBatch, submitSignedTransaction }), [address, kind, connecting, modalOpen, phantomInstalled, solflareInstalled, jupiterInstalled, connect, disconnect, signMessage, sendTransaction, signTransaction, signTransactionBatch, submitSignedTransaction]);
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 }
 

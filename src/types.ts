@@ -187,6 +187,8 @@ export type MarketGovernanceResponse = {
   dexPaid: boolean;
   dexManagedByAqua?: boolean;
   dexFundingEnabled?: boolean;
+  marketingMode?: "off" | "proposal" | "automatic";
+  dexFundingMode?: "proposal" | "automatic";
   dexCheckedAt: number;
   creatorWallet: string;
   totalSupplyRaw: string;
@@ -261,6 +263,8 @@ export type Launch = {
   dexPaid?: boolean;
   dexFundingStatus?: "voting" | "funding" | "ready" | "withdrawing" | "withdrawn" | null;
   dexFundingEnabled?: boolean;
+  marketingMode?: "off" | "proposal" | "automatic";
+  dexFundingMode?: "proposal" | "automatic";
   marketPolicyAddress?: string | null;
   pairVerified?: boolean;
   pairVerifiedAt?: number | null;
@@ -442,6 +446,7 @@ export type AnalyticsResponse = {
     rewardsClaimedAllocationUsd:number;
     rewardsAccumulatedUsd: number;
     rewardsRedeemableUsd: number;
+    dexFundedMarkets?: number;
     liveMarkets: number;
     totalMarketCapUsd: number;
     volume24hUsd: number;
