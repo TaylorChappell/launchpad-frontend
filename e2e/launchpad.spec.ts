@@ -8,7 +8,7 @@ test("legacy rewards opens the combined portfolio and retries an existing receip
     Object.assign(window,{phantom:{solana:{isPhantom:true,connect:async()=>({publicKey:{toString:()=>address}}),on:()=>{},removeListener:()=>{},signAndSendTransaction:()=>{throw Error("Should not ask for a second transaction");}}}});
   },{address,signature});
   await page.route("**/api/wallets/*/holdings",r=>r.fulfill({json:{holdings:[]}}));
-  await page.route("**/api/wallets/*/claim-history",r=>r.fulfill({json:{claims:[],lifetime:[],hasMore:false}}));
+  await page.route("**/api/wallets/*/claim-history",r=>r.fulfill({json:{claims:[{signature,usd_cents:"300"}],lifetime:[],lifetimeUsdCents:"52380",hasMore:false}}));
   await page.route("**/api/rewards/"+address,r=>r.fulfill({json:{rewards:[],holdings:[],markets:[]}}));
   let confirmations=0,preparations=0;
   await page.route("**/api/rewards/markets/*/claim-transaction",r=>{preparations++;return r.fulfill({status:500,json:{error:"unexpected"}});});
@@ -20,6 +20,10 @@ test("legacy rewards opens the combined portfolio and retries an existing receip
   await expect(page).toHaveURL(/portfolio\?tab=rewards/);
   await page.getByRole("button",{name:"Check confirmation",exact:true}).click();
   await expect(page.getByText("3 ORCA claimed",{exact:true})).toBeVisible();
+  const share=page.getByRole("dialog",{name:"Share your reward"});
+  await expect(share).toBeVisible();
+  await expect(share.getByRole("button",{name:"Post on X"})).toBeEnabled();
+  await share.getByRole("button",{name:"Close"}).click();
   expect(confirmations).toBe(1);expect(preparations).toBe(0);
   expect(await page.evaluate(key=>localStorage.getItem(key),"aqua:pending-reward:mainnet-beta:"+address)).toBeNull();
   await page.getByRole("button",{name:"Holdings",exact:false}).filter({hasText:"Holdings"}).first().click();
