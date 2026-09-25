@@ -610,13 +610,14 @@ function StudioWorkspace() {
     }));
   }
   async function sendMessage(retryMessage?: {prompt: string; effort?: typeof effort; surveyAnswers?:StudioSurveyAnswer[]}) {
-    const submittedPrompt = retryMessage?.prompt ?? prompt;
+    let submittedPrompt = retryMessage?.prompt ?? prompt;
+    const hasCredential= /\b(?=[A-Z0-9_]*(?:KEY|SECRET|PASSWORD|TOKEN))[A-Z][A-Z0-9_]*\s*=/.test(submittedPrompt);
     if (!project || !submittedPrompt.trim() || taskLock.current || generationBusy || review || (survey && !retryMessage?.surveyAnswers)) return;
     const sendingProject = project.id;
     const selectedEffort = retryMessage?.effort ?? effort;
     if (retryMessage?.effort) setEffort(retryMessage.effort);
     // Render the user's message before configuration, saving, or billing requests.
-    setSending({ projectId: sendingProject, prompt: submittedPrompt });
+    setSending({ projectId: sendingProject, prompt: hasCredential?"Saving private configuration…":submittedPrompt });
     setPrompt("");
     let accepted = false,surveyOpened=false;
     await task("Understanding your request", async () => {
@@ -643,6 +644,11 @@ function StudioWorkspace() {
       }
       const saved = await save();
       if (!saved || saved.id !== sendingProject || projectId.current !== sendingProject) return;
+      if(hasCredential){
+        const ingested=await request<{prompt:string}>(`/projects/${saved.id}/private-config/ingest`,{prompt:submittedPrompt});
+        submittedPrompt=ingested.prompt;
+        setSending({projectId:sendingProject,prompt:submittedPrompt});
+      }
       const prepared=preparedSurvey.current;
       let surveyAnswers=retryMessage?.surveyAnswers ?? (prepared?.projectId===saved.id&&prepared.revision===saved.revision&&prepared.prompt===submittedPrompt?prepared.answers:undefined);
       if(surveyAnswers===undefined&&!skipSurvey&&latestConfig.surveySupported){
@@ -1558,7 +1564,7 @@ function StudioWorkspace() {
                   <span>Save</span>
                 </button>
                 <button disabled={actionDisabled} onClick={() => openModal("variables")}>
-                  <SlidersHorizontal size={16}/><span>Variables</span>
+                  <SlidersHorizontal size={16}/><span>Variables &amp; Secrets</span>
                 </button>
                 <button disabled={actionDisabled} onClick={() => openModal("publish")}>
                   <Globe size={16}/><span>Publish</span>
@@ -2408,7 +2414,7 @@ function StudioWorkspace() {
               credit: freeAccess?"Your builder budget":"Your Studio credit",
               export: "Take your project with you",
               publish: "Publish website",
-              variables: "Variables",
+              variables: "Variables & Secrets",
               github: "GitHub connection",
               history: "Project history",
               project: "Create a project",
@@ -2532,7 +2538,7 @@ function StudioWorkspace() {
           ) : modal === "variables" && project ? (
             <StudioVariables key={project.id} project={project} state={state ?? project.state} edit={edit} token={token} dirty={dirty} busy={actionDisabled} hasBackend={hasBackend} save={save} run={task}/>
           ) : modal === "publish" && project ? (
-            <StudioPublish key={project.id} project={project} token={token} dirty={dirty} busy={actionDisabled} save={save} run={task}/>
+            <StudioPublish onOpenVariables={()=>openModal("variables")} key={project.id} project={project} token={token} dirty={dirty} busy={actionDisabled} save={save} run={task}/>
           ) : modal === "export" ? (
             <>
               <p>
@@ -2542,7 +2548,7 @@ function StudioWorkspace() {
                 <button disabled={actionDisabled} onClick={() => void exportZip("frontend")}><Download size={16} /> Frontend ZIP</button>
                 {hasBackend && <button disabled={actionDisabled} onClick={() => void exportZip("backend")}><Download size={16} /> Backend ZIP</button>}
               </div>
-              <details className="at-export-setup" open>
+              <details className="at-export-setup">
                 <summary>GitHub setup and frontend variables</summary>
                 <StudioMessage onOpenVariables={() => openModal("variables")} actionsDisabled={actionDisabled} text={state?.files.find(file => file.path === "frontend/README.md")?.content.split("## Local or ZIP setup")[0].replace(/^# Publish your website\s*/, "") ?? "1. Export the frontend to GitHub.\n2. Choose GitHub Actions in Settings → Pages.\n3. Run Actions → Publish website.\n\nAsk Atlantis to add TOKEN_CA as a frontend variable if this older project does not have public-env.json and scripts/configure.mjs yet."} />
               </details>

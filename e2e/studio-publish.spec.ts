@@ -1,8 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 const wallet = "11111111111111111111111111111111", token = "a".repeat(64), id = "11111111-1111-4111-8111-111111111111";
-async function setup(page: Page, enabled = true, configurationSupported = true, message = "") {
+async function setup(page: Page, enabled = true, configurationSupported = true, message = "", hosted = false) {
   let site: any = null;
   const calls: string[] = [];
+  let privateConfig={revision:0,variables:{} as Record<string,string>,secrets:[{name:"API_KEY",configured:false}]};
+  const secretValues:Record<string,string>={};
   const project: any = {id,name:"Sea Cat",revision:1,updated_at:Date.now(),state:{name:"Sea Cat",launch:{name:"Sea Cat",symbol:"SEA",description:"",stockMint:"",rewardMode:"holder_rewards",imagePath:"",xUrl:"",websiteUrl:"",telegramUrl:"",dexFundingEnabled:false,dexProfile:{description:"",bannerUrl:"",websiteUrl:"",xUrl:"",telegramUrl:""}},files:[{path:"frontend/index.html",content:"<main>Sea Cat</main>",encoding:"utf8",locked:false}],folders:[],lockedFields:[]}};
   await page.addInitScript(({wallet,token}) => {
     localStorage.setItem("aqua:update:holder-workspace-v2","seen");
@@ -28,11 +30,15 @@ async function setup(page: Page, enabled = true, configurationSupported = true, 
       return r.fulfill({json:project});
     }
     if(path.endsWith("/jobs")) return r.fulfill({json:message ? [{id:"job-variables",project_id:id,status:"complete",kind:"chat",prompt:"How do I change my backend URL?",message,has_changes:false,applied_at:1,created_at:Date.now(),charged_micro_usd:"0"}] : []});
+    if(path.endsWith("/private-config")){
+      if(r.request().method()==="PUT"){const body=r.request().postDataJSON();expect(body.revision).toBe(privateConfig.revision);for(const op of body.operations){if(op.kind==="variable")privateConfig.variables[op.name]=op.value;else{if(op.action==="remove"){delete secretValues[op.name];privateConfig.secrets=privateConfig.secrets.filter(s=>s.name!==op.name);}else{secretValues[op.name]=op.action==="generate"?"fixture-generated":op.value;privateConfig.secrets=privateConfig.secrets.filter(s=>s.name!==op.name).concat({name:op.name,configured:true});}}}privateConfig.revision++;calls.push("private-save");}
+      return r.fulfill({json:privateConfig});
+    }
     if(path.endsWith("/hosting")) {
       expect(r.request().headers().authorization).toBe(`Bearer ${token}`);
       if(r.request().method() === "POST") { expect(r.request().postDataJSON()).toEqual({slug:"sea-cat",revision:project.revision}); calls.push("publish");site={slug:"sea-cat",url:"https://stg-sea-cat.aquafamily.fun",revision:1,published:true,publishedAt:Date.now()}; }
       if(r.request().method() === "DELETE") { calls.push("unpublish");site.published=false; }
-      return r.fulfill({json:{enabled,configurationSupported,domain:"aquafamily.fun",prefix:"stg-",site}});
+      return r.fulfill({json:{enabled,configurationSupported,domain:"aquafamily.fun",prefix:"stg-",site,...(hosted?{app:{mode:"hosted",database:true,missingSecrets:privateConfig.secrets.filter(s=>!s.configured).map(s=>s.name)}}:{})}});
     }
     return r.fulfill({status:404,json:{error:"Unexpected test route "+path}});
   });
@@ -71,8 +77,8 @@ test("saves configuration from its own Variables menu and then publishes",async(
   await expect(dialog.locator(".at-publish-address")).not.toContainText("stg-");
   await expect(dialog.getByRole("textbox",{name:"TOKEN_CA",exact:true})).toHaveCount(0);
   await dialog.getByRole("button",{name:"Close dialog"}).click();
-  await page.getByRole("button",{name:"Variables",exact:true}).click();
-  const variables=page.getByRole("dialog",{name:"Variables",exact:true});
+  await page.getByRole("button",{name:"Variables & Secrets",exact:true}).click();
+  const variables=page.getByRole("dialog",{name:"Variables & Secrets",exact:true});
   const automatic=variables.getByRole("button",{name:"Fill on launch",exact:true});
   await expect(automatic).toHaveAttribute("aria-pressed","false");
   await expect(variables.getByRole("button",{name:"Other variables"})).toHaveAttribute("aria-expanded","false");
@@ -86,7 +92,7 @@ test("saves configuration from its own Variables menu and then publishes",async(
   await expect(variables.getByRole("status").filter({hasText:"Variables saved"})).toContainText("Variables saved");
   expect(calls).toEqual(["save"]);
   await variables.getByRole("button",{name:"Close dialog"}).click();
-  await page.getByRole("button",{name:"Variables",exact:true}).click();
+  await page.getByRole("button",{name:"Variables & Secrets",exact:true}).click();
   await expect(variables.getByRole("textbox",{name:"Backend URL",exact:true})).toHaveValue("https://fish-api.example.com");
   await expect(automatic).toHaveAttribute("aria-pressed","true");
   await variables.getByRole("button",{name:"Close dialog"}).click();
@@ -108,7 +114,7 @@ test("chat opens Variables in place and advanced fields can be added and removed
   await page.getByRole("dialog").getByRole("button",{name:"Close dialog"}).click();
   const before=page.url();
   await page.getByRole("button",{name:"Open variables",exact:true}).click();
-  const variables=page.getByRole("dialog",{name:"Variables",exact:true});
+  const variables=page.getByRole("dialog",{name:"Variables & Secrets",exact:true});
   await expect(variables.getByRole("textbox",{name:"Backend URL",exact:true})).toBeVisible();
   expect(page.url()).toBe(before);expect(calls).toEqual([]);
   await page.screenshot({path:testInfo.outputPath("variables-menu.png")});
@@ -123,4 +129,44 @@ test("chat opens Variables in place and advanced fields can be added and removed
   expect(await variables.evaluate(el=>el.scrollWidth<=el.clientWidth+2)).toBe(true);
   await variables.getByRole("button",{name:"Close dialog"}).click();
   await expect(page.getByRole("link",{name:"External guide"})).toHaveAttribute("href","https://example.com/#atlantis-variables");
+});
+
+
+test("hosted apps show missing secrets, save masked values and publish the whole app",async({page},testInfo)=>{
+  const calls=await setup(page,true,true,"",true);
+  const publish=page.getByRole("dialog",{name:"Publish website",exact:true});
+  await expect(publish.getByLabel("Included in publish")).toContainText("API");
+  await expect(publish.getByLabel("Included in publish")).toContainText("App data");
+  await expect(publish.getByRole("button",{name:"Publish app",exact:true})).toBeDisabled();
+  await publish.getByRole("button",{name:"Open Variables & Secrets"}).click();
+  const panel=page.getByRole("dialog",{name:"Variables & Secrets",exact:true});
+  await panel.getByRole("button",{name:"Backend Private"}).click();
+  await expect(panel.getByText("Required · add a value before publishing")).toBeVisible();
+  await panel.getByLabel("API_KEY",{exact:true}).fill("fixture-private-key");
+  await panel.getByRole("button",{name:"Save changes",exact:true}).click();
+  await expect(panel.getByText("Saved securely",{exact:true})).toBeVisible();
+  await expect(panel.getByLabel("API_KEY",{exact:true})).toHaveValue("");
+  await expect(panel).not.toContainText("fixture-private-key");
+  await panel.getByRole("button",{name:"Add backend value"}).click();
+  await panel.getByLabel("Name",{exact:true}).fill("SESSION_SECRET");
+  await panel.getByLabel("Generate a random app secret").check();
+  await panel.getByRole("button",{name:"Save secret",exact:true}).click();
+  await expect(panel.getByText("Saved securely",{exact:true})).toHaveCount(2);
+  await page.screenshot({path:testInfo.outputPath("backend-secrets.png")});
+  expect(await panel.evaluate(el=>el.scrollWidth<=el.clientWidth+2)).toBe(true);
+  await panel.getByRole("button",{name:"Close dialog"}).click();
+  await page.getByRole("button",{name:"Publish",exact:true}).click();
+  await publish.getByRole("button",{name:"Publish app",exact:true}).click();
+  await expect(publish.getByRole("link",{name:"Visit website"})).toBeVisible();
+  expect(calls).toEqual(["private-save","private-save","publish"]);
+});
+
+test("GitHub setup starts closed in Export",async({page})=>{
+  await setup(page);
+  await page.getByRole("dialog").getByRole("button",{name:"Close dialog"}).click();
+  await page.getByRole("button",{name:"Export",exact:true}).click();
+  const guide=page.locator("details.at-export-setup").first();
+  await expect(guide).not.toHaveAttribute("open","");
+  await guide.locator("summary").click();
+  await expect(guide).toHaveAttribute("open","");
 });

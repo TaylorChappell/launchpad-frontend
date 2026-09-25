@@ -36,6 +36,9 @@ export type StudioState = {
 };
 export type StudioHosting = {
   configurationSupported?: boolean;
+  privateConfigurationSupported?: boolean;
+  configurationChanged?: boolean;
+  app?: {mode:"hosted"|"external"|"static";database:boolean;missingSecrets:string[];error?:string};
   enabled: boolean;
   domain: string;
   prefix: string;
@@ -79,6 +82,8 @@ export type StudioJob = {
   result?: {
     message: string;
     frontendVariables?: Record<string,string>;
+    backendVariables?: Record<string,string>;
+    backendSecrets?: Array<{name:string;action:"require"|"generate"}>;
     autoFillCA?: boolean;
     launch?: Partial<StudioLaunch>;
     files: StudioFile[];

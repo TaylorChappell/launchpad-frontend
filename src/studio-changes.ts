@@ -13,6 +13,8 @@ export function studioChangeList(state: StudioState, result: StudioJob["result"]
     if (state.frontendVariables?.[key] !== value)
       changes.push({key:"variable:"+key,label:"Set frontend variable",detail:key+" = "+(value || "(empty)")});
   }
+  for(const key of Object.keys(result.backendVariables??{})) changes.push({key:"backend:"+key,label:"Set backend variable",detail:key});
+  for(const secret of result.backendSecrets??[]) changes.push({key:"secret:"+secret.name,label:secret.action==="generate"?"Generate app secret":"Require backend secret",detail:secret.name});
   if (result.autoFillCA !== undefined && result.autoFillCA !== state.autoFillCA)
     changes.push({key:"autoFillCA",label:result.autoFillCA ? "Enable automatic website CA" : "Disable automatic website CA",detail:result.autoFillCA ? "Fill connected CA fields and trading links after this project's coin launches." : "Keep the website's manual CA and trading links."});
   for (const [key,value] of Object.entries(result.launch ?? {})) {
