@@ -99,7 +99,7 @@ test("automatic profile funding stays compact and permits a holder funding vote"
   await setup(page, "funding", "profile");
   const card = page.locator(".automatic-funding-card");
   await expect(card.getByText("10% of incoming rewards", { exact: true })).toBeVisible();
-  await expect(card.getByText("Paused", { exact: true })).toBeVisible();
+  await expect(card.getByText("Auto funding", { exact: true })).toBeVisible();
   await expect(card.getByText(/Expires in/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Proposals", exact: true })).toBeEnabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
