@@ -3140,3 +3140,31 @@
   .at-variables-footer small { max-width: 155px; }
   .at-variable-new { grid-template-columns: 1fr; }
 }
+
+/* Public and private app configuration share the Studio palette and spacing. */
+.at-config-tabs { display:flex; gap:5px; padding:5px; margin-bottom:22px; background:#eaf2f6; border:1px solid #dfebf0; border-radius:12px; }
+.at-dialog .at-config-tabs button { flex:1; min-height:46px; border:0; border-radius:8px; background:transparent; color:#587482; display:flex; justify-content:center; gap:9px; align-items:center; }
+.at-dialog .at-config-tabs button[aria-pressed="true"] { background:#fff; color:#086e91; box-shadow:0 2px 5px #16475d12; }
+.at-config-tabs span, .at-config-badge { font-size:10px; font-weight:500; border-radius:5px; padding:3px 6px; background:#edf5f8; color:#68828f; }
+.at-private-note { display:flex; align-items:flex-start; gap:10px; padding:13px 14px; background:#eaf7fa; color:#286d81; border-radius:10px; margin-bottom:22px; }
+.at-private-note svg { flex-shrink:0; margin-top:2px; }
+.at-dialog .at-private-note p { margin:0; font-size:12px; line-height:1.6; }
+.at-config-empty { padding:12px 0 8px; color:#31576a; }
+.at-dialog .at-config-empty p { color:#6e8793; font-size:12px; line-height:1.7; }
+.at-private-input { display:flex; gap:7px; align-items:center; }
+.at-private-input input { width:100%; min-width:0; min-height:44px; border-radius:9px; font-size:13px; }
+.at-dialog .at-private-input button { flex-shrink:0; padding:12px; background:transparent; border:0; color:#78919c; }
+.at-backend-variables .at-variable-heading label { overflow-wrap:anywhere; font-family:ui-monospace,monospace; font-size:12px; }
+.at-config-badge { flex-shrink:0; }
+.at-secret-ready, .at-secret-missing { display:flex; align-items:center; gap:5px; font-size:11px; margin-top:8px; color:#378273; }
+.at-secret-missing { color:#a16b32; }
+.at-backend-variables .at-variable-new { grid-template-columns:1fr; margin-bottom:18px; }
+.at-backend-variables .at-variable-new .at-ca-mode { margin-bottom:0; }
+.at-variable-new > .at-generate-secret { display:flex; align-items:center; gap:8px; }
+.at-generate-secret input { width:16px; height:16px; min-height:0; accent-color:#087997; }
+.at-backend-variables .at-variables-footer { margin-top:20px; }
+.at-publish-includes { display:flex; gap:7px; flex-wrap:wrap; }
+.at-publish-includes span { font-size:12px; color:#217185; border:1px solid #cce5ed; background:#edf8fb; border-radius:20px; padding:6px 12px; }
+.at-publish-requires { border:1px solid #dfebf0; background:#f0f7fa; border-radius:12px; padding:16px; }
+.at-dialog .at-publish-requires p { font-size:12px; overflow-wrap:anywhere; color:#6c8491; }
+@media(max-width:520px) { .at-config-tabs span { font-size:9px; } .at-variables-footer { flex-wrap:wrap; } .at-dialog .at-config-tabs button { font-size:13px; } }

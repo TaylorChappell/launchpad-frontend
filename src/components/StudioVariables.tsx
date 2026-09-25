@@ -1,3 +1,4 @@
+import { StudioBackendVariables } from "./StudioBackendVariables";
 import { useEffect, useId, useRef, useState } from "react";
 import { Check, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { studioRequest, type StudioProject, type StudioHosting, type StudioState } from "../studio-api";
@@ -14,6 +15,8 @@ type Props = {
   run: (label: string, action: () => Promise<void>) => Promise<void>;
 };
 export function StudioVariables({ project, state, edit, token, dirty, busy, hasBackend, save, run }: Props) {
+  const [section,setSection]=useState<"frontend"|"backend">("frontend");
+  const hosted=state.files.some(file=>file.path==="backend/atlantis.json");
   const [supported, setSupported] = useState<boolean | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -43,7 +46,9 @@ export function StudioVariables({ project, state, edit, token, dirty, busy, hasB
   if (error) return <div><p role="alert">{error}</p><button onClick={() => setReload(value => value + 1)}>Try again</button></div>;
   if (supported === null) return <p role="status">Loading variables…</p>;
   return <div className="at-variables">
-    <p className="at-variables-intro">Your website’s settings, all in one place.</p>
+    <p className="at-variables-intro">Your app’s settings, all in one place.</p>
+    <div className="at-config-tabs" role="group" aria-label="Configuration section"><button type="button" aria-pressed={section==="frontend"} onClick={()=>setSection("frontend")}>Frontend<span>Public</span></button><button type="button" aria-pressed={section==="backend"} onClick={()=>setSection("backend")}>Backend<span>Private</span></button></div>
+    {section==="backend"?<StudioBackendVariables projectId={project.id} token={token} busy={busy} run={run}/>:<>
     {!supported && <p role="alert">Update the staging backend to edit variables.</p>}
     <fieldset className="at-variables-fields" disabled={busy || !supported} aria-label="Website variables">
       <section className="at-variable-section" aria-labelledby={inputId+"-ca-title"}>
@@ -55,11 +60,11 @@ export function StudioVariables({ project, state, edit, token, dirty, busy, hasB
         {automatic ? <p className="at-ca-automatic"><Check size={16}/><span>Atlantis will add your CA after this coin launches.</span></p> :
           <input id={inputId+"-ca"} aria-label="Contract address" value={variables.TOKEN_CA ?? ""} maxLength={2000} placeholder="Paste your contract address" onChange={event=>{setNotice("");setVariable("TOKEN_CA",event.target.value);}} spellCheck={false} autoComplete="off"/>}
       </section>
-      <section className="at-variable-section">
+      {hosted?<div className="at-private-note"><Check size={18}/><p>Your API connects automatically when you publish. No backend URL needed.</p></div>:<section className="at-variable-section">
         <div className="at-variable-heading"><label htmlFor={inputId+"-backend"}>Backend URL</label><span className="at-variable-optional">{hasBackend ? "API connection" : "Optional"}</span></div>
         <input id={inputId+"-backend"} type="url" value={backendUrl} maxLength={2000} placeholder="https://your-backend.up.railway.app" onChange={event=>{setNotice("");setVariable("BACKEND_URL",event.target.value);}} spellCheck={false} autoComplete="off" aria-invalid={!backendValid} aria-describedby={!backendValid ? inputId+"-url-error" : undefined}/>
         {!backendValid && <p id={inputId+"-url-error"} className="at-variable-error">Enter a public HTTPS URL without a username or password.</p>}
-      </section>
+      </section>}
       <section className="at-variable-section at-custom-variables">
         <button type="button" className="at-variables-disclosure" aria-expanded={customOpen} aria-controls={inputId+"-custom"} onClick={()=>setCustomOpen(value=>!value)}><span>Other variables{customKeys.length > 0 && <small>{customKeys.length}</small>}</span><ChevronDown size={16}/></button>
         <div id={inputId+"-custom"} hidden={!customOpen}>
@@ -86,6 +91,6 @@ export function StudioVariables({ project, state, edit, token, dirty, busy, hasB
         <button type="button" className="at-primary" disabled={!dirty || !backendValid} onClick={()=>void run("Saving variables",async()=>{const saved=await save();if(saved && mounted.current)setNotice("Variables saved");})}>Save variables</button>
       </div>
     </fieldset>
-    <p className="at-variables-public">These values are public. Keep passwords and secret keys on your backend.</p>
+    <p className="at-variables-public">These values are visible to visitors. Add API keys and passwords in Backend.</p></>}
   </div>;
 }

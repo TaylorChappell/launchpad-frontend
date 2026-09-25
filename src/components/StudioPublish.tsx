@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { studioRequest, type StudioProject, type StudioHosting } from "../studio-api";
 
 type Props = {
+  onOpenVariables: () => void;
   project: StudioProject;
   token: string;
   dirty: boolean;
@@ -9,7 +10,7 @@ type Props = {
   save: () => Promise<StudioProject | null>;
   run: (label: string, action: () => Promise<void>) => Promise<void>;
 };
-export function StudioPublish({ project, token, dirty, busy, save, run }: Props) {
+export function StudioPublish({ onOpenVariables, project, token, dirty, busy, save, run }: Props) {
   const [hosting, setHosting] = useState<StudioHosting | null>(null);
   const [slug, setSlug] = useState("");
   const [error, setError] = useState("");
@@ -31,10 +32,14 @@ export function StudioPublish({ project, token, dirty, busy, save, run }: Props)
   if (error) return <div><p role="alert">{error}</p><button onClick={() => setReload(value => value + 1)}>Try again</button></div>;
   if (!hosting) return <p role="status">Loading website…</p>;
   const published = hosting.site?.published;
-  const changed = dirty || project.revision !== hosting.site?.revision;
+  const changed = dirty || hosting.configurationChanged || project.revision !== hosting.site?.revision;
   const validSlug = slug.length >= 3 && slug.length <= 40 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug);
   return <div className="at-publish">
-    <p>Publish your website on {hosting.domain}. Your edits stay private until you publish them.</p>
+    <p>Publish your app on {hosting.domain}. Your edits stay private until you publish them.</p>
+    <div className="at-publish-includes" aria-label="Included in publish"><span>Website</span>{hosting.app?.mode==="hosted"&&<><span>API</span>{hosting.app.database&&<span>App data</span>}</>}</div>
+    {hosting.app?.mode==="hosted"&&<p className="at-muted">Your website and API publish together. We check the app before making it live.</p>}
+    {hosting.app?.error&&<p role="alert">{hosting.app.error}</p>}
+    {!!hosting.app?.missingSecrets.length&&<div className="at-publish-requires"><strong>Add required secrets</strong><p>{hosting.app.missingSecrets.join(", ")}</p><button onClick={onOpenVariables}>Open Variables &amp; Secrets</button></div>}
     {!hosting.enabled && <p className="at-notice">Website publishing is not available yet.</p>}
     <label className="at-field">Website address
       <div className="at-publish-address"><input aria-label="Website name" value={slug} maxLength={40} disabled={busy || Boolean(hosting.site)} onChange={event => setSlug(event.target.value.toLowerCase())} autoComplete="off" spellCheck={false}/><span>.{hosting.domain}</span></div>
@@ -44,13 +49,13 @@ export function StudioPublish({ project, token, dirty, busy, save, run }: Props)
     {!hosting.configurationSupported && <p role="alert">The backend needs the latest staging deployment before this website can be published.</p>}
     {notice && <p role="status" className="at-notice">{notice}</p>}
     <div className="at-export-actions">
-      <button className="at-primary" disabled={busy || !hosting.enabled || !hosting.configurationSupported || !validSlug} onClick={() => void run("Publishing website", async () => {
+      <button className="at-primary" disabled={busy || !hosting.enabled || !hosting.configurationSupported || !validSlug || Boolean(hosting.app?.error) || Boolean(hosting.app?.missingSecrets.length)} onClick={() => void run(hosting.app?.mode==="hosted"?"Checking and publishing app":"Publishing website", async () => {
         setNotice("");
         const saved = await save();
         if (!saved) return;
         const next = await studioRequest<StudioHosting>(`/projects/${saved.id}/hosting`, token, { slug, revision: saved.revision });
         if (mounted.current) { setHosting(next); setNotice("Published. Allow up to 15 seconds for the website to update."); setConfirmUnpublish(false); }
-      })}>{published ? "Publish changes" : "Publish website"}</button>
+      })}>{published ? "Publish changes" : hosting.app?.mode==="hosted"?"Publish app":"Publish website"}</button>
       {published && <button disabled={busy} onClick={() => setConfirmUnpublish(true)}>Unpublish</button>}
     </div>
     {confirmUnpublish && <div className="at-publish-confirm"><p>Take this website offline? Your project and its address will be kept.</p><div className="at-export-actions"><button disabled={busy} onClick={() => void run("Taking website offline", async () => {
