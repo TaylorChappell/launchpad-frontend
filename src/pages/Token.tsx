@@ -14,7 +14,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
-import { TradePanel } from "../components/TradePanel";
+import { MarketTrade } from "../components/MarketTrade";
 import type { CreatorLock, Launch, MarketSnapshot, RewardModeState, StockOption, Trade } from "../types";
 import { Metric, TokenMark } from "../components/TokenCard";
 import { MarketCapLine } from "../components/MarketCapCandles";
@@ -270,7 +270,7 @@ export function Token() {
       </section>
     </section>
 
-    <aside id="market-trade" className="token-side"><TradePanel key={[launch.id,wallet.address,config.network].join(":")} launch={launch} pairDecimals={launch.pairType === "sol" ? 9 : stock?.decimals ?? null}/>{!launch.showcase&&<details className="market-position-dropdown" open={positionOpen} onToggle={event=>setPositionOpen(event.currentTarget.open)}><summary>Your position</summary>{positionOpen && <MarketPosition key={launch.id + ":" + wallet.address} launch={launch} compact/>}</details>}<details className="market-facts"><summary>Market details</summary><dl><div><dt>Creator</dt><dd><WalletIdentity wallet={launch.creatorWallet}/></dd></div><div><dt>Developer buy</dt><dd>{launch.pairType === "sol" ? launch.devBuySol > 0 ? `${launch.devBuySol} SOL` : "None" : BigInt(launch.devBuyStockRaw || "0") > 0n ? `${formatRaw(launch.devBuyStockRaw, stockDecimals)} ${launch.pairSymbol}` : "None"}</dd></div><div><dt>Holders</dt><dd>{compact.format(launch.holderCount)}</dd></div><div><dt>Pool</dt><dd>{launch.showcase?"Preview pool":<a href={explorerUrl} target="_blank" rel="noreferrer">View on explorer <ExternalLink size={12}/></a>}</dd></div></dl></details><DexFundingVote/>{rewardMode === "jackpot" && <JackpotLeaderboard jackpot={jackpot}/>}</aside></div>
+    <aside id="market-trade" className="token-side"><MarketTrade key={[launch.id,config.network].join(":")} launch={launch} pairDecimals={launch.pairType === "sol" ? 9 : stock?.decimals ?? null}/>{!launch.showcase&&<details className="market-position-dropdown" open={positionOpen} onToggle={event=>setPositionOpen(event.currentTarget.open)}><summary>Your position</summary>{positionOpen && <MarketPosition key={launch.id + ":" + wallet.address} launch={launch} compact/>}</details>}<details className="market-facts"><summary>Market details</summary><dl><div><dt>Creator</dt><dd><WalletIdentity wallet={launch.creatorWallet}/></dd></div><div><dt>Developer buy</dt><dd>{launch.pairType === "sol" ? launch.devBuySol > 0 ? `${launch.devBuySol} SOL` : "None" : BigInt(launch.devBuyStockRaw || "0") > 0n ? `${formatRaw(launch.devBuyStockRaw, stockDecimals)} ${launch.pairSymbol}` : "None"}</dd></div><div><dt>Holders</dt><dd>{compact.format(launch.holderCount)}</dd></div><div><dt>Pool</dt><dd>{launch.showcase?"Preview pool":<a href={explorerUrl} target="_blank" rel="noreferrer">View on explorer <ExternalLink size={12}/></a>}</dd></div></dl></details><DexFundingVote/>{rewardMode === "jackpot" && <JackpotLeaderboard jackpot={jackpot}/>}</aside></div>
   </main></MarketGovernanceProvider>;
 }
 

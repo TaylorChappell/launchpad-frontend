@@ -11,13 +11,13 @@ const launch = {
   createdAt: Date.now(), devBuySol: 0, rewardAccumulatedUsd: 750, rewardRedeemableUsd: 420,
 };
 
-async function setup(page: Page) {
+async function setup(page: Page, trading = false) {
   await page.addInitScript(() => localStorage.setItem("aqua:update:holder-workspace-v2", "seen"));
   await page.route("**/api/**", route => {
     const path = new URL(route.request().url()).pathname;
     let json: unknown = {};
     if (path === "/api/config") json = { brand: "AQUA", network: "mainnet-beta", useTestnet: false,
-      transactionsEnabled: false, marketGovernanceEnabled: false, publicRpcUrl: "https://rpc.invalid",
+      transactionsEnabled: trading, marketGovernanceEnabled: false, publicRpcUrl: "https://rpc.invalid",
       whirlpools: {}, fees: { transferFeeBps: 200, platformBps: 100, stockRewardsBps: 100 },
       creatorLocks: { minimumSeconds: 86400, maximumSeconds: 31536000, maximumFeeShareBps: 5000 }, sniperDefense: { supported: false } };
     else if (path === "/api/launches/mobile") json = { launch, trades: [], creatorLock: null, rewardModeState: null };
@@ -25,7 +25,7 @@ async function setup(page: Page) {
     else if (path.endsWith("/market-data")) json = { snapshots: Array.from({length:12},(_,i)=>({sampledAt:Date.now()-(12-i)*60000,marketCapUsd:112000+i*1000,fdvUsd:112000+i*1000,priceUsd:.000112+i*.000001})) };
     else if (path.endsWith("/community")) json = { posts: [{ id: "post", kind: "message", launchId: "mobile", authorWallet: mint, createdAt: Date.now(), body: "Welcome to the Ocean community", reactions: [], reply: null }], pinned: null, latest: null, nextCursor: null };
     else if (path.endsWith("/holders")) json = { holders: [], hasMore: false, total: 0 };
-    else if (path === "/api/stocks") json = { stocks: [] };
+    else if (path === "/api/stocks") json = { stocks: [{ mint, symbol: "ORCA", name: "Orca", decimals: 6 }] };
     else if (path.includes("governance")) json = { enabled: false };
     else if (path.includes("notifications")) json = { notifications: [] };
     else if (path === "/api/market-prices/stream") return route.fulfill({ contentType: "text/event-stream", body: 'data: {"prices":[]}\n\n' });
@@ -53,6 +53,8 @@ test("one market navigation keeps content clear at phone, tablet and desktop siz
     expect(boxes.community.top).toBeGreaterThanOrEqual(boxes.chart.bottom);
     expect(boxes.overflow, `no page overflow at ${width}px`).toBeLessThanOrEqual(2);
     if (width <= 1100) {
+      await expect(page.locator("#market-trade .trade-card")).toHaveCount(0);
+      await expect(page.getByRole("group", { name: "Trade this coin" }).getByRole("button", { name: "Buy", exact: true })).toBeVisible();
       expect(boxes.trade.top).toBeGreaterThanOrEqual(boxes.chart.bottom);
       expect(Math.abs(boxes.trade.right-boxes.chart.right)).toBeLessThanOrEqual(1);
       expect(boxes.community.top).toBeGreaterThanOrEqual(boxes.trade.bottom);
@@ -82,6 +84,8 @@ test("one market navigation keeps content clear at phone, tablet and desktop siz
         await page.screenshot({ path: info.outputPath("mobile-market-header.png") });
       }
     } else {
+      await expect(page.locator("#market-trade .trade-card")).toBeVisible();
+      await expect(page.locator(".market-trade-actions")).toHaveCount(0);
       expect(boxes.tabs.top).toBeGreaterThanOrEqual(boxes.chart.bottom);
       expect(boxes.trade.left).toBeGreaterThanOrEqual(boxes.chart.right);
       await expect(tabs.getByRole("button", { name: "Chart", exact: true })).toHaveCount(0);
@@ -188,4 +192,110 @@ test("connected wallet controls and menus fit a narrow phone with X linking enab
   await page.keyboard.press("Escape");
   await expect(page.locator(".wallet-dropdown")).toHaveCount(0);
   await expect(page.locator(".wallet-menu-trigger")).toBeFocused();
+});
+
+test("mobile Buy and Sell open the matching trade sheet and stack with the wallet picker", async ({page},info)=>{
+  test.skip(info.project.name!=="mobile","Mobile trade sheet.");
+  await setup(page);
+  await page.goto("/#/token/mobile?tab=transactions");
+  const actions=page.getByRole("group",{name:"Trade this coin"});
+  await actions.getByRole("button",{name:"Buy",exact:true}).click();
+  const sheet=page.getByRole("dialog",{name:"Trade OCEAN",exact:true});
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole("button",{name:"Buy",exact:true})).toHaveAttribute("aria-pressed","true");
+  await expect(sheet.getByRole("button",{name:"Sell",exact:true})).toHaveAttribute("aria-pressed","false");
+  const scroll=await page.evaluate(()=>scrollY);
+  await page.mouse.wheel(0,500);
+  expect(await page.evaluate(()=>scrollY)).toBe(scroll);
+  await sheet.getByRole("button",{name:"Connect wallet",exact:true}).click();
+  const picker=page.getByRole("dialog",{name:"Connect your wallet",exact:true});
+  await expect(picker).toBeVisible();
+  await page.keyboard.press("Shift+Tab");
+  expect(await picker.evaluate(el=>el.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(picker).toHaveCount(0);
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole("button",{name:"Connect wallet",exact:true})).toBeFocused();
+  expect(await page.evaluate(()=>document.documentElement.style.overflow)).toBe("hidden");
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+  await expect(actions.getByRole("button",{name:"Buy",exact:true})).toBeFocused();
+  expect(await page.evaluate(()=>document.documentElement.style.overflow)).not.toBe("hidden");
+  await actions.getByRole("button",{name:"Sell",exact:true}).click();
+  await expect(sheet.getByRole("button",{name:"Sell",exact:true})).toHaveAttribute("aria-pressed","true");
+  await expect(sheet.locator(".trade-input b")).toHaveText("OCEAN");
+  await expect(sheet.locator(".trade-receive b")).toHaveText("ORCA");
+  await page.screenshot({path:info.outputPath("mobile-sell-sheet.png")});
+  await sheet.getByRole("button",{name:"Close trade",exact:true}).click();
+  await page.setViewportSize({width:320,height:568});
+  await actions.getByRole("button",{name:"Buy",exact:true}).click();
+  await expect(sheet.getByRole("button",{name:"Buy",exact:true})).toHaveAttribute("aria-pressed","true");
+  await expect(sheet.getByRole("button",{name:"Close trade",exact:true})).toBeInViewport();
+  expect(await sheet.evaluate(el=>el.getBoundingClientRect().right)).toBeLessThanOrEqual(320);
+  await sheet.getByRole("button",{name:"Connect wallet",exact:true}).scrollIntoViewIfNeeded();
+  await expect(sheet.getByRole("button",{name:"Connect wallet",exact:true})).toBeInViewport();
+  await page.setViewportSize({width:1440,height:900});
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole("button",{name:"Close trade",exact:true}).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.locator("#market-trade .trade-card")).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.style.overflow)).not.toBe("hidden");
+});
+
+test("mobile trade sheet requests the chosen side and clears the previous amount on reopen",async({page},info)=>{
+  test.skip(info.project.name!=="mobile","Mobile trade direction.");
+  await setup(page,true);
+  const quotes:Array<{side:string|null;amount:string|null}>=[];
+  await page.route("**/api/launches/mobile/quote?*",route=>{
+    const query=new URL(route.request().url()).searchParams;
+    quotes.push({side:query.get("side"),amount:query.get("amountRaw")});
+    return route.fulfill({json:{route:"orca",quote:{tokenEstOut:"10000000",tokenMinOut:"9000000"}}});
+  });
+  await page.goto("/#/token/mobile?tab=transactions");
+  const actions=page.getByRole("group",{name:"Trade this coin"});
+  const sheet=page.getByRole("dialog",{name:"Trade OCEAN",exact:true});
+  await actions.getByRole("button",{name:"Buy",exact:true}).click();
+  await sheet.getByRole("textbox",{name:"You pay",exact:true}).fill("1");
+  await expect.poll(()=>quotes.at(-1)).toEqual({side:"buy",amount:"1000000"});
+  await expect(sheet.locator(".trade-receive strong")).toHaveText("10");
+  await sheet.getByRole("button",{name:"Close trade",exact:true}).click();
+  await actions.getByRole("button",{name:"Sell",exact:true}).click();
+  await expect(sheet.getByRole("textbox",{name:"You pay",exact:true})).toHaveValue("");
+  await sheet.getByRole("textbox",{name:"You pay",exact:true}).fill("2");
+  await expect.poll(()=>quotes.at(-1)).toEqual({side:"sell",amount:"2000000"});
+  await expect(sheet.locator(".trade-receive b")).toHaveText("ORCA");
+});
+
+test("a pending mobile trade stays mounted through dismiss attempts and a resize",async({page},info)=>{
+  test.skip(info.project.name!=="mobile","Pending mobile trade.");
+  await setup(page,true);
+  await page.addInitScript(address=>{
+    localStorage.setItem("aqua:wallet","phantom");
+    Object.assign(window,{phantom:{solana:{isPhantom:true,connect:async()=>({publicKey:{toString:()=>address}}),on(){},removeListener(){}}}});
+  },mint);
+  await page.route("**/api/launches/mobile/quote?*",route=>route.fulfill({json:{route:"orca",quote:{tokenEstOut:"10000000",tokenMinOut:"9000000"}}}));
+  let requested=false;
+  let release!:()=>void;
+  const transaction=new Promise<void>(resolve=>{release=resolve;});
+  await page.route("**/api/launches/mobile/trade-transaction",async route=>{
+    requested=true;await transaction;
+    await route.fulfill({status:503,json:{error:"Test trade unavailable"}});
+  });
+  await page.goto("/#/token/mobile?tab=transactions");
+  await expect(page.locator(".wallet-button.connected")).toBeVisible();
+  await page.getByRole("group",{name:"Trade this coin"}).getByRole("button",{name:"Buy",exact:true}).click();
+  const sheet=page.getByRole("dialog",{name:"Trade OCEAN",exact:true});
+  await sheet.getByRole("textbox",{name:"You pay",exact:true}).fill("1");
+  await sheet.getByRole("button",{name:"Buy OCEAN",exact:true}).click();
+  await expect.poll(()=>requested).toBe(true);
+  await expect(sheet.getByRole("button",{name:"Close trade",exact:true})).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeVisible();
+  await page.setViewportSize({width:1440,height:900});
+  await expect(sheet.getByRole("button",{name:"Waiting for confirmation"})).toBeVisible();
+  release();
+  await expect(sheet.getByRole("status")).toContainText("Test trade unavailable");
+  await expect(sheet.getByRole("button",{name:"Close trade",exact:true})).toBeEnabled();
+  await sheet.getByRole("button",{name:"Close trade",exact:true}).click();
+  await expect(page.locator("#market-trade .trade-card")).toBeVisible();
 });

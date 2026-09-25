@@ -10,10 +10,10 @@ import { displayTokenAmount, quoteAmounts } from "../trade-quote";
 function previousTrade(key:string):{signature:string;status:string}|null{try{const value=JSON.parse(localStorage.getItem(key)??"null");return value&&/^[1-9A-HJ-NP-Za-km-z]{64,100}$/.test(value.signature)&&typeof value.status==="string"&&Date.now()-value.at<86_400_000?value:null;}catch{return null;}}
 type Quote = ReturnType<typeof quoteAmounts> & { key: string; route: string; assetKey: string; receivedAt: number; impact: number | null };
 
-export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecimals: number | null }) {
+export function TradePanel({ launch, pairDecimals, initialSide = "buy", onBusyChange }: { launch: Launch; pairDecimals: number | null; initialSide?: "buy" | "sell"; onBusyChange?: (busy: boolean) => void }) {
   const wallet = useWallet();
   const { config } = useRuntime();
-  const [side, setSide] = useState<"buy" | "sell">("buy");
+  const [side, setSide] = useState<"buy" | "sell">(initialSide);
   const [currency, setCurrency] = useState<"SOL" | "PAIR">("SOL");
   const [amount, setAmount] = useState("");
   const [slippageInput, setSlippageInput] = useState("15");
@@ -27,6 +27,7 @@ export function TradePanel({ launch, pairDecimals }: { launch: Launch; pairDecim
   const [refresh, setRefresh] = useState(0);
   const [pending, setPending] = useState(false);
   const [busy, setBusy] = useState(false);
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   const tradeStorageKey=["aqua:last-trade",config.network,wallet.address,launch.id].join(":");
   const [status, setStatus] = useState(()=>previousTrade(tradeStorageKey)?.status??"");
   const [signature, setSignature] = useState(()=>previousTrade(tradeStorageKey)?.signature??"");
