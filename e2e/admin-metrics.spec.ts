@@ -34,6 +34,6 @@ test('admin switches all volume ranges and opens per-market unclaimed totals',as
   await page.getByRole('button',{name:'Overview',exact:true}).click();delete data.marketMetrics;await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(volume).toContainText('Unavailable');
 });
 test('public analytics has no unclaimed metric or table column',async({page})=>{
-  await setup(page);await page.goto('/#/analytics');await expect(page.getByText('Holder rewards allocated',{exact:true})).toBeVisible();
-  await expect(page.locator('main').getByText(/unclaimed/i)).toHaveCount(0);await expect(page.getByRole('columnheader',{name:'Rewards allocated',exact:true})).toBeVisible();await expect(page.getByRole('columnheader',{name:'Buyback funding',exact:true})).toBeVisible();
+  await setup(page);await page.goto('/#/analytics');await expect(page.locator('.network-metric-featured').getByText('Holder rewards',{exact:true})).toBeVisible();
+  await expect(page.locator('main').getByText(/unclaimed/i)).toHaveCount(0);await expect(page.getByRole('columnheader',{name:'Holder rewards',exact:true})).toBeVisible();await expect(page.getByRole('columnheader',{name:'Buyback funding',exact:true})).toBeVisible();
 });

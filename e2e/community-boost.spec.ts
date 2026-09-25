@@ -71,12 +71,14 @@ test('a delayed refresh cannot overwrite a confirmed vote',async({page})=>{
  const first=page.locator('.cb-leader').first();await first.getByRole('button',{name:'Vote for OCEAN'}).click();await expect(first.getByRole('button',{name:'Remove vote for OCEAN'})).toHaveAttribute('aria-pressed','true');s.release!();await page.waitForTimeout(200);await expect(first.getByRole('button',{name:'Remove vote for OCEAN'})).toHaveAttribute('aria-pressed','true');
 });
 
-test('shows settled reward and DEX allocations, preserves small amounts, and switches to all-time totals between boosts',async({page},info)=>{
+test('shows reward totals inside Boosted today without an extra panel',async({page},info)=>{
  if(info.project.name==='mobile')await page.setViewportSize({width:320,height:740});
- const s=await setup(page);const summary=page.getByRole('region',{name:'Community Boost allocations'});
- await expect(summary.locator('.cb-funding-rewards strong')).toContainText('1.250000001');await expect(summary.locator('.cb-funding-grid>div').nth(1).locator('strong')).toContainText('1.25');await expect(summary).toContainText('2.500000001 SOL allocated');await expect(summary).toContainText('All-time rewards: 7.5 SOL');await expect(summary).toContainText('half goes to that fund');
+ const s=await setup(page);const today=page.locator('.cb-today');
+ await expect(today).toContainText('BOOSTED TODAY');await expect(today.locator('.cb-today-rewards strong')).toContainText('1.250000001');await expect(today).toContainText('1.25 SOL to DEX funding');
+ await expect(page.locator('.cb-funding')).toHaveCount(0);await expect(page.getByText('All-time rewards:',{exact:false})).toHaveCount(0);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
- await page.screenshot({path:`/tmp/community-funding-${info.project.name}.png`,fullPage:true,animations:'disabled'});
- s.data.activeBonus=null;await page.getByRole('button',{name:'Refresh leaderboard'}).click();await expect(summary).toContainText('ALL-TIME BOOSTS');await expect(summary.locator('.cb-funding-rewards strong')).toContainText('7.5');await expect(summary).toContainText('10 SOL allocated');
- delete s.data.funding;await page.getByRole('button',{name:'Refresh leaderboard'}).click();await expect(summary).toContainText('Allocation totals unavailable');await expect(summary.getByText('0',{exact:true})).toHaveCount(0);
+ await today.scrollIntoViewIfNeeded();await today.screenshot({path:`/tmp/boosted-today-${info.project.name}.png`,animations:'disabled'});
+ s.data.funding.activeRound.rewardLamports='0';s.data.funding.activeRound.fundLamports='0';await page.getByRole('button',{name:'Refresh leaderboard'}).click();await expect(today.locator('.cb-today-rewards strong')).toContainText('0');await expect(today.locator('.cb-today-dex')).toHaveCount(0);
+ delete s.data.funding;await page.getByRole('button',{name:'Refresh leaderboard'}).click();await expect(today).toContainText('Unavailable');
+ s.data.activeBonus=null;await page.getByRole('button',{name:'Refresh leaderboard'}).click();await expect(today).toHaveCount(0);await expect(page.locator('.cb-funding')).toHaveCount(0);
 });

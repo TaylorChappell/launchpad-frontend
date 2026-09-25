@@ -35,7 +35,7 @@ test("analytics prioritizes totals, handles empty history and stays within the v
   }}));
   await page.goto("/#/analytics");
   await expect(page.getByRole("heading",{name:"Analytics",exact:true})).toBeVisible();
-  await expect(page.getByText("Holder rewards allocated",{exact:true})).toBeVisible();
+  await expect(page.locator(".network-metric-featured").getByText("Holder rewards",{exact:true})).toBeVisible();
   await page.getByRole("button",{name:"Buybacks",exact:true}).click();
   await expect(page.getByRole("heading",{name:"No buybacks recorded in this period."})).toBeVisible();
   await expect(page.locator(".workspace-disclosure")).not.toHaveAttribute("open","");
