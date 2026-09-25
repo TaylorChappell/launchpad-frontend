@@ -5,12 +5,13 @@ import { dexBadgeState } from "../dex-status";
 import { ensureAccountSession } from "../account-api";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Bell, ArrowLeft, ArrowRight, Check, ChevronDown, ExternalLink, ImagePlus, Loader2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, ExternalLink, ImagePlus, Loader2, X } from "lucide-react";
 import { PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import type { DexProfile, Launch, MarketGovernanceResponse, MarketProposal, MarketProposalChoice, MarketProposalType } from "../types";
+import { useDialog } from "./useDialog";
 import { DexScreenerIcon } from "./DexScreenerIcon";
 import { holdingPercent, MarketActionHint } from "./MarketActionHint";
 
@@ -26,7 +27,7 @@ const isFinishedMiniBoost = (proposal: MarketProposal) => proposal.isAutomatic &
 const blankProfile: DexProfile = { description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" };
 type Dialog = { kind: "create"; type: MarketProposalType } | { kind: "details" | "challenge" | "activity"; proposal: MarketProposal };
 type GovernanceContextValue = {
-  launch: Launch; data: MarketGovernanceResponse | null; now: number; busy: boolean; error: string;
+  launch: Launch; data: MarketGovernanceResponse | null; now: number; busy: boolean; error: string; dialogOpen: boolean;
   refresh: () => Promise<void>; open: (dialog: Dialog) => void;
   vote: (proposal: MarketProposal, choice: MarketProposalChoice) => Promise<void>;
 };
@@ -36,13 +37,19 @@ export function MarketDexStatusBadge() {
   const { launch, data } = useProposals();
   return <DexStatusBadge state={dexBadgeState(launch, data)}/>;
 }
-export function MarketInformationTabs({section,onChange,newComments=false,latestProjectUpdateAt}:{section:string;onChange:(value:string)=>void;newComments?:boolean;latestProjectUpdateAt?:number|null}){
-  const {data}=useProposals();
-  const activeCount = (data?.enabled || data?.automaticFundingEnabled) ? data.proposals.filter(proposal => liveStatuses.includes(proposal.status)).length : 0;
-  const hasGovernance=Boolean((data?.enabled||data?.automaticFundingEnabled)&&data.proposals.some(p=>!isFinishedMiniBoost(p)&&(p.isDefault?!["rejected","cancelled"].includes(p.status):(p.type==="cto"||p.type==="dex_boost")||!["rejected","cancelled"].includes(p.status))));
-  useEffect(()=>{if(section==="Governance"&&data&&!hasGovernance)onChange("Transactions");},[section,data,hasGovernance,onChange]);
-  return <div className="workspace-tabs market-information-tabs" aria-label="Market information">{["Transactions","Community","Holders","Rewards","Project",...(hasGovernance?["Governance"]:[])].map(label=><button key={label} aria-pressed={section===label} onClick={()=>onChange(label)}>{label}{label === "Community" && newComments && <span className="market-unread-dot" aria-label="New community posts" title="New community posts"/>}{label === "Community" && <RecentUpdateBell at={latestProjectUpdateAt}/>} {label === "Governance" && activeCount > 0 && <span className="governance-tab-count" aria-label={`${activeCount} active proposals`} title={`${activeCount} active proposals`}><Bell size={12} aria-hidden="true"/><b>{activeCount}</b></span>}</button>)}</div>;
+export function useMarketProposalDialogOpen() { return useProposals().dialogOpen; }
+
+export function MarketInformationTabs({ section, onChange, newComments = false, latestProjectUpdateAt }: {
+  section: string; onChange: (value: string) => void; newComments?: boolean; latestProjectUpdateAt?: number | null;
+}) {
+  return <nav id="market-navigation" className="workspace-tabs market-information-tabs" aria-label="Market navigation">
+    {["Transactions", "Community", "Rewards", "Holders"].map(label => <button key={label} aria-pressed={section === label} aria-controls="market-information" onClick={() => onChange(label)}>
+      <span className="market-tab-label">{label}</span>
+      {label === "Community" && <span className="market-tab-indicators">{newComments && <span className="market-unread-dot" aria-label="New community posts" title="New community posts"/>}<RecentUpdateBell at={latestProjectUpdateAt}/></span>}
+    </button>)}
+  </nav>;
 }
+
 function countdown(at: number, now: number) {
   const seconds = Math.max(0, at - now);
   const hours = Math.floor(seconds / 3600);
@@ -57,6 +64,12 @@ export function MarketGovernanceProvider({ launch, children }: { launch: Launch;
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState<Dialog | null>(null);
+  const dialogTrigger = useRef<HTMLElement | null>(null);
+  const open = (next: Dialog) => {
+    // Capture the trigger before the underlying details sheet becomes inert.
+    dialogTrigger.current = document.activeElement as HTMLElement | null;
+    setDialog(next);
+  };
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   const identity = launch.id + ":" + (wallet.address ?? "");
   const currentIdentity = useRef(identity);
@@ -123,9 +136,9 @@ export function MarketGovernanceProvider({ launch, children }: { launch: Launch;
   const currentProfile = data?.proposals.find(item => item.type === "dex_payment" && item.payload.dexDetails)?.payload.dexDetails
     ?? data?.proposals.filter(item => item.type === "dex_update" && ["approved", "completed"].includes(item.status)).sort((a,b) => b.createdAt - a.createdAt)[0]?.payload;
   const surveyDraft = dialog?.kind === "create" && dialog.type === "dex_update" && currentProfile ? currentProfile as Partial<DexProfile> : data?.dexProfileDraft ?? {};
-  return <GovernanceContext.Provider value={{ launch, data, now, busy, error, refresh, open: setDialog, vote }}>
+  return <GovernanceContext.Provider value={{ launch, data, now, busy, error, dialogOpen: Boolean(dialog), refresh, open, vote }}>
     {children}
-    {dialog && <ProposalSurvey dialog={dialog} draft={surveyDraft} launch={launch} busy={busy} close={() => { if (!busy) setDialog(null); }} submit={submit}/>}
+    {dialog && <ProposalSurvey returnFocus={dialogTrigger.current} dialog={dialog} draft={surveyDraft} launch={launch} busy={busy} close={() => { if (!busy) setDialog(null); }} submit={submit}/>}
   </GovernanceContext.Provider>;
 }
 
@@ -303,34 +316,18 @@ export function CommunityProposalVotes() {
   return <section className="community-proposals"><header><div><small>{data.enabled ? "HOLDER GOVERNANCE" : "MARKET ACTIVITY"}</small><h2>{data.enabled ? "Community proposals" : "Automatic boost funding"}</h2></div><span>{active.length} active</span></header><div className="community-proposal-grid">{active.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal}/>)}</div>{history.length > 0 && <details className="community-proposal-history"><summary>Past proposals · {history.length}</summary>{history.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal}/>)}</details>}</section>;
 }
 
-function ProposalSurvey({ dialog, draft, launch, busy, close, submit }: { dialog: Dialog; draft: Partial<DexProfile>; launch: Launch; busy: boolean; close: () => void; submit: (content: Record<string, unknown>) => Promise<void> }) {
+function ProposalSurvey({ dialog, draft, launch, busy, close, submit, returnFocus }: { returnFocus: HTMLElement | null; dialog: Dialog; draft: Partial<DexProfile>; launch: Launch; busy: boolean; close: () => void; submit: (content: Record<string, unknown>) => Promise<void> }) {
   const { data } = useProposals();
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const [accepted, setAccepted] = useState(false);
   const [form, setForm] = useState({ ...blankProfile, ...draft, reason: "", communityLead: "", communityTakeoverWallet: "", plan: "", evidenceUrl: "" });
-  const dialogRef = useRef<HTMLElement>(null);
-  const closeRef = useRef(close); closeRef.current = close;
+  const dialogRef = useDialog(true, close, returnFocus);
   const kind = dialog.kind;
   const type = dialog.kind === "create" ? dialog.type : dialog.proposal.type;
   const title = kind === "details" ? "DEX profile details" : kind === "challenge" ? "Challenge this proposal" : kind === "activity" ? "Show active development" : labels[type];
   const profileFields = kind === "details" || (kind === "create" && (type === "dex_update" || type === "dex_payment"));
   const set = (key: keyof typeof form, value: string) => setForm((previous) => ({ ...previous, [key]: value }));
-  useEffect(() => {
-    const previousFocus = document.activeElement as HTMLElement | null;
-    const overflow = document.body.style.overflow; document.body.style.overflow = "hidden";
-    dialogRef.current?.focus();
-    const keys = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeRef.current();
-      if (event.key !== "Tab") return;
-      const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input, textarea, a[href], [tabindex="0"]') ?? []);
-      const first = focusable[0], last = focusable[focusable.length - 1];
-      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last?.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-    };
-    document.addEventListener("keydown", keys);
-    return () => { document.body.style.overflow = overflow; document.removeEventListener("keydown", keys); previousFocus?.focus(); };
-  }, []);
   function content(): Record<string, unknown> {
     const profile = Object.fromEntries(Object.keys(blankProfile).map((key) => [key, form[key as keyof DexProfile].trim()]));
     if (kind === "details") return profile;

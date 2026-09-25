@@ -8,19 +8,20 @@ import {marketShareUrl} from "../share-market";
 import { MarketHolders,MarketPosition } from "../components/MarketHolders";
 import { mergeTrades, tradeTime } from "../trade-history";
 import { formatJackpotAmount } from "../jackpot-format";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Copy, ExternalLink, Globe2, Loader2, LockKeyhole, Settings2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Copy, ExternalLink, Globe2, Loader2, LockKeyhole, Settings2, Share2 } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
-import { TradePanel } from "../components/TradePanel";
+import { MarketDetails } from "../components/MarketDetails";
+import { MarketTrade } from "../components/MarketTrade";
 import type { CreatorLock, Launch, MarketSnapshot, RewardModeState, StockOption, Trade } from "../types";
 import { Metric, TokenMark } from "../components/TokenCard";
 import { MarketCapLine } from "../components/MarketCapCandles";
 import { activeCreatorLock, creatorLockPercentLabel, solscanAccountUrl } from "../creator-lock";
 import { GovernanceVote } from "../components/GovernanceVote";
-import { MarketProposals, MarketGovernanceProvider, CommunityProposalVotes, DexFundingVote } from "../components/MarketProposals";
+import { MarketProposals, MarketGovernanceProvider } from "../components/MarketProposals";
 import { MarketDexStatusBadge } from "../components/MarketProposals";
 import { launchAge } from "../time";
 import { useMarketPrices } from "../useMarketPrices";
@@ -85,13 +86,44 @@ export function Token() {
   const [range, setRange] = useState("24h");
   const [params,setParams] = useSearchParams();
   const preferredSection=()=>{
-    const names=['Transactions','Community','Holders','Rewards','Project','Governance'];
+    const names=['Transactions','Community','Rewards','Holders'];
     const explicit=params.get('tab')==='comments'?'community':params.get('tab');
     let saved='';try{saved=localStorage.getItem('aqua:market-tab')??'';}catch{}
-    return names.find(name=>name.toLowerCase()===explicit)??names.find(name=>name===saved)??'Transactions';
+    return (explicit ? names.find(name=>name.toLowerCase()===explicit) : names.find(name=>name===saved)) ?? 'Transactions';
   };
   const [section,setSection]=useState(preferredSection);
   const selectSection=(next:string)=>{try{localStorage.setItem('aqua:market-tab',next);}catch{}setSection(next);setParams(previous=>{const query=new URLSearchParams(previous);query.set('tab',next.toLowerCase());query.delete('feed');return query;},{replace:true});};
+  const scrollFrame = useRef<number | null>(null);
+  const userNavigation = useRef(false);
+  const jumpTo = useCallback((area: string, animate = true) => {
+    if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current);
+    scrollFrame.current = requestAnimationFrame(() => {
+      const mobile = window.matchMedia("(max-width: 1100px)").matches;
+      const target = area === "market-information" && !mobile ? "market-navigation" : area;
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      document.getElementById(target)?.scrollIntoView({ block: "start", behavior: animate && !reducedMotion ? "smooth" : "instant" });
+      scrollFrame.current = null;
+    });
+  }, []);
+  useEffect(() => () => { if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current); }, []);
+  const openInformation = (next: string) => {
+    userNavigation.current = true;
+    selectSection(next);
+    if (next === section) {
+      if (window.matchMedia("(max-width: 1100px)").matches || next === "Community") jumpTo("market-information");
+      userNavigation.current = false;
+    }
+  };
+  // One scroll per selection, after its panel has rendered. Initial deep links
+  // land directly on their content; deliberate navigation animates between areas.
+  useEffect(() => {
+    if (!loaded) return;
+    const animate = userNavigation.current;
+    userNavigation.current = false;
+    if ((section !== "Transactions" || animate) && (window.matchMedia("(max-width: 1100px)").matches || section === "Community")) {
+      jumpTo("market-information", animate);
+    }
+  }, [id, loaded, section, jumpTo]);
   const [positionOpen,setPositionOpen]=useState(false);
   const readKey = "aqua:comments:seen:" + (wallet.address ?? "visitor") + ":" + id;
   const [seen,setSeen]=useState<{key:string;cursor:CommentCursor|null}>(()=>({key:readKey,cursor:readCommentCursor(readKey)}));
@@ -198,17 +230,18 @@ export function Token() {
     {launch.showcase&&<ShowcaseBanner launch={launch}/>}
     <div className="token-market-toolbar"><Link className="back" to="/"><ArrowLeft/>Explore markets</Link><div className="token-market-actions">{!launch.showcase&&<GovernanceVote market={launch} compact/>}{config.marketGovernanceEnabled && <MarketProposals/>}{!launch.showcase && wallet.address === launch.creatorWallet && <Link className="creator-manage-button" to={"/manage/" + launch.id}><Settings2/>Manage coin</Link>}</div></div>
     <section className="token-hero">
-      <div className="token-identity"><TokenMark launch={launch} large/><div><div><h1>{launch.name}</h1><span>${launch.symbol}</span><em className={launch.status}>{launch.status === "live" ? "ORCA WHIRLPOOL" : "LAUNCHING"}</em><em className={`reward-mode-badge ${rewardMode}`}>{modeLabel}</em><MarketDexStatusBadge/>{launch.showcase&&verifiedCreatorLock&&<span className="showcase-lock"><LockKeyhole/><b>{lockedPercentLabel}</b> locked · Preview</span>}{!launch.showcase && verifiedCreatorLock && creatorLockUrl && <a className="market-lock-control" href={creatorLockUrl} target="_blank" rel="noreferrer" title="View the verified creator lock on Solscan" aria-label={`View creator lock: ${lockedPercentLabel} of supply locked (opens Solscan)`}><span className="market-lock-amount"><LockKeyhole aria-hidden="true"/><strong>{lockedPercentLabel}</strong> locked</span><span className="market-lock-view">View lock <ExternalLink aria-hidden="true"/></span></a>}</div><p>{launch.description}</p><footer><button onClick={()=>{void navigator.clipboard.writeText(marketShareUrl(launch.id)).then(()=>toast.success("Share link copied"),()=>toast.error("Clipboard unavailable"));}}>Share market ↗</button><span className="market-launch-age">{launchAge(launch.launchedAt, launch.createdAt)}</span>{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2/> Website</a>}{!launch.showcase&&<a href={explorerUrl} target="_blank" rel="noreferrer">Explorer <ExternalLink/></a>}{launch.marketPolicyAddress && <a href={solscanAccountUrl(launch.marketPolicyAddress, config.network)} target="_blank" rel="noreferrer">Mode policy <ExternalLink/></a>}{!launch.showcase&&<button onClick={() => { void navigator.clipboard.writeText(launch.mint); toast.success("Mint copied"); }}><Copy/> {launch.mint.slice(0, 5)}…{launch.mint.slice(-4)}</button>}</footer></div></div>
+      <div className="token-identity"><TokenMark launch={launch} large/><div><div className="market-identity-heading"><h1>{launch.name}</h1><span>${launch.symbol}</span><span className="market-mobile-age">{launchAge(launch.launchedAt, launch.createdAt)}</span></div><div className="market-identity-badges"><em className={launch.status}>{launch.status === "live" ? "ORCA WHIRLPOOL" : "LAUNCHING"}</em><em className={`reward-mode-badge ${rewardMode}`}>{modeLabel}</em><MarketDexStatusBadge/>{launch.showcase&&verifiedCreatorLock&&<span className="showcase-lock"><LockKeyhole/><b>{lockedPercentLabel}</b> locked · Preview</span>}{!launch.showcase && verifiedCreatorLock && creatorLockUrl && <a className="market-lock-control" href={creatorLockUrl} target="_blank" rel="noreferrer" title="View the verified creator lock on Solscan" aria-label={`View creator lock: ${lockedPercentLabel} of supply locked (opens Solscan)`}><span className="market-lock-amount"><LockKeyhole aria-hidden="true"/><strong>{lockedPercentLabel}</strong> locked</span><span className="market-lock-view">View lock <ExternalLink aria-hidden="true"/></span></a>}</div><p>{launch.description}</p><footer><button onClick={()=>{void navigator.clipboard.writeText(marketShareUrl(launch.id)).then(()=>toast.success("Share link copied"),()=>toast.error("Clipboard unavailable"));}}>Share market ↗</button><span className="market-launch-age">{launchAge(launch.launchedAt, launch.createdAt)}</span>{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2/> Website</a>}{!launch.showcase&&<a href={explorerUrl} target="_blank" rel="noreferrer">Explorer <ExternalLink/></a>}{launch.marketPolicyAddress && <a href={solscanAccountUrl(launch.marketPolicyAddress, config.network)} target="_blank" rel="noreferrer">Mode policy <ExternalLink/></a>}{!launch.showcase&&<button onClick={() => { void navigator.clipboard.writeText(launch.mint); toast.success("Mint copied"); }}><Copy/> {launch.mint.slice(0, 5)}…{launch.mint.slice(-4)}</button>}</footer></div><button className="market-mobile-share" aria-label="Share market" onClick={()=>{void navigator.clipboard.writeText(marketShareUrl(launch.id)).then(()=>toast.success("Share link copied"),()=>toast.error("Clipboard unavailable"));}}><Share2 size={18}/></button></div>
+      <div className="market-mobile-metrics"><Metric label="Liquidity" value={launch.aquaIndexed ? `$${compact.format(launch.tvlUsd)}` : "Indexing"}/><Metric label="Holders" value={compact.format(launch.holderCount)}/></div>
       <div className="hero-metrics"><Metric label="Orca pair" value={`${launch.symbol} / ${launch.pairSymbol}`}/><Metric label={rewardMode === "buyback_burn" ? "Burn asset" : rewardMode === "jackpot" ? "Prize asset" : "Reward asset"} value={rewardMode === "buyback_burn" ? launch.symbol : rewardMode === "jackpot" ? "SOL" : launch.stockSymbol}/><Metric label="TVL" value={launch.aquaIndexed ? `$${compact.format(launch.tvlUsd)}` : "Indexing"}/><Metric label="Market cap" value={launch.aquaIndexed ? `$${compact.format(launch.marketCapUsd)}` : "Indexing"}/></div>
     </section>
 
     <div className="token-layout"><section className="token-main">
-      <div className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div></header><div className="chart market-line-shell"><MarketCapLine snapshots={withLatestMarketPoint(snapshots,launch)} range={range} onRangeChange={setRange}/></div></div>
+      <div id="market-chart" className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div></header><div className="chart market-line-shell"><MarketCapLine snapshots={withLatestMarketPoint(snapshots,launch)} range={range} onRangeChange={setRange}/></div></div>
 
-      <MarketInformationTabs section={section} onChange={selectSection} newComments={newerComment(launch.latestComment,seen.key===readKey?seen.cursor:null)} latestProjectUpdateAt={launch.latestProjectUpdateAt}/>
+      <MarketInformationTabs section={section} onChange={openInformation} newComments={newerComment(launch.latestComment,seen.key===readKey?seen.cursor:null)} latestProjectUpdateAt={launch.latestProjectUpdateAt}/>
+      <section id="market-information" className="market-information" aria-label="Market information panel">
       {section==="Holders"&&<MarketHolders key={launch.id} launch={launch} creatorLock={creatorLock}/>}
       {section==="Community"&&<Community launch={launch} onRead={markCommentsRead}/>}
-      {section==="Project"&&<div className="market-project"><section className="dashboard-section"><h2>Project information</h2><p>{launch.description}</p><p>Opening LP lock: {launch.liquidityLockedPermanently?"Permanently locked":"Not verified"}{launch.lockConfig&&<> · <a href={solscanAccountUrl(launch.lockConfig,config.network)} target="_blank" rel="noreferrer">Verify LP lock ↗</a></>}</p><p>Creator token lock: {creatorLock?.status==="active"?"Active until "+new Date(creatorLock.unlockAt*1000).toLocaleString():"No active verified creator lock"}.</p><p>DEX profile payment is not an endorsement or security assessment.</p>{!launch.showcase&&<a href={solscanAccountUrl(launch.mint,config.network)} target="_blank" rel="noreferrer">Inspect mint and authority state ↗</a>}</section></div>}
       {section==="Rewards"&&<>{rewardMode==="holder_rewards"&&<><WalletRewards launch={launch}/><section className="workspace-panel market-reward-activity"><header><h2>Market reward activity</h2></header><div className="info-grid single reward-mode-market-panel">
         {rewardMode === "holder_rewards" && <section className="market-reward-panel"><header><div><small>HOLDER REWARDS</small><h2>Earn {launch.stockSymbol}</h2></div><span className="reward-live-label">Accumulating</span></header><div className="reward-stat-row"><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Available to all holders" value={money.format(launch.rewardRedeemableUsd)}/></div><footer>Rewards follow your balance and time held.</footer></section>}
       </div></section></>}
@@ -228,12 +261,12 @@ export function Token() {
       </div>
 
       {rewardMode==="jackpot"&&<><WalletRewards launch={launch}/><JackpotHistory jackpot={jackpot} network={config.network}/></>}</>}
-      {section==="Governance"&&<><CommunityProposalVotes/><DexFundingVote/></>}
 
       {section==="Transactions"&&<div className="activity"><header><div><b>Market activity</b><span>Newest transactions first</span>{incomingTrades.some(t=>!trades.some(old=>old.id===t.id))&&<button className="soft-button" onClick={()=>{setTrades(current=>mergeTrades(current,incomingTrades));setIncomingTrades([]);}}>Show new transactions</button>}</div><strong>{launch.txCount.toLocaleString()} total</strong></header><div className="activity-scroll"><table><thead><tr><th>Type</th><th>Wallet</th><th>Time</th><th>{launch.pairSymbol}</th><th>Tokens</th></tr></thead><tbody>{sortedTrades.length ? sortedTrades.map((item) => <tr key={item.id}><td className={item.side}>{item.side.toUpperCase()}</td><td><WalletIdentity wallet={item.wallet}/></td><td>{item.signature ? <a href={solscanTransactionUrl(item.signature, config.network)} target="_blank" rel="noreferrer">{new Date(tradeTime(item)).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})} ↗</a> : "—"}</td><td>{formatRaw(item.gross_quote_raw, pairDecimals)}</td><td title={formatRaw(item.token_amount_raw, launch.tokenDecimals)}>{compact.format(Number(item.token_amount_raw) / 10 ** launch.tokenDecimals)}</td></tr>) : <tr><td colSpan={5} className="no-activity">No indexed trades yet.</td></tr>}</tbody></table></div>{tradesHaveMore && <button className="activity-load-more" disabled={loadingTrades} onClick={() => void loadMoreTrades()}>{loadingTrades ? <><Loader2 className="spin"/>Loading</> : "Load more"}</button>}</div>}
+      </section>
     </section>
 
-    <aside className="token-side"><TradePanel key={[launch.id,wallet.address,config.network].join(":")} launch={launch} pairDecimals={launch.pairType === "sol" ? 9 : stock?.decimals ?? null}/>{!launch.showcase&&<details className="market-position-dropdown" open={positionOpen} onToggle={event=>setPositionOpen(event.currentTarget.open)}><summary>Your position</summary>{positionOpen && <MarketPosition key={launch.id + ":" + wallet.address} launch={launch} compact/>}</details>}<details className="market-facts"><summary>Market details</summary><dl><div><dt>Creator</dt><dd><WalletIdentity wallet={launch.creatorWallet}/></dd></div><div><dt>Developer buy</dt><dd>{launch.pairType === "sol" ? launch.devBuySol > 0 ? `${launch.devBuySol} SOL` : "None" : BigInt(launch.devBuyStockRaw || "0") > 0n ? `${formatRaw(launch.devBuyStockRaw, stockDecimals)} ${launch.pairSymbol}` : "None"}</dd></div><div><dt>Holders</dt><dd>{compact.format(launch.holderCount)}</dd></div><div><dt>Pool</dt><dd>{launch.showcase?"Preview pool":<a href={explorerUrl} target="_blank" rel="noreferrer">View on explorer <ExternalLink size={12}/></a>}</dd></div></dl></details><DexFundingVote/>{rewardMode === "jackpot" && <JackpotLeaderboard jackpot={jackpot}/>}</aside></div>
+    <aside id="market-trade" className="token-side"><MarketTrade key={[launch.id,config.network].join(":")} launch={launch} pairDecimals={launch.pairType === "sol" ? 9 : stock?.decimals ?? null}/><MarketDetails key={launch.id} launch={launch} creatorLock={creatorLock} developerBuy={launch.pairType === "sol" ? launch.devBuySol > 0 ? `${launch.devBuySol} SOL` : "None" : BigInt(launch.devBuyStockRaw || "0") > 0n ? `${formatRaw(launch.devBuyStockRaw, stockDecimals)} ${launch.pairSymbol}` : "None"}/>{!launch.showcase&&<details className="market-position-dropdown" open={positionOpen} onToggle={event=>setPositionOpen(event.currentTarget.open)}><summary>Your position</summary>{positionOpen && <MarketPosition key={launch.id + ":" + wallet.address} launch={launch} compact/>}</details>}{rewardMode === "jackpot" && <JackpotLeaderboard jackpot={jackpot}/>}</aside></div>
   </main></MarketGovernanceProvider>;
 }
 

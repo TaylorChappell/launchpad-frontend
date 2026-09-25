@@ -10,6 +10,8 @@ import { SearchModal } from "./SearchModal";
 import { OrcaMark } from "./OrcaMark";
 import { Notifications } from "./Notifications";
 import { WalletMenu } from "./WalletMenu";
+import { createPortal } from "react-dom";
+import { useDialog } from "./useDialog";
 
 const links = [
   { to: "/", label: "Explore", icon: Compass },
@@ -17,7 +19,7 @@ const links = [
   { to: "/studio", label: "Atlantis Studio", icon: PanelsTopLeft },
   { to: "/portfolio", label: "My holdings", icon: WalletCards },
 ];
-const bottomLinks = links;
+const bottomLinks = links.map(link => ({ ...link, label: link.to === "/studio" ? "Studio" : link.to === "/portfolio" ? "Portfolio" : link.label }));
 const moreLinks = [
   { to: "/boost", label: "Community Boost" },
   { to: "/promotions", label: "Promotions" },
@@ -33,9 +35,32 @@ export function Layout({ children }: { children: ReactNode }) {
   const trading = currentPath.startsWith("/token/") || currentPath.startsWith("/studio");
   const { config, error, loading } = useRuntime();
   const [mobile, setMobile] = useState(false);
+  const header = useRef<HTMLElement>(null);
   const moreMenu = useRef<HTMLDetailsElement>(null);
   useEffect(() => { document.documentElement.dataset.theme = "light"; }, []);
   useEffect(() => { if (moreMenu.current) moreMenu.current.open = false; setMobile(false); }, [currentPath]);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [currentPath]);
+  useEffect(() => {
+    const root = document.documentElement;
+    const measure = () => {
+      root.style.setProperty("--aqua-header-height", `${header.current?.getBoundingClientRect().height ?? 64}px`);
+      root.style.setProperty("--aqua-viewport-height", `${window.visualViewport?.height ?? window.innerHeight}px`);
+    };
+    const observer = new ResizeObserver(measure);
+    if (header.current) observer.observe(header.current);
+    window.visualViewport?.addEventListener("resize", measure);
+    window.addEventListener("resize", measure);
+    measure();
+    return () => { observer.disconnect(); window.visualViewport?.removeEventListener("resize", measure); window.removeEventListener("resize", measure); };
+  }, []);
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 761px)");
+    const close = () => { if (desktop.matches) setMobile(false); };
+    desktop.addEventListener("change", close);
+    return () => desktop.removeEventListener("change", close);
+  }, []);
   useEffect(() => {
     const close = (event: PointerEvent) => { if (moreMenu.current && !moreMenu.current.contains(event.target as Node)) moreMenu.current.open = false; };
     const escape = (event: KeyboardEvent) => { if (event.key === "Escape" && moreMenu.current?.open) { moreMenu.current.open = false; moreMenu.current.querySelector("summary")?.focus(); } };
@@ -80,7 +105,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return <div className={`app-shell ${trading ? "trading-shell" : ""} ${currentPath.startsWith("/studio")?"studio-shell":""}`}>
     {isPreview && <div className="environment-bar"><span>{config.useTestnet ? "DEVNET PREVIEW" : "TRANSACTIONS PAUSED"}</span><p>{config.useTestnet ? "No live funds are used." : "The live program is not currently accepting transactions."}</p></div>}
-    <header className="site-header">
+    <header className="site-header" ref={header}>
       <div className="header-inner">
         <NavLink to="/" className="brand" aria-label="AQUA home"><AquaMark /><b>AQUA</b></NavLink>
         <nav aria-label="Primary navigation">{links.map((link) => <NavLink key={link.to} to={link.to} end={link.to === "/"}>{link.label}</NavLink>)}<details className="site-more" ref={moreMenu}><summary>More <ChevronDown size={13}/></summary><div className="site-more-panel">{moreLinks.map(link => <NavLink key={link.to} to={link.to}>{link.label}</NavLink>)}</div></details></nav>
@@ -88,10 +113,9 @@ export function Layout({ children }: { children: ReactNode }) {
           <button className="header-search" onClick={() => { setMobile(false); setSearchOpen(true); }} aria-label="Search AQUA markets"><Search size={17}/><span>Search coins, stocks...</span><kbd>/</kbd></button>
           {wallet.address && <Notifications key={wallet.address} wallet={wallet.address}/>}
           <WalletMenu/><XConnect/>
-          <button className="mobile-menu" onClick={() => setMobile(!mobile)} aria-label="Toggle navigation" aria-expanded={mobile}>{mobile ? <X /> : <Menu />}</button>
+          <button className="mobile-menu" onClick={() => setMobile(!mobile)} aria-label="Toggle navigation" aria-expanded={mobile} aria-controls="mobile-navigation">{mobile ? <X /> : <Menu />}</button>
         </div>
       </div>
-      {mobile && <nav className="mobile-nav" aria-label="Mobile navigation">{[...links,...moreLinks].map((link) => <NavLink key={link.to} to={link.to} onClick={() => setMobile(false)}>{link.label}</NavLink>)}</nav>}
     </header>
     {error && <div className="system-banner"><b>Backend unavailable</b><span>Live data could not be loaded. Actions remain disabled until the connection recovers.</span></div>}
     {children}
@@ -104,13 +128,25 @@ export function Layout({ children }: { children: ReactNode }) {
       </div>
     </footer>
     {showCommunityUpdate && <StudioAnnouncement onClose={()=>setShowCommunityUpdate(false)}/>}
-    <nav className="bottom-nav" aria-label="Mobile navigation">{bottomLinks.map((link) => { const Icon = link.icon; return <NavLink key={link.to} to={link.to} end={link.to === "/"}><Icon size={18} />{link.label}</NavLink>; })}</nav>
+    <nav className="bottom-nav" aria-label="Mobile navigation">{bottomLinks.map((link) => { const Icon = link.icon; return <NavLink key={link.to} to={link.to} end={link.to === "/"}><Icon size={20} /><span>{link.label}</span></NavLink>; })}<button aria-label="More navigation" aria-expanded={mobile} aria-controls="mobile-navigation" onClick={()=>setMobile(true)} className={moreLinks.some(link=>link.to===currentPath)?"active":""}><Menu size={20}/><span>More</span></button></nav>
+    {mobile && <MobileNavigation onClose={()=>setMobile(false)} onSearch={()=>{setMobile(false);setSearchOpen(true);}}/>}
     <WalletModal />
     <SearchModal open={searchOpen} onClose={closeSearch}/>
   </div>;
 }
 
+function MobileNavigation({onClose,onSearch}:{onClose:()=>void;onSearch:()=>void}) {
+  const dialog=useDialog(true,onClose);
+  return createPortal(<div className="mobile-navigation-backdrop" onClick={event=>{if(event.target===event.currentTarget)onClose();}}>
+    <section id="mobile-navigation" className="mobile-navigation-sheet" role="dialog" aria-modal="true" aria-label="Navigate AQUA" ref={dialog}>
+      <header><div><small>AQUA</small><h2>Where to next?</h2></div><button onClick={onClose} aria-label="Close navigation"><X size={22}/></button></header>
+      <button className="mobile-navigation-search" onClick={onSearch}><Search size={19}/>Search coins, tickers or addresses</button>
+      <nav aria-label="All pages">{[...links,...moreLinks].map(link=><NavLink key={link.to} to={link.to} end={link.to==="/"} onClick={onClose}>{link.label}</NavLink>)}</nav>
+      <footer><NavLink to="/claim-by-address" onClick={onClose}>Claim by address</NavLink><NavLink to="/how-it-works" onClick={onClose}>Help &amp; how it works</NavLink></footer>
+    </section>
+  </div>,document.body);
+}
+
 function XBrandIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h3.7l3.9 5.2 4.6-5.2h1.7l-5.5 6.4 5.9 8.6h-3.7l-4.3-5.8-5.1 5.8H4.5l6-7L5 4.5Zm3 1.4 8.3 12.2h1.1L9.1 5.9H8Z"/></svg>;
 }
-
