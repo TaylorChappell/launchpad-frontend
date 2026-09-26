@@ -520,6 +520,7 @@ export type WalletRewardsResponse = {
   rewards: WalletReward[];
   holdings: WalletRewardHolding[];
   markets: WalletRewardMarket[];
+  rippleClaim?: {availableUsdCents:number;minimumUsdCents:number;canClaim:boolean};
 };
 
 export type TransactionEnvelope = {
