@@ -47,6 +47,8 @@ const json = (body: unknown): RequestInit => ({ method: "POST", headers: { "Cont
 export const api = {
   rippleActivity: (wallet: string, signal?: AbortSignal) => request<import("./types").RippleSummary>(`/api/ripple/${encodeURIComponent(wallet)}/activity`, { signal }),
   rippleRewards: (wallet: string) => request<WalletRewardsResponse>(`/api/ripple/${encodeURIComponent(wallet)}/rewards`),
+  rippleClaim: (claimant: string) => request<TransactionEnvelope & {epochIds:string[];amountUsdCents:number}>("/api/ripple/claim-transaction",json({claimant})),
+  confirmRippleClaim: (claimant:string,signature:string,epochIds:string[]) => request<{claimed:true;signature:string}>("/api/ripple/confirm",json({claimant,signature,epochIds})),
   addressClaimLookup: (wallet: string) => uncachedRequest<{ wallet: string; claimsEnabled: boolean; rewardClaimsEnabled: boolean; markets: AddressClaimMarket[] }>(`/api/address-claims/${encodeURIComponent(wallet)}`),
   addressClaimStart: (wallet: string, launchId: string, kind: "creator" | "cumulative" | "legacy" = "creator", epochId?: string) => request<AddressClaimChallenge>("/api/address-claims/challenges", json({wallet,launchId,kind, ...(epochId ? {epochId} : {})})),
   addressClaimStatus: (id: string, token: string) => uncachedRequest<{ verified: boolean; signature: string | null; expiresAt: number; claimed: boolean; payout: {status:string;signature:string|null}|null }>(`/api/address-claims/challenges/${encodeURIComponent(id)}`,{headers:addressClaimAuth(token)}),
