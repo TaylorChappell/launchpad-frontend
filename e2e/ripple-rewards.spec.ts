@@ -77,7 +77,7 @@ test("unlinked wallets see a centered Connect X prompt in Ripple",async({page})=
 
 test("an expired AQUA session can sign in again while existing Ripple claims stay visible",async({page})=>{
   await setup(page,true);let signedIn=false,signatures=0;
-  await page.route("**/api/ripple/*/activity",r=>r.fulfill({json:{enabled:true,signedIn,holdersOnly:true,status:"tracking",reason:null,checkedAt:Date.now(),poolLamports:"0",rewardBps:1500,boostBps:1000,service:{mode:tracking,message:tracking==="paused"?"Daily X tracking limit reached. Tracking resumes after midnight UTC.":null,lastEventAt:Date.now(),settlementMinutes:15},nextPayoutAt:Date.now()+900000,measurementHours:8,checkHours:[1,2,4,8],settlementHours:1,posts:[]}}));
+  await page.route("**/api/ripple/*/activity",r=>r.fulfill({json:{enabled:true,signedIn,holdersOnly:true,status:"tracking",reason:null,checkedAt:Date.now(),poolLamports:"0",rewardBps:1500,boostBps:1000,measurementHours:8,checkHours:[1,2,4,8],settlementHours:1,posts:[]}}));
   await page.route("**/account/auth/challenge",r=>r.fulfill({json:{id:"00000000-0000-4000-8000-000000000001",message:"Sign in to AQUA"}}));
   await page.route("**/account/auth/session",r=>{
     expect(r.request().postDataJSON().wallet).toBe(address);expect(r.request().postDataJSON().signature).toBeTruthy();
