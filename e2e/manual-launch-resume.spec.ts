@@ -20,6 +20,7 @@ async function setup(page:Page,listed=true,retryBatch=false) {
     else if(path==='/api/launches' && r.request().method()==='GET')json={launches:listed?[{id:'old-launch',symbol:'OLD',name:'Previous coin',creatorWallet:wallet,status:'pool_pending'}]:[],hasMore:false};
     else if(path==='/api/launches' && r.request().method()==='POST'){calls.create++;return r.fulfill({status:503,json:{error:'New launch preparation unavailable'}});}
     else if(path==='/api/uploads')json={imageId:'artwork'};
+    else if(path.endsWith('/prepare-approval'))json={ready:true};
     else if(path.endsWith('/submission')){calls.status++;json={launchId:'old-launch',status:'needs_approval',error:'Previous launch stopped'};}
     else if(path.endsWith('/retry-transaction')){calls.retry++;
       if(retryBatch)return r.fulfill({json:{launchId:'old-launch',batch:[{step:'pool',transactionVersion:0,lastValidBlockHeight:100,

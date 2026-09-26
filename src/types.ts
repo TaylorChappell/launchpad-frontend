@@ -550,6 +550,7 @@ export type CumulativeRewardClaimConfirmation = {
 export type LaunchBatchEnvelope = TransactionEnvelope & { step: "pool" | "prepare" | "funding" | "liquidity" | "lock" };
 export type SignedTransactionEnvelope = LaunchBatchEnvelope & { signedTransactionBase64: string };
 export type LaunchRelayStatus = {
+  approvalReady?: boolean;
   devBuyIncluded?: boolean;
   devBuySignature?: string | null;
   launchId: string;
