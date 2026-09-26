@@ -655,8 +655,10 @@ export type WalletNotification = {
 export type RippleSummary = {
  signedIn?:boolean;holdersOnly?:boolean;
  enabled:boolean;status:"unavailable"|"paused"|"catching_up"|"tracking";reason:string|null;checkedAt:number|null;
- poolLamports:string;rewardBps:number;boostBps:number;measurementHours:number;
+ poolLamports:string;rewardBps:number;boostBps:number;measurementHours:number;checkHours?:number[];settlementHours?:number;
  posts:Array<{id:string;launchId:string;symbol:string;wallet:string;isReply:boolean;createdAt:number;score:number;
+ text?:string;checksCompleted?:number;totalChecks?:number;nextCheckAt?:number|null;lastCheckedAt?:number|null;
+ trackingStatus?:"tracking"|"settling"|"completed"|"excluded";
  metrics:{like_count?:number;reply_count?:number;retweet_count?:number;quote_count?:number;impression_count?:number};amountLamports:string;
- status:"excluded"|"claimed"|"claimable"|"allocated"|"ready"|"measuring";reason:string|null}>;
+ status:"excluded"|"claimed"|"claimable"|"allocated"|"ready"|"measuring"|"completed";reason:string|null}>;
 };

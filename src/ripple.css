@@ -4,7 +4,17 @@
 .ripple-posts { padding:0 26px 24px; }
 .ripple-posts h3 { margin:8px 0 12px; font-size:14px; color:#1d4b65; }
 .ripple-empty { font-size:12px; color:#64869c; padding:12px 0; }
-.ripple-posts article { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:15px 0; border-top:1px solid #dceaf1; font-size:12px; }
+.ripple-posts > header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.ripple-posts > header > span { color:#698b9e; font-size:11px; }
+.ripple-posts article { display:block; padding:16px; margin-top:12px; border:1px solid #dceaf1; border-radius:14px; background:#f8fcff; font-size:12px; }
+.ripple-post-top { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.ripple-post-text { margin:14px 0; color:#315d78; font-size:13px; line-height:1.6; overflow-wrap:anywhere; white-space:pre-wrap; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; }
+.ripple-post-metrics { display:flex; flex-wrap:wrap; gap:10px 18px; margin:14px 0; color:#547a94; font-variant-numeric:tabular-nums; }
+.ripple-post-metrics > span { display:inline-flex; align-items:center; gap:5px; }
+.ripple-post-progress { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-top:12px; border-top:1px solid #e4eef4; color:#698b9e; font-size:11px; line-height:1.5; }
+.ripple-post-progress > span { min-width:0; overflow-wrap:anywhere; }
+.ripple-post-progress small { flex:none; font-size:10px; }
+.ripple-tracking-notice { font-size:12px; color:#547a94; line-height:1.5; }
 .ripple-post-identity { min-width:0; }
 .ripple-post-identity > a { display:inline-flex; align-items:center; gap:6px; color:#147eb5; }
 .ripple-post-identity small { display:block; margin-top:6px; font-size:11px; color:#698b9e; overflow-wrap:anywhere; }
