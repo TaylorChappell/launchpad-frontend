@@ -27,7 +27,7 @@ export function RippleRewards({ address }: { address: string }) {
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     async function load() {
-      try { const next = await api.rippleActivity(address, controller.signal); if (!controller.signal.aborted) { setData(next); setError(""); } }
+      try { const next = await api.rippleActivity(address, controller.signal); if (!Array.isArray(next.posts) || typeof next.enabled !== "boolean") throw new Error("Ripple activity is unavailable."); if (!controller.signal.aborted) { setData(next); setError(""); } }
       catch (e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Could not load Ripple activity."); }
       finally { if (!controller.signal.aborted) timer = setTimeout(() => { void load(); }, 30_000); }
     }
