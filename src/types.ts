@@ -51,6 +51,7 @@ export type RuntimeConfig = {
     claimableOnchain: boolean;
     cumulativeClaims?: boolean;
   };
+  rippleRewards?: { enabled: boolean; reason: string | null; rewardBps: number; boostBps: number };
   rewardModes?: {
     enabled: boolean;
     available: Array<"holder_rewards" | "buyback_burn" | "jackpot">;
@@ -392,8 +393,8 @@ export type GovernanceResponse = {
   minimumHoldingBps: number;
   bonusBps: number;
   funding?: {
-    total: { totalLamports: string; fundLamports: string; rewardLamports: string };
-    activeRound: { totalLamports: string; fundLamports: string; rewardLamports: string } | null;
+    total: { totalLamports: string; fundLamports: string; rewardLamports: string; rippleLamports?: string };
+    activeRound: { totalLamports: string; fundLamports: string; rewardLamports: string; rippleLamports?: string } | null;
   };
   votingOpen: boolean;
   round: { id: string | null; startsAt: number; endsAt: number };
@@ -645,4 +646,12 @@ export type WalletNotification = {
   id: string; kind: "jackpot" | "cto" | "dex_details"; launchId: string;
   symbol: string; createdAt: number; title: string; message: string;
   claimed?: boolean; amountRaw?: string; rewardDecimals?: number; rewardSymbol?: string;
+};
+
+export type RippleSummary = {
+ enabled:boolean;status:"unavailable"|"paused"|"catching_up"|"tracking";reason:string|null;checkedAt:number|null;
+ poolLamports:string;rewardBps:number;boostBps:number;measurementHours:number;
+ posts:Array<{id:string;launchId:string;symbol:string;wallet:string;isReply:boolean;createdAt:number;score:number;
+ metrics:{like_count?:number;reply_count?:number;retweet_count?:number;quote_count?:number;impression_count?:number};amountLamports:string;
+ status:"excluded"|"claimed"|"claimable"|"allocated"|"ready"|"measuring";reason:string|null}>;
 };
