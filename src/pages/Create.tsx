@@ -686,6 +686,7 @@ export function Create() {
               Five distinct holders split each pot 50% / 20% / 20% / 5% / 5%. Holding and buying earlier increases your score; selling cuts accrued score.
             </ModeButton>
           </div>
+          {config.rippleRewards?.enabled && <div className="reward-mode-notice"><Info/> Across all modes, 15% of new trading rewards after operating and campaign allocations funds Ripple Rewards. The remaining 85% follows your selected mode.</div>}
           {!config.rewardModes?.enabled && <div className="reward-mode-notice"><Info/> Alternative modes will unlock after the staged program upgrade is enabled. Holder Rewards remains available.</div>}
         </WizardSection>}
 

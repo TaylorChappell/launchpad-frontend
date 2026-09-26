@@ -1,3 +1,4 @@
+import { RippleRewards } from "../components/RippleRewards";
 import { WalletIdentity } from "../components/WalletIdentity";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -20,7 +21,7 @@ export function Portfolio(){
 }
 function PortfolioContent({address}:{address:string|null}){
   const wallet=useWallet(),{config}=useRuntime(),[params,setParams]=useSearchParams();
-  const tabs=["Holdings","Rewards","Activity","Created"] as const;
+  const tabs=["Holdings","Rewards","Ripple","Activity","Created"] as const;
   const tab=tabs.find(t=>t.toLowerCase()===params.get("tab"))??"Holdings";
   const [holdings,setHoldings]=useState<Holdings|null>(null),[rewards,setRewards]=useState<WalletRewardsResponse|null>(null);
   const [history,setHistory]=useState<History|null>(null),[created,setCreated]=useState<Launch[]|null>(null);
@@ -77,6 +78,7 @@ function PortfolioContent({address}:{address:string|null}){
         return <tr key={h.launch.id}><td><Link className="market-identity" to={"/token/"+h.launch.id}><TokenMark launch={h.launch}/><span><b>{h.launch.name}</b><small>{h.launch.symbol}</small></span></Link></td><td>{displayTokenAmount(h.balanceRaw,h.launch.tokenDecimals)}</td><td><b>{h.valueUsd===null?"Price delayed":usd.format(h.valueUsd)}</b></td><td>{reward?.canClaim?<button className="reward-amount-link" onClick={()=>selectTab("Rewards")}>{usd.format(reward.netClaimableUsdCents/100)} claimable <ArrowUpRight size={12}/></button>:reward?usd.format(reward.accumulatingUsdCents/100):"—"}</td><td><Link className="row-open" aria-label={"Open "+h.launch.name} to={"/token/"+h.launch.id}><ArrowUpRight size={18}/></Link></td></tr>;
       })}</tbody></table></div>:<div className="workspace-empty"><Coins/><h3>Your first position starts here.</h3><p>Coins held in this wallet appear once they’re indexed.</p><Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link></div>}
     </section>}
+    {tab==="Ripple"&&<RippleRewards key={address} address={address}/>}
     {tab==="Rewards"&&<section className="workspace-panel portfolio-rewards-panel"><header><h2>Your rewards</h2></header><WalletRewards data={rewards} launches={(holdings??[]).map(h=>h.launch)} onClaimed={refresh}/></section>}
     {tab==="Activity"&&<><section className="workspace-panel"><header><h2>Claim history</h2>{history?.hasMore&&<span>Latest 200 receipts</span>}</header>
       {history?.lifetime.length?<div className="lifetime-rewards">{history.lifetime.map(t=><div key={t.stock_mint}><small>Total {t.symbol} claimed</small><strong>{displayTokenAmount(t.amount_raw,t.decimals)} <span>{t.symbol}</span></strong></div>)}</div>:null}

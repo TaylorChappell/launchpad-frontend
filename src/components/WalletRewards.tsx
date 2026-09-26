@@ -13,15 +13,15 @@ type PendingClaim={wallet:string;launchId:string;name:string;signature:string;se
 function savedClaim(key:string):PendingClaim|null{
   try { const value=JSON.parse(localStorage.getItem(key)??"null");return value&&typeof value.wallet==="string"&&typeof value.launchId==="string"&&typeof value.signature==="string"&&(typeof value.sequence==="string"||typeof value.epochId==="string")?value:null; }catch{return null;}
 }
-export function WalletRewards({launch,data,launches=[],onClaimed}:{launch?:Launch;data?:WalletRewardsResponse|null;launches?:Launch[];onClaimed?:()=>void}){
+export function WalletRewards({launch,data,launches=[],onClaimed,kind="normal"}:{kind?:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches?:Launch[];onClaimed?:()=>void}){
   const wallet=useWallet(),{config}=useRuntime();
   if(launch?.showcase)return <div className="wallet-rewards"><div className="reward-claim-list"><article className="reward-claim-row ready"><div className="reward-claim-coin"><TokenMark launch={launch}/><div><b>{launch.name}</b><small>Sample allocation</small></div></div><div className="reward-row-amount"><strong>$12.50</strong><small>Preview only</small></div><button className="primary" disabled>Claim</button></article></div></div>;
   // Remount on wallet/network change: pending receipts always belong to their signer.
-  return <RewardContent key={config.network+":"+wallet.address+":"+(launch?.id??"all")} launch={launch} data={data} launches={launches} onClaimed={onClaimed}/>;
+  return <RewardContent key={config.network+":"+wallet.address+":"+(launch?.id??"all")+":"+kind} kind={kind} launch={launch} data={data} launches={launches} onClaimed={onClaimed}/>;
 }
-function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:WalletRewardsResponse|null;launches:Launch[];onClaimed?:()=>void}){
+function RewardContent({launch,data,launches,onClaimed,kind}:{kind:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches:Launch[];onClaimed?:()=>void}){
   const wallet=useWallet(),{config}=useRuntime(),address=wallet.address;
-  const storageKey=["aqua:pending-reward",config.network,address].join(":");
+  const storageKey=["aqua:pending-reward",config.network,address].join(":")+(kind==="ripple"?":ripple":"");
   const [loaded,setLoaded]=useState<WalletRewardsResponse|null>(null),[known,setKnown]=useState<Launch[]>([]);
   const [error,setError]=useState(""),[revision,setRevision]=useState(0),[busy,setBusy]=useState(false),[status,setStatus]=useState("");
   const [pending,setPending]=useState<PendingClaim|null>(()=>savedClaim(storageKey));
@@ -34,10 +34,10 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
   useEffect(()=>{
     if(!address||data!==undefined)return;
     let active=true,inFlight=false;
-    const load=async()=>{if(inFlight)return;inFlight=true;try{const result=await api.rewards(address);if(active){setLoaded(result);setError("");}}catch{if(active)setError("Rewards could not load. Try again.");}finally{inFlight=false;}};
+    const load=async()=>{if(inFlight)return;inFlight=true;try{const result=await (kind==="ripple"?api.rippleRewards(address):api.rewards(address));if(active){setLoaded(result);setError("");}}catch{if(active)setError("Rewards could not load. Try again.");}finally{inFlight=false;}};
     void load();const timer=window.setInterval(()=>{if(document.visibilityState==="visible")void load();},20_000);
     return()=>{active=false;window.clearInterval(timer);};
-  },[address,data,revision]);
+  },[address,data,revision,kind]);
   const missingIds=(rewardData?.markets??[]).filter(m=>!launches.some(l=>l.id===m.launchId)&&launch?.id!==m.launchId).map(m=>m.launchId).sort().join(",");
   useEffect(()=>{let active=true;if(missingIds)api.launches({ids:missingIds,limit:100}).then(r=>{if(active)setKnown(r.launches);}).catch(()=>{});return()=>{active=false;};},[missingIds]);
   const allLaunches=[...launches,...known,...(launch?[launch]:[])];
@@ -145,11 +145,11 @@ function RewardContent({launch,data,launches,onClaimed}:{launch?:Launch;data?:Wa
     {!rewardData&&!error?<div className="workspace-loading">Loading your rewards…</div>:markets.length?<div className="reward-claim-list">{markets.map(m=>{
       const coin=allLaunches.find(l=>l.id===m.launchId);
       const eligible=m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1);
-      return <article className={"reward-claim-row"+(eligible?" ready":"")} key={m.launchId}>
-        <div className="reward-claim-coin">{coin?<TokenMark launch={coin}/>:<Gift size={24}/>}<div>{coin&&!launch?<Link to={"/token/"+coin.id}>{coin.name}</Link>:<b>{coin?.name??"AQUA reward"}</b>}<small>{eligible?"Ready to claim":m.pendingUsdCents>0?"Awaiting settlement":m.canClaim?"Preparing claim":"Below claim minimum"}</small></div></div>
+      return <article className={"reward-claim-row"+(eligible?" ready":"")} key={m.launchId+":"+(m.claimableEpochIds[0]??m.claimSequence??"pending")}>
+        <div className="reward-claim-coin">{coin?<TokenMark launch={coin}/>:<Gift size={24}/>}<div>{coin&&!launch?<Link to={"/token/"+coin.id}>{coin.name}</Link>:<b>{coin?.name??"AQUA reward"}</b>}<small>{kind==="ripple"?"Ripple · SOL · ":""}{eligible?"Ready to claim":m.pendingUsdCents>0?"Awaiting settlement":m.canClaim?"Preparing claim":"Below claim minimum"}</small></div></div>
         <div className="reward-row-amount"><strong>{usd(eligible?m.claimableUsdCents:m.grossRedeemableUsdCents+m.pendingUsdCents)}</strong><small>{eligible?`${usd(m.netClaimableUsdCents)} after estimated costs`:m.claimMode!=="cumulative"&&m.claimableEpochIds.length>1?"Preparing a combined claim":`Claim minimum ${usd(m.minimumClaimUsdCents)} net`}</small></div>
         <button className="primary" disabled={busy||Boolean(pending)||!eligible} onClick={()=>void claimBatch([m])}>{busy&&status?<Loader2 size={15} className="spin"/>:null}{eligible?"Claim":"Pending"}</button>
       </article>;
-    })}</div>:rewardData&&<div className="workspace-empty"><Gift/><h3>{launch?.rewardMode==="buyback_burn"?"This market buys back and burns tokens.":"No rewards to claim yet."}</h3><p>{launch?.rewardMode==="buyback_burn"?"Buybacks reduce supply; this mode does not pay a wallet reward.":"Your allocations will appear here once they’re indexed."}</p>{!launch&&<Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link>}</div>}
+    })}</div>:rewardData&&<div className="workspace-empty"><Gift/><h3>{launch?.rewardMode==="buyback_burn"?"This market buys back and burns tokens.":"No rewards to claim yet."}</h3><p>{launch?.rewardMode==="buyback_burn"?"Buybacks reduce supply; this mode does not pay a wallet reward.":kind==="ripple"?"Rewards from your qualifying X posts will appear here after settlement.":"Your allocations will appear here once they’re indexed."}</p>{!launch&&<Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link>}</div>}
   </div>;
 }
