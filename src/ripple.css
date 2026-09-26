@@ -23,7 +23,15 @@
 @media(max-width:540px) { .ripple-sign-in { padding-inline:20px; }.ripple-session-error { margin-inline:20px; } }
 .ripple-claim-actions { display:flex; align-items:center; justify-content:space-between; gap:16px; }
 .ripple-claim-actions h3 { margin:0; font-size:14px; color:#1d4b65; }
+.ripple-available { margin-left:auto; font-size:12px; color:#58758a; text-align:right; }
+.ripple-available b { display:block; font-size:17px; color:#163f58; }
 .ripple-claim-actions .primary { min-width:92px; min-height:40px; }
 .ripple-claim-actions .primary:disabled { background:#e3edf2; color:#8195a3; border-color:#d7e3e9; box-shadow:none; opacity:1; cursor:not-allowed; transform:none; }
 .ripple-panel > .wallet-rewards { padding:0 26px 4px; }
-@media(max-width:540px) { .ripple-panel > .wallet-rewards { padding-inline:20px; } }
+@media(max-width:540px) {
+  .ripple-panel > .wallet-rewards { padding-inline:20px; }
+  .ripple-claim-actions { flex-wrap:wrap; gap:10px; }
+  .ripple-claim-actions h3 { width:100%; }
+  .ripple-available { margin-left:0; text-align:left; }
+  .ripple-claim-actions .primary { margin-left:auto; }
+}

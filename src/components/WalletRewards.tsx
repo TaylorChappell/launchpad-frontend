@@ -9,9 +9,9 @@ import { displayTokenAmount } from "../trade-quote";
 import { RewardClaimShare, type SharedRewardClaim } from "./RewardClaimShare";
 
 const usd=(cents:number)=>new Intl.NumberFormat("en",{style:"currency",currency:"USD"}).format(cents/100);
-type PendingClaim={wallet:string;launchId:string;name:string;signature:string;sequence?:string;epochId?:string;amountUsd:number;lastValidBlockHeight?:number;submittedAt?:number};
+type PendingClaim={wallet:string;launchId:string;name:string;signature:string;sequence?:string;epochId?:string;epochIds?:string[];amountUsd:number;lastValidBlockHeight?:number;submittedAt?:number};
 function savedClaim(key:string):PendingClaim|null{
-  try { const value=JSON.parse(localStorage.getItem(key)??"null");return value&&typeof value.wallet==="string"&&typeof value.launchId==="string"&&typeof value.signature==="string"&&(typeof value.sequence==="string"||typeof value.epochId==="string")?value:null; }catch{return null;}
+  try { const value=JSON.parse(localStorage.getItem(key)??"null");return value&&typeof value.wallet==="string"&&typeof value.launchId==="string"&&typeof value.signature==="string"&&(typeof value.sequence==="string"||typeof value.epochId==="string"||Array.isArray(value.epochIds)&&value.epochIds.length>0)?value:null; }catch{return null;}
 }
 export function WalletRewards({launch,data,launches=[],onClaimed,kind="normal",compact=false}:{compact?:boolean;kind?:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches?:Launch[];onClaimed?:()=>void}){
   const wallet=useWallet(),{config}=useRuntime();
@@ -46,7 +46,9 @@ function RewardContent({launch,data,launches,onClaimed,kind,compact}:{compact:bo
   async function confirm(receipt:PendingClaim){
     if(receipt.wallet!==address)throw Error("Connect the wallet that submitted this claim.");
     let amount=usd(receipt.amountUsd);
-    if(receipt.sequence){
+    if(receipt.epochIds?.length){
+      await api.confirmRippleClaim(receipt.wallet,receipt.signature,receipt.epochIds);
+    }else if(receipt.sequence){
       const result=await api.confirmCumulativeRewardClaim(receipt.launchId,receipt.wallet,receipt.signature,receipt.sequence);
       amount=displayTokenAmount(result.amountRaw,result.stockDecimals)+" "+result.stockSymbol;
     }else await api.confirmRewardClaim(receipt.epochId!,receipt.wallet,receipt.signature);
@@ -116,6 +118,33 @@ function RewardContent({launch,data,launches,onClaimed,kind,compact}:{compact:bo
       throw e;
     }
   }
+  async function claimRipple(){
+    if(!address||running.current||pending||savedClaim(storageKey))return;
+    running.current=true;setBusy(true);setError("");setSuccess(null);setShare(null);setShareOpen(false);
+    let submitted:PendingClaim|null=null;
+    try{
+      setStatus("Preparing your Ripple claim…");
+      const envelope=await api.rippleClaim(address);
+      if(!alive.current)throw Error("Wallet changed. The claim was stopped.");
+      const remaining=(rewardData?.rippleClaim?.availableUsdCents??0)-envelope.amountUsdCents;
+      setStatus(remaining>0?`Approve ${usd(envelope.amountUsdCents)} now. ${usd(remaining)} remains available for a later claim.`:"Approve your Ripple claim in your wallet");
+      const onSubmitted=(signature:string)=>{
+        submitted={wallet:address,launchId:"ripple",name:"Ripple Rewards",signature,epochIds:envelope.epochIds,amountUsd:envelope.amountUsdCents,lastValidBlockHeight:envelope.lastValidBlockHeight,submittedAt:Date.now()};
+        remember(submitted);if(alive.current)setStatus("Confirming your Ripple rewards…");
+      };
+      const signature=await wallet.sendTransaction(envelope,onSubmitted);
+      if(!submitted)onSubmitted(signature);
+      const receipt=await confirm(submitted!);
+      if(alive.current){setShare({wallet:address,network:config.network,receipts:[receipt]});setShareOpen(true);}
+    }catch(e){
+      if(submitted){
+        try{const state=await submittedState(submitted);
+          if(state==="failed"||state==="expired")clearFailedClaim(state);
+          else if(alive.current){setStatus("");setError("Claim submitted. Confirmation is pending; you can safely retry confirmation.");}
+        }catch{if(alive.current){setStatus("");setError("Claim submitted. Its status could not be checked, so the receipt was kept safely.");}}
+      }else if(alive.current){setStatus("");setError(e instanceof Error?e.message:"Could not prepare the Ripple claim.");}
+    }finally{running.current=false;if(alive.current)setBusy(false);}
+  }
   async function claimBatch(selected:WalletRewardMarket[]){
     if(!address||running.current||pending||savedClaim(storageKey))return;
     const eligible=selected.filter(m=>m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1));
@@ -137,7 +166,7 @@ function RewardContent({launch,data,launches,onClaimed,kind,compact}:{compact:bo
   if(!address)return <section className="wallet-inline"><Gift size={24}/><div><h3>Your rewards are here.</h3><p>Connect your wallet to see your allocation and claim it.</p></div><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet</button></section>;
   return <div className="wallet-rewards">
     {share&&shareOpen&&<RewardClaimShare claim={share} onClose={()=>setShareOpen(false)}/>}
-    {!launch&&<div className={compact?"ripple-claim-actions":"claim-all-bar"}>{compact?<h3>Your posts</h3>:<span>{claimable.length} coin{claimable.length===1?"":"s"} ready to claim{claimable.length>1&&<small>Approve each coin in your wallet.</small>}</span>}<button className="primary" disabled={busy||Boolean(pending)||!claimable.length} onClick={()=>void claimBatch(claimable)}>{busy?<><Loader2 size={15} className="spin"/> Claiming…</>:compact?"Claim":"Claim all"}</button></div>}
+    {!launch&&<div className={compact?"ripple-claim-actions":"claim-all-bar"}>{compact?<h3>Your posts</h3>:<span>{claimable.length} coin{claimable.length===1?"":"s"} ready to claim{claimable.length>1&&<small>Approve each coin in your wallet.</small>}</span>}{compact&&<span className="ripple-available">Available to claim <b>{usd(rewardData?.rippleClaim?.availableUsdCents??0)}</b></span>}<button className="primary" disabled={busy||Boolean(pending)||(compact?!rewardData?.rippleClaim?.canClaim:!claimable.length)} onClick={()=>void (compact?claimRipple():claimBatch(claimable))}>{busy?<><Loader2 size={15} className="spin"/> Claiming…</>:compact?"Claim":"Claim all"}</button></div>}
     {success&&<div className="claim-notice success" role="status"><Check size={20}/><div><b>{success.amount} claimed</b><a href={"https://solscan.io/tx/"+success.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View receipt <ArrowUpRight size={13}/></a></div>{share&&<button className="soft-button" onClick={()=>setShareOpen(true)}>Share</button>}</div>}
     {pending&&<div className="claim-notice"><Loader2 size={20} className={busy?"spin":""}/><div><b>{pending.name} · claim submitted</b><a href={"https://solscan.io/tx/"+pending.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View transaction <ArrowUpRight size={13}/></a></div><button className="soft-button" disabled={busy} onClick={()=>void retry()}>Check confirmation</button></div>}
     {status&&<p className="claim-status" role="status">{busy&&<Loader2 className="spin" size={16}/>}{status}</p>}
