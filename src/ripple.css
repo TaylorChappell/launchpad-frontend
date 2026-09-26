@@ -13,3 +13,9 @@
 .ripple-post-amount small { display:block; margin-top:6px; font-size:11px; color:#698b9e; }
 .ripple-more { margin-top:14px; min-height:40px; }
 @media(max-width:540px) { .ripple-posts { padding:0 20px 20px; }.ripple-connect-empty { min-height:280px; }.ripple-posts article { gap:10px; } }
+
+.ripple-eligibility { font-size:11px; line-height:1.6; color:#698b9e; margin:0 0 14px; }
+.ripple-sign-in { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 26px 18px; font-size:12px; color:#64869c; }
+.ripple-sign-in button { display:inline-flex; align-items:center; gap:6px; flex-shrink:0; min-height:40px; }
+.ripple-session-error { margin-inline:26px; }
+@media(max-width:540px) { .ripple-sign-in { padding-inline:20px; }.ripple-session-error { margin-inline:20px; } }

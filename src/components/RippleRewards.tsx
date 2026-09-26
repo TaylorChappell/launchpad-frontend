@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
+import { signInAccount } from "../account-api";
 import { useWallet } from "../context";
 import { connectX, useWalletX, useXFeature } from "../x-identity";
 import { XLogo } from "./XConnect";
@@ -37,6 +38,18 @@ export function RippleRewards({ address }: { address: string }) {
 }
 
 function RippleBalances({ address }: { address: string }) {
+  const wallet = useWallet();
+  const current = useRef<string | null>(wallet.address); current.current = wallet.address;
+  useEffect(() => () => { current.current = null; }, []);
+  const [signing, setSigning] = useState(false);
+  const [signInError, setSignInError] = useState("");
+  async function signIn() {
+    if (signing || current.current !== address) return;
+    setSigning(true); setSignInError("");
+    try { await signInAccount(address, wallet.signMessage, () => current.current === address); if (current.current === address) setRevision(value => value + 1); }
+    catch (e) { if (current.current === address) setSignInError(e instanceof Error ? e.message : "Could not sign in."); }
+    finally { if (current.current === address) setSigning(false); }
+  }
   const [data, setData] = useState<RippleSummary | null>(null);
   const [error, setError] = useState("");
   const [visible, setVisible] = useState(5);
@@ -56,8 +69,10 @@ function RippleBalances({ address }: { address: string }) {
     return () => { controller.abort(); clearTimeout(timer); };
   }, [address, revision]);
   return <>
+    {data?.signedIn === false && <div className="ripple-sign-in"><span>Sign in to AQUA to earn new Ripple rewards.</span><button className="soft-button" disabled={signing} onClick={() => void signIn()}>{signing ? <Loader2 size={14} className="spin"/> : null}Sign in</button></div>}
+    {signInError && <p className="danger-note ripple-session-error" role="alert">{signInError}</p>}
     <WalletRewards kind="ripple" onClaimed={() => setRevision(value => value + 1)}/>
-    <div className="ripple-posts"><h3>Post rewards</h3>
+    <div className="ripple-posts"><h3>Post rewards</h3><p className="ripple-eligibility">Earn rewards from coins you hold in your linked wallet.</p>
       {error && <p className="danger-note" role="alert">{error} <button className="text-button" onClick={() => setRevision(value => value + 1)}>Try again</button></p>}
       {!data ? !error && <p className="ripple-empty">Loading post rewards…</p> : !data.posts.length ? <p className="ripple-empty">No rewarded posts yet.</p> : data.posts.slice(0, visible).map(post => <article key={`${post.launchId}:${post.id}`}>
         <div className="ripple-post-identity"><a href={`https://x.com/i/status/${post.id}`} target="_blank" rel="noreferrer">{post.isReply ? "Reply on X" : "Post on X"}<ExternalLink size={13}/></a><small><Link to={`/token/${post.launchId}`}>${post.symbol}</Link> · {new Date(post.createdAt).toLocaleDateString()}</small></div>

@@ -5,7 +5,7 @@ async function setup(page:Page,pending=false,linked=true) {
   await page.addInitScript(({address,signature,pending})=>{
     sessionStorage.setItem("aqua:x-prompt:"+address,"1");localStorage.setItem("aqua:update:holder-workspace-v2","seen");localStorage.setItem("aqua:wallet","phantom");
     if(pending)localStorage.setItem("aqua:pending-reward:mainnet-beta:"+address+":ripple",JSON.stringify({wallet:address,launchId:"coin",name:"Ripple",signature,epochId:"epoch-ripple",amountUsd:250}));
-    Object.assign(window,{phantom:{solana:{isPhantom:true,publicKey:{toString:()=>address},connect:async()=>({publicKey:{toString:()=>address}}),on(){},removeListener(){},signAndSendTransaction(){throw Error("A pending receipt must not be resubmitted");}}}});
+    Object.assign(window,{phantom:{solana:{isPhantom:true,publicKey:{toString:()=>address},connect:async()=>({publicKey:{toString:()=>address}}),on(){},removeListener(){},signMessage:async()=>({signature:new Uint8Array(64)}),signAndSendTransaction(){throw Error("A pending receipt must not be resubmitted");}}}});
   },{address,signature,pending});
   await page.route("**/api/**",r=>{
     const path=new URL(r.request().url()).pathname;
@@ -15,7 +15,7 @@ async function setup(page:Page,pending=false,linked=true) {
     else if(path.endsWith("/claim-history"))json={claims:[],lifetime:[],hasMore:false};
     else if(path.includes("/notifications/"))json={notifications:[]};
     else if(path==="/api/rewards/"+address||path.endsWith("/rewards"))json={rewards:[],cumulativeRewards:[],holdings:[],markets:[]};
-    else if(path.endsWith("/activity"))json={enabled:true,status:"tracking",reason:null,checkedAt:Date.now(),poolLamports:"100000000",rewardBps:1500,boostBps:1000,measurementHours:24,posts:[{id:"123",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:true,createdAt:Date.now()-86400000,score:1234,metrics:{like_count:20,impression_count:1500},amountLamports:"25000000",status:"claimable",reason:null},{id:"124",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:false,createdAt:Date.now(),score:0,metrics:{like_count:2,impression_count:100},amountLamports:"0",status:"measuring",reason:null}]};
+    else if(path.endsWith("/activity"))json={enabled:true,signedIn:true,holdersOnly:true,status:"tracking",reason:null,checkedAt:Date.now(),poolLamports:"100000000",rewardBps:1500,boostBps:1000,measurementHours:24,posts:[{id:"123",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:true,createdAt:Date.now()-86400000,score:1234,metrics:{like_count:20,impression_count:1500},amountLamports:"25000000",status:"claimable",reason:null},{id:"124",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:false,createdAt:Date.now(),score:0,metrics:{like_count:2,impression_count:100},amountLamports:"0",status:"measuring",reason:null}]};
     else if(path==="/api/market-prices/stream")return r.fulfill({contentType:"text/event-stream",body:'data: {"prices":[]}\n\n'});
     else if(path==="/api/market-prices")json={prices:[]};
     else if(path==="/api/launches")json={launches:[],hasMore:false,nextOffset:0};
@@ -64,4 +64,21 @@ test("unlinked wallets see a centered Connect X prompt in Ripple",async({page})=
   const box=await panel.boundingBox(),connect=await button.boundingBox();
   expect(Math.abs((box!.x+box!.width/2)-(connect!.x+connect!.width/2))).toBeLessThan(3);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
+});
+
+test("an expired AQUA session can sign in again while existing Ripple claims stay visible",async({page})=>{
+  await setup(page,true);let signedIn=false,signatures=0;
+  await page.route("**/api/ripple/*/activity",r=>r.fulfill({json:{enabled:true,signedIn,holdersOnly:true,status:"tracking",reason:null,checkedAt:Date.now(),poolLamports:"0",rewardBps:1500,boostBps:1000,measurementHours:24,posts:[]}}));
+  await page.route("**/account/auth/challenge",r=>r.fulfill({json:{id:"00000000-0000-4000-8000-000000000001",message:"Sign in to AQUA"}}));
+  await page.route("**/account/auth/session",r=>{
+    expect(r.request().postDataJSON().wallet).toBe(address);expect(r.request().postDataJSON().signature).toBeTruthy();
+    signatures++;signedIn=true;return r.fulfill({json:{token:"a".repeat(64),expiresAt:Date.now()+86400000}});
+  });
+  await page.goto("/#/portfolio?tab=ripple");const panel=page.getByRole("region",{name:"Ripple Rewards",exact:true});
+  await expect(panel.getByText("Sign in to AQUA to earn new Ripple rewards.")).toBeVisible();
+  await expect(panel.getByRole("button",{name:"Check confirmation",exact:true})).toBeVisible();expect(signatures).toBe(0);
+  await panel.getByRole("button",{name:"Sign in",exact:true}).click();
+  await expect(panel.getByText("Sign in to AQUA to earn new Ripple rewards.")).toHaveCount(0);expect(signatures).toBe(1);
+  await expect(panel.getByText("Earn rewards from coins you hold in your linked wallet.")).toBeVisible();
+  await expect(panel.getByRole("button",{name:"Check confirmation",exact:true})).toBeVisible();
 });
