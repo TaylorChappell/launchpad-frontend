@@ -1,21 +1,22 @@
 import { test, expect, type Page } from "@playwright/test";
 const address="11111111111111111111111111111111";
 const signature="ripple-confirmed-receipt";
-async function setup(page:Page,pending=false,linked=true,tracking="live") {
-  await page.addInitScript(({address,signature,pending})=>{
+async function setup(page:Page,pending=false,linked=true,tracking="live",admin=false) {
+  await page.addInitScript(({address,signature,pending,admin})=>{
     sessionStorage.setItem("aqua:x-prompt:"+address,"1");localStorage.setItem("aqua:update:holder-workspace-v2","seen");localStorage.setItem("aqua:wallet","phantom");
+    if(admin)sessionStorage.setItem("aqua-admin-session-v1","verified-admin");
     if(pending)localStorage.setItem("aqua:pending-reward:mainnet-beta:"+address+":ripple",JSON.stringify({wallet:address,launchId:"coin",name:"Ripple",signature,epochId:"epoch-ripple",amountUsd:250}));
     Object.assign(window,{phantom:{solana:{isPhantom:true,publicKey:{toString:()=>address},connect:async()=>({publicKey:{toString:()=>address}}),on(){},removeListener(){},signMessage:async()=>({signature:new Uint8Array(64)}),signAndSendTransaction(){throw Error("A pending receipt must not be resubmitted");}}}});
-  },{address,signature,pending});
+  },{address,signature,pending,admin});
   await page.route("**/api/**",r=>{
     const path=new URL(r.request().url()).pathname;
     let json:unknown={};
-    if(path==="/api/config")json={brand:"AQUA",network:"mainnet-beta",useTestnet:false,transactionsEnabled:false,marketGovernanceEnabled:false,publicRpcUrl:"https://rpc.invalid",whirlpools:{},fees:{transferFeeBps:200,platformBps:100,stockRewardsBps:100},creatorLocks:{minimumSeconds:86400,maximumSeconds:31536000,maximumFeeShareBps:5000},sniperDefense:{supported:false},rippleRewards:{enabled:true,rewardBps:1500,boostBps:1000}};
+    if(path==="/api/config")json={adminWallet:admin?address:undefined,brand:"AQUA",network:"mainnet-beta",useTestnet:false,transactionsEnabled:false,marketGovernanceEnabled:false,publicRpcUrl:"https://rpc.invalid",whirlpools:{},fees:{transferFeeBps:200,platformBps:100,stockRewardsBps:100},creatorLocks:{minimumSeconds:86400,maximumSeconds:31536000,maximumFeeShareBps:5000},sniperDefense:{supported:false},rippleRewards:{enabled:true,rewardBps:1500,boostBps:1000}};
     else if(path.endsWith("/holdings"))json={holdings:[]};
     else if(path.endsWith("/claim-history"))json={claims:[],lifetime:[],hasMore:false};
     else if(path.includes("/notifications/"))json={notifications:[]};
     else if(path==="/api/rewards/"+address||path.endsWith("/rewards"))json={rewards:[],cumulativeRewards:[],holdings:[],markets:[]};
-    else if(path.endsWith("/activity"))json={enabled:true,signedIn:true,holdersOnly:true,status:"tracking",reason:null,checkedAt:Date.now(),poolLamports:"100000000",rewardBps:1500,boostBps:1000,service:{mode:tracking,message:tracking==="paused"?"Daily X tracking limit reached. Tracking resumes after midnight UTC.":null,lastEventAt:Date.now(),settlementMinutes:15},nextPayoutAt:Date.now()+900000,measurementHours:8,checkHours:[1,2,4,8],settlementHours:1,totalPosts:142,posts:[{id:"123",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:true,createdAt:Date.now()-86400000,text:"Come swim with $OCEAN",checksCompleted:2,totalChecks:4,nextCheckAt:Date.now()+3600000,trackingStatus:"tracking",score:1234,metrics:{like_count:20,impression_count:1500},amountLamports:"25000000",status:"claimable",reason:null},{id:"124",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:false,createdAt:Date.now(),text:"A new $OCEAN post",checksCompleted:0,totalChecks:32,nextCheckAt:Date.now()+3600000,trackingStatus:"tracking",score:0,metrics:{like_count:2,impression_count:100},amountLamports:"0",status:"measuring",reason:null},{id:"125",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:false,createdAt:Date.now()-172800000,text:"The biggest $OCEAN reward",metrics:{like_count:99},amountLamports:"1000000000",status:"claimable",reason:null}]};
+    else if(path.endsWith("/activity"))json={enabled:true,signedIn:true,holdersOnly:true,status:"tracking",reason:null,checkedAt:Date.now(),poolLamports:"100000000",rewardBps:1500,boostBps:1000,service:{mode:tracking,message:tracking==="paused"?"Daily X tracking limit reached. Tracking resumes after midnight UTC.":null,lastEventAt:Date.now(),settlementMinutes:15},nextPayoutAt:Date.now()+900000,measurementHours:8,checkHours:[1,2,4,8],settlementHours:1,totalPosts:142,posts:[{id:"123",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:true,createdAt:Date.now()-86400000,text:"Come swim with $OCEAN",checksCompleted:2,totalChecks:4,nextCheckAt:Date.now()+3600000,trackingStatus:"tracking",score:1234,metrics:{like_count:20,impression_count:1500},amountLamports:"25000000",earnedUsdCents:"250",status:"claimable",reason:null},{id:"124",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:false,createdAt:Date.now(),text:"A new $OCEAN post",checksCompleted:0,totalChecks:32,nextCheckAt:Date.now()+3600000,trackingStatus:"tracking",score:0,metrics:{like_count:2,impression_count:100},amountLamports:"0",status:"measuring",reason:null},{id:"125",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:false,createdAt:Date.now()-172800000,text:"The biggest $OCEAN reward",metrics:{like_count:99},amountLamports:"1000000000",earnedUsdCents:"10000",status:"claimable",reason:null}]};
     else if(path==="/api/market-prices/stream")return r.fulfill({contentType:"text/event-stream",body:'data: {"prices":[]}\n\n'});
     else if(path==="/api/market-prices")json={prices:[]};
     else if(path==="/api/launches")json={launches:[],hasMore:false,nextOffset:0};
@@ -35,19 +36,19 @@ test("Ripple has its own tab with separate claims, post rewards and no mobile ov
   await expect(page).toHaveURL(/tab=ripple/);
   const panel=page.getByRole("region",{name:"Ripple Rewards",exact:true});
   await expect(panel.getByRole("heading",{name:"Ripple Rewards",exact:true})).toBeVisible();
-  await expect(panel.getByText("0.025 SOL",{exact:true})).toBeVisible();
+  await expect(panel.getByText("$2.50",{exact:true})).toBeVisible();
   await expect(panel.getByRole("button",{name:"Claim",exact:true})).toBeDisabled();
   await expect(panel.getByText("No rewards to claim yet.", {exact:true})).toHaveCount(0);
   await expect(panel.getByText(/Live detection|Hourly rewards|15-minute rewards|Next round|Next check|Check \d of|Last checked|Scheduled detection/)).toHaveCount(0);
-  await expect(panel.getByText("0 SOL",{exact:true})).toBeVisible();
+  await expect(panel.getByText("$0.00",{exact:true})).toBeVisible();
   await expect(panel.getByText("A new $OCEAN post",{exact:true})).toBeVisible();
-  await expect(panel.locator('.ripple-post-amount b')).toHaveText(['1 SOL','0.025 SOL','0 SOL']);
+  await expect(panel.locator('.ripple-post-amount b')).toHaveText(['$100.00','$2.50','$0.00']);
   await expect(panel.locator('.ripple-post-metrics').nth(1)).toContainText('20 likes');
   await expect(panel.getByRole("link",{name:"Reply on X"})).toHaveAttribute("href","https://x.com/i/status/123");
   await expect(panel.getByText("From every reward mode")).toHaveCount(0);
   await expect(panel.getByText("Awaiting activation")).toHaveCount(0);
   await expect(panel.getByText("Your posts. Your rewards.")).toHaveCount(0);
-  await page.reload();await expect(panel.getByText("0.025 SOL",{exact:true})).toBeVisible();
+  await page.reload();await expect(panel.getByText("$2.50",{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
   await page.screenshot({path:`/tmp/ripple-${test.info().project.name}.png`,fullPage:true});
 });
@@ -96,7 +97,7 @@ test("a completed zero-reward post remains visible and a delayed scan preserves 
   ]}}));
   await page.goto("/#/portfolio?tab=ripple");const panel=page.getByRole("region",{name:"Ripple Rewards",exact:true});
   await expect(panel.getByText("Still supporting $OCEAN")).toBeVisible();
-  await expect(panel.getByText("0 SOL",{exact:true})).toBeVisible();
+  await expect(panel.getByText("$0.00",{exact:true})).toBeVisible();
   await expect(panel.getByText(/Checks complete|Check 4 of 4|Post updates are delayed/)).toHaveCount(0);
   await expect(panel.getByRole("button",{name:"Claim",exact:true})).toBeDisabled();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
@@ -108,7 +109,7 @@ test("Ripple keeps posts visible without tracking details",async({page})=>{
   const panel=page.getByRole('region',{name:'Ripple Rewards',exact:true});
   await expect(panel.getByText('Tracking paused',{exact:true})).toHaveCount(0);
   await expect(panel.getByText('Daily X tracking limit reached. Tracking resumes after midnight UTC.')).toHaveCount(0);
-  await expect(panel.getByText('0.025 SOL',{exact:true})).toBeVisible();
+  await expect(panel.getByText('$2.50',{exact:true})).toBeVisible();
 });
 
 test("Ripple enables Claim only when a reward can be claimed",async({page})=>{
@@ -122,4 +123,33 @@ test("Ripple enables Claim only when a reward can be claimed",async({page})=>{
   const panel=page.getByRole("region",{name:"Ripple Rewards",exact:true});
   await expect(panel.getByRole("button",{name:"Claim",exact:true})).toBeEnabled();
   await expect(panel.locator(".reward-claim-list")).toHaveCount(0);
+});
+
+test("admin Ripple lists every post with dollar earnings, pagination and server-side search",async({page})=>{
+  await setup(page,false,true,"live",true);
+  await page.route("**/api/admin/diagnostics?*",r=>r.fulfill({json:{generatedAt:Date.now(),proposals:[],diagnostics:[],launches:[],runtime:{available:false},conversions:[],settlements:[],rewardPurchases:[],rewardEpochs:[],counts:{},flags:{},alerts:{configured:true,valid:true}}}));
+  const requests:Array<{search:string;offset:number}>=[];
+  await page.route("**/api/admin/ripple?*",r=>{
+    expect(r.request().headers().authorization).toBe("Bearer verified-admin");
+    const q=new URL(r.request().url()).searchParams,search=q.get("search")??"",offset=Number(q.get("offset"));requests.push({search,offset});
+    const posts=Array.from({length:26},(_,i)=>({id:String(100+i),launchId:"coin",symbol:"OCEAN",coinName:"Ocean",wallet:address,username:i===25?"another":"aqua_tester",text:i===25?"Last post":"Supporting $OCEAN "+i,createdAt:Date.now(),metrics:{like_count:5,impression_count:1000},amountLamports:i===25?"0":"1000000000",earnedUsdCents:i===25?"0":"10000",claimedUsdCents:"0",status:"tracking",reason:null})).filter(p=>!search||p.username.includes(search));
+    return r.fulfill({json:{totalPosts:posts.length,earnedUsdCents:search?"0":"250000",claimedUsdCents:"0",unpricedPosts:0,offset,limit:25,hasMore:offset+25<posts.length,posts:posts.slice(offset,offset+25)}});
+  });
+  await page.goto("/#/portfolio");
+  await expect(page.getByRole("heading",{name:"Your positions",exact:true})).toBeVisible();
+  await page.evaluate(()=>sessionStorage.setItem("aqua-admin-session-v1","verified-admin"));
+  await page.goto("/#/admin?section=ripple");
+  await expect(page.getByRole("navigation",{name:"Admin sections"}).getByRole("button",{name:"Ripple rewards",exact:true})).toHaveAttribute("aria-current","page");
+  const records=page.getByRole("region",{name:"Ripple post records"});
+  await expect(records.locator("tbody tr")).toHaveCount(25);
+  await expect(records.locator("tbody tr").first()).toContainText("$100.00");
+  await expect(records.getByRole("link",{name:"@aqua_tester"}).first()).toHaveAttribute("href","https://x.com/i/status/100");
+  await page.getByRole("button",{name:"Next Ripple posts"}).click();
+  await expect(records.locator("tbody tr")).toHaveCount(1);await expect(records).toContainText("Last post");
+  await expect(records).toContainText("$0.00");
+  await page.getByRole("textbox",{name:"Search admin records"}).fill("another");
+  await expect.poll(()=>requests.at(-1)).toEqual({search:"another",offset:0});
+  await expect(page.getByRole("button",{name:"Next Ripple posts"})).toBeDisabled();
+  await expect(page.locator(".ops-pager")).toContainText("1–1 of 1");
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
 });

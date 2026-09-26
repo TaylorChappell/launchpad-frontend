@@ -6,7 +6,7 @@ import { useWallet } from "../context";
 import { connectX, useWalletX, useXFeature } from "../x-identity";
 import { XLogo } from "./XConnect";
 import { WalletRewards } from "./WalletRewards";
-import { displayTokenAmount } from "../trade-quote";
+import { rippleDollars } from "../ripple-display";
 import type { RippleSummary } from "../types";
 import "../ripple.css";
 
@@ -61,6 +61,11 @@ function RippleBalances({ address, data, error, onRefresh }: RippleProps) {
   }
   const [visible, setVisible] = useState(5);
   const posts = [...(data?.posts ?? [])].sort((a, b) => {
+    const leftUsd = a.earnedUsdCents == null ? null : BigInt(a.earnedUsdCents);
+    const rightUsd = b.earnedUsdCents == null ? null : BigInt(b.earnedUsdCents);
+    if (leftUsd !== null && rightUsd === null) return -1;
+    if (leftUsd === null && rightUsd !== null) return 1;
+    if (leftUsd !== null && rightUsd !== null && leftUsd !== rightUsd) return leftUsd > rightUsd ? -1 : 1;
     const left = BigInt(a.amountLamports), right = BigInt(b.amountLamports);
     return left === right ? b.createdAt - a.createdAt || b.id.localeCompare(a.id) : left > right ? -1 : 1;
   });
@@ -72,7 +77,7 @@ function RippleBalances({ address, data, error, onRefresh }: RippleProps) {
       {error && <p className="danger-note" role="alert">{error} <button className="text-button" onClick={onRefresh}>Try again</button></p>}
       {!data ? !error && <p className="ripple-empty">Loading your posts…</p> : !data.posts.length ? <p className="ripple-empty">No posts yet. Mention a coin’s $ticker or contract address on X to appear here.</p> : posts.slice(0, visible).map(post => <article key={`${post.launchId}:${post.id}`}>
         <div className="ripple-post-top"><div className="ripple-post-identity"><a href={`https://x.com/i/status/${post.id}`} target="_blank" rel="noreferrer">{post.isReply ? "Reply on X" : "Post on X"}<ExternalLink size={13}/></a><small><Link to={`/token/${post.launchId}`}>${post.symbol}</Link> · {new Date(post.createdAt).toLocaleDateString()}</small></div>
-          <div className="ripple-post-amount"><b>{displayTokenAmount(post.amountLamports, 9)} SOL</b><small>Total earned</small></div>
+          <div className="ripple-post-amount"><b>{rippleDollars(post.earnedUsdCents,post.amountLamports)}</b><small title="USD value when rewards were allocated">Total earned</small></div>
         </div>
         {post.text && <p className="ripple-post-text">{post.text}</p>}
         <div className="ripple-post-metrics" aria-label="Post engagement">
