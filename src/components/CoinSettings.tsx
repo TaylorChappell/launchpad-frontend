@@ -18,10 +18,9 @@ export function CoinSettings({ launch }: { launch: Launch }) {
         <section><h3>Rewards &amp; community</h3><dl className="market-details-facts">
           <div><dt>Reward mode</dt><dd>{mode}</dd></div>
           <div><dt>Ripple share</dt><dd>{(launch.rippleRewardBps ?? 1500)/100}% of trading rewards</dd></div>
-          <div><dt>Community Boost to Ripple</dt><dd>10%</dd></div>
           <div><dt>Marketing</dt><dd>{marketing === "off" ? "Off" : marketing === "proposal" ? "Proposal only" : "Automatic + proposals"}</dd></div>
           <div><dt>DEX fund</dt><dd>{dex === "proposal" ? "Proposal only" : "Automatic + proposals"}</dd></div>
-        </dl><p className="coin-settings-note">Ripple comes from the reward budget after operating and campaign allocations. It adds no extra token fee. The token fee and Ripple share were set at launch.</p></section>
+        </dl></section>
       </div>
     </MarketSheet>}
   </>;

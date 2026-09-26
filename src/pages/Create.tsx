@@ -24,7 +24,7 @@ import { RewardModeIcon } from "../components/RewardModeIcon";
 import { DexProfileFields } from "../components/MarketProposals";
 import { CoinFeeBreakdown } from "../components/CoinFeeBreakdown";
 import "../coin-settings.css";
-import { DexScreenerIcon } from "../components/DexScreenerIcon";
+import { PercentControl } from "../components/PercentControl";
 import type { DexProfile } from "../types";
 import type { Launch, LaunchBatchEnvelope, LaunchConfirmation, LaunchRelayStatus, StockOption, TransactionEnvelope } from "../types";
 
@@ -143,27 +143,27 @@ export function Create() {
   const priorDraftKey=useRef(draftKey);
   const editedDraftKey=useRef("");
   const [draftReady,setDraftReady]=useState("");
-  const [draftStatus,setDraftStatus]=useState("Loading local draft…");
+  const [draftError,setDraftError]=useState("");
   useEffect(()=>{
     if(stockLoading||pairsRefreshing||draftReady===draftKey)return;
-    let active=true;const carryGuest=priorDraftKey.current==="launch:"+config.network+":guest";priorDraftKey.current=draftKey;setDraftStatus("Loading local draft…");
+    let active=true;const carryGuest=priorDraftKey.current==="launch:"+config.network+":guest";priorDraftKey.current=draftKey;setDraftError("");
     if(searchParams.get("studio")){setDraftReady(draftKey);return;}
     readLaunchDraft<{form:Omit<Form,"devBuyCurrency"> & {devBuyCurrency?:"SOL"|"USDC"};file:File|null;dexFundingEnabled:boolean;marketingMode?:"off"|"proposal"|"automatic";dexFundingMode?:"proposal"|"automatic";dexProfile:DexProfile;stockMint:string}>(draftKey).then(async draft=>{
       if(!active)return;
-      if(editedDraftKey.current===draftKey){setDraftStatus("Draft will be saved on this device.");return;}
+      if(editedDraftKey.current===draftKey){setDraftError("");return;}
       if(draft||!carryGuest){setForm(empty);setFile(null);setPreview("");setDexFundingEnabled(false);setMarketingMode("automatic");setDexFundingMode("automatic");setDexProfile({description:"",bannerUrl:"",websiteUrl:"",xUrl:"",telegramUrl:""});setStock(stocks[0]??null);setStep(0);}
       if(draft?.form){setForm({...empty,...draft.form,devBuyCurrency:"SOL",launchAmount:draft.form.devBuyCurrency==="USDC"?"":draft.form.launchAmount??""});setDexFundingEnabled(Boolean(draft.dexFundingEnabled));setMarketingMode(draft.marketingMode??"automatic");setDexFundingMode(draft.dexFundingMode??"automatic");if(draft.dexProfile)setDexProfile(draft.dexProfile);if(draft.file instanceof File)chooseArtwork(draft.file);const saved=stocks.find(s=>s.mint===draft.stockMint);if(saved)setStock(saved);else if(draft.stockMint){
         setStock(null);
-        if(pairLookupEnabled){try{const found=await api.lookupPair(draft.stockMint);if(!active)return;setStock(found.stock);}catch{if(!active)return;setDraftStatus("Draft restored. Your saved pair is unavailable; choose another pair.");return;}}
+        if(pairLookupEnabled){try{const found=await api.lookupPair(draft.stockMint);if(!active)return;setStock(found.stock);}catch{if(!active)return;setDraftError("Draft restored. Your saved pair is unavailable; choose another pair.");return;}}
       }}
-      setDraftStatus(draft?"Draft restored on this device.":"Draft will be saved on this device.");
-    }).catch(()=>{if(active)setDraftStatus("Local drafts unavailable. Keep this page open until launch.");}).finally(()=>{if(active)setDraftReady(draftKey);});
+      setDraftError("");
+    }).catch(()=>{if(active)setDraftError("Local drafts unavailable. Keep this page open until launch.");}).finally(()=>{if(active)setDraftReady(draftKey);});
     return()=>{active=false;};
   },[draftKey,stockLoading,pairsRefreshing]);
   useEffect(()=>{
     if(draftReady!==draftKey||completedLaunch||!studioImportReady)return;
     let active=true;
-    const timer=window.setTimeout(()=>{void saveLaunchDraft(draftKey,{form,file,dexFundingEnabled,marketingMode,dexFundingMode,dexProfile,stockMint:stock?.mint}).then(()=>{if(active)setDraftStatus("Draft saved on this device.");}).catch(()=>{if(active)setDraftStatus("Draft could not save. Keep this page open until launch.");});},600);
+    const timer=window.setTimeout(()=>{void saveLaunchDraft(draftKey,{form,file,dexFundingEnabled,marketingMode,dexFundingMode,dexProfile,stockMint:stock?.mint}).then(()=>{if(active)setDraftError("");}).catch(()=>{if(active)setDraftError("Draft could not save. Keep this page open until launch.");});},600);
     return()=>{active=false;window.clearTimeout(timer);};
   },[draftKey,draftReady,form,file,dexFundingEnabled,marketingMode,dexFundingMode,dexProfile,stock?.mint,completedLaunch,studioImportReady]);
 
@@ -635,13 +635,13 @@ export function Create() {
       <aside className="wizard-rail" aria-label="Launch steps">
         <div className="wizard-rail-head"><span>Create coin</span><b>{step + 1} of {wizardSteps.length}</b></div>
         <div className="wizard-rail-track"><i style={{ height: `${(step / (wizardSteps.length - 1)) * 100}%` }}/></div>
-        {wizardSteps.map((item, index) => <button key={item.label} className={`${index === step ? "active" : ""} ${index < step ? "done" : ""}`} onClick={() => { if (index <= step) setStep(index); }} disabled={index > step}>
+        {wizardSteps.map((item, index) => <button key={item.label} aria-current={index === step ? "step" : undefined} className={`${index === step ? "active" : ""} ${index < step ? "done" : ""}`} onClick={() => { if (index <= step) setStep(index); }} disabled={index > step}>
           <span>{index < step ? <Check size={15}/> : index + 1}</span><div><b>{item.label}</b><small>{item.short}</small></div>
         </button>)}
         <div className="wizard-rail-pulse" aria-hidden="true"><i/><i/><i/></div>
       </aside>
 
-      <div className="wizard-main">{launchCost && <p className="status-inline">Estimated launch: {launchCost.estimatedTotalSol.minimum.toFixed(2)}–{launchCost.estimatedTotalSol.maximum.toFixed(2)} SOL, excluding optional first buy. {draftStatus} Approved launch transactions are handed to AQUA for completion.</p>}
+      <div className="wizard-main">{draftError && <p className="survey-error" role="status">{draftError}</p>}
         {step === 0 && <WizardSection title="Create your coin" description="Add a name, ticker, and artwork. The description and socials are optional.">
           <div className="coin-identity-grid">
             <label className="wizard-artwork">
@@ -662,7 +662,7 @@ export function Create() {
           </div></section>
         </WizardSection>}
 
-        {step === 1 && <WizardSection title="Choose the pair and reward" description={pairLookupEnabled ? "Choose SOL, ORCA, AQUA, an eligible Pump.fun coin, or a supported xStock. Holders earn your selected pair asset." : "Launch against SOL, official ORCA, or one supported xStock. Holders earn the same asset you choose."}>
+        {step === 1 && <WizardSection title="Choose the pair and reward" description="Choose the asset your coin trades against and pays rewards in.">
           <div className="stock-search"><Search size={17}/><input value={stockQuery} aria-label="Search pairs or paste a Pump.fun mint address" placeholder={pairLookupEnabled ? "Search pairs or paste a Pump.fun CA" : "Search SOL, ORCA, or stocks"} onChange={(event) => { setStockQuery(event.target.value); setPairResult(null); setVisibleStocks(10); }}/><span>{pairOptions.length} assets</span></div>
           {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Loading pairs</span></div> : <>
             <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { editedDraftKey.current=draftKey; setStock(item); setAcknowledged(false); }}>
@@ -681,49 +681,40 @@ export function Create() {
           {stock?.restricted && <label className="stock-ack"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)}/><span>I understand tokenized stocks may be restricted or unavailable in my jurisdiction.</span></label>}
         </WizardSection>}
 
-        {step === 2 && <WizardSection title="Choose the reward mode" description="This policy is permanent after launch, so holders always know how the reward share will be used.">
+        {step === 2 && <WizardSection title="Choose the reward mode" description="Choose how your coin rewards its holders.">
           <div className="reward-mode-grid" role="radiogroup" aria-label="Reward mode">
             <ModeButton active={form.rewardMode === "holder_rewards"} onClick={() => update("rewardMode", "holder_rewards")} icon={<RewardModeIcon mode="holder_rewards"/>} title="Holder Rewards" eyebrow="Steady rewards">
-              The holder share is converted into the selected pair asset and distributed by balance × time held. Rewards accumulate into one claim per market.
+              Holders earn your pair asset based on their balance and time held.
             </ModeButton>
             <ModeButton active={form.rewardMode === "buyback_burn"} disabled={!config.rewardModes?.enabled} onClick={() => update("rewardMode", "buyback_burn")} icon={<RewardModeIcon mode="buyback_burn"/>} title="Buyback & Burn" eyebrow="Reduce supply">
-              The holder share becomes SOL, buys this coin through the live market, then permanently burns every token purchased.
+              Rewards buy back your coin and permanently burn the tokens.
             </ModeButton>
             <ModeButton active={form.rewardMode === "jackpot"} disabled={!config.rewardModes?.enabled || !config.rewardModes.jackpot.enabled} onClick={() => update("rewardMode", "jackpot")} icon={<RewardModeIcon mode="jackpot"/>} title="Hourly Jackpot" eyebrow="5 winners · every hour">
-              Five distinct holders split each pot 50% / 20% / 20% / 5% / 5%. Holding and buying earlier increases your score; selling cuts accrued score.
+              Five holders win each hour. Holding and buying earlier improves your score; selling reduces it.
             </ModeButton>
           </div>
-          {config.rippleRewards?.enabled && <div className="reward-mode-notice"><Info/> Across all modes, a share of new trading rewards funds Ripple Rewards. Choose the percentage in Settings; the rest follows your selected mode.</div>}
+          {config.rippleRewards?.enabled && <div className="reward-mode-notice"><Info/> Set aside a share for Ripple Rewards in the next step.</div>}
           {!config.rewardModes?.enabled && <div className="reward-mode-notice"><Info/> Alternative modes will unlock after the staged program upgrade is enabled. Holder Rewards remains available.</div>}
         </WizardSection>}
 
-        {step === settingsStep && <WizardSection title="Coin settings" description="Choose your fees and how your coin funds its community. Review these settings before launch.">
+        {step === settingsStep && <WizardSection title="Coin settings" description="Set your fees and community funding.">
           <div className="launch-settings-grid">
-            <section className="launch-setting-card">
-              <header><label htmlFor="launch-reward-fee">Reward fee</label><strong>{form.rewardFeeBps / 100}%</strong></header>
-              <p>The share of each transfer that funds your coin’s rewards. AQUA adds a fixed 1% platform fee.</p>
-              <input id="launch-reward-fee" type="range" min="100" max="400" step="10" value={form.rewardFeeBps} disabled={!config.launchSettings?.variableRewardFeesEnabled} onChange={event => update("rewardFeeBps", Number(event.target.value))}/>
-              <div className="launch-setting-limits"><span>1% minimum</span><span>4% maximum</span></div>
-              {!config.launchSettings?.variableRewardFeesEnabled && <small>This network currently supports the default 1% reward fee.{form.rewardFeeBps !== 100 && <button type="button" className="proposal-text-action" onClick={() => update("rewardFeeBps",100)}>Use 1%</button>}</small>}
-            </section>
-            <section className="launch-setting-card">
-              <header><label htmlFor="launch-ripple-share">Ripple share</label><strong>{form.rippleRewardBps / 100}%</strong></header>
-              <p>The share of trading rewards for eligible X posts. This comes from your reward budget and adds no extra token fee.</p>
-              <input id="launch-ripple-share" type="range" min="300" max="3000" step="100" value={form.rippleRewardBps} onChange={event => update("rippleRewardBps", Number(event.target.value))}/>
-              <div className="launch-setting-limits"><span>3% minimum</span><span>30% maximum</span></div>
-              <small>{100-form.rippleRewardBps/100}% stays with your selected reward mode after operating and campaign allocations. Community Boost’s Ripple share stays at 10%.</small>
-            </section>
+            <PercentControl id="launch-reward-fee" label="Rewards fee" hint="Funds your coin’s rewards." value={form.rewardFeeBps} min={100} max={400} step={10} disabled={!config.launchSettings?.variableRewardFeesEnabled} onChange={value => update("rewardFeeBps", value)}>
+              {!config.launchSettings?.variableRewardFeesEnabled && <small>Currently available: 1%.{form.rewardFeeBps !== 100 && <button type="button" className="proposal-text-action" onClick={() => update("rewardFeeBps",100)}>Use 1%</button>}</small>}
+            </PercentControl>
+            <PercentControl id="launch-ripple-share" label="Ripple share" hint="Rewards for X posts. No extra fee." value={form.rippleRewardBps} min={300} max={3000} step={100} onChange={value => update("rippleRewardBps", value)}/>
           </div>
           <CoinFeeBreakdown rewardFeeBps={form.rewardFeeBps} orcaFeeRate={config.launchSettings?.orcaFeeRate}/>
           <section className="launch-growth-settings"><h3>Community funding</h3>
-          <div className="launch-advanced-fields"><label htmlFor="launch-marketing-mode">Marketing<select id="launch-marketing-mode" aria-label="Marketing" aria-describedby="launch-marketing-help" value={marketingMode} onChange={event=>setMarketingMode(event.target.value as typeof marketingMode)}><option value="off">Off</option><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></select><small id="launch-marketing-help">{marketingMode === "off" ? "No DEX boost proposals or automatic marketing campaigns." : marketingMode === "proposal" ? "Holders propose and vote on DEX boost campaigns." : "Automatic momentum campaigns plus holder proposals and voting."}</small></label>
-            <label htmlFor="launch-dex-funding-mode">DEX fund<select id="launch-dex-funding-mode" aria-label="DEX fund" aria-describedby="launch-dex-help" value={dexFundingMode} onChange={event=>setDexFundingMode(event.target.value as typeof dexFundingMode)}><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></select><small id="launch-dex-help">{dexFundingMode === "proposal" ? "Holders propose and vote to fund the DEX profile." : "Automatic momentum funding plus holder proposals and voting."} DEX funding stays available.</small></label></div>
+            <div className="launch-advanced-fields">
+              <label htmlFor="launch-marketing-mode">Marketing<select id="launch-marketing-mode" aria-label="Marketing" aria-describedby="launch-funding-help" value={marketingMode} onChange={event=>setMarketingMode(event.target.value as typeof marketingMode)}><option value="off">Off</option><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></select></label>
+              <label htmlFor="launch-dex-funding-mode">DEX fund<select id="launch-dex-funding-mode" aria-label="DEX fund" aria-describedby="launch-funding-help" value={dexFundingMode} onChange={event=>setDexFundingMode(event.target.value as typeof dexFundingMode)}><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></select></label>
+            </div>
+            <p id="launch-funding-help">Automatic also includes holder proposals.</p>
           </section>
-          <p className="coin-settings-note">The token fee and Ripple share are fixed for this coin at launch.</p>
         </WizardSection>}
 
         {dexProfileEnabled && step === dexProfileStep && <WizardSection title="DEX Screener profile" description="Add an optional profile draft. Your community can propose updates later.">
-          <div className="launch-dex-intro"><DexScreenerIcon/><div><b>Your DEX Screener profile</b><p>Save an optional initial profile below. Eligible holders can propose replacement information and vote on it.</p></div></div>
           <div className="launch-dex-fields"><DexProfileFields profile={dexProfile} update={(key, value) => setDexProfile((current) => ({ ...current, [key]: value }))} optional/></div>
           {!dexDraftValid && <p className="survey-error">Use full https:// URLs, or leave these fields empty.</p>}
           <button className="proposal-text-action" onClick={() => { setDexFundingEnabled(false); setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" }); setStep(devBuyStep); }}>Skip profile details <ArrowRight/></button>
@@ -733,10 +724,10 @@ export function Create() {
           <Field label={`Optional first buy in ${currencySymbol}`} wide><div className="unit-input launch-amount-input"><input inputMode="decimal" value={form.launchAmount} placeholder="0" onChange={(event) => update("launchAmount", event.target.value.replace(",", ".").replace(/[^0-9.]/g, ""))}/><span>{currencySymbol}</span></div></Field>
           {launchCost && <div className="launch-cost-card">
             <div><span><b>Estimated launch cost</b><small>before any optional first buy</small></span><strong>{launchCost.estimatedTotalSol.minimum.toFixed(2)}–{launchCost.estimatedTotalSol.maximum.toFixed(2)} SOL</strong></div>
-            <p><b>{launchCost.platformFeeSol.toFixed(2)} SOL AQUA fee</b> funds keeper operations. The rest is estimated Solana/Orca account rent and network fees; your wallet approval shows the authoritative amount.</p>
+            <p>Includes the {launchCost.platformFeeSol.toFixed(2)} SOL launch fee and estimated network costs.</p>
           </div>}
           <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} · {form.rewardMode === "holder_rewards" ? "Holder Rewards" : form.rewardMode === "buyback_burn" ? "Buyback & Burn" : "Hourly Jackpot"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
-          <div className="launch-settings-review"><span>Token fee <b>{(100+form.rewardFeeBps)/100}%</b></span><span>Ripple share <b>{form.rippleRewardBps/100}%</b></span><button type="button" onClick={() => setStep(settingsStep)}>Edit settings</button></div>
+          <div className="launch-settings-review"><span>Rewards fee <b>{form.rewardFeeBps/100}%</b></span><span>Ripple share <b>{form.rippleRewardBps/100}%</b></span><button type="button" onClick={() => setStep(settingsStep)}>Edit settings</button></div>
           <label className="terms-acceptance"><input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)}/><span>I have read and agree to the <Link to="/terms" target="_blank">Terms of Service</Link>, including the cryptoasset, permanent-liquidity and third-party risks.</span></label>
           <button className="wizard-launch-button" onClick={() => void beginLaunch()} disabled={!validForStep.every(Boolean) || launching || !acceptedTerms} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
         </WizardSection>}

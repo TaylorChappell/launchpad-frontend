@@ -366,8 +366,9 @@ test("Coin settings opens below More details and displays the coin's configured 
   const boxes=await page.evaluate(()=>[".market-more-details:not(.market-coin-settings)",".market-coin-settings"].map(s=>{const r=document.querySelector(s)!.getBoundingClientRect();return {top:r.top,bottom:r.bottom};}));
   expect(boxes[1].top).toBeGreaterThanOrEqual(boxes[0].bottom);
   await button.click();const dialog=page.getByRole("dialog",{name:"Coin settings",exact:true});
-  await expect(dialog.locator('.coin-fee-subtotal dd')).toHaveText('5%');
-  await expect(dialog.locator('.coin-fee-total dd')).toHaveText('6%');
+  await expect(dialog.locator('.coin-fee-breakdown dt')).toHaveText(['Rewards fee','Platform fee','Orca fee']);
+  await expect(dialog.locator('.coin-fee-breakdown dd')).toHaveText(['4%','1%','1%']);
+  await expect(dialog.getByText(/Community Boost|Combined fee rates|Token fee/)).toHaveCount(0);
   await expect(dialog.getByText('3% of trading rewards',{exact:true})).toBeVisible();
   await expect(dialog.getByText('Off',{exact:true})).toBeVisible();
   await expect(dialog.getByText('Proposal only',{exact:true})).toBeVisible();
