@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 const address="11111111111111111111111111111111";
 const signature="ripple-confirmed-receipt";
-async function setup(page:Page,pending=false,linked=true) {
+async function setup(page:Page,pending=false,linked=true,tracking="live") {
   await page.addInitScript(({address,signature,pending})=>{
     sessionStorage.setItem("aqua:x-prompt:"+address,"1");localStorage.setItem("aqua:update:holder-workspace-v2","seen");localStorage.setItem("aqua:wallet","phantom");
     if(pending)localStorage.setItem("aqua:pending-reward:mainnet-beta:"+address+":ripple",JSON.stringify({wallet:address,launchId:"coin",name:"Ripple",signature,epochId:"epoch-ripple",amountUsd:250}));
@@ -15,7 +15,7 @@ async function setup(page:Page,pending=false,linked=true) {
     else if(path.endsWith("/claim-history"))json={claims:[],lifetime:[],hasMore:false};
     else if(path.includes("/notifications/"))json={notifications:[]};
     else if(path==="/api/rewards/"+address||path.endsWith("/rewards"))json={rewards:[],cumulativeRewards:[],holdings:[],markets:[]};
-    else if(path.endsWith("/activity"))json={enabled:true,signedIn:true,holdersOnly:true,status:"tracking",reason:null,checkedAt:Date.now(),poolLamports:"100000000",rewardBps:1500,boostBps:1000,measurementHours:8,checkHours:[1,2,4,8],settlementHours:1,posts:[{id:"123",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:true,createdAt:Date.now()-86400000,text:"Come swim with $OCEAN",checksCompleted:2,totalChecks:4,nextCheckAt:Date.now()+3600000,trackingStatus:"tracking",score:1234,metrics:{like_count:20,impression_count:1500},amountLamports:"25000000",status:"claimable",reason:null},{id:"124",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:false,createdAt:Date.now(),text:"A new $OCEAN post",checksCompleted:0,totalChecks:4,nextCheckAt:Date.now()+3600000,trackingStatus:"tracking",score:0,metrics:{like_count:2,impression_count:100},amountLamports:"0",status:"measuring",reason:null}]};
+    else if(path.endsWith("/activity"))json={enabled:true,signedIn:true,holdersOnly:true,status:"tracking",reason:null,checkedAt:Date.now(),poolLamports:"100000000",rewardBps:1500,boostBps:1000,service:{mode:tracking,message:tracking==="paused"?"Daily X tracking limit reached. Tracking resumes after midnight UTC.":null,lastEventAt:Date.now(),settlementMinutes:15},nextPayoutAt:Date.now()+900000,measurementHours:8,checkHours:[1,2,4,8],settlementHours:1,posts:[{id:"123",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:true,createdAt:Date.now()-86400000,text:"Come swim with $OCEAN",checksCompleted:2,totalChecks:4,nextCheckAt:Date.now()+3600000,trackingStatus:"tracking",score:1234,metrics:{like_count:20,impression_count:1500},amountLamports:"25000000",status:"claimable",reason:null},{id:"124",launchId:"coin",symbol:"OCEAN",wallet:address,isReply:false,createdAt:Date.now(),text:"A new $OCEAN post",checksCompleted:0,totalChecks:32,nextCheckAt:Date.now()+3600000,trackingStatus:"tracking",score:0,metrics:{like_count:2,impression_count:100},amountLamports:"0",status:"measuring",reason:null}]};
     else if(path==="/api/market-prices/stream")return r.fulfill({contentType:"text/event-stream",body:'data: {"prices":[]}\n\n'});
     else if(path==="/api/market-prices")json={prices:[]};
     else if(path==="/api/launches")json={launches:[],hasMore:false,nextOffset:0};
@@ -36,9 +36,12 @@ test("Ripple has its own tab with separate claims, post rewards and no mobile ov
   const panel=page.getByRole("region",{name:"Ripple Rewards",exact:true});
   await expect(panel.getByRole("heading",{name:"Ripple Rewards",exact:true})).toBeVisible();
   await expect(panel.getByText("0.025 SOL",{exact:true})).toBeVisible();
+  await expect(panel.getByText("Live detection",{exact:true})).toBeVisible();
+  await expect(panel.getByText("15-minute rewards",{exact:true})).toBeVisible();
+  await expect(panel.getByText(/Next round/)).toBeVisible();
   await expect(panel.getByText("0 SOL",{exact:true})).toBeVisible();
   await expect(panel.getByText("A new $OCEAN post",{exact:true})).toBeVisible();
-  await expect(panel.getByText("Check 0 of 4",{exact:true})).toBeVisible();
+  await expect(panel.getByText("Check 0 of 32",{exact:true})).toBeVisible();
   await expect(panel.getByText("Check 2 of 4",{exact:true})).toBeVisible();
   await expect(panel.getByText(/^Next check/)).toHaveCount(2);
   await expect(panel.getByText("Measuring · 24h",{exact:true})).toHaveCount(0);
@@ -74,7 +77,7 @@ test("unlinked wallets see a centered Connect X prompt in Ripple",async({page})=
 
 test("an expired AQUA session can sign in again while existing Ripple claims stay visible",async({page})=>{
   await setup(page,true);let signedIn=false,signatures=0;
-  await page.route("**/api/ripple/*/activity",r=>r.fulfill({json:{enabled:true,signedIn,holdersOnly:true,status:"tracking",reason:null,checkedAt:Date.now(),poolLamports:"0",rewardBps:1500,boostBps:1000,measurementHours:8,checkHours:[1,2,4,8],settlementHours:1,posts:[]}}));
+  await page.route("**/api/ripple/*/activity",r=>r.fulfill({json:{enabled:true,signedIn,holdersOnly:true,status:"tracking",reason:null,checkedAt:Date.now(),poolLamports:"0",rewardBps:1500,boostBps:1000,service:{mode:tracking,message:tracking==="paused"?"Daily X tracking limit reached. Tracking resumes after midnight UTC.":null,lastEventAt:Date.now(),settlementMinutes:15},nextPayoutAt:Date.now()+900000,measurementHours:8,checkHours:[1,2,4,8],settlementHours:1,posts:[]}}));
   await page.route("**/account/auth/challenge",r=>r.fulfill({json:{id:"00000000-0000-4000-8000-000000000001",message:"Sign in to AQUA"}}));
   await page.route("**/account/auth/session",r=>{
     expect(r.request().postDataJSON().wallet).toBe(address);expect(r.request().postDataJSON().signature).toBeTruthy();
@@ -101,4 +104,13 @@ test("a completed zero-reward post remains visible and a delayed scan preserves 
   await expect(panel.getByText("Check 4 of 4",{exact:true})).toBeVisible();
   await expect(panel.getByRole("status")).toContainText("Post updates are delayed");
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
+});
+
+
+test("Ripple shows tracking limits while keeping earned rewards visible",async({page})=>{
+  await setup(page,false,true,'paused');await page.goto('/#/portfolio?tab=ripple');
+  const panel=page.getByRole('region',{name:'Ripple Rewards',exact:true});
+  await expect(panel.getByText('Tracking paused',{exact:true})).toBeVisible();
+  await expect(panel.getByText('Daily X tracking limit reached. Tracking resumes after midnight UTC.')).toBeVisible();
+  await expect(panel.getByText('0.025 SOL',{exact:true})).toBeVisible();
 });
