@@ -355,3 +355,24 @@ test("market header keeps social icons and launch age together", async ({page},i
  }
  await page.locator('.token-hero').screenshot({path:'/tmp/aqua-market-header-'+info.project.name+'.png'});
 });
+
+
+test("Coin settings opens below More details and displays the coin's configured fees",async({page})=>{
+  await setup(page);
+  await page.route("**/api/launches/mobile",route=>route.fulfill({json:{launch:{...launch,transferFeeBps:500,rewardFeeBps:400,rippleRewardBps:300,orcaFeeRate:10000,marketingMode:"off",dexFundingMode:"proposal"},trades:[],creatorLock:null,rewardModeState:null}}));
+  await page.goto("/#/token/mobile?tab=community");
+  const button=page.getByRole("button",{name:"Coin settings",exact:true});
+  await expect(button).toBeVisible();
+  const boxes=await page.evaluate(()=>[".market-more-details:not(.market-coin-settings)",".market-coin-settings"].map(s=>{const r=document.querySelector(s)!.getBoundingClientRect();return {top:r.top,bottom:r.bottom};}));
+  expect(boxes[1].top).toBeGreaterThanOrEqual(boxes[0].bottom);
+  await button.click();const dialog=page.getByRole("dialog",{name:"Coin settings",exact:true});
+  await expect(dialog.locator('.coin-fee-breakdown dt')).toHaveText(['Rewards fee','Platform fee','Orca fee']);
+  await expect(dialog.locator('.coin-fee-breakdown dd')).toHaveText(['4%','1%','1%']);
+  await expect(dialog.getByText(/Community Boost|Combined fee rates|Token fee/)).toHaveCount(0);
+  await expect(dialog.getByText('3% of trading rewards',{exact:true})).toBeVisible();
+  await expect(dialog.getByText('Off',{exact:true})).toBeVisible();
+  await expect(dialog.getByText('Proposal only',{exact:true})).toBeVisible();
+  expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+  await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(button).toBeFocused();
+  await expect(page).toHaveURL(/tab=community/);
+});

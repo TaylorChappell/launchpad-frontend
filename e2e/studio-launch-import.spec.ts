@@ -53,7 +53,7 @@ test('full-screen loading hides the wizard until details and artwork are ready a
   await expect(page.getByPlaceholder('Aqua Robotics')).toHaveValue('Squid');
   await expect(page.getByPlaceholder('AQR')).toHaveValue('SQUID');
   await expect(page.locator('.launch-details-loading')).toHaveCount(0);
-  for (let step = 0; step < 3; step++) await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  for (let step = 0; step < 4; step++) await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Launch', exact: true }).click();
   await expect.poll(() => calls.launches.length).toBe(1);

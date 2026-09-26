@@ -46,13 +46,18 @@ test('community replaces comments; details and position sit under trading; comme
   const position=page.locator('.market-position-dropdown');
   await expect(position.locator('.market-position')).toHaveCount(0);
   const tradeSelector=info.project.name==='mobile'?'.market-trade-actions':'.trade-card';
-  expect(await position.evaluate(el=>el.previousElementSibling?.matches('.market-more-details'))).toBe(true);
+  expect(await position.evaluate(el=>el.previousElementSibling?.matches('.market-coin-settings'))).toBe(true);
   // Measure both boxes in the same frame while section navigation may animate.
-  const [tradeBox,positionBox]=await page.evaluate(tradeSelector=>[tradeSelector,'.market-position-dropdown'].map(selector=>{
+  const [tradeBox,detailsBox,settingsBox,positionBox]=await page.evaluate(tradeSelector=>[tradeSelector,'.market-more-details:not(.market-coin-settings)','.market-coin-settings','.market-position-dropdown'].map(selector=>{
     const {y,height}=document.querySelector(selector)!.getBoundingClientRect();return {y,height};
   }),tradeSelector);
   expect(positionBox!.y).toBeGreaterThanOrEqual(tradeBox!.y+tradeBox!.height-1);
-  expect(positionBox!.y-(tradeBox!.y+tradeBox!.height)).toBeLessThan(100);
+  const boxes=[tradeBox,detailsBox,settingsBox,positionBox];
+  for(let i=1;i<boxes.length;i++) {
+    const gap=boxes[i].y-(boxes[i-1].y+boxes[i-1].height);
+    expect(gap).toBeGreaterThanOrEqual(-1);
+    expect(gap).toBeLessThan(32);
+  }
   await position.locator('summary').click();
   await expect(position.getByRole('button',{name:'Connect wallet'})).toBeVisible();
   await position.locator('summary').click();

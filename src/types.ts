@@ -32,6 +32,7 @@ export type RuntimeConfig = {
     estimatedTotalSol: { minimum: number; maximum: number };
     excludesOptionalInitialBuy: boolean;
   };
+  launchSettings?: { variableRewardFeesEnabled: boolean; rewardFeeMinBps: number; rewardFeeMaxBps: number; rewardFeeDefaultBps: number; rippleMinBps: number; rippleMaxBps: number; rippleDefaultBps: number; orcaFeeRate: number | null };
   fees: {
     transferFeeBps: number;
     platformBps: number;
@@ -259,6 +260,9 @@ export type Launch = {
   pairMint: string;
   tradingPair: { type: "sol" | "stock"; symbol: string; mint: string };
   rewardMode: "holder_rewards" | "buyback_burn" | "jackpot";
+  rewardFeeBps?: number;
+  rippleRewardBps?: number;
+  orcaFeeRate?: number | null;
   burnSummary?: { totalSol: number; totalTokenRaw: string };
   jackpotSummary?: { currentPotRaw: string; rewardSymbol: string; rewardDecimals: number };
   dexPaid?: boolean;
@@ -651,8 +655,10 @@ export type WalletNotification = {
 export type RippleSummary = {
  signedIn?:boolean;holdersOnly?:boolean;
  enabled:boolean;status:"unavailable"|"paused"|"catching_up"|"tracking";reason:string|null;checkedAt:number|null;
- poolLamports:string;rewardBps:number;boostBps:number;measurementHours:number;
+ poolLamports:string;rewardBps:number;boostBps:number;measurementHours:number;checkHours?:number[];settlementHours?:number;
  posts:Array<{id:string;launchId:string;symbol:string;wallet:string;isReply:boolean;createdAt:number;score:number;
+ text?:string;checksCompleted?:number;totalChecks?:number;nextCheckAt?:number|null;lastCheckedAt?:number|null;
+ trackingStatus?:"tracking"|"settling"|"completed"|"excluded";
  metrics:{like_count?:number;reply_count?:number;retweet_count?:number;quote_count?:number;impression_count?:number};amountLamports:string;
- status:"excluded"|"claimed"|"claimable"|"allocated"|"ready"|"measuring";reason:string|null}>;
+ status:"excluded"|"claimed"|"claimable"|"allocated"|"ready"|"measuring"|"completed";reason:string|null}>;
 };

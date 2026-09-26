@@ -4,7 +4,7 @@ const address = '11111111111111111111111111111111';
 const id = '11111111-1111-4111-8111-111111111111';
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
 const pair = { symbol: 'SOL', underlyingSymbol: 'SOL', name: 'Solana', mint: 'So11111111111111111111111111111111111111112', verifiedAt: 1, restricted: false, orcaTvlUsd: 100000, orcaVolume24hUsd: 10000 };
-async function setup(page: Page, failBanner = false) {
+async function setup(page: Page, failBanner = false, variableFees = true) {
   let releaseProject!: () => void, releaseBanner!: () => void;
   const projectGate = new Promise<void>(resolve => { releaseProject = resolve; });
   const bannerGate = new Promise<void>(resolve => { releaseBanner = resolve; });
@@ -17,7 +17,7 @@ async function setup(page: Page, failBanner = false) {
   }, address);
   await page.route(/\/(?:api|studio)\//, async r => {
     const path = new URL(r.request().url()).pathname;
-    if (path === '/api/config') return r.fulfill({ json: { brand: 'AQUA', network: 'mainnet-beta', transactionsEnabled: true, marketGovernanceEnabled: true, publicRpcUrl: 'https://rpc.invalid', fees: {}, whirlpools: {}, creatorLocks: {}, sniperDefense: { supported: false } } });
+    if (path === '/api/config') return r.fulfill({ json: { brand: 'AQUA', network: 'mainnet-beta', transactionsEnabled: true, marketGovernanceEnabled: true, publicRpcUrl: 'https://rpc.invalid', launchSettings: {variableRewardFeesEnabled:variableFees,orcaFeeRate:10000}, fees: {}, whirlpools: {}, creatorLocks: {}, sniperDefense: { supported: false } } });
     if (path === '/api/stocks') return r.fulfill({ json: { stocks: [pair], refreshing: false } });
     if (path === `/studio/projects/${id}`) {
       calls.projects++; await projectGate;
@@ -39,16 +39,55 @@ async function setup(page: Page, failBanner = false) {
 }
 
 
-test('advanced options persist and send independent marketing and DEX choices',async({page},info)=>{
+test('settings persist and send fee, Ripple, marketing and DEX choices',async({page},info)=>{
  const {calls,releaseProject,releaseBanner}=await setup(page);releaseProject();releaseBanner();
  await expect(page.getByPlaceholder('Aqua Robotics')).toHaveValue('Squid');
  for(let i=0;i<3;i++)await page.getByRole('button',{name:'Continue',exact:true}).click();
- await page.getByText('Advanced launch options',{exact:false}).first().click();
+ await expect(page.getByRole('heading',{name:'Coin settings',exact:true})).toBeVisible();
+ await expect(page.getByLabel('Rewards fee',{exact:true})).toHaveValue('1');
+ await expect(page.getByLabel('Ripple share',{exact:true})).toHaveValue('15');
+ await page.getByLabel('Rewards fee',{exact:true}).fill('4');
+ await page.getByLabel('Rewards fee',{exact:true}).press('Tab');
+ await page.getByLabel('Ripple share slider',{exact:true}).press('End');
+ await expect(page.getByLabel('Ripple share',{exact:true})).toHaveValue('30');
+ await page.getByLabel('Ripple share',{exact:true}).fill('');
+ await page.getByLabel('Ripple share',{exact:true}).press('Tab');
+ await expect(page.getByLabel('Ripple share',{exact:true})).toHaveValue('30');
+ await page.getByLabel('Ripple share',{exact:true}).fill('99');
+ await page.getByLabel('Ripple share',{exact:true}).press('Tab');
+ await expect(page.getByLabel('Ripple share',{exact:true})).toHaveValue('30');
+ await page.getByLabel('Ripple share',{exact:true}).fill('14');
+ await page.getByLabel('Ripple share',{exact:true}).press('Tab');
+ await expect(page.getByLabel('Ripple share slider',{exact:true})).toHaveValue('1400');
+ await page.getByLabel('Ripple share',{exact:true}).fill('30');
+ await page.getByLabel('Ripple share',{exact:true}).press('Enter');
+ await expect(page.locator('.coin-fee-breakdown dt')).toHaveText(['Rewards fee','Platform fee','Orca fee']);
+ await expect(page.locator('.coin-fee-breakdown dd')).toHaveText(['4%','1%','1%']);
+ await expect(page.locator(".wizard-main").getByText(/Community Boost|Combined fee rates|Approved launch transactions/)).toHaveCount(0);
  await expect(page.getByLabel('Marketing',{exact:true})).toHaveValue('automatic');
  await expect(page.getByLabel('DEX fund',{exact:true}).locator('option')).toHaveText(['Proposal only','Automatic']);
  await page.getByLabel('Marketing',{exact:true}).selectOption('off');await page.getByLabel('DEX fund',{exact:true}).selectOption('proposal');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
  await page.screenshot({path:'/tmp/aqua-launch-options-'+info.project.name+'.png',fullPage:true});
- await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Launch',exact:true}).click();
- await expect.poll(()=>calls.launches.length).toBe(1);expect(calls.launches[0]).toMatchObject({marketingMode:'off',dexFundingMode:'proposal'});
+ await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'DEX Screener profile'})).toBeVisible();await expect(page.getByLabel('Marketing',{exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Launch',exact:true}).click();
+ await expect.poll(()=>calls.launches.length).toBe(1);expect(calls.launches[0]).toMatchObject({marketingMode:'off',dexFundingMode:'proposal',rewardFeeBps:400,rippleRewardBps:3000});
+});
+
+
+test('default fees remain launchable before the program upgrade and Ripple can use its minimum',async({page})=>{
+  const {calls,releaseProject,releaseBanner}=await setup(page,false,false);releaseProject();releaseBanner();
+  await expect(page.getByPlaceholder('Aqua Robotics')).toHaveValue('Squid');
+  for(let i=0;i<3;i++)await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await expect(page.getByLabel('Rewards fee',{exact:true})).toBeDisabled();
+  await expect(page.getByLabel('Rewards fee',{exact:true})).toHaveValue('1');
+  await page.getByLabel('Ripple share slider',{exact:true}).press('Home');
+  await expect(page.getByLabel('Ripple share',{exact:true})).toHaveValue('3');
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await page.getByRole('button',{name:'Skip profile details'}).click();
+  await page.getByRole('button',{name:'Edit settings',exact:true}).click();
+  await expect(page.getByLabel('Ripple share',{exact:true})).toHaveValue('3');
+  await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Launch',exact:true}).click();
+  await expect.poll(()=>calls.launches.length).toBe(1);
+  expect(calls.launches[0]).toMatchObject({rewardFeeBps:100,rippleRewardBps:300});
 });

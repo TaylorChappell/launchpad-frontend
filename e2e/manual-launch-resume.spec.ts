@@ -61,7 +61,7 @@ test('Launch starts a new attempt instead of retrying the failed launch',async({
   await page.getByPlaceholder('Aqua Robotics').fill('New coin');
   await page.getByPlaceholder('AQR').fill('NEW');
   await page.locator('input[type="file"]').setInputFiles({name:'art.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==','base64')});
-  for(let i=0;i<3;i++)await page.getByRole('button',{name:'Continue',exact:true}).click();
+  for(let i=0;i<4;i++)await page.getByRole('button',{name:'Continue',exact:true}).click();
   await page.getByRole('checkbox').check();
   await page.getByRole('button',{name:'Launch',exact:true}).click();
   await expect(page.getByText('New launch preparation unavailable')).toBeVisible();
