@@ -649,6 +649,7 @@ export type WalletNotification = {
 };
 
 export type RippleSummary = {
+ signedIn?:boolean;holdersOnly?:boolean;
  enabled:boolean;status:"unavailable"|"paused"|"catching_up"|"tracking";reason:string|null;checkedAt:number|null;
  poolLamports:string;rewardBps:number;boostBps:number;measurementHours:number;
  posts:Array<{id:string;launchId:string;symbol:string;wallet:string;isReply:boolean;createdAt:number;score:number;
