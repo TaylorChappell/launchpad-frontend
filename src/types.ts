@@ -653,6 +653,13 @@ export type WalletNotification = {
   claimed?: boolean; amountRaw?: string; rewardDecimals?: number; rewardSymbol?: string;
 };
 
+export type AdminRippleResponse = {
+  totalPosts:number;earnedUsdCents:string;claimedUsdCents:string;unpricedPosts:number;
+  offset:number;limit:number;hasMore:boolean;
+  posts:Array<{id:string;launchId:string;symbol:string;coinName:string;wallet:string|null;username:string|null;authorId:string;text:string;createdAt:number;
+    amountLamports:string;earnedUsdCents:string|null;claimedUsdCents:string|null;status:"tracking"|"completed"|"excluded";reason:string|null;
+    metrics:{like_count?:number;reply_count?:number;retweet_count?:number;quote_count?:number;impression_count?:number}}>;
+};
 export type RippleSummary = {
  totalPosts?:number;
  service?:{mode:"unavailable"|"paused"|"live"|"idle"|"polling";message:string|null;lastEventAt:number|null;settlementMinutes:number};
@@ -661,6 +668,7 @@ export type RippleSummary = {
  enabled:boolean;status:"unavailable"|"paused"|"catching_up"|"tracking";reason:string|null;checkedAt:number|null;
  poolLamports:string;rewardBps:number;boostBps:number;measurementHours:number;checkHours?:number[];settlementHours?:number;
  posts:Array<{id:string;launchId:string;symbol:string;wallet:string;isReply:boolean;createdAt:number;score:number;
+ earnedUsdCents?:string|null;claimedUsdCents?:string|null;
  text?:string;checksCompleted?:number;totalChecks?:number;nextCheckAt?:number|null;lastCheckedAt?:number|null;
  trackingStatus?:"tracking"|"settling"|"completed"|"excluded";
  metrics:{like_count?:number;reply_count?:number;retweet_count?:number;quote_count?:number;impression_count?:number};amountLamports:string;
