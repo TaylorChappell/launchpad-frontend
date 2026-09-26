@@ -19,7 +19,11 @@ export function RippleRewards({ address, data, error: activityError, onRefresh }
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const current = useRef<string | null>(wallet.address); current.current = wallet.address;
-  useEffect(() => () => { current.current = null; }, []);
+  useEffect(() => {
+    // StrictMode replays effect setup: restore the active wallet after cleanup.
+    current.current = wallet.address;
+    return () => { current.current = null; };
+  }, [wallet.address]);
   async function link() {
     if (wallet.address !== address || busy) return;
     setBusy(true); setError("");
@@ -41,7 +45,11 @@ export function RippleRewards({ address, data, error: activityError, onRefresh }
 function RippleBalances({ address, data, error, onRefresh }: RippleProps) {
   const wallet = useWallet();
   const current = useRef<string | null>(wallet.address); current.current = wallet.address;
-  useEffect(() => () => { current.current = null; }, []);
+  useEffect(() => {
+    // StrictMode replays effect setup: restore the active wallet after cleanup.
+    current.current = wallet.address;
+    return () => { current.current = null; };
+  }, [wallet.address]);
   const [signing, setSigning] = useState(false);
   const [signInError, setSignInError] = useState("");
   async function signIn() {
