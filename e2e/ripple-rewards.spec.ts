@@ -1,9 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 const address="11111111111111111111111111111111";
 const signature="ripple-confirmed-receipt";
-async function setup(page:Page,pending=false) {
+async function setup(page:Page,pending=false,linked=true) {
   await page.addInitScript(({address,signature,pending})=>{
-    localStorage.setItem("aqua:update:holder-workspace-v2","seen");localStorage.setItem("aqua:wallet","phantom");
+    sessionStorage.setItem("aqua:x-prompt:"+address,"1");localStorage.setItem("aqua:update:holder-workspace-v2","seen");localStorage.setItem("aqua:wallet","phantom");
     if(pending)localStorage.setItem("aqua:pending-reward:mainnet-beta:"+address+":ripple",JSON.stringify({wallet:address,launchId:"coin",name:"Ripple",signature,epochId:"epoch-ripple",amountUsd:250}));
     Object.assign(window,{phantom:{solana:{isPhantom:true,publicKey:{toString:()=>address},connect:async()=>({publicKey:{toString:()=>address}}),on(){},removeListener(){},signAndSendTransaction(){throw Error("A pending receipt must not be resubmitted");}}}});
   },{address,signature,pending});
@@ -22,27 +22,46 @@ async function setup(page:Page,pending=false) {
     else if(path.includes("governance"))json={enabled:false};
     return r.fulfill({json});
   });
-  await page.route("**/account/**",r=>r.fulfill({json:{enabled:false}}));
+  await page.route("**/account/x/config",r=>r.fulfill({json:{enabled:true}}));
+  await page.route("**/v1/wallets/x?*",r=>r.fulfill({json:{profiles:linked?{[address]:{id:"10",username:"aqua_tester",name:"Tester",avatarUrl:null,profileUrl:"https://x.com/aqua_tester",connectedAt:1,updatedAt:1}}:{}}}));
   await page.route("https://rpc.invalid/**",r=>r.fulfill({json:{jsonrpc:"2.0",id:r.request().postDataJSON().id,result:{context:{slot:1},value:0}}}));
 }
-test("Ripple lives in Holdings with separate claims, per-tweet amounts and no mobile overflow",async({page})=>{
+test("Ripple has its own tab with separate claims, post rewards and no mobile overflow",async({page})=>{
   await setup(page);await page.goto("/#/portfolio");
+  const nav=page.getByRole("navigation",{name:"Portfolio sections"});
+  await expect(nav.getByRole("button")).toHaveText(["Holdings0","Rewards","Ripple","Activity","Created"]);
+  await expect(page.getByRole("region",{name:"Ripple Rewards",exact:true})).toHaveCount(0);
+  await nav.getByRole("button",{name:"Ripple",exact:true}).click();
+  await expect(page).toHaveURL(/tab=ripple/);
   const panel=page.getByRole("region",{name:"Ripple Rewards",exact:true});
-  await expect(panel.getByRole("heading",{name:"Your posts. Your rewards."})).toBeVisible();
+  await expect(panel.getByRole("heading",{name:"Ripple Rewards",exact:true})).toBeVisible();
   await expect(panel.getByText("0.025 SOL",{exact:true})).toBeVisible();
   await expect(panel.getByText("Measuring · 24h",{exact:true})).toBeVisible();
   await expect(panel.getByRole("link",{name:"Reply on X"})).toHaveAttribute("href","https://x.com/i/status/123");
-  await panel.locator("summary").click();
-  await expect(panel.getByText(/Holding the coin is not required/)).toBeVisible();
+  await expect(panel.getByText("From every reward mode")).toHaveCount(0);
+  await expect(panel.getByText("Awaiting activation")).toHaveCount(0);
+  await expect(panel.getByText("Your posts. Your rewards.")).toHaveCount(0);
+  await page.reload();await expect(panel.getByText("0.025 SOL",{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
   await page.screenshot({path:`/tmp/ripple-${test.info().project.name}.png`,fullPage:true});
 });
 test("Ripple claim confirmation restores its own receipt without touching holder claims",async({page})=>{
   await setup(page,true);let confirmations=0;
   await page.route("**/api/rewards/epoch-ripple/confirm",r=>{confirmations++;expect(r.request().postDataJSON()).toEqual({claimant:address,signature});return r.fulfill({json:{claimed:true,signature}});});
-  await page.goto("/#/portfolio");
+  await page.goto("/#/portfolio?tab=ripple");
   const panel=page.getByRole("region",{name:"Ripple Rewards",exact:true});
   await panel.getByRole("button",{name:"Check confirmation",exact:true}).click();
   await expect(panel.getByText("$2.50 claimed",{exact:true})).toBeVisible();expect(confirmations).toBe(1);
   expect(await page.evaluate(key=>localStorage.getItem(key),"aqua:pending-reward:mainnet-beta:"+address+":ripple")).toBeNull();
+});
+
+test("unlinked wallets see a centered Connect X prompt in Ripple",async({page})=>{
+  await setup(page,false,false);await page.goto("/#/portfolio?tab=ripple");
+  const panel=page.getByRole("region",{name:"Ripple Rewards",exact:true});
+  await expect(panel.getByRole("heading",{name:"Connect X to your wallet"})).toBeVisible();
+  const button=panel.getByRole("button",{name:"Connect X",exact:true});await expect(button).toBeEnabled();
+  await expect(panel.getByRole("button",{name:"Claim all"})).toHaveCount(0);
+  const box=await panel.boundingBox(),connect=await button.boundingBox();
+  expect(Math.abs((box!.x+box!.width/2)-(connect!.x+connect!.width/2))).toBeLessThan(3);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
 });
