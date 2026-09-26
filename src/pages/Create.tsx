@@ -1,7 +1,7 @@
 import { assetLogoUrl } from "../asset-logo";
 import { TransactionOutcomeError } from "../transaction-confirmation";
 import { pairCatalogPollDelay } from "../pair-catalog-refresh";
-import { handoffLaunchBatch, watchLaunchSubmission } from "../launch-relay";
+import { runSequentialLaunch, watchLaunchSubmission } from "../launch-relay";
 import { readLaunchDraft,saveLaunchDraft } from "../launch-draft";
 import { ensureAccountSession } from "../account-api";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -24,6 +24,7 @@ import { RewardModeIcon } from "../components/RewardModeIcon";
 import { DexProfileFields } from "../components/MarketProposals";
 import { CoinFeeBreakdown } from "../components/CoinFeeBreakdown";
 import "../coin-settings.css";
+import "./launch-resume.css";
 import { PercentControl } from "../components/PercentControl";
 import type { DexProfile } from "../types";
 import type { Launch, LaunchBatchEnvelope, LaunchConfirmation, LaunchRelayStatus, StockOption, TransactionEnvelope } from "../types";
@@ -51,8 +52,8 @@ const governanceWizardSteps = [
 const standardWizardSteps = governanceWizardSteps.filter((item) => item.label !== "DEX profile");
 const chainSteps: Array<{ key: ProgressKey; label: string; detail: string }> = [
   { key: "approval", label: "Prepare launch", detail: "Store artwork and immutable metadata" },
-  { key: "mint", label: "Create token", detail: "Wallet approval 1 of 2" },
-  { key: "pool", label: "Approve Orca market", detail: "Wallet approval 2 signs the launch batch" },
+  { key: "mint", label: "Create token", detail: "Approve token creation" },
+  { key: "pool", label: "Approve Orca market", detail: "Approve after token creation confirms" },
   { key: "prepare", label: "Prepare accounts", detail: "The pool is not tradable yet" },
   { key: "funding", label: "Prepare buy funds", detail: "Convert SOL into the selected pair" },
   { key: "liquidity", label: "Open the market", detail: "Activate liquidity and execute the dev buy together" },
@@ -369,15 +370,15 @@ export function Create() {
 
   function relayState(state: LaunchRelayStatus) {
     if (state.step) { setPending({ launchId: state.launchId, stage: state.step }); setStage(state.step, "active"); }
-    setRelayMessage("AQUA has your approval and is completing the launch. You can close this page.");
+    setRelayMessage(state.approvalReady ? "Ready for your next wallet approval." : "Confirming your approved step. Keep this page open for the next approval.");
   }
 
   async function observeRelay(id: string, controller: AbortController) {
     const state = await watchLaunchSubmission(api, id, controller.signal, relayState, () => {
       setRelayMessage("Reconnecting to AQUA. An accepted launch continues on the server.");
     });
-    if (state.status === "needs_approval") throw new ApiError(state.error ?? "Resume to approve the remaining transactions.", 409, { rebuildRequired: true });
-    if (state.status !== "complete") throw new Error("AQUA has not received the signed batch. Resume to approve the remaining launch transactions.");
+    if (state.status === "needs_approval" && !state.approvalReady) throw new ApiError(state.error ?? "Resume to approve the remaining transactions.", 409, { rebuildRequired: true });
+    if (state.status !== "complete" && !state.approvalReady) throw new Error("AQUA has not received the signed batch. Resume to approve the remaining launch transactions.");
     return state;
   }
 
@@ -399,12 +400,13 @@ export function Create() {
     if (state.status === "not_submitted" || state.status === "needs_approval") return false;
     try { localStorage.setItem(relayStorageKey, id); } catch { /* Storage may be unavailable. */ }
     const complete = state.status === "complete" ? state : await observeRelay(id, controller);
+    if (complete.approvalReady) return false;
     if (!controller.signal.aborted) finishLaunch(id, complete.mint, complete);
     return true;
   }
 
   async function executeLaunchBatch(id: string, batch: LaunchBatchEnvelope[]) {
-    const activeStage: ChainStage = batch[0]?.step ?? "pool";
+    let activeStage: ChainStage = batch[0]?.step ?? "pool";
     relayController.current?.abort();
     const controller = new AbortController();
     relayController.current = controller;
@@ -412,19 +414,17 @@ export function Create() {
       if (!batch.length) throw new Error("The backend did not return the Orca launch batch.");
       setPending({ launchId: id, stage: activeStage });
       setStage(activeStage, "active");
-      setRelayMessage("Approve the remaining launch transactions in your wallet.");
-      showLaunchStatus("Approve the Orca launch", batch.some(tx => tx.step === "prepare") ? "Review the launch and dev buy together. Trading opens when your buy executes." : "Review the market and liquidity transactions in your wallet.");
-      const signedBatch = await wallet.signTransactionBatch(batch);
-      controller.signal.throwIfAborted();
       try { localStorage.setItem(relayStorageKey, id); } catch { /* Storage may be unavailable. */ }
-      setRelayMessage("Sending your approval to AQUA. Keep this page open until it is received.");
-      const accepted = await handoffLaunchBatch(api, id, signedBatch, controller.signal, () => {
-        setRelayMessage("Reconnecting to send your approval. Keep this page open until AQUA confirms receipt.");
-      });
-      relayState(accepted);
-      showLaunchStatus("Completing your launch", "AQUA is handling the transactions. This page no longer needs to stay connected.");
-      const complete = accepted.status === "complete" ? accepted : await observeRelay(id, controller);
+      const complete = await runSequentialLaunch({ api,id,creator:wallet.address!,batch,signal:controller.signal,
+        sign:wallet.signTransactionBatch,
+        onApproval:step=>{
+          if (activeStage !== step) setStage(activeStage, "done");
+          activeStage=step;setPending({launchId:id,stage:step});setStage(step,"active");
+          setRelayMessage("Review the next step in your wallet.");
+          showLaunchStatus(step==="liquidity" ? "Approve liquidity and launch" : step==="lock" ? "Approve permanent lock" : "Approve launch setup", "Each step confirms before the next approval. Keep this page open to finish.");
+        },onState:relayState,reconnecting:()=>setRelayMessage("Reconnecting to AQUA. Your approved step is saved; do not resubmit it.")});
       controller.signal.throwIfAborted();
+      setStage(activeStage, "done");
       if (complete.devBuyIncluded) setStage("devBuy", "done");
       if (hasInitialBuy && !complete.devBuyIncluded) {
         try {
@@ -610,7 +610,16 @@ export function Create() {
     {!launching && !completedLaunch && <div className="at-launch-entry"><span><strong>Start with Atlantis Studio.</strong> Create your artwork, website and launch draft in one place.</span><Link to="/studio">Open Studio ↗</Link></div>}
     {studioImportMessage && <div className="at-import-notice" role="status">{studioImportMessage}</div>}
     <PageBubbles count={22}/>
-    {(pending || recoverableLaunch || savedLaunchId) && !launching && !completedLaunch && <section className="launch-resume-banner">{recoverableLaunch && (!pending || pending.launchId === recoverableLaunch.id) && <span className="resume-coin-bubble"><TokenMark launch={recoverableLaunch}/></span>}<div><b>{pending ? `Continue $${form.symbol || "your coin"}` : recoverableLaunch ? `Continue $${recoverableLaunch.symbol}` : "Continue your previous launch"}</b><small>Resume when you’re ready to continue this launch.</small></div><button onClick={() => void resumeExistingLaunch()}><span className="resume-button-current" aria-hidden="true"/><span>Resume launch</span><ArrowRight/></button></section>}
+    {(pending || recoverableLaunch || savedLaunchId) && !launching && !completedLaunch && <section className="launch-resume-banner" aria-label="Resume your launch">
+      <span className="resume-coin-bubble" aria-hidden="true">
+        {recoverableLaunch && (!pending || pending.launchId === recoverableLaunch.id) ? <TokenMark launch={recoverableLaunch}/> : <RefreshCw/>}
+      </span>
+      <div className="launch-resume-copy">
+        <b>{pending ? form.symbol ? `Continue $${form.symbol}` : "Continue your launch" : recoverableLaunch ? `Continue $${recoverableLaunch.symbol}` : "Continue your previous launch"}</b>
+        <small>Your progress is saved. Continue where you left off.</small>
+      </div>
+      <button type="button" onClick={() => void resumeExistingLaunch()}><span>Resume launch</span><ArrowRight aria-hidden="true"/></button>
+    </section>}
     <section className={`wizard-shell ${launching ? "is-launching" : ""}`}>
       <div className="wizard-caustics" aria-hidden="true"/>
       {launching && <div className="wizard-launching-screen" role="status" aria-live="polite" aria-label={`Launching ${form.symbol}`}>
@@ -744,4 +753,3 @@ function WizardSection({ title, description, children }: { title: string; descri
 function Field({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) { return <label className={`wizard-field ${wide ? "wide" : ""}`}><span>{label}</span>{children}</label>; }
 function ModeButton({ active, disabled, onClick, icon, title, eyebrow, children }: { active: boolean; disabled?: boolean; onClick: () => void; icon: ReactNode; title: string; eyebrow: string; children: ReactNode }) { return <button type="button" role="radio" aria-checked={active} disabled={disabled} className={`reward-mode-option ${active ? "selected" : ""}`} onClick={onClick}><i>{icon}</i><div><small>{eyebrow}</small><b>{title}</b><p>{children}</p></div><em>{disabled ? "Coming soon" : active ? <Check/> : null}</em></button>; }
 function StockLogo({ stock }: { stock: StockOption }) { const [failed, setFailed] = useState(false); useEffect(() => setFailed(false), [stock.mint, stock.logoUrl]); return <span className="stock-logo">{stock.mint === "So11111111111111111111111111111111111111112" ? <NetworkSolana className="currency-brand-icon" variant="branded"/> : stock.logoUrl && !failed ? <img src={assetLogoUrl(stock.logoUrl)!} alt="" onError={() => setFailed(true)}/> : stock.underlyingSymbol.slice(0, 2)}</span>; }
-

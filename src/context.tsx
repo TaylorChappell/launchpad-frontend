@@ -24,6 +24,7 @@ type InjectedProvider = {
   disconnect: () => Promise<void>;
   signMessage: (message: Uint8Array, encoding: string) => Promise<{ signature: Uint8Array } | Uint8Array>;
   signAndSendTransaction: (transaction: unknown, options?: { preflightCommitment?: string; maxRetries?: number }) => Promise<{ signature: string } | string>;
+  signTransaction?: (transaction: unknown) => Promise<{serialize:()=>Uint8Array}>;
   signAllTransactions?: (transactions: unknown[]) => Promise<Array<{ serialize: () => Uint8Array }>>;
 };
 type SolanaAccount = { address: string };
@@ -390,6 +391,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     });
     try {
       if ("provider" in adapter.current) {
+        if (transactions.length===1 && adapter.current.provider.signTransaction) {
+          const signed=await adapter.current.provider.signTransaction(transactions[0]);
+          return [{...envelopes[0],signedTransactionBase64:base64(signed.serialize())}];
+        }
         if (!adapter.current.provider.signAllTransactions) throw new Error(`Update ${walletNames[adapter.current.kind]} to sign these transactions.`);
         const signed = await adapter.current.provider.signAllTransactions(transactions);
         if (signed.length !== envelopes.length) throw new Error(`${walletNames[adapter.current.kind]} did not sign every transaction.`);

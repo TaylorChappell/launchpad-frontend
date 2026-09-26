@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { Keypair, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 
-test("launch approval includes activation and buy, with no wallet request after the market opens", async ({ page }) => {
+test("launch approvals wait for confirmed prerequisites and keep activation with the buy", async ({ page }) => {
   const address = Keypair.generate().publicKey.toBase58();
   const payer = new (await import("@solana/web3.js")).PublicKey(address);
   const envelope = (amount: number) => ({ transactionVersion: 0, lastValidBlockHeight: 100,
@@ -12,10 +12,11 @@ test("launch approval includes activation and buy, with no wallet request after 
     localStorage.setItem("aqua:update:holder-workspace-v2", "seen");
     localStorage.setItem("aqua:wallet", "phantom");
     localStorage.setItem(`aqua:studio:${address}`, JSON.stringify({ token: "a".repeat(64), expiresAt: Date.now() + 3600000 }));
-    const state = { sends: 0, batches: [] as number[] };
+    const state = { sends: 0, approvals: 0, batches: [] as number[] };
     Object.assign(window, { launchTestWallet: state, phantom: { solana: {
       isPhantom: true, connect: async () => ({ publicKey: { toString: () => address } }), on: () => {}, removeListener: () => {},
       signAndSendTransaction: async () => { state.sends++; return { signature: "mint-signature" }; },
+      signTransaction: async (transaction: unknown) => { state.approvals++; return transaction; },
       signAllTransactions: async (transactions: unknown[]) => { state.batches.push(transactions.length); return transactions; },
     } } });
   }, address);
@@ -37,11 +38,18 @@ test("launch approval includes activation and buy, with no wallet request after 
     return r.fulfill({ json: { jsonrpc: "2.0", id: request.id, result: { context: { slot: 1 }, value: [{ slot: 1, confirmations: 1, err: null, confirmationStatus: "confirmed" }] } } });
   });
   await page.route("**/api/launches/test-launch/confirm", r => r.fulfill({ json: { launchId: "test-launch", nextStep: "pool", batch, devBuyIncluded: true } }));
-  let submissions = 0; let lateBuys = 0;
+  let submissions = 0; let lateBuys = 0;let simulations=0;
+  await page.route("**/api/launches/test-launch/prepare-approval",r=>{
+    expect(r.request().postDataJSON().step).toBe(batch[submissions].step);simulations++;
+    return r.fulfill({json:{ready:true}});
+  });
+  await page.route("**/api/launches/test-launch/retry-transaction",r=>r.fulfill({json:{launchId:"test-launch",batch:batch.slice(submissions),devBuyIncluded:true}}));
   await page.route("**/api/launches/test-launch/submit-batch", async r => {
     submissions++;
-    expect(r.request().postDataJSON().transactions.map((tx: {step:string}) => tx.step)).toEqual(["pool","prepare","liquidity","lock"]);
-    return r.fulfill({ json: { launchId: "test-launch", status: "complete", mint: address, symbol: "TEST", rewardMode: "holder_rewards", devBuyIncluded: true, devBuySignature: "activation-signature" } });
+    expect(simulations).toBe(submissions);
+    expect(r.request().postDataJSON().sequential).toBe(true);
+    expect(r.request().postDataJSON().transactions.map((tx: {step:string}) => tx.step)).toEqual([batch[submissions-1].step]);
+    return r.fulfill({ json: { launchId: "test-launch", status: submissions===4?"complete":"needs_approval",approvalReady:submissions<4, mint: address, symbol: "TEST", rewardMode: "holder_rewards", devBuyIncluded: true, devBuySignature: "activation-signature" } });
   });
   await page.route("**/api/launches/test-launch/dev-buy-**", r => { lateBuys++; return r.fulfill({ status: 500, json: { error: "Buy already included" } }); });
   await page.goto("/#/create");
@@ -60,6 +68,6 @@ test("launch approval includes activation and buy, with no wallet request after 
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Launch", exact: true }).click();
   await expect(page.getByRole("heading", { name: "$TEST launched", exact: true })).toBeVisible();
-  expect(submissions).toBe(1); expect(lateBuys).toBe(0);
-  expect(await page.evaluate(() => (window as unknown as { launchTestWallet: unknown }).launchTestWallet)).toEqual({ sends: 1, batches: [4] });
+  expect(submissions).toBe(4); expect(lateBuys).toBe(0);
+  expect(await page.evaluate(() => (window as unknown as { launchTestWallet: unknown }).launchTestWallet)).toEqual({ sends: 1, approvals: 4, batches: [] });
 });

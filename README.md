@@ -48,7 +48,7 @@ The frontend reads its network from `/api/config`. Set `USE_TESTNET=true` on Rai
 
 ## Wallet support
 
-Phantom connects through its browser provider. MetaMask connects through MetaMask Solana account support. A standard launch uses two wallet approvals. The first creates the Token-2022 mint. The second signs the ordered Orca pool, active-liquidity, and permanent-lock batch. AQUA validates and submits those signed transactions one at a time so the lock cannot land before active liquidity is proven. An optional first buy is a separate post-launch transaction.
+Phantom connects through its browser provider. MetaMask connects through MetaMask Solana account support. Launch approvals are sequential: create the Token-2022 mint, then approve each remaining setup, liquidity and permanent-lock transaction after its prerequisites confirm. Before each approval, AQUA simulates the issued transaction against confirmed state. The optional opening buy stays atomic with liquidity activation. The server persists approved transactions and their receipts; Resume reconciles them before requesting the next approval. A market becomes live only after permanent-lock verification.
 
 New launches commit the full fixed token supply to the one-sided, permanently
 locked Orca position. There is no separate AQUA supply-reserve allocation.

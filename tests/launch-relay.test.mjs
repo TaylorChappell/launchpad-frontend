@@ -63,3 +63,36 @@ test("launch UI removes the step list and keeps exactly two completion actions",
   const execution = source.slice(source.indexOf('async function executeLaunchBatch'), source.indexOf('async function continueLaunch'));
   assert.doesNotMatch(execution, /submitSignedTransaction|validateBatchStep|confirmLaunch/);
 });
+
+async function sequentialFixture() {
+  const {runSequentialLaunch}=await import('../src/launch-relay.ts');
+  const events=[];let confirmed=0;
+  const steps=['pool','prepare','liquidity','lock'];
+  const batch=steps.map(step=>({step,transactionBase64:step,transactionVersion:0}));
+  const state=()=>({launchId:'coin',mint:'mint',status:confirmed===4?'complete':'needs_approval',approvalReady:confirmed<4,error:null});
+  const api={
+    prepareLaunchApproval:async(_id,_creator,envelope)=>{assert.equal(envelope.step,steps[confirmed]);events.push('simulate:'+envelope.step);return {ready:true};},
+    submitLaunchBatch:async(_id,transactions)=>{assert.equal(transactions.length,1);assert.equal(transactions[0].step,steps[confirmed]);events.push('confirm:'+steps[confirmed++]);return state();},
+    launchSubmission:async()=>state(),
+    retryLaunchTransaction:async()=>{events.push('rebuild');return {batch:batch.slice(confirmed)};},
+  };
+  const input={api,id:'coin',creator:'wallet',batch,signal:new AbortController().signal,
+    sign:async batch=>{events.push('sign:'+batch[0].step);return batch.map(envelope=>({...envelope,signedTransactionBase64:'signed:'+envelope.step}));},onApproval:()=>{},onState:()=>{},reconnecting:()=>{}};
+  return {runSequentialLaunch,input,events};
+}
+test('launch approvals follow successful simulations and confirmed prerequisites',async()=>{
+  const f=await sequentialFixture();const result=await f.runSequentialLaunch(f.input);assert.equal(result.status,'complete');
+  assert.deepEqual(f.events,['simulate:pool','sign:pool','confirm:pool','rebuild','simulate:prepare','sign:prepare','confirm:prepare','rebuild','simulate:liquidity','sign:liquidity','confirm:liquidity','rebuild','simulate:lock','sign:lock','confirm:lock']);
+});
+test('failed simulation never opens the wallet or submits a launch step',async()=>{
+  const f=await sequentialFixture();f.input.api.prepareLaunchApproval=async()=>{throw Error('Account not ready');};
+  await assert.rejects(f.runSequentialLaunch(f.input),/Account not ready/);assert.deepEqual(f.events,[]);
+});
+test('cancelled approval stops before submitting or requesting another step',async()=>{
+  const f=await sequentialFixture();f.input.sign=async()=>{throw Error('User declined');};
+  await assert.rejects(f.runSequentialLaunch(f.input),/User declined/);assert.deepEqual(f.events,['simulate:pool']);
+});
+test('failed on-chain execution does not request dependent approvals',async()=>{
+  const f=await sequentialFixture();f.input.api.submitLaunchBatch=async()=>({status:'needs_approval',approvalReady:false,error:'Transaction failed'});
+  await assert.rejects(f.runSequentialLaunch(f.input),/Transaction failed/);assert.deepEqual(f.events,['simulate:pool','sign:pool']);
+});

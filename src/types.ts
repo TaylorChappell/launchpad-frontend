@@ -550,6 +550,7 @@ export type CumulativeRewardClaimConfirmation = {
 export type LaunchBatchEnvelope = TransactionEnvelope & { step: "pool" | "prepare" | "funding" | "liquidity" | "lock" };
 export type SignedTransactionEnvelope = LaunchBatchEnvelope & { signedTransactionBase64: string };
 export type LaunchRelayStatus = {
+  approvalReady?: boolean;
   devBuyIncluded?: boolean;
   devBuySignature?: string | null;
   launchId: string;
@@ -653,6 +654,8 @@ export type WalletNotification = {
 };
 
 export type RippleSummary = {
+ service?:{mode:"unavailable"|"paused"|"live"|"idle"|"polling";message:string|null;lastEventAt:number|null;settlementMinutes:number};
+ scanError?:string|null;nextPayoutAt?:number;
  signedIn?:boolean;holdersOnly?:boolean;
  enabled:boolean;status:"unavailable"|"paused"|"catching_up"|"tracking";reason:string|null;checkedAt:number|null;
  poolLamports:string;rewardBps:number;boostBps:number;measurementHours:number;checkHours?:number[];settlementHours?:number;
