@@ -12,13 +12,13 @@ type PendingClaim={wallet:string;launchId:string;name:string;signature:string;se
 function savedClaim(key:string):PendingClaim|null{
   try { const value=JSON.parse(localStorage.getItem(key)??"null");return value&&typeof value.wallet==="string"&&typeof value.launchId==="string"&&typeof value.signature==="string"&&(typeof value.sequence==="string"||typeof value.epochId==="string")?value:null; }catch{return null;}
 }
-export function WalletRewards({launch,data,launches=[],onClaimed,kind="normal"}:{kind?:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches?:Launch[];onClaimed?:()=>void}){
+export function WalletRewards({launch,data,launches=[],onClaimed,kind="normal",compact=false}:{compact?:boolean;kind?:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches?:Launch[];onClaimed?:()=>void}){
   const wallet=useWallet(),{config}=useRuntime();
   if(launch?.showcase)return <div className="wallet-rewards"><div className="reward-claim-list"><article className="reward-claim-row ready"><div className="reward-claim-coin"><TokenMark launch={launch}/><div><b>{launch.name}</b><small>Sample allocation</small></div></div><div className="reward-row-amount"><strong>$12.50</strong><small>Preview only</small></div><button className="primary" disabled>Claim</button></article></div></div>;
   // Remount on wallet/network change: pending receipts always belong to their signer.
-  return <RewardContent key={config.network+":"+wallet.address+":"+(launch?.id??"all")+":"+kind} kind={kind} launch={launch} data={data} launches={launches} onClaimed={onClaimed}/>;
+  return <RewardContent key={config.network+":"+wallet.address+":"+(launch?.id??"all")+":"+kind} kind={kind} compact={compact} launch={launch} data={data} launches={launches} onClaimed={onClaimed}/>;
 }
-function RewardContent({launch,data,launches,onClaimed,kind}:{kind:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches:Launch[];onClaimed?:()=>void}){
+function RewardContent({launch,data,launches,onClaimed,kind,compact}:{compact:boolean;kind:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches:Launch[];onClaimed?:()=>void}){
   const wallet=useWallet(),{config}=useRuntime(),address=wallet.address;
   const storageKey=["aqua:pending-reward",config.network,address].join(":")+(kind==="ripple"?":ripple":"");
   const [loaded,setLoaded]=useState<WalletRewardsResponse|null>(null),[known,setKnown]=useState<Launch[]>([]);
@@ -131,12 +131,12 @@ function RewardContent({launch,data,launches,onClaimed,kind}:{kind:"normal"|"rip
   if(launch&&(!address||(rewardData&&!markets.length&&!pending&&!success&&!error)))return null;
   if(!address)return <section className="wallet-inline"><Gift size={24}/><div><h3>Your rewards are here.</h3><p>Connect your wallet to see your allocation and claim it.</p></div><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet</button></section>;
   return <div className="wallet-rewards">
-    {!launch&&<div className="claim-all-bar"><span>{claimable.length} coin{claimable.length===1?"":"s"} ready to claim{claimable.length>1&&<small>Approve each coin in your wallet.</small>}</span><button className="primary" disabled={busy||Boolean(pending)||!claimable.length} onClick={()=>void claimBatch(claimable)}>{busy?<><Loader2 size={15} className="spin"/> Claiming…</>:"Claim all"}</button></div>}
+    {!launch&&<div className={compact?"ripple-claim-actions":"claim-all-bar"}>{compact?<h3>Your posts</h3>:<span>{claimable.length} coin{claimable.length===1?"":"s"} ready to claim{claimable.length>1&&<small>Approve each coin in your wallet.</small>}</span>}<button className="primary" disabled={busy||Boolean(pending)||!claimable.length} onClick={()=>void claimBatch(claimable)}>{busy?<><Loader2 size={15} className="spin"/> Claiming…</>:compact?"Claim":"Claim all"}</button></div>}
     {success&&<div className="claim-notice success" role="status"><Check size={20}/><div><b>{success.amount} claimed</b><a href={"https://solscan.io/tx/"+success.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View receipt <ArrowUpRight size={13}/></a></div></div>}
     {pending&&<div className="claim-notice"><Loader2 size={20} className={busy?"spin":""}/><div><b>{pending.name} · claim submitted</b><a href={"https://solscan.io/tx/"+pending.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View transaction <ArrowUpRight size={13}/></a></div><button className="soft-button" disabled={busy} onClick={()=>void retry()}>Check confirmation</button></div>}
     {status&&<p className="claim-status" role="status">{busy&&<Loader2 className="spin" size={16}/>}{status}</p>}
     {error&&<p className="danger-note" role="alert">{error} {!pending&&!busy&&<button className="text-button" onClick={()=>{setRevision(n=>n+1);onClaimed?.();}}>Try again</button>}</p>}
-    {!rewardData&&!error?<div className="workspace-loading">Loading your rewards…</div>:markets.length?<div className="reward-claim-list">{markets.map(m=>{
+    {!compact&&(!rewardData&&!error?<div className="workspace-loading">Loading your rewards…</div>:markets.length?<div className="reward-claim-list">{markets.map(m=>{
       const coin=allLaunches.find(l=>l.id===m.launchId);
       const eligible=m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1);
       return <article className={"reward-claim-row"+(eligible?" ready":"")} key={m.launchId+":"+(m.claimableEpochIds[0]??m.claimSequence??"pending")}>
@@ -144,6 +144,6 @@ function RewardContent({launch,data,launches,onClaimed,kind}:{kind:"normal"|"rip
         <div className="reward-row-amount"><strong>{usd(eligible?m.claimableUsdCents:m.grossRedeemableUsdCents+m.pendingUsdCents)}</strong><small>{eligible?`${usd(m.netClaimableUsdCents)} after estimated costs`:m.claimMode!=="cumulative"&&m.claimableEpochIds.length>1?"Preparing a combined claim":`Claim minimum ${usd(m.minimumClaimUsdCents)} net`}</small></div>
         <button className="primary" disabled={busy||Boolean(pending)||!eligible} onClick={()=>void claimBatch([m])}>{busy&&status?<Loader2 size={15} className="spin"/>:null}{eligible?"Claim":"Pending"}</button>
       </article>;
-    })}</div>:rewardData&&<div className="workspace-empty"><Gift/><h3>{launch?.rewardMode==="buyback_burn"?"This market buys back and burns tokens.":"No rewards to claim yet."}</h3><p>{launch?.rewardMode==="buyback_burn"?"Buybacks reduce supply; this mode does not pay a wallet reward.":kind==="ripple"?"Rewards from your qualifying X posts will appear here after settlement.":"Your allocations will appear here once they’re indexed."}</p>{!launch&&<Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link>}</div>}
+    })}</div>:rewardData&&<div className="workspace-empty"><Gift/><h3>{launch?.rewardMode==="buyback_burn"?"This market buys back and burns tokens.":"No rewards to claim yet."}</h3><p>{launch?.rewardMode==="buyback_burn"?"Buybacks reduce supply; this mode does not pay a wallet reward.":kind==="ripple"?"Rewards from your qualifying X posts will appear here after settlement.":"Your allocations will appear here once they’re indexed."}</p>{!launch&&<Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link>}</div>)}
   </div>;
 }

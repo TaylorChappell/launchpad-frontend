@@ -654,6 +654,7 @@ export type WalletNotification = {
 };
 
 export type RippleSummary = {
+ totalPosts?:number;
  service?:{mode:"unavailable"|"paused"|"live"|"idle"|"polling";message:string|null;lastEventAt:number|null;settlementMinutes:number};
  scanError?:string|null;nextPayoutAt?:number;
  signedIn?:boolean;holdersOnly?:boolean;

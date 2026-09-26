@@ -1,6 +1,6 @@
 import { RippleRewards } from "../components/RippleRewards";
 import { WalletIdentity } from "../components/WalletIdentity";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowRight, ArrowUpRight, Coins, Gift, Layers3, RefreshCw, Wallet } from "lucide-react";
 import { api } from "../api";
@@ -11,7 +11,7 @@ import { activeCreatorLock, creatorLockPercentLabel } from "../creator-lock";
 import { WalletRewards } from "../components/WalletRewards";
 import { HoldingUpdates } from "../components/HoldingUpdates";
 import { displayTokenAmount } from "../trade-quote";
-import type { Launch, WalletRewardsResponse } from "../types";
+import type { Launch, RippleSummary, WalletRewardsResponse } from "../types";
 const usd=new Intl.NumberFormat("en",{style:"currency",currency:"USD"});
 type Holdings=Awaited<ReturnType<typeof api.holdings>>["holdings"];
 type History=Awaited<ReturnType<typeof api.claimHistory>>;
@@ -23,9 +23,26 @@ function PortfolioContent({address}:{address:string|null}){
   const wallet=useWallet(),{config}=useRuntime(),[params,setParams]=useSearchParams();
   const tabs=["Holdings","Rewards","Ripple","Activity","Created"] as const;
   const tab=tabs.find(t=>t.toLowerCase()===params.get("tab"))??"Holdings";
+  const [errors,setErrors]=useState<Record<string,string>>({}),[revision,setRevision]=useState(0);
+  const [ripple,setRipple]=useState<RippleSummary|null>(null),[rippleError,setRippleError]=useState("");
+  const [rippleRevision,setRippleRevision]=useState(0);
+  const refreshRipple=useCallback(()=>setRippleRevision(n=>n+1),[]);
+  useEffect(()=>{
+    if(!address)return;
+    const controller=new AbortController();let timer:ReturnType<typeof setTimeout>;
+    const load=async()=>{
+      try{
+        const next=await api.rippleActivity(address,controller.signal);
+        if(!Array.isArray(next.posts))throw Error("Post history is unavailable.");
+        if(!controller.signal.aborted){setRipple(next);setRippleError("");}
+      }catch(e){if(!controller.signal.aborted)setRippleError(e instanceof Error?e.message:"Post history could not load.");}
+      finally{if(!controller.signal.aborted)timer=setTimeout(()=>void load(),document.hidden?30_000:tab==="Ripple"?5_000:20_000);}
+    };
+    void load();return()=>{controller.abort();clearTimeout(timer);};
+  },[address,tab,rippleRevision,revision]);
+  const rippleCount=ripple?.totalPosts??ripple?.posts.length??0;
   const [holdings,setHoldings]=useState<Holdings|null>(null),[rewards,setRewards]=useState<WalletRewardsResponse|null>(null);
   const [history,setHistory]=useState<History|null>(null),[created,setCreated]=useState<Launch[]|null>(null);
-  const [errors,setErrors]=useState<Record<string,string>>({}),[revision,setRevision]=useState(0);
   const [more,setMore]=useState(false),[offset,setOffset]=useState(0),[loadingMore,setLoadingMore]=useState(false);
   useEffect(()=>{
     if(!address)return;
@@ -70,7 +87,7 @@ function PortfolioContent({address}:{address:string|null}){
       <article className="portfolio-value"><span className="workspace-eyebrow">HOLDINGS VALUE</span><strong>{value===undefined?"—":usd.format(value)}</strong><span>{holdings===null?"Loading positions…":holdings.length+" positions"}{unpriced>0?" · "+unpriced+" awaiting price":""}</span><Link to="/">Explore markets <ArrowUpRight size={15}/></Link></article>
       <article className="portfolio-reward-summary"><img className="rewards-gift-art" src={import.meta.env.BASE_URL+"aqua-gift.webp"} alt=""/><small>Ready to claim</small><strong>{claimable===undefined?"—":usd.format(claimable)}</strong><div><span>Pending allocation <b>{pending===undefined?"—":usd.format(pending)}</b></span><button className="primary" onClick={()=>selectTab("Rewards")}>View rewards <ArrowRight size={16}/></button></div></article>
     </section>
-    <nav className="workspace-tabs" aria-label="Portfolio sections">{tabs.map(t=><button key={t} aria-current={tab===t?"page":undefined} onClick={()=>selectTab(t)}>{t}{t==="Holdings"&&holdings&&<span>{holdings.length}</span>}{t==="Rewards"&&rewards?.markets.some(m=>m.canClaim)&&<i/>}</button>)}</nav>
+    <nav className="workspace-tabs" aria-label="Portfolio sections">{tabs.map(t=><button key={t} aria-current={tab===t?"page":undefined} onClick={()=>selectTab(t)}>{t}{t==="Holdings"&&holdings&&<span>{holdings.length}</span>}{t==="Ripple"&&rippleCount>0&&<span>{rippleCount}</span>}{t==="Rewards"&&rewards?.markets.some(m=>m.canClaim)&&<i/>}</button>)}</nav>
     {tab==="Holdings"&&<section className="workspace-panel">
       <header><h2>Your positions</h2></header>
       {holdings===null?<div className="workspace-loading">{errors.holdings?"Positions unavailable":"Loading your positions…"}</div>:holdings.length?<div className="table-scroll"><table className="market-table position-table"><thead><tr><th>Token</th><th>Balance</th><th>Value</th><th>Rewards</th><th/></tr></thead><tbody>{holdings.map(h=>{
@@ -78,7 +95,7 @@ function PortfolioContent({address}:{address:string|null}){
         return <tr key={h.launch.id}><td><Link className="market-identity" to={"/token/"+h.launch.id}><TokenMark launch={h.launch}/><span><b>{h.launch.name}</b><small>{h.launch.symbol}</small></span></Link></td><td>{displayTokenAmount(h.balanceRaw,h.launch.tokenDecimals)}</td><td><b>{h.valueUsd===null?"Price delayed":usd.format(h.valueUsd)}</b></td><td>{reward?.canClaim?<button className="reward-amount-link" onClick={()=>selectTab("Rewards")}>{usd.format(reward.netClaimableUsdCents/100)} claimable <ArrowUpRight size={12}/></button>:reward?usd.format(reward.accumulatingUsdCents/100):"—"}</td><td><Link className="row-open" aria-label={"Open "+h.launch.name} to={"/token/"+h.launch.id}><ArrowUpRight size={18}/></Link></td></tr>;
       })}</tbody></table></div>:<div className="workspace-empty"><Coins/><h3>Your first position starts here.</h3><p>Coins held in this wallet appear once they’re indexed.</p><Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link></div>}
     </section>}
-    {tab==="Ripple"&&<RippleRewards key={address} address={address}/>}
+    {tab==="Ripple"&&<RippleRewards key={address} address={address} data={ripple} error={rippleError} onRefresh={refreshRipple}/>}
     {tab==="Rewards"&&<section className="workspace-panel portfolio-rewards-panel"><header><h2>Your rewards</h2></header><WalletRewards data={rewards} launches={(holdings??[]).map(h=>h.launch)} onClaimed={refresh}/></section>}
     {tab==="Activity"&&<><section className="workspace-panel"><header><h2>Claim history</h2>{history?.hasMore&&<span>Latest 200 receipts</span>}</header>
       {history?.lifetime.length?<div className="lifetime-rewards">{history.lifetime.map(t=><div key={t.stock_mint}><small>Total {t.symbol} claimed</small><strong>{displayTokenAmount(t.amount_raw,t.decimals)} <span>{t.symbol}</span></strong></div>)}</div>:null}
