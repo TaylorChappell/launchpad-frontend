@@ -54,6 +54,8 @@ test("launch approval includes activation and buy, with no wallet request after 
   await expect(page.getByRole("heading", { name: "Choose the pair and reward" })).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Coin settings", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByLabel("Optional first buy in SOL").fill("1");
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Launch", exact: true }).click();
