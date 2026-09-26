@@ -24,6 +24,7 @@ import { RewardModeIcon } from "../components/RewardModeIcon";
 import { DexProfileFields } from "../components/MarketProposals";
 import { CoinFeeBreakdown } from "../components/CoinFeeBreakdown";
 import "../coin-settings.css";
+import "./launch-resume.css";
 import { PercentControl } from "../components/PercentControl";
 import type { DexProfile } from "../types";
 import type { Launch, LaunchBatchEnvelope, LaunchConfirmation, LaunchRelayStatus, StockOption, TransactionEnvelope } from "../types";
@@ -609,7 +610,16 @@ export function Create() {
     {!launching && !completedLaunch && <div className="at-launch-entry"><span><strong>Start with Atlantis Studio.</strong> Create your artwork, website and launch draft in one place.</span><Link to="/studio">Open Studio ↗</Link></div>}
     {studioImportMessage && <div className="at-import-notice" role="status">{studioImportMessage}</div>}
     <PageBubbles count={22}/>
-    {(pending || recoverableLaunch || savedLaunchId) && !launching && !completedLaunch && <section className="launch-resume-banner">{recoverableLaunch && (!pending || pending.launchId === recoverableLaunch.id) && <span className="resume-coin-bubble"><TokenMark launch={recoverableLaunch}/></span>}<div><b>{pending ? `Continue $${form.symbol || "your coin"}` : recoverableLaunch ? `Continue $${recoverableLaunch.symbol}` : "Continue your previous launch"}</b><small>Resume when you’re ready to continue this launch.</small></div><button onClick={() => void resumeExistingLaunch()}><span className="resume-button-current" aria-hidden="true"/><span>Resume launch</span><ArrowRight/></button></section>}
+    {(pending || recoverableLaunch || savedLaunchId) && !launching && !completedLaunch && <section className="launch-resume-banner" aria-label="Resume your launch">
+      <span className="resume-coin-bubble" aria-hidden="true">
+        {recoverableLaunch && (!pending || pending.launchId === recoverableLaunch.id) ? <TokenMark launch={recoverableLaunch}/> : <RefreshCw/>}
+      </span>
+      <div className="launch-resume-copy">
+        <b>{pending ? form.symbol ? `Continue $${form.symbol}` : "Continue your launch" : recoverableLaunch ? `Continue $${recoverableLaunch.symbol}` : "Continue your previous launch"}</b>
+        <small>Your progress is saved. Continue where you left off.</small>
+      </div>
+      <button type="button" onClick={() => void resumeExistingLaunch()}><span>Resume launch</span><ArrowRight aria-hidden="true"/></button>
+    </section>}
     <section className={`wizard-shell ${launching ? "is-launching" : ""}`}>
       <div className="wizard-caustics" aria-hidden="true"/>
       {launching && <div className="wizard-launching-screen" role="status" aria-live="polite" aria-label={`Launching ${form.symbol}`}>
