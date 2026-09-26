@@ -57,7 +57,7 @@ const navigation = [
   {
     label: "Fees and rewards",
     items: [
-      ["trading-fees", "The 2% trading fee"],
+      ["trading-fees", "Coin trading fees"],
       ["settlement", "How fees are settled"],
       ["reward-modes", "The three reward modes"],
       ["holder-rewards", "How rewards are calculated"],
@@ -149,7 +149,7 @@ export function HowItWorks() {
       <div className="aqua-docs-summary" aria-label="AQUA protocol summary">
         <SummaryStat value={totalSupply} label="Fixed token supply"/>
         <SummaryStat value={formatBps(liquiditySupplyBps)} label="Committed to liquidity"/>
-        <SummaryStat value={formatBps(config.fees.transferFeeBps)} label="Token transfer fee"/>
+        <SummaryStat value="2–5%" label="Token fee · 2% default"/>
         <SummaryStat value="None" label="AQUA supply reserve"/>
       </div>
     </section>
@@ -294,24 +294,24 @@ export function HowItWorks() {
           <p>Atlantis can suggest known public variable values and provide an <strong>Open variables</strong> link in the conversation. A custom backend must be deployed before its URL will work. AQUA market-data integrations use the public AQUA API and do not require your own backend.</p>
         </DocSection>
 
-        <DocSection id="trading-fees" eyebrow="FEES AND REWARDS" title={"The " + formatBps(config.fees.transferFeeBps) + " SOL-settled fee"}>
+        <DocSection id="trading-fees" eyebrow="FEES AND REWARDS" title="Each coin chooses its reward fee">
           <p>Eligible trades and transfers produce the configured fee. AQUA settles the collected value in SOL before dividing it between holder rewards, buybacks, treasury and any earned creator allocation.</p>
-          <p>The total stream is divided evenly between holder rewards and platform revenue:</p>
+          <p>Launch settings set a 1–4% reward fee (1% by default), plus AQUA’s fixed 1% platform fee. The token fee is therefore 2–5%, fixed at launch. Orca charges its pool fee separately; Coin settings shows the configured breakdown. Custom reward rates are available after this network’s fee upgrade. At the default rate, the split is:</p>
           <table className="aqua-docs-table fee-table">
             <thead><tr><th>Stream</th><th>Of trade value</th><th>Of collected fees</th><th>Purpose</th></tr></thead>
             <tbody>
-              <tr><td><span className="fee-dot reward"/>Selected reward mode</td><td>{formatBps(config.fees.stockRewardsBps)}</td><td>50%</td><td>Used for holder distributions, market buybacks and burns, or the hourly jackpot selected permanently at launch.</td></tr>
+              <tr><td><span className="fee-dot reward"/>Selected reward mode</td><td>1%</td><td>50%</td><td>Used for holder distributions, market buybacks and burns, or the hourly jackpot selected permanently at launch.</td></tr>
               <tr><td><span className="fee-dot platform"/>Platform</td><td>{formatBps(config.fees.platformBps)}</td><td>50%</td><td>Funds treasury, buybacks and any earned creator share.</td></tr>
             </tbody>
           </table>
-          <h3>Inside the platform half</h3>
+          <h3>Inside the platform share</h3>
           <p>Half of the platform stream always funds the buyback wallet. The other half belongs to the treasury/creator stream. An active token lock can redirect between 0% and {formatBps(maximumCreatorShareBps)} of the platform stream from treasury to the creator; it never reduces holder rewards or buyback funding.</p>
           <div className="aqua-docs-allocation">
             <Allocation value={formatBps(maximumAllocation.treasuryBps)} label="Treasury" className="treasury"/>
             <Allocation value={formatBps(maximumAllocation.buybackBps)} label="Buyback" className="buyback"/>
             <Allocation value={formatBps(maximumAllocation.creatorBps)} label="Creator" className="creator-share"/>
           </div>
-          <p className="fine-print">These percentages describe the 1% platform stream. With no creator lock, the full trade routes 1% to rewards, 0.5% to buyback and 0.5% to treasury. At maximum score, that treasury 0.5% moves to the creator.</p>
+          <p className="fine-print">These percentages describe the 1% platform stream. At the default reward fee with no creator lock, 1% goes to the reward stream, 0.5% to buyback and 0.5% to treasury. A higher reward fee only increases the reward stream. At maximum score, that treasury 0.5% moves to the creator.</p>
         </DocSection>
 
         <DocSection id="settlement" eyebrow="FEES AND REWARDS" title="How fees are harvested and settled">
@@ -335,7 +335,7 @@ export function HowItWorks() {
             <article><span><RewardModeIcon mode="jackpot"/></span><small>MODE 03</small><h3>Hourly Jackpot</h3><p>Each eligible pot goes to five distinct holders: 50%, 20%, 20%, 5% and 5%. Winnings accumulate through the same one-claim reward distributor.</p><b>Fairness</b><p>Scores are committed before randomness is known. A future finalized Solana block supplies draw entropy, and the snapshot hash, blockhash, scores and winners remain auditable.</p></article>
           </div>
           <Callout title="Ripple Rewards · earn for sharing">
-            Ripple has its own tab beside Rewards in My holdings. When active, 15% of newly settled trading rewards after existing operating and campaign allocations goes to the coin’s Ripple pool. Another 10% of Community Boost goes to Ripple before the remaining boost is divided between holders and any active DEX fund. Existing allocations and direct creator top-ups are unchanged.
+            Ripple has its own tab beside Rewards in My holdings. When active, each coin directs its chosen 3–30% share (15% by default) of newly settled trading rewards after existing operating and campaign allocations to its Ripple pool. This share is set at launch and adds no extra token fee. Another 10% of Community Boost goes to Ripple before the remaining boost is divided between holders and any active DEX fund. Existing allocations and direct creator top-ups are unchanged.
             Sign in to AQUA, connect X and hold the coin in that wallet before posting its contract address, AQUA market link or explicit $TICKER. Discovery searches only connected holders with a valid AQUA session. Your wallet must still hold the coin when rewards are allocated. Shared tickers need a contract address or matching market link. Original posts and replies are discovered automatically, measured after 24 hours and allocated SOL in daily rounds. Each distinct qualifying tweet receives base points; engagement increases its share. Repeated content is excluded. Ripple claims stay separate from the coin’s permanent reward mode.
           </Callout>
           <Callout title="Jackpot scoring rewards behaviour across the whole hour">
@@ -507,8 +507,8 @@ export function HowItWorks() {
               <ReferenceRow label="Supply committed to liquidity" value={formatBps(liquiditySupplyBps)}/>
               <ReferenceRow label="Separate AQUA supply reserve" value="None"/>
               <ReferenceRow label="Starting market cap target" value={"$" + startMarketCap.toLocaleString("en-GB")}/>
-              <ReferenceRow label="Token transfer fee" value={formatBps(config.fees.transferFeeBps)}/>
-              <ReferenceRow label="Holder reward stream" value={formatBps(config.fees.stockRewardsBps) + " of transfer value"}/>
+              <ReferenceRow label="Token transfer fee" value="2–5% · default 2% · Orca fee additional"/>
+              <ReferenceRow label="Reward fee" value="1–4% of transfer value · default 1%"/>
               <ReferenceRow label="Platform stream" value={formatBps(config.fees.platformBps) + " of transfer value"}/>
               <ReferenceRow label="Maximum creator share" value={formatBps(maximumCreatorShareBps) + " of platform stream"}/>
               <ReferenceRow label="Permanent liquidity lock" value="Required"/>

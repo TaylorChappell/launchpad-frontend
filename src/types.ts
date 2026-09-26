@@ -32,6 +32,7 @@ export type RuntimeConfig = {
     estimatedTotalSol: { minimum: number; maximum: number };
     excludesOptionalInitialBuy: boolean;
   };
+  launchSettings?: { variableRewardFeesEnabled: boolean; rewardFeeMinBps: number; rewardFeeMaxBps: number; rewardFeeDefaultBps: number; rippleMinBps: number; rippleMaxBps: number; rippleDefaultBps: number; orcaFeeRate: number | null };
   fees: {
     transferFeeBps: number;
     platformBps: number;
@@ -259,6 +260,9 @@ export type Launch = {
   pairMint: string;
   tradingPair: { type: "sol" | "stock"; symbol: string; mint: string };
   rewardMode: "holder_rewards" | "buyback_burn" | "jackpot";
+  rewardFeeBps?: number;
+  rippleRewardBps?: number;
+  orcaFeeRate?: number | null;
   burnSummary?: { totalSol: number; totalTokenRaw: string };
   jackpotSummary?: { currentPotRaw: string; rewardSymbol: string; rewardDecimals: number };
   dexPaid?: boolean;

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useRuntime } from "../context";
 import { solscanAccountUrl } from "../creator-lock";
 import type { CreatorLock, Launch } from "../types";
+import { CoinSettings } from "./CoinSettings";
 import { MarketSheet } from "./MarketSheet";
 import { Metric } from "./TokenCard";
 import { WalletIdentity } from "./WalletIdentity";
@@ -28,6 +29,7 @@ export function MarketDetails({ launch, creatorLock, developerBuy }: {
   const mode = launch.rewardMode ?? "holder_rewards";
   return <>
     <button className="market-more-details" aria-haspopup="dialog" onClick={() => setOpen(true)}><Info size={18}/><span>More details</span><ChevronRight size={18}/></button>
+    <CoinSettings key={launch.id} launch={launch}/>
     {open && <MarketSheet launch={launch} title="Market details" closeLabel="Close details" onClose={close}>
       <div className="market-details-content">
         <section className="market-details-about"><h3>About {launch.name}</h3><p>{launch.description || "This market has no description yet."}</p>
