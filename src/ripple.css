@@ -2,27 +2,12 @@
 .ripple-connect-empty > small { font-size:11px; }
 .ripple-panel > header > a { flex-shrink:0; }
 .ripple-posts { padding:0 26px 24px; }
-.ripple-posts h3 { margin:8px 0 12px; font-size:14px; color:#1d4b65; }
 .ripple-empty { font-size:12px; color:#64869c; padding:12px 0; }
-.ripple-posts > header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.ripple-posts > header > span { color:#698b9e; font-size:11px; }
 .ripple-posts article { display:block; padding:16px; margin-top:12px; border:1px solid #dceaf1; border-radius:14px; background:#f8fcff; font-size:12px; }
 .ripple-post-top { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
 .ripple-post-text { margin:14px 0; color:#315d78; font-size:13px; line-height:1.6; overflow-wrap:anywhere; white-space:pre-wrap; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; }
 .ripple-post-metrics { display:flex; flex-wrap:wrap; gap:10px 18px; margin:14px 0; color:#547a94; font-variant-numeric:tabular-nums; }
 .ripple-post-metrics > span { display:inline-flex; align-items:center; gap:5px; }
-.ripple-post-progress { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-top:12px; border-top:1px solid #e4eef4; color:#698b9e; font-size:11px; line-height:1.5; }
-.ripple-post-progress > span { min-width:0; overflow-wrap:anywhere; }
-.ripple-post-progress small { flex:none; font-size:10px; }
-.ripple-tracking-notice { font-size:12px; color:#547a94; line-height:1.5; }
-.ripple-live-status { display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; padding:12px 14px; margin-bottom:14px; border:1px solid #dceaf1; border-radius:12px; background:#f3faff; color:#547a94; font-size:11px; line-height:1.5; }
-.ripple-live-status > span { display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px; }
-.ripple-live-status b { color:#1d4b65; font-weight:600; font-variant-numeric:tabular-nums; }
-.ripple-status-badge { color:#547a94; font-weight:650; }
-.ripple-status-badge i { width:6px; height:6px; flex-shrink:0; border-radius:50%; background:currentColor; }
-.ripple-status-badge.live { color:#087e76; }
-.ripple-status-badge.paused,.ripple-status-badge.unavailable { color:#926617; }
-.ripple-post-progress > span > small { display:block; margin-top:3px; font-size:10px; }
 .ripple-post-identity { min-width:0; }
 .ripple-post-identity > a { display:inline-flex; align-items:center; gap:6px; color:#147eb5; }
 .ripple-post-identity small { display:block; margin-top:6px; font-size:11px; color:#698b9e; overflow-wrap:anywhere; }
@@ -32,8 +17,13 @@
 .ripple-more { margin-top:14px; min-height:40px; }
 @media(max-width:540px) { .ripple-posts { padding:0 20px 20px; }.ripple-connect-empty { min-height:280px; }.ripple-posts article { gap:10px; } }
 
-.ripple-eligibility { font-size:11px; line-height:1.6; color:#698b9e; margin:0 0 14px; }
 .ripple-sign-in { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 26px 18px; font-size:12px; color:#64869c; }
 .ripple-sign-in button { display:inline-flex; align-items:center; gap:6px; flex-shrink:0; min-height:40px; }
 .ripple-session-error { margin-inline:26px; }
 @media(max-width:540px) { .ripple-sign-in { padding-inline:20px; }.ripple-session-error { margin-inline:20px; } }
+.ripple-claim-actions { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.ripple-claim-actions h3 { margin:0; font-size:14px; color:#1d4b65; }
+.ripple-claim-actions .primary { min-width:92px; min-height:40px; }
+.ripple-claim-actions .primary:disabled { background:#e3edf2; color:#8195a3; border-color:#d7e3e9; box-shadow:none; opacity:1; cursor:not-allowed; transform:none; }
+.ripple-panel > .wallet-rewards { padding:0 26px 4px; }
+@media(max-width:540px) { .ripple-panel > .wallet-rewards { padding-inline:20px; } }
