@@ -44,7 +44,7 @@ function CommunityRoom({launch,onRead}:{launch:Launch;onRead?:(cursor:CommentCur
   const [body,setBody]=useState(''),[reply,setReply]=useState<CommunityPost|null>(null),[file,setFile]=useState<File|null>(null),[preview,setPreview]=useState('');
   const [nearBottom,setNearBottom]=useState(true),[unseen,setUnseen]=useState(0);
   const [menu,setMenu]=useState<MessageMenuAnchor|null>(null),[dialog,setDialog]=useState<'update'|'poll'|'report'|'delete'|null>(null),[target,setTarget]=useState<CommunityPost|null>(null),[lightbox,setLightbox]=useState<string|null>(null);
-  const [updateBody,setUpdateBody]=useState(''),[updateFile,setUpdateFile]=useState<File|null>(null),[updatePreview,setUpdatePreview]=useState(''),updateText=useRef<HTMLTextAreaElement>(null),updateImage=useRef<HTMLInputElement>(null),updateDraft=useRef<{key:string;id:string}|null>(null);
+  const [updateBody,setUpdateBody]=useState(''),[updateFile,setUpdateFile]=useState<File|null>(null),[updatePreview,setUpdatePreview]=useState(''),updateText=useRef<HTMLTextAreaElement>(null),updateImage=useRef<HTMLInputElement>(null),updateDraft=useRef<{key:string;id:string}|null>(null),updateSelection=useRef<{start:number;end:number}|null>(null);
   const [question,setQuestion]=useState(''),[options,setOptions]=useState(['','']),[hours,setHours]=useState(24),[holdersOnly,setHoldersOnly]=useState(false),[report,setReport]=useState('Spam'),[busy,setBusy]=useState(false);
   const room=useRef<HTMLElement>(null);
   const scroll=useRef<HTMLDivElement>(null),text=useRef<HTMLTextAreaElement>(null),imageInput=useRef<HTMLInputElement>(null),alive=useRef(true),atBottom=useRef(true),read=useRef(onRead),latest=useRef<CommentCursor|null>(null);
@@ -116,6 +116,12 @@ function CommunityRoom({launch,onRead}:{launch:Launch;onRead?:(cursor:CommentCur
   },[posts,sendPulse]);
   useEffect(()=>{if(!file){setPreview('');return;}const url=URL.createObjectURL(file);setPreview(url);return()=>URL.revokeObjectURL(url);},[file]);
   useEffect(()=>{if(!updateFile){setUpdatePreview('');return;}const url=URL.createObjectURL(updateFile);setUpdatePreview(url);return()=>URL.revokeObjectURL(url);},[updateFile]);
+  useLayoutEffect(()=>{
+    const selection=updateSelection.current;if(!selection)return;
+    updateSelection.current=null;
+    const el=updateText.current;if(!el)return;
+    el.focus({preventScroll:true});el.setSelectionRange(selection.start,selection.end);
+  },[updateBody]);
   useEffect(()=>{if(text.current){text.current.style.height='auto';text.current.style.height=Math.min(text.current.scrollHeight,128)+'px';}},[body]);
   function requireSession(){if(readOnly)return null;const token=savedAccountSession(wallet.address);if(!token){setSession(null);setDialog(null);wallet.setModalOpen(true);return null;}return token;}
   function send(){
@@ -159,8 +165,9 @@ function CommunityRoom({launch,onRead}:{launch:Launch;onRead?:(cursor:CommentCur
   }
   function formatUpdate(marker:string){
     const el=updateText.current;if(!el)return;const start=el.selectionStart,end=el.selectionEnd,selection=updateBody.slice(start,end)||'text';
-    const value=updateBody.slice(0,start)+marker+selection+marker+updateBody.slice(end);if(value.length>1000)return;setUpdateBody(value);
-    requestAnimationFrame(()=>{el.focus();el.setSelectionRange(start+marker.length,start+marker.length+selection.length);});
+    const value=updateBody.slice(0,start)+marker+selection+marker+updateBody.slice(end);if(value.length>1000)return;
+    updateSelection.current={start:start+marker.length,end:start+marker.length+selection.length};
+    setUpdateBody(value);
   }
   function startReply(post:CommunityPost){if(post.kind!=='message')return;setMenu(null);if(!requireSession())return;setReply(post);setFilter('all');text.current?.focus({preventScroll:true});}
   useEffect(()=>{if(reply&&filter==='all')text.current?.focus({preventScroll:true});},[reply,filter]);
