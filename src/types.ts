@@ -90,6 +90,9 @@ export type AdminDiagnostics = {
     rewardDistributionEnabled: boolean;
     conversionMinimumUsdCents: number;
     conversionSlippageBps: number;
+    feeSlicingEnabled?: boolean;
+    feeSliceClearHours?: number;
+    feeSliceMaxImpactBps?: number;
     rewardEpochSeconds: number;
     rewardMinimumUsdCents: number;
     keeperIntervalMs: number;
@@ -108,6 +111,8 @@ export type AdminDiagnostics = {
   launches: Array<Record<string, unknown>>;
   diagnostics: Array<Record<string, unknown>>;
   conversions: Array<Record<string, unknown>>;
+  conversionPacing?: Array<{launch_id: string; started_at: string | number; remaining_raw: string; next_slice_at: string | number;
+    details: {status?: string; observedAt?: number; backlogUsd?: number; sliceUsd?: number; impactBps?: number; maxImpactBps?: number; targetClearAt?: number; estimatedClearAt?: number}} >;
   settlements: Array<Record<string, unknown>>;
   rewardPurchases: Array<Record<string, unknown>>;
   rewardEpochs: Array<Record<string, unknown>>;

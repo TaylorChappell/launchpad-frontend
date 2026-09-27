@@ -40,7 +40,7 @@ test("Ripple has its own tab with separate claims, post rewards and no mobile ov
   await expect(panel.getByRole("button",{name:"Claim",exact:true})).toBeDisabled();
   await expect(panel.getByText("No rewards to claim yet.", {exact:true})).toHaveCount(0);
   await expect(panel.getByText(/Live detection|Hourly rewards|15-minute rewards|Next round|Next check|Check \d of|Last checked|Scheduled detection/)).toHaveCount(0);
-  await expect(panel.getByText("$0.00",{exact:true})).toBeVisible();
+  await expect(panel.locator('.ripple-post-amount').getByText("$0.00",{exact:true})).toBeVisible();
   await expect(panel.getByText("A new $OCEAN post",{exact:true})).toBeVisible();
   await expect(panel.locator('.ripple-post-amount b')).toHaveText(['$100.00','$2.50','$0.00']);
   await expect(panel.locator('.ripple-post-metrics').nth(1)).toContainText('20 likes');
@@ -97,7 +97,7 @@ test("a completed zero-reward post remains visible and a delayed scan preserves 
   ]}}));
   await page.goto("/#/portfolio?tab=ripple");const panel=page.getByRole("region",{name:"Ripple Rewards",exact:true});
   await expect(panel.getByText("Still supporting $OCEAN")).toBeVisible();
-  await expect(panel.getByText("$0.00",{exact:true})).toBeVisible();
+  await expect(panel.locator('.ripple-post-amount').getByText("$0.00",{exact:true})).toBeVisible();
   await expect(panel.getByText(/Checks complete|Check 4 of 4|Post updates are delayed/)).toHaveCount(0);
   await expect(panel.getByRole("button",{name:"Claim",exact:true})).toBeDisabled();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
@@ -112,16 +112,17 @@ test("Ripple keeps posts visible without tracking details",async({page})=>{
   await expect(panel.getByText('$2.50',{exact:true})).toBeVisible();
 });
 
-test("Ripple enables Claim only when a reward can be claimed",async({page})=>{
+test("Ripple enables Claim from the combined claim response and displays its total",async({page})=>{
   await setup(page);
   await page.route("**/api/ripple/*/rewards",r=>r.fulfill({json:{markets:[{
     launchId:"coin",canClaim:true,claimMode:"cumulative",claimableEpochIds:[],
-    grossRedeemableUsdCents:250,accumulatingUsdCents:0,pendingUsdCents:0,
-    netClaimableUsdCents:245,claimableUsdCents:250,minimumClaimUsdCents:100
-  }]}}));
+    grossRedeemableUsdCents:636,accumulatingUsdCents:0,pendingUsdCents:0,
+    netClaimableUsdCents:631,claimableUsdCents:636,minimumClaimUsdCents:500
+  }],rippleClaim:{availableUsdCents:636,minimumUsdCents:500,canClaim:true}}}));
   await page.goto("/#/portfolio?tab=ripple");
   const panel=page.getByRole("region",{name:"Ripple Rewards",exact:true});
   await expect(panel.getByRole("button",{name:"Claim",exact:true})).toBeEnabled();
+  await expect(panel.locator(".ripple-available")).toHaveText("Available to claim $6.36");
   await expect(panel.locator(".reward-claim-list")).toHaveCount(0);
 });
 
