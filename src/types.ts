@@ -660,15 +660,22 @@ export type WalletNotification = {
 };
 
 export type AdminRippleResponse = {
+  service?:RippleServiceStatus;
   totalPosts:number;earnedUsdCents:string;claimedUsdCents:string;unpricedPosts:number;
   offset:number;limit:number;hasMore:boolean;
   posts:Array<{id:string;launchId:string;symbol:string;coinName:string;wallet:string|null;username:string|null;authorId:string;text:string;createdAt:number;
     amountLamports:string;earnedUsdCents:string|null;claimedUsdCents:string|null;status:"tracking"|"completed"|"excluded";reason:string|null;
     metrics:{like_count?:number;reply_count?:number;retweet_count?:number;quote_count?:number;impression_count?:number}}>;
 };
+export type RippleServiceStatus = {
+ mode:"unavailable"|"paused"|"live"|"idle"|"polling";message:string|null;lastEventAt:number|null;settlementMinutes:number;
+ providerError?:string|null;retryAt?:number|null;
+ providerBackoffs?:Array<{scope:string;retryAt:number;message:string}>;
+ budget?:{requests:number;postReads:number;requestLimit:number;postReadLimit:number;resetsAt:number;requestCounts?:Record<string,number>};
+};
 export type RippleSummary = {
  totalPosts?:number;
- service?:{mode:"unavailable"|"paused"|"live"|"idle"|"polling";message:string|null;lastEventAt:number|null;settlementMinutes:number};
+ service?:RippleServiceStatus;
  scanError?:string|null;nextPayoutAt?:number;
  signedIn?:boolean;holdersOnly?:boolean;
  enabled:boolean;status:"unavailable"|"paused"|"catching_up"|"tracking";reason:string|null;checkedAt:number|null;

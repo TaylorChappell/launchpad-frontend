@@ -60,6 +60,7 @@ function RippleBalances({ address, data, error, onRefresh }: RippleProps) {
     finally { if (current.current === address) setSigning(false); }
   }
   const [visible, setVisible] = useState(5);
+  const delayed = data?.service?.mode === "paused" || data?.service?.mode === "unavailable" || data?.status === "paused";
   const posts = [...(data?.posts ?? [])].sort((a, b) => {
     const leftUsd = a.earnedUsdCents == null ? null : BigInt(a.earnedUsdCents);
     const rightUsd = b.earnedUsdCents == null ? null : BigInt(b.earnedUsdCents);
@@ -74,8 +75,9 @@ function RippleBalances({ address, data, error, onRefresh }: RippleProps) {
     {signInError && <p className="danger-note ripple-session-error" role="alert">{signInError}</p>}
     <WalletRewards kind="ripple" compact onClaimed={onRefresh}/>
     <div className="ripple-posts">
+      {delayed && <p className="ripple-service-notice" role="status">Post detection is temporarily delayed. Your saved posts and rewards are still here.</p>}
       {error && <p className="danger-note" role="alert">{error} <button className="text-button" onClick={onRefresh}>Try again</button></p>}
-      {!data ? !error && <p className="ripple-empty">Loading your posts…</p> : !data.posts.length ? <p className="ripple-empty">No posts yet. Mention a coin’s $ticker or contract address on X to appear here.</p> : posts.slice(0, visible).map(post => <article key={`${post.launchId}:${post.id}`}>
+      {!data ? !error && <p className="ripple-empty">Loading your posts…</p> : !data.posts.length ? <p className="ripple-empty">{delayed ? "Your detected posts will appear here." : "No posts yet. Mention a coin’s $ticker or contract address on X to appear here."}</p> : posts.slice(0, visible).map(post => <article key={`${post.launchId}:${post.id}`}>
         <div className="ripple-post-top"><div className="ripple-post-identity"><a href={`https://x.com/i/status/${post.id}`} target="_blank" rel="noreferrer">{post.isReply ? "Reply on X" : "Post on X"}<ExternalLink size={13}/></a><small><Link to={`/token/${post.launchId}`}>${post.symbol}</Link> · {new Date(post.createdAt).toLocaleDateString()}</small></div>
           <div className="ripple-post-amount"><b>{rippleDollars(post.earnedUsdCents,post.amountLamports)}</b><small title="USD value when rewards were allocated">Total earned</small></div>
         </div>

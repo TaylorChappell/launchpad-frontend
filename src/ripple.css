@@ -3,6 +3,7 @@
 .ripple-panel > header > a { flex-shrink:0; }
 .ripple-posts { padding:0 26px 24px; }
 .ripple-empty { font-size:12px; color:#64869c; padding:12px 0; }
+.ripple-service-notice { margin:12px 0; padding:12px 14px; border:1px solid #dceaf1; border-radius:12px; background:#f1f8fc; color:#426c86; font-size:12px; line-height:1.6; }
 .ripple-posts article { display:block; padding:16px; margin-top:12px; border:1px solid #dceaf1; border-radius:14px; background:#f8fcff; font-size:12px; }
 .ripple-post-top { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
 .ripple-post-text { margin:14px 0; color:#315d78; font-size:13px; line-height:1.6; overflow-wrap:anywhere; white-space:pre-wrap; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; }

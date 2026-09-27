@@ -25,12 +25,21 @@ function RippleReport({token,search,refreshKey}:{token:string;search:string;refr
     const start=setTimeout(()=>void load(),search?250:0);
     return()=>{controller.abort();clearTimeout(start);clearTimeout(timer);};
   },[token,search,offset,revision,refreshKey]);
+  const service=data?.service,budget=service?.budget,usage=budget?.requestCounts??{};
   return <div className="ops-ripple">
     <div className="ops-metrics ops-ripple-totals">
       <article className="ops-metric"><span>Tracked posts</span><strong>{data?.totalPosts.toLocaleString()??"—"}</strong><small>{search?"Matching your search":"Across all AQUA coins"}</small></article>
       <article className="ops-metric"><span>Total earned</span><strong>{rippleDollars(data?.earnedUsdCents)}</strong><small>USD value at allocation</small></article>
       <article className="ops-metric"><span>Claimed</span><strong>{rippleDollars(data?.claimedUsdCents)}</strong><small>Confirmed reward claims</small></article>
     </div>
+    {service&&<section className="ops-panel ops-ripple-health" aria-label="Ripple detection health">
+      <header><h2>Detection</h2><span className={`ops-status is-${service.mode==='live'?'tracking':service.mode==='paused'?'excluded':'completed'}`}>{service.mode==='live'?'Live':service.mode==='polling'?'Scheduled':service.mode==='paused'?'Paused':service.mode==='idle'?'Idle':'Unavailable'}</span></header>
+      {service.message&&<p>{service.message}</p>}
+      {budget&&<><div className="ops-ripple-usage"><span>X requests <b>{budget.requests.toLocaleString()} / {budget.requestLimit.toLocaleString()}</b></span><span>Distinct posts read <b>{budget.postReads.toLocaleString()} / {budget.postReadLimit.toLocaleString()}</b></span></div>
+        <p>Search {usage.search??0} · Engagement {usage.lookup??0} · Stream {(usage.stream_rules??0)+(usage.stream_connect??0)}{budget.requests>Object.values(usage).reduce((sum,n)=>sum+n,0)?' · Earlier requests not categorized':''}</p>
+        <small>Daily limits reset {new Date(budget.resetsAt).toLocaleString()}</small></>}
+      {!!service.providerBackoffs?.length&&<ul>{service.providerBackoffs.map(item=><li key={item.scope}>{item.message} Retry {new Date(item.retryAt).toLocaleTimeString()}.</li>)}</ul>}
+    </section>}
     <section className="ops-panel" aria-label="Ripple posts">
       <header className="ops-ripple-heading"><div><h2>All Ripple posts</h2><p>Highest earnings first · refreshes automatically</p></div><button disabled={busy} onClick={()=>setRevision(n=>n+1)}><RefreshCw size={15} className={busy?"spin":""}/>Refresh posts</button></header>
       {error&&<div className="ops-error" role="alert">{error} <button onClick={()=>setRevision(n=>n+1)}>Try again</button></div>}

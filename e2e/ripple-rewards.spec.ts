@@ -104,12 +104,14 @@ test("a completed zero-reward post remains visible and a delayed scan preserves 
 });
 
 
-test("Ripple keeps posts visible without tracking details",async({page})=>{
+test("Ripple reports a detection outage while keeping posts and claims visible",async({page})=>{
   await setup(page,false,true,'paused');await page.goto('/#/portfolio?tab=ripple');
   const panel=page.getByRole('region',{name:'Ripple Rewards',exact:true});
   await expect(panel.getByText('Tracking paused',{exact:true})).toHaveCount(0);
   await expect(panel.getByText('Daily X tracking limit reached. Tracking resumes after midnight UTC.')).toHaveCount(0);
   await expect(panel.getByText('$2.50',{exact:true})).toBeVisible();
+  await expect(panel.getByRole('status')).toHaveText('Post detection is temporarily delayed. Your saved posts and rewards are still here.');
+  await expect(panel.getByRole('button',{name:'Claim',exact:true})).toBeVisible();
 });
 
 test("Ripple enables Claim from the combined claim response and displays its total",async({page})=>{
@@ -134,7 +136,7 @@ test("admin Ripple lists every post with dollar earnings, pagination and server-
     expect(r.request().headers().authorization).toBe("Bearer verified-admin");
     const q=new URL(r.request().url()).searchParams,search=q.get("search")??"",offset=Number(q.get("offset"));requests.push({search,offset});
     const posts=Array.from({length:26},(_,i)=>({id:String(100+i),launchId:"coin",symbol:"OCEAN",coinName:"Ocean",wallet:address,username:i===25?"another":"aqua_tester",text:i===25?"Last post":"Supporting $OCEAN "+i,createdAt:Date.now(),metrics:{like_count:5,impression_count:1000},amountLamports:i===25?"0":"1000000000",earnedUsdCents:i===25?"0":"10000",claimedUsdCents:"0",status:"tracking",reason:null})).filter(p=>!search||p.username.includes(search));
-    return r.fulfill({json:{totalPosts:posts.length,earnedUsdCents:search?"0":"250000",claimedUsdCents:"0",unpricedPosts:0,offset,limit:25,hasMore:offset+25<posts.length,posts:posts.slice(offset,offset+25)}});
+    return r.fulfill({json:{totalPosts:posts.length,earnedUsdCents:search?"0":"250000",claimedUsdCents:"0",unpricedPosts:0,offset,limit:25,hasMore:offset+25<posts.length,posts:posts.slice(offset,offset+25),service:{mode:'paused',message:'Daily X tracking limit reached.',budget:{requests:1000,requestLimit:1000,postReads:16,postReadLimit:1000,resetsAt:Date.now()+3600000,requestCounts:{search:750,lookup:100,stream_rules:100,stream_connect:50}}}}});
   });
   await page.goto("/#/portfolio");
   await expect(page.getByRole("heading",{name:"Your positions",exact:true})).toBeVisible();
@@ -142,6 +144,10 @@ test("admin Ripple lists every post with dollar earnings, pagination and server-
   await page.goto("/#/admin?section=ripple");
   await expect(page.getByRole("navigation",{name:"Admin sections"}).getByRole("button",{name:"Ripple rewards",exact:true})).toHaveAttribute("aria-current","page");
   const records=page.getByRole("region",{name:"Ripple post records"});
+  const health=page.getByRole('region',{name:'Ripple detection health'});
+  await expect(health).toContainText('1,000 / 1,000');
+  await expect(health).toContainText('16 / 1,000');
+  await expect(health).toContainText('Search 750 · Engagement 100 · Stream 150');
   await expect(records.locator("tbody tr")).toHaveCount(25);
   await expect(records.locator("tbody tr").first()).toContainText("$100.00");
   await expect(records.getByRole("link",{name:"@aqua_tester"}).first()).toHaveAttribute("href","https://x.com/i/status/100");
