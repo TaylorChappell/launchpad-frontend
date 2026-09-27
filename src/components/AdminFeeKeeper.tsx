@@ -67,6 +67,12 @@ function KeeperReport({ token, search, refreshKey, range, setRange }: {
         <article className="ops-metric"><span>Largest conversion</span><strong>{sol(data.summary.sales.largestLamports)}</strong><small>Average {sol(data.summary.sales.averageLamports)}</small></article>
         <article className="ops-metric"><span>Recorded network fees</span><strong>{sol(data.summary.transactions.feeLamports)}</strong><small>{data.summary.transactions.confirmed} confirmed harvest / conversion transactions{data.summary.transactions.missingFeeCount > 0 && ` · ${data.summary.transactions.missingFeeCount} fees unavailable`}</small></article>
       </div>
+      {data.summary.throughput && <div className="ops-metrics" aria-label="Fee keeper throughput">
+        <article className="ops-metric"><span>Fees waiting to sell</span><strong>{keeperUsd(data.summary.throughput.backlogUsd)}</strong><small>Recorded vault fees + unsold withdrawals</small></article>
+        <article className="ops-metric"><span>Fees collected / hour</span><strong>{keeperUsd(data.summary.throughput.incomingHourUsd)}</strong><small>Net trading fees harvested in the last hour</small></article>
+        <article className="ops-metric"><span>Fees processed / hour</span><strong>{keeperUsd(data.summary.throughput.convertedHourUsd)}</strong><small>Fee tokens sold in confirmed pool swaps</small></article>
+        <article className="ops-metric"><span>Catch-up markets</span><strong>{data.summary.throughput.catchupMarkets}</strong><small>{data.settings.catchupEnabled ? `Up to ${percent(data.settings.buyParticipationBps)} of verified buying` : "Catch-up disabled"}</small></article>
+      </div>}
       <section className="ops-panel" aria-label="Conversion controls"><div className="ops-keeper-controls">
         <div><span>SOL conversion</span><b>{data.settings.conversionEnabled ? "Enabled" : "Disabled"}</b></div>
         <div><span>Impact limit</span><b>{percent(data.settings.maxImpactBps)}</b></div>
@@ -74,13 +80,15 @@ function KeeperReport({ token, search, refreshKey, range, setRange }: {
         <div><span>Minimum conversion</span><b>{keeperUsd(data.settings.minimumUsd)}</b></div>
         <div><span>Batch target</span><b>{data.settings.clearHours} hours</b></div>
         <div><span>Keeper interval</span><b>{data.settings.intervalMs / 1000}s</b></div>
+        {data.settings.conversionIntervalMs != null && <div><span>Settlement checks</span><b>{data.settings.conversionIntervalMs / 1000}s</b></div>}
+        <div><span>Catch-up</span><b>{data.settings.catchupEnabled ? "Automatic" : "Disabled"}</b></div>
       </div><p className="ops-keeper-note">Impact limits can delay the batch target. Existing conversions retain their saved policy. Settings reflect this API; a separate keeper service must use matching settings. Network fees exclude account rent and trading fees.</p></section>
       <section className="ops-panel" aria-label="Fee keeper queue"><header><h2>What the keeper is doing</h2><p>Current state per coin. Recorded vault balances and dollar estimates can lag the chain; a planned sale is not a confirmed sale.</p></header>
-        <div className="ops-table-scroll" role="region" aria-label="Fee keeper market queue" tabIndex={0}><table className="ops-keeper-queue"><thead><tr><th>Coin / last check</th><th>Recorded vault fees</th><th>Active sale</th><th>Stage / reason</th><th>Pacing</th></tr></thead>
+        <div className="ops-table-scroll" role="region" aria-label="Fee keeper market queue" tabIndex={0}><table className="ops-keeper-queue"><thead><tr><th>Coin / last check</th><th>Recorded vault fees</th><th>Active sale</th><th>Stage / reason</th><th>Pacing</th><th>Backlog / hourly flow</th></tr></thead>
           <tbody>{data.queue.map(market => <QueueRow key={market.launchId} market={market} now={data.generatedAt} slicing={data.settings.slicingEnabled}/>)}</tbody></table>
           {!data.queue.length && <div className="ops-empty">No markets match your search.</div>}
         </div>
-        <p className="ops-keeper-note">Showing {data.queue.length} of {data.summary.markets} markets, with problems and active sales first. Search to find a coin. Dollar balance estimates use its last indexed token price.</p>
+        <p className="ops-keeper-note">Showing {data.queue.length} of {data.summary.markets} markets, with problems and active sales first. Dollar balances and hourly rates use the last indexed token price. Clear times assume the last hour’s fee inflow and selling rate continue.{Boolean(data.summary.throughput?.unknownPrices) && ` Prices unavailable for ${data.summary.throughput!.unknownPrices} markets.`}</p>
       </section>
       <section className="ops-panel" aria-label="Fee keeper conversion history"><header><h2>Conversion history</h2><p>Latest activity in the selected period. Open a conversion to inspect each transaction, its size and confirmed network fee.</p></header>
         {data.summary.sales.estimatedTimeCount > 0 && <p className="ops-keeper-note">{data.summary.sales.estimatedTimeCount} older sale(s) use their last stored update time because a swap confirmation timestamp is unavailable.</p>}
@@ -105,10 +113,14 @@ function QueueRow({ market: m, now, slicing }: { market: KeeperMarket; now: numb
     <td><Status value={m.status}/><b className="ops-keeper-stage">{label(m.stage)}</b><p>{m.conversionError || m.message || "Awaiting a keeper pass."}</p></td>
     <td>{slicing || m.slicePolicy ? <><span>{m.nextSliceAt ? m.nextSliceAt > now ? `Next eligible: ${date(m.nextSliceAt)}` : "Eligible for the next keeper pass" : "No slice scheduled"}</span>
       {m.pacing?.status && <small>{label(m.pacing.status)}</small>}
+      {m.pacing?.catchup && <><Status value={m.pacing.catchup.mode ?? "paced"}/><small>{({buying_active:"Recent buying supports sales",buy_budget_used:"Waiting for new buy budget",buying_quiet:"Buying quiet · normal pacing",trade_data_stale:"Awaiting verified trade data"} as Record<string,string>)[m.pacing.catchup.reason ?? ""] ?? label(m.pacing.catchup.reason)}</small>
+        {m.pacing.catchup.buyBudgetRaw != null && <small>{keeperAmount(m.pacing.catchup.buyBudgetRaw,m.decimals)} {m.symbol} unused buy budget at last check</small>}</>}
       {m.batchRemainingRaw != null && <small>{keeperAmount(m.batchRemainingRaw, m.decimals)} {m.symbol} remains unscheduled in this batch</small>}
       {m.pacing?.estimatedClearAt && <small>Last clear estimate: {date(m.pacing.estimatedClearAt)}</small>}
       {m.pacing?.observedAt && <small>Quote observed {date(m.pacing.observedAt)}</small>}
     </> : <span>Pacing disabled</span>}</td>
+    <td><b>{keeperUsd(m.backlogUsd)}</b><small>Collected {keeperUsd(m.incomingHourUsd)} /h</small><small>Processed {keeperUsd(m.convertedHourUsd)} /h</small>
+      <small>{m.estimatedClearAt ? `Estimated clear: ${date(m.estimatedClearAt)}` : m.backlogRaw === "0" ? "Backlog clear" : "No clearing estimate at the current rate"}</small></td>
   </tr>;
 }
 

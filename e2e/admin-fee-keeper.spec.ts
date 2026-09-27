@@ -5,7 +5,7 @@ const conversion={id:'conversion',launchId:'ocean',symbol:'OCEAN',name:'Ocean Cl
   slicePolicy:{maxImpactBps:50,quote:{observedAt:now-60000,grossRaw:'125000000',inputRaw:'120000000',estimatedSolLamports:'2000000000',estimatedUsdCents:'25000',impactBps:25}},
   withdrawSignature:null,poolSignature:signature,swapSignature:signature,payoutSignature:null,stepCount:1,
   steps:[{step:'pool',signature,status:'confirmed',bytes:1100,feeLamports:'5000',createdAt:now-3000,updatedAt:now-2000}]};
-const market={launchId:'ocean',symbol:'OCEAN',name:'Ocean Club',mint:'mint',decimals:6,vaultRaw:'9007199254740993',vaultUsd:1801.44,indexedAt:now-5000,status:'waiting',stage:'conversion',message:'Fee conversion is pacing sales; the next slice is not due yet.',lastAttemptAt:now-1000,lastSuccessAt:now-60000,batchBudgetRaw:'1000000000',batchRemainingRaw:'750000000',nextSliceAt:now+60000,pacing:{status:'scheduled',observedAt:now-1000,estimatedClearAt:now+7200000},conversionId:'pending',conversionStatus:'planned',plannedRaw:'125000000',plannedCurrentUsd:250,slicePolicy:conversion.slicePolicy,conversionError:null};
+const market={launchId:'ocean',symbol:'OCEAN',name:'Ocean Club',mint:'mint',decimals:6,vaultRaw:'9007199254740993',vaultUsd:1801.44,indexedAt:now-5000,status:'waiting',stage:'conversion',message:'Fee conversion is pacing sales; the next slice is not due yet.',lastAttemptAt:now-1000,lastSuccessAt:now-60000,batchBudgetRaw:'1000000000',batchRemainingRaw:'750000000',nextSliceAt:now+60000,pacing:{status:'scheduled',observedAt:now-1000,estimatedClearAt:now+7200000,catchup:{mode:'catch_up',reason:'buying_active',participationBps:750,buyBudgetRaw:'500000000'}},backlogRaw:'9007199254740993',backlogUsd:1801.44,incomingHourUsd:500,convertedHourUsd:1400,estimatedClearAt:now+7200000,conversionId:'pending',conversionStatus:'planned',plannedRaw:'125000000',plannedCurrentUsd:250,slicePolicy:conversion.slicePolicy,conversionError:null};
 async function setup(page:Page,authorized=true) {
   const requests:URL[]=[],state={fail:false};
   await page.addInitScript(({address})=>{
@@ -23,8 +23,8 @@ async function setup(page:Page,authorized=true) {
       expect(r.request().headers().authorization).toBe('Bearer verified-admin');requests.push(url);
       if(state.fail)return r.fulfill({status:503,json:{error:'Analytics temporarily unavailable'}});
       const offset=Number(url.searchParams.get('offset')),search=url.searchParams.get('search'),range=url.searchParams.get('range');
-      return r.fulfill({json:{generatedAt:now,range,search,settings:{enabled:true,conversionEnabled:true,slicingEnabled:true,intervalMs:60000,minimumUsd:1,preferredSliceUsd:50,clearHours:2,maxImpactBps:50,slippageBps:100},
-        summary:{markets:search?0:1,active:search?0:1,blocked:0,lastAttemptAt:now-1000,sales:{count:3,solLamports:range==='1h'?'1000000000':'6000000000',averageLamports:'2000000000',largestLamports:'3000000000',estimatedTimeCount:0},transactions:{confirmed:9,feeLamports:'45000',missingFeeCount:0}},
+      return r.fulfill({json:{generatedAt:now,range,search,settings:{enabled:true,conversionEnabled:true,slicingEnabled:true,intervalMs:60000,conversionIntervalMs:15000,catchupEnabled:true,buyParticipationBps:750,minimumUsd:1,preferredSliceUsd:50,clearHours:2,maxImpactBps:50,slippageBps:100},
+        summary:{markets:search?0:1,active:search?0:1,blocked:0,lastAttemptAt:now-1000,throughput:{backlogUsd:1801.44,incomingHourUsd:500,convertedHourUsd:1400,catchupMarkets:1,unknownPrices:0},sales:{count:3,solLamports:range==='1h'?'1000000000':'6000000000',averageLamports:'2000000000',largestLamports:'3000000000',estimatedTimeCount:0},transactions:{confirmed:9,feeLamports:'45000',missingFeeCount:0}},
         queue:search?[]:[market],queueLimit:100,history:search?[]:[{...conversion,id:offset?'older':'conversion',symbol:offset?'OLDER':'OCEAN'}],total:search?0:26,offset,limit:25,hasMore:!search&&offset===0}});
     }
     return r.fulfill({json:{enabled:false,prices:[],notifications:[],launches:[]}});
@@ -38,6 +38,10 @@ test('admin sees planned sales, exact amounts and expandable transaction sizes o
   const queue=page.getByRole('region',{name:'Fee keeper market queue'});
   await expect(queue).toContainText('9,007,199,254.740993 OCEAN');
   await expect(queue).toContainText('$250.00 at planning');await expect(queue).toContainText('0.25% quoted impact');
+  await expect(page.getByLabel('Fee keeper throughput')).toContainText('$1,801.44');
+  await expect(page.getByLabel('Fee keeper throughput')).toContainText('7.5%');
+  await expect(queue).toContainText('catch up');await expect(queue).toContainText('Processed $1,400.00 /h');
+  await expect(page.getByLabel('Conversion controls')).toContainText('15s');
   const card=page.locator('.ops-keeper-conversion').first();await card.locator('summary').click();
   await expect(card.getByRole('cell',{name:'1,100 bytes'})).toBeVisible();
   await expect(card.getByRole('cell',{name:'0.000005 SOL',exact:true})).toBeVisible();

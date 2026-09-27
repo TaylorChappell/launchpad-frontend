@@ -12,7 +12,7 @@ export function keeperUsd(value: number | null | undefined): string {
 }
 
 export type KeeperRange = "1h" | "24h" | "7d" | "max";
-export type KeeperPolicy = { maxImpactBps?: number; quote?: {
+export type KeeperPolicy = { maxImpactBps?: number; mode?: string; buyBudgetApplied?: boolean; quote?: {
   observedAt: number; grossRaw: string; inputRaw: string; estimatedSolLamports: string;
   estimatedUsdCents: string; impactBps: number;
 } };
@@ -32,15 +32,19 @@ export type KeeperMarket = {
   indexedAt: number | null; status: string | null; stage: string | null; message: string | null;
   lastAttemptAt: number | null; lastSuccessAt: number | null; batchBudgetRaw: string | null; batchRemainingRaw: string | null;
   nextSliceAt: number | null; pacing: { status?: string; observedAt?: number; backlogUsd?: number; sliceUsd?: number;
-    impactBps?: number; estimatedClearAt?: number; targetClearAt?: number } | null;
+    impactBps?: number; estimatedClearAt?: number; targetClearAt?: number;
+    catchup?: {mode?: string; reason?: string; behind?: boolean; participationBps?: number; buyBudgetRaw?: string} } | null;
+  backlogRaw?: string; backlogUsd?: number | null; incomingHourUsd?: number | null; convertedHourUsd?: number | null; estimatedClearAt?: number | null;
   conversionId: string | null; conversionStatus: string | null; plannedRaw: string | null; plannedCurrentUsd: number | null;
   slicePolicy: KeeperPolicy | null; conversionError: string | null;
 };
 export type AdminFeeKeeperResponse = {
   generatedAt: number; range: KeeperRange; search: string;
   settings: { enabled: boolean; conversionEnabled: boolean; slicingEnabled: boolean; intervalMs: number;
+    conversionIntervalMs?: number; catchupEnabled?: boolean; buyParticipationBps?: number;
     minimumUsd: number; preferredSliceUsd: number; clearHours: number; maxImpactBps: number; slippageBps: number };
   summary: { markets: number; active: number; blocked: number; lastAttemptAt: number | null;
+    throughput?: {backlogUsd: number | null; incomingHourUsd: number | null; convertedHourUsd: number | null; catchupMarkets: number; unknownPrices: number};
     sales: { count: number; solLamports: string; averageLamports: string; largestLamports: string; estimatedTimeCount: number };
     transactions: { confirmed: number; feeLamports: string; missingFeeCount: number } };
   queue: KeeperMarket[]; queueLimit: number; history: KeeperConversion[];
