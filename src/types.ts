@@ -101,7 +101,7 @@ export type AdminDiagnostics = {
     operator?: string;
     rewardOperator?: string;
     programId?: string;
-    destinations?: { treasury: string; rewardBuyer: string; buybackBuyer: string; feeKeeper: string };
+    destinations?: { treasury: string; rewardBuyer: string; buybackBuyer: string; buybackWallets?: string[]; feeKeeper: string };
     balances?: { nativeLamports: string; rewardNativeLamports: string; wrappedSolLamports: string; reservedRewardLamports: string; reservedDexLamports?: string };
     markets?: Array<Record<string, unknown>>;
   };
