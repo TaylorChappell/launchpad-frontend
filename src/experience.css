@@ -310,3 +310,5 @@
 .market-filter-overlay input:focus-visible { outline:none; border-color:#228dcb; box-shadow:0 0 0 3px #228dcb20; }
 .market-filter-overlay .filter-number:focus-within { border-color:#228dcb; box-shadow:0 0 0 3px #228dcb20; }
 .market-filter-overlay .filter-number input:focus-visible { box-shadow:none; }
+.launch-wizard-page .wizard-next:not(:disabled) { background:#eaf7ff!important; border-color:#9acfe9!important; color:#12678f!important; }
+.launch-wizard-page .wizard-next:not(:disabled):is(:hover,:focus-visible) { border-color:#178bc8!important; color:#fff!important; }

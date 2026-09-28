@@ -43,6 +43,7 @@ test('settings persist and send fee, Ripple, marketing and DEX choices',async({p
  const {calls,releaseProject,releaseBanner}=await setup(page);releaseProject();releaseBanner();
  await expect(page.getByPlaceholder('Aqua Robotics')).toHaveValue('Squid');
  await page.screenshot({path:info.outputPath('compact-launch-socials.png'),fullPage:true});
+ if(info.project.name==='desktop'){const next=page.getByRole('button',{name:'Continue',exact:true});await next.hover();await next.screenshot({path:info.outputPath('compact-continue-hover.png'),animations:'disabled'});}
  for(let i=0;i<3;i++)await page.getByRole('button',{name:'Continue',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Coin settings',exact:true})).toBeVisible();
  await expect(page.getByLabel('Rewards fee',{exact:true})).toHaveValue('1');
