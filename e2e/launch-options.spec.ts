@@ -42,6 +42,7 @@ async function setup(page: Page, failBanner = false, variableFees = true) {
 test('settings persist and send fee, Ripple, marketing and DEX choices',async({page},info)=>{
  const {calls,releaseProject,releaseBanner}=await setup(page);releaseProject();releaseBanner();
  await expect(page.getByPlaceholder('Aqua Robotics')).toHaveValue('Squid');
+ await page.screenshot({path:info.outputPath('compact-launch-socials.png'),fullPage:true});
  for(let i=0;i<3;i++)await page.getByRole('button',{name:'Continue',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Coin settings',exact:true})).toBeVisible();
  await expect(page.getByLabel('Rewards fee',{exact:true})).toHaveValue('1');
@@ -68,8 +69,8 @@ test('settings persist and send fee, Ripple, marketing and DEX choices',async({p
  await page.getByRole('combobox',{name:'DEX fund',exact:true}).click();await expect(page.getByRole('option')).toHaveText(['Proposal only','Automatic']);await page.keyboard.press('Escape');
  await page.getByRole('combobox',{name:'Marketing',exact:true}).click();await page.getByRole('option',{name:'Off',exact:true}).click();await page.getByRole('combobox',{name:'DEX fund',exact:true}).click();await page.getByRole('option',{name:'Proposal only',exact:true}).click();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
- await page.screenshot({path:'/tmp/aqua-launch-options-'+info.project.name+'.png',fullPage:true});
- await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'DEX Screener profile'})).toBeVisible();await expect(page.getByLabel('Marketing',{exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Launch',exact:true}).click();
+ await page.screenshot({path:info.outputPath('compact-launch-settings.png'),fullPage:true});
+ await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'DEX Screener profile'})).toBeVisible();await expect(page.getByLabel('Marketing',{exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Continue',exact:true}).click();await page.screenshot({path:info.outputPath('compact-launch-review.png'),fullPage:true});await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Launch',exact:true}).click();
  await expect.poll(()=>calls.launches.length).toBe(1);expect(calls.launches[0]).toMatchObject({marketingMode:'off',dexFundingMode:'proposal',rewardFeeBps:400,rippleRewardBps:3000});
 });
 

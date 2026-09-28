@@ -53,7 +53,7 @@ test('clean leaderboard supports voting, switching and removing without extra se
  expect(s.calls.filter(c=>c.path?.endsWith('/unboost'))).toHaveLength(1);expect(s.calls.filter(c=>c.path?.endsWith('/vote'))).toHaveLength(2);expect(s.calls.filter(c=>c.search)).toHaveLength(0);
  await page.getByRole('button',{name:'Show more coins'}).click();await expect(page.locator('.cb-leader')).toHaveCount(12);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
- await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:`/tmp/clean-boost-${info.project.name}.png`});
+ await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:info.outputPath('compact-boost.png')});
 });
 test('guests connect explicitly and ineligible holders cannot submit',async({page})=>{
  const guest=await setup(page,{guest:true});await page.locator('.cb-leader').first().getByRole('button',{name:'Vote for OCEAN'}).click();await expect(page.getByRole('dialog',{name:'Connect your wallet'})).toBeVisible();expect(guest.calls.filter(c=>c.path)).toHaveLength(0);

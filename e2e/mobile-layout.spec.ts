@@ -400,6 +400,6 @@ test('compact discovery and filter dialog keep draft changes separate and fit bo
  await opener.click();await dialog.getByRole('button',{name:'Reset',exact:true}).click();await dialog.getByRole('button',{name:'Close filters'}).click();await expect(page).toHaveURL(/minCap=1000/);
  await page.goto('/#/portfolio');await expect(page.getByRole('heading',{name:'Your portfolio'})).toBeVisible();await expect(page.getByRole('tablist')).toHaveCount(0);
  await page.screenshot({path:info.outputPath('compact-portfolio.png'),fullPage:true});
- await page.goto('/#/studio');await expect(page.getByRole('heading',{name:/Atlantis/})).toBeVisible();await expect(page.locator('.at-example-site')).toHaveCount(0);
+ await page.goto('/#/studio');await expect(page.getByRole('heading',{name:'Open Atlantis Studio',exact:true})).toBeVisible();await expect(page.locator('.at-example-site')).toHaveCount(0);
  await page.screenshot({path:info.outputPath('compact-atlantis.png'),fullPage:true});
 });
