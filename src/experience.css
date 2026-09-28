@@ -205,7 +205,7 @@
 .aqua-select-options [aria-selected=true] { color:#0874ac; font-weight:700; }
 .aqua-select-options [aria-disabled=true] { opacity:.45; cursor:not-allowed; }
 @keyframes picker-open { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:none; } }
-.explore-page .compact-token-card { position:relative; padding:16px; border:1px solid #c4e1f0; border-radius:17px; background:linear-gradient(135deg,#fcfeff,#eff8ff); box-shadow:0 5px 18px #19597b07; }
+.explore-page .compact-token-card { position:relative; min-height:0; padding:16px; border:1px solid #c4e1f0; border-radius:17px; background:linear-gradient(135deg,#fcfeff,#eff8ff); box-shadow:0 5px 18px #19597b07; }
 .explore-page .compact-token-card .token-card-link { display:block; }
 .compact-token-card .token-head { display:flex; align-items:center; gap:11px; padding:0 28px 13px 0; border:0; }
 .compact-token-card .token-mark { width:40px; height:40px; flex:0 0 40px; }
@@ -229,7 +229,6 @@
 .compact-card-reward > svg { flex:none; color:#1687bf; }
 .compact-price-delayed { position:absolute; left:12px; top:12px; width:7px; height:7px; border-radius:50%; background:#c28a3a; box-shadow:0 0 0 2px #fff; }
 .explore-page .watch-card > .watch-button { width:36px; height:36px; top:8px; right:8px; }
-.explore-page .compact-token-card .recent-update-bell { bottom:6px; right:6px; }
 .market-filter-overlay { backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); background:#1746614d; padding:20px; }
 .market-filter-modal { width:min(560px,100%); max-height:calc(100dvh - 40px); overflow-y:auto; border:1px solid #c2e1f1; border-radius:23px; background:#f8fcff; box-shadow:0 24px 80px #123e5a30; color:#214c66; }
 .market-filter-modal > header { display:flex; align-items:center; gap:11px; position:relative; padding:23px 25px 18px; }
@@ -302,3 +301,6 @@
 .trade-info-panel dl { display:grid; gap:8px; margin:0; }.trade-info-panel dl > div { display:flex; justify-content:space-between; gap:12px; }.trade-info-panel dt { color:#5d7c90; }.trade-info-panel dd { margin:0; text-align:right; color:#285774; }.trade-info-panel p { margin:10px 0 0; font-size:11px; line-height:1.6; }
 
 .trade-info-panel > span { display:block; margin-top:10px; }
+
+.at-effort-picker .aqua-select-trigger { min-height:36px; width:112px; padding:6px 10px 6px 30px; border:0; border-radius:10px; background:#eff5f9; font-size:12px; gap:6px; }
+.at-projectbar .aqua-select { max-width:190px; }.at-projectbar .aqua-select-trigger { min-width:0; }

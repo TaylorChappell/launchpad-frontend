@@ -29,7 +29,6 @@ import {
   ArrowRight,
   ArrowUp,
   Check,
-  ChevronDown,
   Code2,
   Download,
   Globe,
