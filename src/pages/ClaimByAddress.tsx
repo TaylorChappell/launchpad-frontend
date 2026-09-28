@@ -58,6 +58,7 @@ export function ClaimByAddress() {
         const result=await api.addressClaimStatus(challenge.id,challenge.token);
         if(active) {
           setVerified(result.verified);
+          if (result.usdc) setChallenge(current => current?.id === challenge.id && !current.usdc ? { ...current, usdc: result.usdc } : current);
           if(!result.verified) setError("");
           if(result.payout) setPayout(result.payout);
           if(result.claimed) {
@@ -131,7 +132,7 @@ export function ClaimByAddress() {
     {error&&!popupOpen&&<p className="address-claim-error" role="alert">{error}</p>}
     {markets&&<section className="address-claim-results"><h2>Fees and rewards for {address.slice(0,5)}…{address.slice(-5)}</h2>
       {share?<button className="soft-button address-claim-resume" onClick={()=>setShareOpen(true)}>Share reward <ArrowRight size={15}/></button>:challenge&&<button className="soft-button address-claim-resume" onClick={()=>setPopupOpen(true)}>Continue {challenge.kind==="creator"?"fee":"reward"} claim <ArrowRight size={15}/></button>}
-      {markets.length?markets.map(m=><article className="address-claim-market" key={m.launchId}><div><Link to={`/token/${m.launchId}`}>{m.name} <span>${m.symbol}</span></Link><p>Creator fees</p><strong>{formatSol(m.availableLamports)} SOL</strong>{BigInt(m.pendingLamports)>0n&&<small>{formatSol(m.pendingLamports)} SOL processing</small>}{BigInt(m.availableLamports)>0n&&BigInt(m.availableLamports)<=1_000_000n&&<small>Below verification cost.</small>}</div><button className="primary" disabled={!claimsEnabled || busy || BigInt(m.availableLamports)<=1_000_000n} onClick={()=>void start(m.launchId)}>Claim <ArrowRight size={15}/></button></article>):<p className="address-claim-empty">No creator fees available.</p>}
+      {markets.length?markets.map(m=><article className="address-claim-market" key={m.launchId}><div><Link to={`/token/${m.launchId}`}>{m.name} <span>${m.symbol}</span></Link><p>Creator fees</p><strong>{formatSol(m.availableLamports)} SOL</strong>{BigInt(m.pendingLamports)>0n&&<small>{formatSol(m.pendingLamports)} SOL processing</small>}</div><button className="primary" disabled={!claimsEnabled || busy || BigInt(m.availableLamports)<=0n} onClick={()=>void start(m.launchId)}>Claim <ArrowRight size={15}/></button></article>):<p className="address-claim-empty">No creator fees available.</p>}
       {!claimsEnabled&&markets.length>0&&<p className="address-claim-note">Creator claims are currently unavailable.</p>}
       {holderTotal>0&&<div className="address-claim-holder"><b>Holder rewards: {formatUsd(holderTotal)}</b></div>}
       {rewards?.markets.filter(m=>m.grossRedeemableUsdCents>0).map(m=>m.claimMode==="cumulative"
@@ -144,11 +145,11 @@ export function ClaimByAddress() {
         <button className="address-claim-close" aria-label="Close claim popup" onClick={()=>setPopupOpen(false)}><X size={19}/></button>
         <h2 id="address-claim-title">{claimed?"Claim submitted":verified?"Wallet verified":expired?"Request expired":"Verify your wallet"}</h2>
         {!verified&&!expired&&!claimed&&<>
-          <div className="address-claim-payment"><span>From</span><code>{challenge.wallet}</code><span>Amount</span><strong>0.001 SOL</strong><span>To</span><div className="address-claim-destination"><code>{challenge.depositAddress}</code><button aria-label="Copy deposit address" onClick={()=>void navigator.clipboard.writeText(challenge.depositAddress)}><Copy size={15}/></button></div></div>
-          <p className="address-claim-note">Verification payment is not returned. Claim goes to the sending wallet.</p>
+          <div className="address-claim-payment"><span>From</span><code>{challenge.wallet}</code><span>Minimum</span><div className="address-claim-amounts"><strong>{formatSol(String(challenge.amountLamports))} SOL</strong>{challenge.usdc&&<><span>or</span><strong>{Number(challenge.usdc.minimumRaw)/10**challenge.usdc.decimals} USDC</strong></>}</div><span>To</span><div className="address-claim-destination"><code>{challenge.depositAddress}</code><button aria-label="Copy deposit address" onClick={()=>void navigator.clipboard.writeText(challenge.depositAddress)}><Copy size={15}/></button></div></div>
+          <p className="address-claim-note">Send {challenge.usdc?"either":"this"} amount or more on Solana. Verification payments are not refunded. Your claim goes to the sending wallet.</p>
           <p className="address-claim-wait" role="status"><Loader2 className="spin" size={16}/> Detecting your transfer automatically · Expires {new Date(challenge.expiresAt).toLocaleTimeString()}</p>
         </>}
-        {expired&&<><p>Start again before sending SOL.</p><button className="primary" disabled={busy} onClick={()=>void start(challenge.launchId,challenge.kind,challenge.epochId??undefined)}>New request</button></>}
+        {expired&&<><p>Start a new request before sending a verification payment.</p><button className="primary" disabled={busy} onClick={()=>void start(challenge.launchId,challenge.kind,challenge.epochId??undefined)}>New request</button></>}
         {verified&&!claimed&&(!payout||payout.status==="ready")&&<><p>Ready to send {rewardSelected?"rewards":`${selected?.symbol??"creator"} fees`} to your wallet.</p><button className="primary" disabled={busy} onClick={()=>void claim()}>{busy?<Loader2 size={16} className="spin"/>:<CheckCircle2 size={16}/>} Claim now</button></>}
         {(claimed||payout&&payout.status!=="ready")&&<p className="address-claim-success"><CheckCircle2 size={16}/> {payout?.status==="claimed"?"Payout confirmed":"Payout processing"}{payout?.signature&&<> · <a href={`https://solscan.io/tx/${payout.signature}`} target="_blank" rel="noreferrer">View transaction</a></>}</p>}
         {error&&<p className="address-claim-error" role="alert">{error}</p>}

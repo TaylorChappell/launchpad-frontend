@@ -32,6 +32,8 @@
 .address-claim-payment span { color:#5c8297; font-size:12px; font-weight:650; }
 .address-claim-payment code,.address-claim-destination code { min-width:0; overflow-wrap:anywhere; color:#174962; font-size:13px; }
 .address-claim-payment strong { color:#125c7b; font-size:19px; }
+.address-claim-amounts { display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; }
+.address-claim-amounts strong { white-space:nowrap; }
 .address-claim-destination { display:flex; align-items:center; gap:10px; min-width:0; }
 .address-claim-destination button { padding:8px; flex:none; border:1px solid #b4d5e2; border-radius:7px; background:white; color:#246e8e; cursor:pointer; }
 .address-claim-wait { display:flex; align-items:center; gap:8px; color:#4b7b91; font-size:12px; }
@@ -46,5 +48,5 @@
   .address-claim-lookup>div,.address-claim-signature>div { flex-direction:column; }
   .address-claim-market { align-items:flex-start; flex-direction:column; }
   .address-claim-payment { grid-template-columns:1fr; gap:5px; }
-  .address-claim-payment span:not(:first-child) { margin-top:12px; }
+  .address-claim-payment>span:not(:first-child) { margin-top:12px; }
 }
