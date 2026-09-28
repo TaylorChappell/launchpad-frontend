@@ -64,9 +64,9 @@ test('settings persist and send fee, Ripple, marketing and DEX choices',async({p
  await expect(page.locator('.coin-fee-breakdown dt')).toHaveText(['Rewards fee','Platform fee','Orca fee']);
  await expect(page.locator('.coin-fee-breakdown dd')).toHaveText(['4%','1%','1%']);
  await expect(page.locator(".wizard-main").getByText(/Community Boost|Combined fee rates|Approved launch transactions/)).toHaveCount(0);
- await expect(page.getByLabel('Marketing',{exact:true})).toHaveValue('automatic');
- await expect(page.getByLabel('DEX fund',{exact:true}).locator('option')).toHaveText(['Proposal only','Automatic']);
- await page.getByLabel('Marketing',{exact:true}).selectOption('off');await page.getByLabel('DEX fund',{exact:true}).selectOption('proposal');
+ await expect(page.getByRole('combobox',{name:'Marketing',exact:true})).toHaveText('Automatic');
+ await page.getByRole('combobox',{name:'DEX fund',exact:true}).click();await expect(page.getByRole('option')).toHaveText(['Proposal only','Automatic']);await page.keyboard.press('Escape');
+ await page.getByRole('combobox',{name:'Marketing',exact:true}).click();await page.getByRole('option',{name:'Off',exact:true}).click();await page.getByRole('combobox',{name:'DEX fund',exact:true}).click();await page.getByRole('option',{name:'Proposal only',exact:true}).click();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
  await page.screenshot({path:'/tmp/aqua-launch-options-'+info.project.name+'.png',fullPage:true});
  await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'DEX Screener profile'})).toBeVisible();await expect(page.getByLabel('Marketing',{exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Launch',exact:true}).click();

@@ -63,7 +63,9 @@ test("market controls are visible, bookmarkable and do not overflow",async({page
   expect(surface.padding).toBeGreaterThan(12);
   expect(surface.background).toContain("gradient");
   await page.getByRole("button",{name:"Filters",exact:true}).click();
-  await page.getByRole("combobox",{name:"Pair",exact:true}).selectOption("ORCA");
+  await page.getByRole("combobox",{name:"Pair",exact:true}).click();
+  await page.getByRole("option",{name:"ORCA",exact:true}).click();
+  await page.getByRole("button",{name:"Apply filters",exact:true}).click();
   await expect(page).toHaveURL(/pair=ORCA/);
   await page.getByRole("button",{name:"Table view",exact:true}).click();
   await expect(page).toHaveURL(/view=table/);
@@ -114,7 +116,7 @@ test("unknown routes recover instead of showing a blank shell",async({page})=>{
 });
 test("holdings asks for a wallet rather than inventing zero balances",async({page})=>{
   await page.goto("/#/portfolio");
-  await expect(page.getByRole("heading",{name:"Your holdings, together"})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Your portfolio"})).toBeVisible();
   await expect(page.getByText("Priced holdings")).toHaveCount(0);
 });
 
@@ -160,4 +162,17 @@ test("promotions has both programs, working Studio link and no horizontal overfl
   await expect(page.getByRole("heading",{name:"$250 for standout creations"})).toBeVisible();
   await expect(page.getByRole("link",{name:"Build in Atlantis"})).toHaveAttribute("href","#/studio");
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
+});
+
+test('analytics period changes cards, market totals and recent activity together',async({page},info)=>{
+ await page.route('**/api/analytics*',r=>{
+  const range=new URL(r.request().url()).searchParams.get('range')??'all',short=range==='24h';
+  return r.fulfill({json:{range,generatedAt:Date.now(),oldestIndexedAt:Date.now(),stalePriceMarkets:0,marketBreakdownLimit:100,totals:{buybackSol:short?1:9,liveMarkets:short?2:10,volumeUsd:short?100:900,dexFundedMarkets:short?1:3,rewardsAccumulatedUsd:short?10:50},markets:[{id:'m1',name:'Test coin',symbol:'TEST',volumeUsd:short?100:900,rewardsAccumulatedUsd:short?10:50,buybackSol:short?1:9}],claimedAssets:[],recentBuybacks:short?[]:[{signature:'receipt',createdAt:Date.now(),amountSol:9,amountTokens:100}],rewardHistory:[{time:Date.now(),allocatedUsd:short?10:50}],buybackHistory:[]}});
+ });
+ await page.goto('/#/analytics');await expect(page.locator('.network-metric-featured strong')).toHaveText('$50.00');await expect(page.getByText('All-time total',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'24 hours',exact:true}).click();
+ await expect(page.locator('.network-metric-featured strong')).toHaveText('$10.00');
+ await expect(page.locator('.analytics-market-table tbody')).toContainText('$100');await expect(page.locator('.recent-buybacks')).toContainText('No buybacks in this period.');
+ await expect(page.locator('.network-metrics article').filter({hasText:'Coins launched'}).locator('strong')).toHaveText('2');
+ await page.screenshot({path:info.outputPath('compact-analytics.png'),fullPage:true});
 });

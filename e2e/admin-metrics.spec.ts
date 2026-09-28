@@ -35,5 +35,5 @@ test('admin switches all volume ranges and opens per-market unclaimed totals',as
 });
 test('public analytics has no unclaimed metric or table column',async({page})=>{
   await setup(page);await page.goto('/#/analytics');await expect(page.locator('.network-metric-featured').getByText('Holder rewards',{exact:true})).toBeVisible();
-  await expect(page.locator('main').getByText(/unclaimed/i)).toHaveCount(0);await expect(page.getByRole('columnheader',{name:'Holder rewards · lifetime',exact:true})).toBeVisible();await expect(page.getByRole('columnheader',{name:'Buyback funding · SOL',exact:true})).toBeVisible();
+  await expect(page.locator('main').getByText(/unclaimed/i)).toHaveCount(0);await expect(page.getByRole('columnheader',{name:'Holder rewards',exact:true})).toBeVisible();await expect(page.getByRole('columnheader',{name:'Buyback funding · SOL',exact:true})).toBeVisible();
 });

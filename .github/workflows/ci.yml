@@ -27,3 +27,9 @@ jobs:
         with:
           name: browser-test-results
           path: test-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compact-ui-previews
+          path: test-results/**/*compact*.png
+          if-no-files-found: ignore

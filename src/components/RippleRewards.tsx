@@ -1,3 +1,4 @@
+import { Select } from "./Select";
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Loader2, Eye, Heart, MessageCircle, Repeat2 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -83,7 +84,7 @@ function RippleBalances({ address, data, error, onRefresh }: RippleProps) {
       {data?.reason&&<p>{data.reason}</p>}
       {data?.posts.filter(post=>post.reason).map(post=><p key={post.launchId+post.id}><a href={`https://x.com/i/status/${post.id}`} target="_blank" rel="noreferrer">${post.symbol} post</a>: {post.reason}</p>)}
       <button className="soft-button" onClick={onRefresh}>Refresh my posts</button>
-    </div></details><label>Sort posts<select value={order} onChange={e=>{setOrder(e.target.value as "earned"|"recent");setVisible(5);}}><option value="earned">Highest earned</option><option value="recent">Most recent</option></select></label></div>
+    </div></details><label>Sort posts<Select aria-label="Sort posts" value={order} onChange={e=>{setOrder(e.target.value as "earned"|"recent");setVisible(5);}}><option value="earned">Highest earned</option><option value="recent">Most recent</option></Select></label></div>
     <div className="ripple-posts">
       {delayed && <p className="ripple-service-notice" role="status">Post detection is temporarily delayed. Your saved posts and rewards are still here.</p>}
       {error && <p className="danger-note" role="alert">{error} <button className="text-button" onClick={onRefresh}>Try again</button></p>}

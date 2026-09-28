@@ -1,3 +1,5 @@
+import { ChevronDown } from "lucide-react";
+import { Select } from "../components/Select";
 import { assetLogoUrl } from "../asset-logo";
 import { TransactionOutcomeError } from "../transaction-confirmation";
 import { pairCatalogPollDelay } from "../pair-catalog-refresh";
@@ -664,14 +666,14 @@ export function Create() {
               <Field label="Description" wide><textarea value={form.description} rows={4} maxLength={360} placeholder="What is this coin about?" onChange={(event) => update("description", event.target.value)}/><small className="field-count">{form.description.length}/360</small></Field>
             </div>
           </div>
-          <details className="wizard-socials"><summary>Social links · optional</summary><div className="wizard-field-grid three">
+          <details className="wizard-socials"><summary><span>Social links <small>Optional</small></span><ChevronDown size={17}/></summary><div className="wizard-field-grid three">
             <Field label="X"><input value={form.xUrl} placeholder="x.com/account or post" onChange={(event) => update("xUrl", event.target.value)}/></Field>
             <Field label="Website"><input value={form.websiteUrl} placeholder="project.com" onChange={(event) => update("websiteUrl", event.target.value)}/></Field>
             <Field label="Telegram"><input value={form.telegramUrl} placeholder="t.me/community" onChange={(event) => update("telegramUrl", event.target.value)}/></Field>
           </div></details>
         </WizardSection>}
 
-        {step === 1 && <WizardSection title="Choose a trading pair" description="This is the asset buyers pay and sellers receive. Choose how rewards work in the next step.">
+        {step === 1 && <WizardSection title="Choose a trading pair" description="Choose the asset your coin pairs with. Sales on AQUA return SOL.">
           <div className="stock-search"><Search size={17}/><input value={stockQuery} aria-label="Search pairs or paste a Pump.fun mint address" placeholder={pairLookupEnabled ? "Search pairs or paste a Pump.fun CA" : "Search SOL, ORCA, or stocks"} onChange={(event) => { setStockQuery(event.target.value); setPairResult(null); setVisibleStocks(10); }}/><span>{pairOptions.length} assets</span></div>
           {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Loading pairs</span></div> : <>
             <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { editedDraftKey.current=draftKey; setStock(item); setAcknowledged(false); }}>
@@ -716,8 +718,8 @@ export function Create() {
           <CoinFeeBreakdown rewardFeeBps={form.rewardFeeBps} orcaFeeRate={config.launchSettings?.orcaFeeRate}/>
           <section className="launch-growth-settings"><h3>Community funding</h3>
             <div className="launch-advanced-fields">
-              <label htmlFor="launch-marketing-mode">Marketing<select id="launch-marketing-mode" aria-label="Marketing" aria-describedby="launch-funding-help" value={marketingMode} onChange={event=>setMarketingMode(event.target.value as typeof marketingMode)}><option value="off">Off</option><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></select></label>
-              <label htmlFor="launch-dex-funding-mode">DEX fund<select id="launch-dex-funding-mode" aria-label="DEX fund" aria-describedby="launch-funding-help" value={dexFundingMode} onChange={event=>setDexFundingMode(event.target.value as typeof dexFundingMode)}><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></select></label>
+              <label htmlFor="launch-marketing-mode">Marketing<Select id="launch-marketing-mode" aria-label="Marketing" aria-describedby="launch-funding-help" value={marketingMode} onChange={event=>setMarketingMode(event.target.value as typeof marketingMode)}><option value="off">Off</option><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></Select></label>
+              <label htmlFor="launch-dex-funding-mode">DEX fund<Select id="launch-dex-funding-mode" aria-label="DEX fund" aria-describedby="launch-funding-help" value={dexFundingMode} onChange={event=>setDexFundingMode(event.target.value as typeof dexFundingMode)}><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></Select></label>
             </div>
             <p id="launch-funding-help">Automatic also includes holder proposals.</p>
           </section>
@@ -742,7 +744,7 @@ export function Create() {
         </WizardSection>}
 
         {!validForStep[step]&&<p className="wizard-validation" role="status">{step===0?[form.name.trim().length<2?"Add a name (at least 2 characters)":null,form.symbol.trim().length<2?"add a ticker (at least 2 characters)":null,!file?"add artwork":null].filter(Boolean).join(" · "):step===1?"Choose a pair and accept its acknowledgement if required.":step===2?"Choose an available reward mode.":step===settingsStep?"Choose an available fee and Ripple share.":dexProfileEnabled&&step===dexProfileStep?"Fix the profile links, or skip this optional step.":"Enter a valid first-buy amount, or leave it empty."}</p>}
-        <footer className="wizard-actions"><button className="wizard-back" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ArrowLeft/> Back</button>{step < wizardSteps.length - 1 && <button className="wizard-next" onClick={nextStep} disabled={!validForStep[step]}>Continue <ArrowRight/></button>}</footer>
+        <footer className="wizard-actions"><button className="wizard-back" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ArrowLeft/> Back</button>{step < wizardSteps.length - 1 && <button className="wizard-next" onClick={nextStep} disabled={!validForStep[step]}><span>Continue</span> <ArrowRight/></button>}</footer>
       </div>
       </>}
     </section>

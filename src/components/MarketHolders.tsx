@@ -1,5 +1,5 @@
-import { isPriceLive } from "../market-prices";
-import { usd, rawUsd, compactNumber } from "../money";
+import { Select } from "./Select";
+import { usd, compactNumber } from "../money";
 import { quoteAmounts } from "../trade-quote";
 import { WalletIdentity } from "./WalletIdentity";
 import { useEffect, useState } from "react";
@@ -23,7 +23,7 @@ export function MarketHolders({launch,creatorLock}:{launch:Launch;creatorLock?:C
     {data?.hasMore&&<button className="activity-load-more" disabled={loading} onClick={async()=>{setLoading(true);try{const next=await api.holders(launch.id,data.holders.length);setData({...next,holders:[...data.holders,...next.holders]});setError("");}catch{setError("Could not load more holders.");}finally{setLoading(false);}}}>Load more holders</button>}
   </div>;
 }
-export function MarketPosition({launch,compact=false,pairDecimals=null}:{launch:Launch;compact?:boolean;pairDecimals?:number|null}){
+export function MarketPosition({launch,compact=false}:{launch:Launch;compact?:boolean;pairDecimals?:number|null}){
   const wallet=useWallet(),[data,setData]=useState<Awaited<ReturnType<typeof api.position>>|null>(null),[error,setError]=useState("");
   useEffect(()=>{
     let active=true,pending=false;setData(null);setError("");if(!wallet.address)return;
@@ -40,7 +40,7 @@ export function MarketPosition({launch,compact=false,pairDecimals=null}:{launch:
         {(["unrealized","realized"] as const).map(kind=><div key={kind}><small>{kind==="unrealized"?"Unrealised P&L · before exit costs":"Realised P&L"}</small><strong className={pnl?.available&&pnl[kind]!=null?(pnl[kind]!>=0?"positive":"negative"):""}>{pnl?.available&&pnl[kind]!=null?(pnl[kind]!>0?"+":"")+quantity.format(pnl[kind]!)+" "+data.quoteSymbol:"—"}</strong></div>)}</div>
         <p className="position-explanation">{data.note}</p>
         {pnl&&!pnl.available&&<p className="position-explanation">{pnl.reason}</p>}
-        {BigInt(data.balanceRaw)>0n&&<ExitEstimate launch={launch} balanceRaw={data.balanceRaw} decimals={pairDecimals}/>}
+        {BigInt(data.balanceRaw)>0n&&<ExitEstimate launch={launch} balanceRaw={data.balanceRaw}/>}
       </>}
 
     </>}
@@ -48,24 +48,24 @@ export function MarketPosition({launch,compact=false,pairDecimals=null}:{launch:
 }
 
 
-function ExitEstimate({launch,balanceRaw,decimals}:{launch:Launch;balanceRaw:string;decimals:number|null}){
+function ExitEstimate({launch,balanceRaw}:{launch:Launch;balanceRaw:string}){
   const [percent,setPercent]=useState(100),[estimate,setEstimate]=useState<{estimated:string;minimum:string;at:number}|null>(null),[error,setError]=useState(""),[pending,setPending]=useState(false),[clock,setClock]=useState(Date.now());
   useEffect(()=>{setEstimate(null);setError("");},[balanceRaw,percent]);
   useEffect(()=>{if(!estimate)return;const timer=window.setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);},[estimate]);
   const [request,setRequest]=useState(0);
   useEffect(()=>{
-    if(!request||decimals===null)return;
+    if(!request)return;
     const controller=new AbortController();setPending(true);setError("");
     const amountRaw=(BigInt(balanceRaw)*BigInt(percent)/100n).toString();
-    api.tradeQuote(launch.id,{side:"sell",buyCurrency:"PAIR",amountRaw,slippageBps:100},controller.signal).then(result=>{
+    api.tradeQuote(launch.id,{side:"sell",buyCurrency:"PAIR",sellCurrency:"SOL",amountRaw,slippageBps:1500},controller.signal).then(result=>{
+      if(launch.pairMint!=="So11111111111111111111111111111111111111112"&&result.outputMint!=="So11111111111111111111111111111111111111112")throw Error("SOL sell estimate unavailable.");
       if(!controller.signal.aborted){setEstimate({...quoteAmounts(result.quote),at:Date.now()});setClock(Date.now());}
     }).catch(e=>{if(!controller.signal.aborted){setEstimate(null);setError(e instanceof Error?e.message:"Sell estimate unavailable.");}}).finally(()=>{if(!controller.signal.aborted)setPending(false);});
     return()=>controller.abort();
-  },[request,balanceRaw,percent,launch.id,decimals]);
+  },[request,balanceRaw,percent,launch.id,launch.pairMint]);
   const fresh=estimate&&clock-estimate.at<25000;
-  return <details className="position-exit"><summary>Estimate sell proceeds</summary><div className="position-exit-controls"><label>Amount<select value={percent} onChange={e=>setPercent(Number(e.target.value))}>{[25,50,75,100].map(value=><option key={value} value={value}>{value}% of holdings</option>)}</select></label><button className="soft-button" disabled={pending||decimals===null} onClick={()=>setRequest(n=>n+1)}>{pending?"Getting quote…":"Get estimate"}</button></div>
-    {fresh&&!pending&&decimals!==null&&<dl className="trade-quote-summary"><div><dt>Estimated received</dt><dd>{displayTokenAmount(estimate.estimated,decimals)} {launch.pairSymbol}</dd></div><div><dt>Approximate USD</dt><dd>{usd(rawUsd(estimate.estimated,decimals,isPriceLive(launch)?launch.pairPriceUsd:null))}</dd></div><div><dt>Minimum at 1% slippage</dt><dd>{displayTokenAmount(estimate.minimum,decimals)} {launch.pairSymbol}</dd></div></dl>}
-    {decimals===null&&<p>Pair details are loading. Try again once the market has refreshed.</p>}
+  return <details className="position-exit"><summary>Estimate sell proceeds</summary><div className="position-exit-controls"><label>Amount<Select aria-label="Amount" value={percent} onChange={e=>setPercent(Number(e.target.value))}>{[25,50,75,100].map(value=><option key={value} value={value}>{value}% of holdings</option>)}</Select></label><button className="soft-button" disabled={pending} onClick={()=>setRequest(n=>n+1)}>{pending?"Getting quote…":"Get estimate"}</button></div>
+    {fresh&&!pending&&<dl className="trade-quote-summary"><div><dt>Estimated received</dt><dd>{displayTokenAmount(estimate.estimated,9)} SOL</dd></div><div><dt>Minimum at 15% slippage</dt><dd>{displayTokenAmount(estimate.minimum,9)} SOL</dd></div></dl>}
     {estimate&&!fresh&&<p>Quote expired. Get a new estimate before deciding.</p>}{error&&<p role="alert">{error}</p>}
     <p className="position-explanation">Quote only. Includes applicable swap and token fees; network costs are additional. This does not sell your tokens.</p>
   </details>;

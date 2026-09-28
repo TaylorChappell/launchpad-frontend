@@ -1,3 +1,4 @@
+import { Select } from "../components/Select";
 import { StudioSurvey } from "../components/StudioSurvey";
 import type { StudioSurveyData, StudioSurveyAnswer } from "../studio-api";
 import { LaunchDetailsLoading } from "../components/LaunchDetailsLoading";
@@ -1377,8 +1378,7 @@ function StudioWorkspace() {
           <div className="at-entry-card at-access-card">
             <img className="at-entry-logo" src={`${import.meta.env.BASE_URL}atlantis-studio-logo.png`} alt="" width={96} height={96} />
             <h2>{wallet.address ? "Opening your studio" : "Open Atlantis Studio"}</h2>
-            <p>{wallet.address ? "Opening your saved projects. Future visits will open automatically while this login remains valid." : "Describe a website, mini-game or community app. Preview it, add your settings and publish from one workspace."}</p>
-            {!wallet.address&&<div className="at-example-site" aria-label="Example Studio website"><small>EXAMPLE · YOUR COMMUNITY</small><strong>A home for your coin.</strong><span>Your story, market and community links in one place.</span><div><span>Explore market ↗</span><span>Join the community</span></div></div>}
+            <p>{wallet.address ? "Opening your saved projects. Future visits will open automatically while this login remains valid." : "Connect your wallet to start building."}</p>
             <button className="at-primary at-entry-continue" disabled={actionDisabled || Boolean(wallet.connecting)} onClick={() => wallet.address ? void signIn() : wallet.setModalOpen(true)}>
               {busy || wallet.connecting ? <><LoaderCircle size={17} className="at-spin" /> Opening Studio</> : wallet.address ? <>Try opening again<ArrowRight size={17} /></> : <>Connect wallet<ArrowRight size={17} /></>}
             </button>
@@ -1512,7 +1512,7 @@ function StudioWorkspace() {
                   <MoreHorizontal size={17} />
                 </button>
               )}
-              <select
+              <Select
                 className="at-mobile-projects"
                 aria-label="Choose project"
                 value={project?.id ?? ""}
@@ -1532,7 +1532,7 @@ function StudioWorkspace() {
                     {p.name}{p.active_job || (p.id === project?.id && active) || p.id === sending?.projectId ? " · Working" : ""}
                   </option>
                 ))}
-              </select>
+              </Select>
               <button
                 className="at-mobile-new"
                 title="New project"
@@ -1759,12 +1759,11 @@ function StudioWorkspace() {
                         <div className="at-compose-settings">
                           <label className="at-effort-picker" title={effortDetails}>
                             <Gauge className="at-effort-icon" size={14} aria-hidden="true" />
-                            <select aria-label="AI effort" aria-description={effortDetails} value={effort} disabled={actionDisabled || generationBusy} onChange={e=>{setEffort(e.target.value as typeof effort);setCreditGate(null);}}>
+                            <Select aria-label="AI effort" aria-description={effortDetails} value={effort} disabled={actionDisabled || generationBusy} onChange={e=>{setEffort(e.target.value as typeof effort);setCreditGate(null);}}>
                               <option value="low">Low</option>
                               <option value="medium">Medium</option>
                               <option value="high">High</option>
-                            </select>
-                            <ChevronDown size={13} aria-hidden="true" />
+                            </Select>
                           </label>
                           <label className="at-auto-apply" title="Apply generated project edits without asking. Never launches, publishes, or signs wallet transactions.">
                             <input type="checkbox" role="switch" aria-label="Auto-apply edits" checked={autoApply} disabled={actionDisabled} onChange={e=>setAutoApply(e.target.checked)} />
@@ -1936,7 +1935,8 @@ function StudioWorkspace() {
                           locked={state.lockedFields.includes("stockMint")}
                           onLock={() => lockField("stockMint")}
                         >
-                          <select
+                          <Select
+                            aria-label="Pair asset"
                             value={state.launch.stockMint}
                             onChange={(e) =>
                               launchField("stockMint", e.target.value)
@@ -1948,14 +1948,15 @@ function StudioWorkspace() {
                                 {pair.symbol} · {pair.name}
                               </option>
                             ))}
-                          </select>
+                          </Select>
                         </Field>
                         <Field
                           label="Reward mode"
                           locked={state.lockedFields.includes("rewardMode")}
                           onLock={() => lockField("rewardMode")}
                         >
-                          <select
+                          <Select
+                            aria-label="Reward mode"
                             value={state.launch.rewardMode}
                             onChange={(e) =>
                               launchField(
@@ -1979,7 +1980,7 @@ function StudioWorkspace() {
                             >
                               Hourly jackpot
                             </option>
-                          </select>
+                          </Select>
                         </Field>
                       </div>
                       {(
@@ -2586,7 +2587,8 @@ function StudioWorkspace() {
                   </label>
                   <label className="at-field">
                     Visibility
-                    <select
+                    <Select
+                      aria-label="Visibility"
                       value={privateRepo ? "private" : "public"}
                       onChange={(e) =>
                         setPrivateRepo(e.target.value === "private")
@@ -2594,7 +2596,7 @@ function StudioWorkspace() {
                     >
                       <option value="private">Private</option>
                       <option value="public">Public</option>
-                    </select>
+                    </Select>
                   </label>
                   <p className="at-muted">
                     {privateRepo
@@ -2678,9 +2680,9 @@ function StudioWorkspace() {
               {githubExports.some(item => item.target === "backend" && item.status === "complete") ? (
                 <div className="at-railway-export">
                   <label className="at-field">Backend repository
-                    <select value={railwayExportId || githubExports.find(item => item.target === "backend" && item.status === "complete")?.id || ""} onChange={e => setRailwayExportId(e.target.value)}>
+                    <Select aria-label="Backend repository" value={railwayExportId || githubExports.find(item => item.target === "backend" && item.status === "complete")?.id || ""} onChange={e => setRailwayExportId(e.target.value)}>
                       {githubExports.filter(item => item.target === "backend" && item.status === "complete").map(item => <option key={item.id} value={item.id}>{item.full_name}</option>)}
-                    </select>
+                    </Select>
                   </label>
                   <label className="at-field">Railway production project token
                     <input type="password" autoComplete="off" value={railwayToken} onChange={e => setRailwayToken(e.target.value)} placeholder="From Railway project Settings → Tokens" />

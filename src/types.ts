@@ -444,6 +444,10 @@ export type MarketSnapshot = {
 };
 
 export type AnalyticsResponse = {
+  range?: "24h"|"7d"|"30d"|"all";
+  periodStart?:number|null;
+  periodEnd?:number;
+  unpricedVolumeMarkets?:number;
   generatedAt: number;
   oldestIndexedAt:number|null;
   stalePriceMarkets:number;
@@ -461,12 +465,14 @@ export type AnalyticsResponse = {
     liveMarkets: number;
     totalMarketCapUsd: number;
     volume24hUsd: number;
+    volumeUsd?: number;
   };
   markets: Array<{
     id: string;
     name: string;
     symbol: string;
     marketCapUsd: number;
+    volumeUsd?: number;
     buybackSol: number;
     rewardsAccumulatedUsd: number;
     rewardsRedeemableUsd: number;

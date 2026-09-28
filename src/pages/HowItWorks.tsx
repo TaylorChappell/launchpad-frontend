@@ -155,7 +155,6 @@ export function HowItWorks() {
     </section>
 
     <section className="help-quick-answers" aria-label="Common questions"><h2>What do you need help with?</h2>
-      <details><summary>Why does selling return less than my position value?</summary><p>Your position is valued at the latest indexed price. A sale also depends on liquidity, price movement and fees. Review Estimated received and Minimum received before approving. Slippage is a tolerance, not an extra fee.</p></details>
       <details><summary>Why can’t I claim rewards?</summary><p>Open Portfolio → Rewards or Ripple. The claim button shows whether funds are ready and why a claim is unavailable. Total earned includes previous claims and is different from Available to claim.</p><Link to="/portfolio?tab=rewards">Open rewards</Link></details>
       <details><summary>Where is my Ripple post?</summary><p>Use the X account linked to your wallet, keep your AQUA sign-in active, and hold the coin before posting and at allocation. Include its contract address, AQUA market link or explicit $ticker. For a shared ticker, use the address or market link.</p><Link to="/portfolio?tab=ripple">Check my Ripple posts</Link></details>
       <details><summary>My launch was interrupted. What next?</summary><p>Return to Launch with the original wallet and use Resume launch. AQUA checks completed steps before continuing. Check a submitted transaction before approving another attempt.</p><Link to="/create">Resume launch</Link></details>

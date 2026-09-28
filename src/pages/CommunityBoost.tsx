@@ -1,10 +1,10 @@
 import {useEffect,useState,type CSSProperties} from 'react';
 import {Link} from 'react-router-dom';
 import {ArrowDown,ArrowUpRight,Check,Clock3,Loader2,RefreshCw,Trophy,Waves,Zap} from 'lucide-react';
-import {api,API_URL} from '../api';
+import {API_URL} from '../api';
 import {useCommunityBoost} from '../useCommunityBoost';
 import {toast} from 'sonner';
-import type {GovernanceMarket,Launch} from '../types';
+import type {GovernanceMarket} from '../types';
 import './community-boost.css';
 
 const compact=new Intl.NumberFormat('en',{notation:'compact',maximumFractionDigits:2});
@@ -19,8 +19,6 @@ function CoinArt({coin,url}:{coin:GovernanceMarket;url?:string}){
 export function CommunityBoost(){
  const {data,error,busy,notice,now,vote,refresh,wallet}=useCommunityBoost();
  const [visible,setVisible]=useState(10);
- const [query,setQuery]=useState(""),[results,setResults]=useState<Launch[]>([]),[searching,setSearching]=useState(false),[searchError,setSearchError]=useState("");
- useEffect(()=>{const controller=new AbortController();setResults([]);setSearchError("");if(!query.trim()){setSearching(false);return;}setSearching(true);const timer=setTimeout(()=>{api.search(query,controller.signal).then(result=>{if(!controller.signal.aborted)setResults(result.launches.filter(coin=>coin.status==="live"&&(!data?.enabled||coin.mint!==data.governanceMint)));}).catch(()=>{if(!controller.signal.aborted)setSearchError("Search unavailable. Try again or open a market to vote.");}).finally(()=>{if(!controller.signal.aborted)setSearching(false);});},250);return()=>{controller.abort();clearTimeout(timer);};},[query,data?.enabled?data.governanceMint:null]);
  const enabled=data?.enabled?data:null;
  const selected=enabled?.wallet?.vote;
  const open=Boolean(enabled?.votingOpen&&now>=enabled.round.startsAt&&now<enabled.round.endsAt);
@@ -36,17 +34,14 @@ export function CommunityBoost(){
   <section className="cb-hero">
    <div className="cb-water" aria-hidden="true"><i/><i/><i/></div>
    <div className="cb-hero-copy"><h1>Community<br/><em>Boost.</em></h1><p>Your community. The next wave.<br/>Back a coin to receive {enabled?enabled.bonusBps/100:10}% of AQUA treasury fees for 24 hours.</p></div>
-   <div className="cb-hero-display"><div className="cb-orbit" aria-hidden="true"><div><Zap/></div></div><div className="cb-countdown"><strong aria-label="Round countdown">{enabled?countdown(open?enabled.round.endsAt:enabled.round.startsAt,now):'— : — : —'}</strong><small>A new winner at 00:00 UTC{enabled&&<> · {new Date(enabled.round.endsAt*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} your time</>}</small></div></div>
+   <div className="cb-hero-display"><div className="cb-orbit" aria-hidden="true"><div><Zap/></div></div><div className="cb-countdown"><strong aria-label="Round countdown">{enabled?countdown(open?enabled.round.endsAt:enabled.round.startsAt,now):'— : — : —'}</strong><small>A new winner at 00:00 UTC</small></div></div>
   </section>
   {error&&<div className="cb-alert" role="alert"><span><b>Leaderboard connection interrupted.</b> {data?'Showing the last update. Voting is paused until refreshed.':error}</span><button onClick={refresh} disabled={Boolean(busy)}><RefreshCw/> Retry</button></div>}
   {data&&!data.enabled&&<section className="cb-unavailable"><h2>Voting is currently unavailable</h2><p>{data.reason}</p><button onClick={refresh}>Check again</button></section>}
   <div className={`cb-content ${activeBonus?'':'cb-content-wide'}`}>
    <section className="cb-rankings" aria-labelledby="cb-ranking-title">
     <header className="cb-section-header"><div><h2 id="cb-ranking-title">Live leaderboard</h2></div><button className="cb-refresh" aria-label="Refresh leaderboard" disabled={Boolean(busy)} onClick={refresh}><RefreshCw/></button></header>
-    <p className="cb-ranking-note">Ranked by time-weighted AQUA holdings. Eligible AQUA holders back one coin.</p>
-    {enabled&&<div className="cb-eligibility"><b>{!wallet.address?"Connect your wallet to vote":enabled.wallet?.eligible?"You are eligible to vote":"AQUA holdings required"}</b><span>Minimum {amount((BigInt(enabled.totalSupplyRaw)*BigInt(enabled.minimumHoldingBps)/10000n).toString(),enabled.decimals)} AQUA ({enabled.minimumHoldingBps/100}% of supply). Votes are weighted by holdings.</span>{selected&&<span>Your vote: <Link to={`/token/${selected.launchId}`}>${selected.symbol}</Link></span>}</div>}
-    <label className="cb-search">Find a coin to boost<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Name, ticker or contract address"/></label>
-    {query.trim()&&<div className="cb-search-results" aria-live="polite">{searching?<p>Searching…</p>:searchError?<p role="alert">{searchError}</p>:!results.length?<p>No matching eligible coins.</p>:results.slice(0,8).map(coin=><article key={coin.id}><Link to={`/token/${coin.id}`}>{coin.name} <small>${coin.symbol} · {coin.pairSymbol} pair</small></Link>{voteButton({launchId:coin.id,mint:coin.mint,name:coin.name,symbol:coin.symbol,imageId:null,rewardMode:coin.rewardMode})}</article>)}</div>}
+    <p className="cb-ranking-note">Ranked by time-weighted AQUA votes. Eligible AQUA holders can back one coin.</p>
     <div className="cb-table-labels" aria-hidden="true"><span>RANK / COIN</span><span>AQUA WEIGHT</span><span>YOUR VOTE</span></div>
     {!data&&!error?<div className="cb-loading" role="status"><Loader2 className="spin"/> Loading the race…</div>:leaders.length?<ol className="cb-leaders">{leaders.slice(0,visible).map((coin,index)=>{
      const share=leadingWeight>0n?Number(BigInt(coin.votingPowerRaw)*10000n/leadingWeight)/100:0;

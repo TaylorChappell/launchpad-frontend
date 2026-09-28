@@ -156,11 +156,10 @@ test("discovery controls and phone navigation are touch sized on a small screen"
   const controls = await page.locator(".bottom-nav a, .bottom-nav button, .discovery-tabs button, .discovery-tools button").evaluateAll(elements => elements.map(el => el.getBoundingClientRect().height));
   expect(controls.every(height => height >= 44)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
-  await page.getByRole("textbox", { name: "Search all markets" }).focus();
-  await expect(page.locator(".bottom-nav")).toBeHidden();
-  expect(await page.getByRole("textbox", { name: "Search all markets" }).evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
-  await page.getByRole("textbox", { name: "Search all markets" }).blur();
-  await expect(page.locator(".bottom-nav")).toBeVisible();
+  await page.getByRole("textbox",{name:"Minimum liquidity"}).focus();
+  await expect(page.getByRole("textbox",{name:"Minimum liquidity"})).toBeFocused();
+  await page.getByRole("button",{name:"Close filters"}).click();
+  await expect(page.getByRole("button",{name:"Filters",exact:true})).toBeFocused();
   await page.screenshot({ path: info.outputPath("mobile-explore.png"), fullPage: true });
   await page.getByRole("button", { name: "Table view", exact: true }).click();
   await expect(page.locator(".market-table")).toBeVisible();
@@ -225,7 +224,7 @@ test("mobile Buy and Sell open the matching trade sheet and stack with the walle
   await actions.getByRole("button",{name:"Sell",exact:true}).click();
   await expect(sheet.getByRole("button",{name:"Sell",exact:true})).toHaveAttribute("aria-pressed","true");
   await expect(sheet.locator(".trade-input b")).toHaveText("OCEAN");
-  await expect(sheet.locator(".trade-receive b")).toHaveText("ORCA");
+  await expect(sheet.locator(".trade-receive b")).toHaveText("SOL");
   await page.screenshot({path:info.outputPath("mobile-sell-sheet.png")});
   await sheet.getByRole("button",{name:"Close trade",exact:true}).click();
   await page.setViewportSize({width:320,height:568});
@@ -250,7 +249,8 @@ test("mobile trade sheet requests the chosen side and clears the previous amount
   await page.route("**/api/launches/mobile/quote?*",route=>{
     const query=new URL(route.request().url()).searchParams;
     quotes.push({side:query.get("side"),amount:query.get("amountRaw")});
-    return route.fulfill({json:{route:"orca",quote:{tokenEstOut:"10000000",tokenMinOut:"9000000"}}});
+    if(query.get("side")==="sell"){expect(query.get("sellCurrency")).toBe("SOL");expect(query.get("slippageBps")).toBe("1500");}
+    return route.fulfill({json:{route:"orca",outputMint:"So11111111111111111111111111111111111111112",quote:{tokenEstOut:"10000000",tokenMinOut:"9000000"}}});
   });
   await page.goto("/#/token/mobile?tab=transactions");
   const actions=page.getByRole("group",{name:"Trade this coin"});
@@ -264,7 +264,7 @@ test("mobile trade sheet requests the chosen side and clears the previous amount
   await expect(sheet.getByRole("textbox",{name:"You pay",exact:true})).toHaveValue("");
   await sheet.getByRole("textbox",{name:"You pay",exact:true}).fill("2");
   await expect.poll(()=>quotes.at(-1)).toEqual({side:"sell",amount:"2000000"});
-  await expect(sheet.locator(".trade-receive b")).toHaveText("ORCA");
+  await expect(sheet.locator(".trade-receive b")).toHaveText("SOL");
 });
 
 test("a pending mobile trade stays mounted through dismiss attempts and a resize",async({page},info)=>{
@@ -375,4 +375,31 @@ test("Coin settings opens below More details and displays the coin's configured 
   expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
   await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(button).toBeFocused();
   await expect(page).toHaveURL(/tab=community/);
+});
+
+test('compact discovery and filter dialog keep draft changes separate and fit both layouts',async({page},info)=>{
+ await setup(page);await page.goto('/#/');
+ const card=page.locator('.compact-token-card').first();await expect(card).toBeVisible();
+ expect((await card.boundingBox())!.height).toBeLessThan(220);
+ await expect(page.getByRole('textbox',{name:'Search all markets'})).toHaveCount(0);
+ await expect(card.locator('.compact-card-metrics')).toContainText('Market cap');
+ await page.screenshot({path:info.outputPath('compact-explore.png'),fullPage:true});
+ const opener=page.getByRole('button',{name:'Filters',exact:true});await opener.click();
+ const dialog=page.getByRole('dialog',{name:'Filter markets'});await expect(dialog).toBeVisible();
+ await dialog.getByRole('combobox',{name:'Pair',exact:true}).click();
+ await page.getByRole('option',{name:'ORCA',exact:true}).click();
+ await expect(dialog.getByRole('combobox',{name:'Pair',exact:true})).toHaveText('ORCA');
+ await expect(page).not.toHaveURL(/pair=ORCA/);
+ await dialog.getByRole('textbox',{name:'Minimum market cap',exact:true}).fill('1000');
+ await dialog.getByRole('button',{name:'Paid',exact:true}).click();
+ await page.screenshot({path:info.outputPath('compact-filters.png')});
+ await dialog.getByRole('combobox',{name:'Rewards',exact:true}).focus();await page.keyboard.press('ArrowDown');await page.keyboard.press('End');await page.keyboard.press('Enter');
+ await expect(dialog.getByRole('combobox',{name:'Rewards',exact:true})).toHaveText('Jackpot');
+ await dialog.getByRole('button',{name:'Apply filters'}).click();
+ await expect(dialog).toHaveCount(0);await expect(opener).toBeFocused();await expect(page).toHaveURL(/minCap=1000/);await expect(page).toHaveURL(/mode=jackpot/);
+ await opener.click();await dialog.getByRole('button',{name:'Reset',exact:true}).click();await dialog.getByRole('button',{name:'Close filters'}).click();await expect(page).toHaveURL(/minCap=1000/);
+ await page.goto('/#/portfolio');await expect(page.getByRole('heading',{name:'Your portfolio'})).toBeVisible();await expect(page.getByRole('tablist')).toHaveCount(0);
+ await page.screenshot({path:info.outputPath('compact-portfolio.png'),fullPage:true});
+ await page.goto('/#/studio');await expect(page.getByRole('heading',{name:/Atlantis/})).toBeVisible();await expect(page.locator('.at-example-site')).toHaveCount(0);
+ await page.screenshot({path:info.outputPath('compact-atlantis.png'),fullPage:true});
 });

@@ -10,7 +10,6 @@ import { TokenMark } from "../components/TokenCard";
 import { CreatorFeeClaim } from "../components/CreatorFeeClaim";
 import { activeCreatorLock, creatorLockPercentLabel } from "../creator-lock";
 import { WalletRewards } from "../components/WalletRewards";
-import { HoldingUpdates } from "../components/HoldingUpdates";
 import { displayTokenAmount } from "../trade-quote";
 import type { Launch, RippleSummary, WalletRewardsResponse } from "../types";
 const usd=new Intl.NumberFormat("en",{style:"currency",currency:"USD"});
@@ -74,10 +73,8 @@ function PortfolioContent({address}:{address:string|null}){
   const claimable=rewards?.markets.filter(m=>m.canClaim).reduce((s,m)=>s+m.netClaimableUsdCents/100,0);
   const pending=rewards?.markets.reduce((s,m)=>s+m.pendingUsdCents/100,0);
   const refresh=()=>setRevision(n=>n+1);
-  if(!address)return <main className="page holder-workspace">
-    <header className="workspace-heading"><div><h1>Portfolio</h1><p>A home for the coins and communities you hold.</p></div></header>
-    <SectionTabs label="Portfolio sections" items={tabs.map(value=>({value,label:value}))} value={tab} onChange={selectTab} className="workspace-tabs" panelId="portfolio-panel"/>
-    <section id="portfolio-panel" role="tabpanel" aria-labelledby={`portfolio-panel-${tab.toLowerCase()}`} className="portfolio-connect compact-connect"><span className="workspace-icon"><Wallet size={25}/></span><h2>{tab==="Ripple"?"Your X posts and Ripple rewards":`Your ${tab.toLowerCase()}, together`}</h2><p>Connect your wallet to view {tab==="Ripple"?"your linked X account, posts and available rewards":tab.toLowerCase()+" for this wallet"}.</p><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet <ArrowRight size={17}/></button><Link className="portfolio-connect-help" to="/claim-by-address">Claim using your wallet address</Link></section>
+  if(!address)return <main className="page holder-workspace portfolio-signed-out">
+    <section className="portfolio-connect portfolio-welcome"><span className="workspace-icon"><Wallet size={28}/></span><h1>Your portfolio</h1><p>Connect your wallet to see your coins and claim your rewards.</p><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet <ArrowRight size={17}/></button><Link className="portfolio-connect-help" to="/claim-by-address">Claim using a wallet address</Link></section>
   </main>;
   return <main className="page holder-workspace">
     <header className="workspace-heading"><div><h1>Portfolio</h1><p>Positions, rewards and the communities you’re part of.</p></div><div className="workspace-heading-actions"><span className="wallet-address"><Wallet size={14}/><WalletIdentity wallet={address}/></span><button className="workspace-refresh" aria-label="Refresh holdings" onClick={refresh}><RefreshCw size={16}/></button></div></header>
@@ -100,7 +97,7 @@ function PortfolioContent({address}:{address:string|null}){
     {tab==="Activity"&&<><section className="workspace-panel"><header><h2>Reward claim history</h2><span>Confirmed claims and updates from your holdings</span>{history?.hasMore&&<span>Latest 200 receipts</span>}</header>
       {history?.lifetime.length?<div className="lifetime-rewards">{history.lifetime.map(t=><div key={t.stock_mint}><small>Total {t.symbol} claimed</small><strong>{displayTokenAmount(t.amount_raw,t.decimals)} <span>{t.symbol}</span></strong></div>)}</div>:null}
       {history===null?<div className="workspace-loading">{errors.activity?"History unavailable":"Loading claim receipts…"}</div>:history.claims.length?<div className="table-scroll"><table className="market-table"><thead><tr><th>Market</th><th>Claimed</th><th>Date</th><th>Receipt</th></tr></thead><tbody>{history.claims.map(c=><tr key={c.signature+c.launch_id}><td><Link to={"/token/"+c.launch_id}>{c.name}</Link></td><td>{displayTokenAmount(c.amount_raw,Number(c.stock_decimals))} {c.reward_symbol}</td><td>{new Date(Number(c.claimed_at)).toLocaleDateString()}</td><td><a href={"https://solscan.io/tx/"+c.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View <ArrowUpRight size={13}/></a></td></tr>)}</tbody></table></div>:<div className="workspace-empty"><Gift/><h3>No claims yet.</h3><p>Your confirmed reward claims will appear here.</p></div>}
-    </section>{config.marketGovernanceEnabled&&<HoldingUpdates wallet={address}/>}</>}
+    </section></>}
     {tab==="Created"&&<section className="workspace-panel portfolio-created-panel">
       <header><div><h2>Your coins</h2><p>Markets you launched and the fees they’ve earned.</p></div><Link to="/studio">Atlantis Studio <ArrowUpRight size={14}/></Link></header>
       <div className="creator-market-list">{created?.map(l=>{

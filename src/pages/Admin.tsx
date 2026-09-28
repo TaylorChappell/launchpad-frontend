@@ -1,3 +1,4 @@
+import { Select } from "../components/Select";
 import { AdminRipple } from "../components/AdminRipple";
 import { AdminFeeKeeper } from "../components/AdminFeeKeeper";
 import { AdminCommunityReports } from "../components/AdminCommunityReports";
@@ -158,7 +159,7 @@ export function Admin() {
       {section === "ripple" && <AdminRipple token={token} search={search} refreshKey={data.generatedAt}/>}
       {section === "community" && <AdminCommunityReports token={token} search={search}/>}
       {section === "logs" && <>
-        <div className="ops-toolbar"><label>Source <select aria-label="Log source" value={logSource} onChange={e => setLogSource(e.target.value)}><option value="keeper">Keeper / market pipeline</option><option value="conversions">SOL conversions</option><option value="settlements">Fee settlements</option><option value="purchases">Reward purchases</option></select></label><label className="ops-check"><input type="checkbox" checked={errorsOnly} onChange={e => setErrorsOnly(e.target.checked)}/>Errors only</label></div>
+        <div className="ops-toolbar"><label>Source <Select aria-label="Log source" value={logSource} onChange={e => setLogSource(e.target.value)}><option value="keeper">Keeper / market pipeline</option><option value="conversions">SOL conversions</option><option value="settlements">Fee settlements</option><option value="purchases">Reward purchases</option></Select></label><label className="ops-check"><input type="checkbox" checked={errorsOnly} onChange={e => setErrorsOnly(e.target.checked)}/>Errors only</label></div>
         <Panel title={logSource === "keeper" ? "Latest keeper state" : titleCase(logSource)} description={logSource === "keeper" ? "Latest pass per market, not a full Railway log stream. Expand a row for the complete error and recorded details. Latest 100 markets." : "Latest 200 stored records. Search and pagination apply to this snapshot."}>
           <DataTable key={`${logSource}:${search}:${errorsOnly}`} rows={logs} columns={["Market", "Status / stage", "Updated", "Details & transactions"]} empty="No records match your filters." render={row => <><td><Link to={`/token/${String(row.launch_id)}`}>${String(marketName(row.launch_id))}</Link><small className="ops-mono">{String(row.launch_id)}</small></td><td><Status value={row.status ?? row.kind ?? "recorded"}/><small>{titleCase(row.stage ?? row.route ?? row.kind ?? "")}</small></td><td className="ops-nowrap">{when(row.updated_at ?? row.last_attempt_at ?? row.created_at)}</td><td><LogDetails row={row}/></td></>}/>
         </Panel>

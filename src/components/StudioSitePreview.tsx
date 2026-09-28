@@ -1,3 +1,4 @@
+import { Select } from "./Select";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, RotateCw, X } from "lucide-react";
 import type { StudioFile } from "../studio-api";
@@ -62,9 +63,9 @@ export function StudioSitePreview({files,variables,mobile=false}:{files:StudioFi
     {pages.length > 1 && <div className="at-preview-nav" aria-label="Preview navigation">
       <button type="button" aria-label="Previous preview page" disabled={history.index===0} onClick={()=>move(-1)}><ArrowLeft size={15}/></button>
       <button type="button" aria-label="Next preview page" disabled={history.index>=history.entries.length-1} onClick={()=>move(1)}><ArrowRight size={15}/></button>
-      <select aria-label="Preview page" value={current.path} onChange={event=>navigate("/"+event.target.value.replace(/^frontend\//,""))}>
+      <Select aria-label="Preview page" value={current.path} onChange={event=>navigate("/"+event.target.value.replace(/^frontend\//,""))}>
         {pages.map(path=><option key={path} value={path}>{path.replace(/^frontend\//,"")}</option>)}
-      </select>
+      </Select>
       <button type="button" aria-label="Reload preview page" onClick={()=>move(0)}><RotateCw size={14}/></button>
     </div>}
     {(notice || compiled.issues.length > 0) && <div className="at-preview-notice" role="status"><span>{notice || compiled.issues[0]}</span>{notice && <button type="button" aria-label="Dismiss preview message" onClick={()=>setNotice("")}><X size={14}/></button>}</div>}

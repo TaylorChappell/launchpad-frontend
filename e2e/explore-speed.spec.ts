@@ -27,8 +27,8 @@ test('cached Explore is visible before refresh completes; DEX filters stay isola
  await page.reload();await expect.poll(()=>requests).toBe(2);
  await expect(page.locator('.token-grid')).toContainText('Ocean Club');await expect(page.locator('.market-skeletons')).toHaveCount(0);
  release();await expect(page.locator('.token-grid')).toContainText('Fresh Ocean');
- await page.getByRole('button',{name:'Filters',exact:true}).click();await page.getByLabel('DEX status').selectOption('paid');
+ await page.getByRole('button',{name:'Filters',exact:true}).click();await page.getByRole('button',{name:'Paid',exact:true}).click();await page.getByRole('button',{name:'Apply filters'}).click();
  await expect(page.locator('.token-grid')).toContainText('Paid coin');await expect(page.locator('.token-grid')).not.toContainText('Fresh Ocean');expect(queries.at(-1)?.get('dex')).toBe('paid');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
- await page.getByRole('button',{name:'Clear filters'}).click();await expect(page.getByLabel('DEX status')).toHaveValue('all');
+ await page.getByRole('button',{name:'Clear filters'}).click();await expect(page).not.toHaveURL(/dex=paid/);
 });

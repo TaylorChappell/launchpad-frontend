@@ -1,3 +1,4 @@
+import { Select } from "./Select";
 import {useEffect,useState} from 'react';
 import {Link,useNavigate} from 'react-router-dom';
 import {ArrowUpRight} from 'lucide-react';
@@ -20,5 +21,5 @@ export function StagingShowcase(){
 }
 export function ShowcaseBanner({launch}:{launch:Launch}){
  const {coins}=useShowcase(),navigate=useNavigate();
- return <aside className="showcase-banner" aria-label="Staging preview"><div><b>Staging preview</b><span>{launch.showcase?.feature} · Sample data, read-only.</span></div><label><span className="sr-only">Preview scenario</span><select value={launch.id} onChange={e=>{const coin=coins.find(c=>c.id===e.target.value);if(coin)navigate(`/token/${coin.id}?tab=${coin.showcase!.tab.toLowerCase()}`);}}>{(coins.length?coins:[launch]).map(c=><option key={c.id} value={c.id}>{c.name} · {c.showcase?.feature}</option>)}</select></label></aside>;
+ return <aside className="showcase-banner" aria-label="Staging preview"><div><b>Staging preview</b><span>{launch.showcase?.feature} · Sample data, read-only.</span></div><label><span className="sr-only">Preview scenario</span><Select aria-label="Preview scenario" value={launch.id} onChange={e=>{const coin=coins.find(c=>c.id===e.target.value);if(coin)navigate(`/token/${coin.id}?tab=${coin.showcase!.tab.toLowerCase()}`);}}>{(coins.length?coins:[launch]).map(c=><option key={c.id} value={c.id}>{c.name} · {c.showcase?.feature}</option>)}</Select></label></aside>;
 }
