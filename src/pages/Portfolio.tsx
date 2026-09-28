@@ -74,7 +74,7 @@ function PortfolioContent({address}:{address:string|null}){
   const pending=rewards?.markets.reduce((s,m)=>s+m.pendingUsdCents/100,0);
   const refresh=()=>setRevision(n=>n+1);
   if(!address)return <main className="page holder-workspace portfolio-signed-out">
-    <section className="portfolio-connect portfolio-welcome"><span className="workspace-icon"><Wallet size={28}/></span><h1>Your portfolio</h1><p>Connect your wallet to see your coins and claim your rewards.</p><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet <ArrowRight size={17}/></button><Link className="portfolio-connect-help" to="/claim-by-address">Claim using a wallet address</Link></section>
+    <section className="portfolio-welcome"><span className="workspace-icon"><Wallet size={28}/></span><h1>Your portfolio</h1><p>Connect your wallet to see your coins and claim your rewards.</p><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet <ArrowRight size={17}/></button><Link className="portfolio-connect-help" to="/claim-by-address">Claim using a wallet address</Link></section>
   </main>;
   return <main className="page holder-workspace">
     <header className="workspace-heading"><div><h1>Portfolio</h1><p>Positions, rewards and the communities you’re part of.</p></div><div className="workspace-heading-actions"><span className="wallet-address"><Wallet size={14}/><WalletIdentity wallet={address}/></span><button className="workspace-refresh" aria-label="Refresh holdings" onClick={refresh}><RefreshCw size={16}/></button></div></header>

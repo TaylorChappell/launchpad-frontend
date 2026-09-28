@@ -142,6 +142,7 @@ test("phone navigation locks the page, closes with Escape and opens destinations
   await page.screenshot({ path: info.outputPath("mobile-navigation.png") });
   await dialog.getByRole("button", { name: /Search coins/ }).click();
   await expect(page.getByRole("dialog", { name: "Search AQUA", exact: true })).toBeVisible();
+  await page.screenshot({path:info.outputPath("compact-search.png")});
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
 });
 
@@ -399,6 +400,7 @@ test('compact discovery and filter dialog keep draft changes separate and fit bo
  await expect(dialog).toHaveCount(0);await expect(opener).toBeFocused();await expect(page).toHaveURL(/minCap=1000/);await expect(page).toHaveURL(/mode=jackpot/);
  await opener.click();await dialog.getByRole('button',{name:'Reset',exact:true}).click();await dialog.getByRole('button',{name:'Close filters'}).click();await expect(page).toHaveURL(/minCap=1000/);
  await page.goto('/#/portfolio');await expect(page.getByRole('heading',{name:'Your portfolio'})).toBeVisible();await expect(page.getByRole('tablist')).toHaveCount(0);
+ await expect(page.locator('.portfolio-welcome')).toHaveCSS('display','block');
  await page.screenshot({path:info.outputPath('compact-portfolio.png'),fullPage:true});
  await page.goto('/#/studio');await expect(page.getByRole('heading',{name:'Open Atlantis Studio',exact:true})).toBeVisible();await expect(page.locator('.at-example-site')).toHaveCount(0);
  await page.screenshot({path:info.outputPath('compact-atlantis.png'),fullPage:true});
