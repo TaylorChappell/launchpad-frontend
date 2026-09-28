@@ -74,7 +74,7 @@ test("boost funding uses the existing governance view and signs the chosen perce
 test("funding shows the hour countdown and the affordable pack", async ({ page }) => {
   await setup(page, "funding");
   const card = page.locator(".boost-proposal-card");
-  await expect(card.getByText("30x affordable", { exact: true })).toBeVisible();
+  await expect(card.getByText("30× ad pack affordable", { exact: true })).toBeVisible();
   await expect(card.getByText("$399 unlocks 50x", { exact: true })).toBeVisible();
   await expect(card.getByText("Funding ends in", { exact: false })).toBeVisible();
 });

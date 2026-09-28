@@ -59,11 +59,13 @@ test("launch approvals wait for confirmed prerequisites and keep activation with
   await page.getByPlaceholder("AQR").fill("TEST");
   await page.locator('input[type="file"]').setInputFiles({ name: "art.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==", "base64") });
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Choose the pair and reward" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose a trading pair" })).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Choose the reward mode" })).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Coin settings", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Review & launch" })).toBeVisible();
   await page.getByLabel("Optional first buy in SOL").fill("1");
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Launch", exact: true }).click();

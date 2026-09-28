@@ -295,7 +295,7 @@ test("a pending mobile trade stays mounted through dismiss attempts and a resize
   await page.setViewportSize({width:1440,height:900});
   await expect(sheet.getByRole("button",{name:"Waiting for confirmation"})).toBeVisible();
   release();
-  await expect(sheet.getByRole("status")).toContainText("Test trade unavailable");
+  await expect(sheet.getByRole("status").filter({hasText:"Test trade unavailable"})).toContainText("Test trade unavailable");
   await expect(sheet.getByRole("button",{name:"Close trade",exact:true})).toBeEnabled();
   await sheet.getByRole("button",{name:"Close trade",exact:true}).click();
   await expect(page.locator("#market-trade .trade-card")).toBeVisible();

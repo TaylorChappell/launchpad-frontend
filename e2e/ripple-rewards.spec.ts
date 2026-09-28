@@ -110,7 +110,7 @@ test("Ripple reports a detection outage while keeping posts and claims visible",
   await expect(panel.getByText('Tracking paused',{exact:true})).toHaveCount(0);
   await expect(panel.getByText('Daily X tracking limit reached. Tracking resumes after midnight UTC.')).toHaveCount(0);
   await expect(panel.getByText('$2.50',{exact:true})).toBeVisible();
-  await expect(panel.getByRole('status')).toHaveText('Post detection is temporarily delayed. Your saved posts and rewards are still here.');
+  await expect(panel.getByRole('status').filter({hasText:'Post detection is temporarily delayed.'})).toHaveText('Post detection is temporarily delayed. Your saved posts and rewards are still here.');
   await expect(panel.getByRole('button',{name:'Claim',exact:true})).toBeVisible();
 });
 

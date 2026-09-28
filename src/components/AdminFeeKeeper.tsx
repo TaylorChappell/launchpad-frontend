@@ -91,7 +91,7 @@ function KeeperReport({ token, search, refreshKey, range, setRange }: {
         <div className="ops-filters" role="group" aria-label="Filter loaded queue">{[["all","All"],["attention","Needs attention"],["waiting","Waiting"]].map(([value,label])=><button key={value} aria-pressed={queueFilter===value} onClick={()=>setQueueFilter(value)}>{label}</button>)}</div>
         <div className="ops-table-scroll" role="region" aria-label="Fee keeper market queue" tabIndex={0}><table className="ops-keeper-queue"><thead><tr><th>Coin / last check</th><th>Recorded vault fees</th><th>Active sale</th><th>Stage / reason</th><th>Pacing</th><th>Backlog / hourly flow</th></tr></thead>
           <tbody>{queue.map(market => <QueueRow key={market.launchId} market={market} now={data.generatedAt} slicing={data.settings.slicingEnabled}/>)}</tbody></table>
-          {!queue.length && <div className="ops-empty">No loaded markets match this filter.</div>}
+          {!queue.length && <div className="ops-empty">{!data.queue.length && search ? "No markets match your search." : "No loaded markets match this filter."}</div>}
         </div>
         <p className="ops-keeper-note">Showing {queue.length} of {data.queue.length} loaded markets ({data.summary.markets} total), with problems and active sales first. Dollar balances and hourly rates use the last indexed token price. Clear times assume the last hour’s fee inflow and selling rate continue.{Boolean(data.summary.throughput?.unknownPrices) && ` Prices unavailable for ${data.summary.throughput!.unknownPrices} markets.`}</p>
       </section>
