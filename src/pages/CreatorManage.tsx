@@ -44,6 +44,7 @@ export function CreatorManage() {
         {selected === "overview" && <>
           <section className="creator-dashboard-intro"><h2>Your market at a glance</h2><p>Support your holders, keep them informed, and manage your creator fees.</p></section>
           <section className="creator-dashboard-stats" aria-label="Market overview"><article><small>Holders</small><strong>{number.format(launch.holderCount)}</strong></article><article><small>24h trading volume</small><strong>{money.format(launch.volume24hUsd)}</strong></article><article><small>Rewards accumulated</small><strong>{money.format(launch.rewardAccumulatedUsd)}</strong></article></section>
+          <p className="creator-earnings-note">Project updates can change after launch. Token fees and Ripple share stay fixed.</p>
           <CreatorRewardDeposit launch={launch}/>
           <div className="creator-dashboard-actions"><button onClick={() => setParams({ tab: "updates" })}><MessageSquare/><span><strong>Keep holders updated</strong><small>Share what you’re building and what’s next.</small></span><ArrowUpRight/></button><button onClick={() => setParams({ tab: "fees" })}><LockKeyhole/><span><strong>Manage creator fees</strong><small>{launch.creatorLock?.status === "active" ? "Your creator lock is active." : "Set up a token lock to earn creator fees."}</small></span><ArrowUpRight/></button></div>
         </>}

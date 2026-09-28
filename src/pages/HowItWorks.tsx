@@ -146,12 +146,12 @@ export function HowItWorks() {
         <Link className="primary" to="/create">Launch a coin <ArrowRight size={17}/></Link>
         <button className="secondary-button" onClick={() => scrollTo("launch-flow")}>Read the launch flow</button>
       </div>
-      <div className="aqua-docs-summary" aria-label="AQUA protocol summary">
+      <details className="aqua-docs-basics"><summary>Protocol at a glance</summary><div className="aqua-docs-summary" aria-label="AQUA protocol summary">
         <SummaryStat value={totalSupply} label="Fixed token supply"/>
         <SummaryStat value={formatBps(liquiditySupplyBps)} label="Committed to liquidity"/>
         <SummaryStat value="2–5%" label="Token fee · 2% default"/>
         <SummaryStat value="None" label="AQUA supply reserve"/>
-      </div>
+      </div></details>
     </section>
 
     <section className="help-quick-answers" aria-label="Common questions"><h2>What do you need help with?</h2>

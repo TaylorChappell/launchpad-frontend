@@ -223,3 +223,7 @@
 .cb-eligibility > span { display:block; margin-top:5px; }
 
 .at-variable-undo { display:inline-flex; align-items:center; gap:6px; margin:8px 0; min-height:36px; font-size:12px; color:#2c6d90; }
+
+.aqua-docs-basics { width:100%; margin-top:18px; }
+.aqua-docs-basics > summary { font-size:14px; color:#2c6d90; cursor:pointer; min-height:32px; }
+.aqua-docs-basics .aqua-docs-summary { margin-top:14px; }

@@ -6,7 +6,7 @@ export function SectionTabs({ label, items, value, onChange, className = "", pan
     const button = ref.current?.querySelector<HTMLElement>('[aria-selected="true"]');
     const list = ref.current;
     if (!button || !list) return;
-    const left = button.offsetLeft - list.offsetLeft;
+    const left = button.getBoundingClientRect().left - list.getBoundingClientRect().left + list.scrollLeft;
     if (left < list.scrollLeft) list.scrollTo({ left, behavior: "instant" });
     else if (left + button.offsetWidth > list.scrollLeft + list.clientWidth) list.scrollTo({ left: left + button.offsetWidth - list.clientWidth, behavior: "instant" });
   }, [value]);
