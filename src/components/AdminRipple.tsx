@@ -35,9 +35,9 @@ function RippleReport({token,search,refreshKey}:{token:string;search:string;refr
     {service&&<section className="ops-panel ops-ripple-health" aria-label="Ripple detection health">
       <header><h2>Detection</h2><span className={`ops-status is-${service.mode==='live'?'tracking':service.mode==='paused'?'excluded':'completed'}`}>{service.mode==='live'?'Live':service.mode==='polling'?'Scheduled':service.mode==='paused'?'Paused':service.mode==='idle'?'Idle':'Unavailable'}</span></header>
       {service.message&&<p>{service.message}</p>}
-      {budget&&<><div className="ops-ripple-usage"><span>X requests <b>{budget.requests.toLocaleString()} / {budget.requestLimit.toLocaleString()}</b></span><span>Distinct posts read <b>{budget.postReads.toLocaleString()} / {budget.postReadLimit.toLocaleString()}</b></span></div>
+      {budget&&<><div className="ops-ripple-usage"><span>X requests today <b>{budget.requests.toLocaleString()}{budget.requestLimit>0?` / ${budget.requestLimit.toLocaleString()}`:""}</b></span><span>Distinct posts read today <b>{budget.postReads.toLocaleString()}{budget.postReadLimit>0?` / ${budget.postReadLimit.toLocaleString()}`:""}</b></span></div>
         <p>Search {usage.search??0} · Engagement {usage.lookup??0} · Stream {(usage.stream_rules??0)+(usage.stream_connect??0)}{budget.requests>Object.values(usage).reduce((sum,n)=>sum+n,0)?' · Earlier requests not categorized':''}</p>
-        <small>Daily limits reset {new Date(budget.resetsAt).toLocaleString()}</small></>}
+        <small>{budget.requestLimit>0||budget.postReadLimit>0?"Usage resets":"No AQUA daily cap · Usage resets"} {new Date(budget.resetsAt).toLocaleString()}</small></>}
       {!!service.providerBackoffs?.length&&<ul>{service.providerBackoffs.map(item=><li key={item.scope}>{item.message} Retry {new Date(item.retryAt).toLocaleTimeString()}.</li>)}</ul>}
     </section>}
     <section className="ops-panel" aria-label="Ripple posts">
