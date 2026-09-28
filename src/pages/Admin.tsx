@@ -115,7 +115,12 @@ export function Admin() {
       else await api.adminResolveProposalChallenge(token, p.id, kind === "uphold");
       toast.success(kind === "withdraw" ? "Reserved SOL withdrawn" : "Admin action recorded");
       setPending(null); await load(token);
-    } catch (reason) { toast.error(reason instanceof Error ? reason.message : "Admin action failed."); }
+    } catch (reason) {
+      toast.error(reason instanceof Error ? reason.message : "Admin action failed.");
+      // A price change can resume funding or refund a reserve; a send timeout
+      // can leave a recoverable signed withdrawal. Show the committed state.
+      if (kind === "withdraw") { setPending(null); await load(token); }
+    }
     finally { setActionBusy(false); }
   };
 
