@@ -1,3 +1,4 @@
+import { isPriceLive } from "../market-prices";
 import { RecentUpdateBell } from "./RecentUpdateBell";
 import { assetLogoUrl } from "../asset-logo";
 import { useEffect, useState } from "react";
@@ -18,7 +19,7 @@ export function TokenMark({ launch, large=false }: { launch: Launch; large?: boo
   useEffect(() => setImageFailed(false), [launch.imageUrl]);
   const showImage = Boolean(launch.imageUrl && !imageFailed);
   return <span className={"token-mark " + (large ? "large" : "")} style={!showImage ? { backgroundImage: "linear-gradient(145deg,hsl(" + hue + " 72% 47%),hsl(" + (hue + 38) + " 76% 18%))" } : undefined}>
-    {showImage ? <img src={launch.imageUrl} alt="" onError={() => setImageFailed(true)}/> : launch.symbol.slice(0,2)}
+    {showImage ? <img src={launch.imageUrl} alt="" loading={large?"eager":"lazy"} decoding="async" onError={() => setImageFailed(true)}/> : launch.symbol.slice(0,2)}
   </span>;
 }
 
@@ -69,10 +70,11 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
 
       <ArrowUpRight className="card-arrow" size={17}/>
     </div>
-    {rewardMode === "holder_rewards" ? <div className="reward-card-focus"><span>HOLDER REWARDS</span><strong>Earn {launch.stockSymbol}</strong><small>{"$" + compact.format(launch.rewardAccumulatedUsd)} accumulated · {"$" + compact.format(launch.rewardRedeemableUsd)} redeemable</small></div>
+    {rewardMode === "holder_rewards" ? <div className="reward-card-focus"><span>HOLDER REWARDS · ALL HOLDERS</span><strong>Earn {launch.stockSymbol}</strong><small>{"$" + compact.format(launch.rewardAccumulatedUsd)} total earned · {"$" + compact.format(launch.rewardRedeemableUsd)} available across wallets</small></div>
       : rewardMode === "buyback_burn" ? <div className="reward-card-focus mode-buyback"><span>BUYBACK &amp; BURN</span><strong>Burn {launch.symbol}</strong><small>{burn ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(burn.totalSol)} SOL spent · ${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(Number(burn.totalTokenRaw) / 10 ** launch.tokenDecimals)} ${launch.symbol} burned` : `— SOL spent · — ${launch.symbol} burned`}</small></div>
       : <div className="reward-card-focus mode-jackpot"><span>HOURLY JACKPOT</span><div className="card-jackpot-prizes">{prizes.map((amount, index) => { const rewardSymbol = jackpot?.rewardSymbol ?? "SOL"; return <div key={index}><span>{["1st", "2nd", "3rd", "4th", "5th"][index]}</span><b aria-label={`${amount} ${rewardSymbol}`}><PayoutAssetMark launch={launch} symbol={rewardSymbol} position={index}/>{amount}</b></div>; })}</div></div>}
-    <div className="token-card-status"><DexStatusBadge state={dexBadgeState(launch)}/>{creatorLock && <span className="creator-lock-badge" title="Verified creator lock" aria-label={`${creatorLockPercentLabel(creatorLock)} of supply locked by the creator`}><LockKeyhole aria-hidden="true"/>{creatorLockPercentLabel(creatorLock)} locked</span>}</div><div className="token-stats"><Metric label="Market cap" value={indexed ? "$" + compact.format(launch.marketCapUsd) : "Indexing"} tone={indexed ? marketCapTone(launch.marketCapUsd) : ""}/><Metric label="24h volume" value={indexed ? "$" + compact.format(launch.volume24hUsd) : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
+    <div className="token-card-status"><DexStatusBadge state={dexBadgeState(launch)}/>{creatorLock && <span className="creator-lock-badge" title="Verified creator lock" aria-label={`${creatorLockPercentLabel(creatorLock)} of supply locked by the creator`}><LockKeyhole aria-hidden="true"/>{creatorLockPercentLabel(creatorLock)} creator locked</span>}</div><div className="token-stats"><Metric label="Market cap" value={indexed ? "$" + compact.format(launch.marketCapUsd) : "Indexing"} tone={indexed ? marketCapTone(launch.marketCapUsd) : ""}/><Metric label="24h change" value={indexed ? `${launch.change24h>0?"+":""}${launch.change24h.toFixed(2)}%` : "—"} tone={launch.change24h>=0?"positive":"negative"}/><Metric label="Liquidity" value={indexed ? "$"+compact.format(launch.tvlUsd) : "Indexing"}/><Metric label="24h volume" value={indexed ? "$" + compact.format(launch.volume24hUsd) : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
+    {indexed&&!isPriceLive(launch)&&<small className="status-inline">Price delayed</small>}
     </Link>
     <RecentUpdateBell at={launch.latestProjectUpdateAt} launchId={launch.id}/>
   </article>;

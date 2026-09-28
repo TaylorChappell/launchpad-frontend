@@ -26,7 +26,7 @@ test("legacy rewards opens the combined portfolio and retries an existing receip
   await share.getByRole("button",{name:"Close"}).click();
   expect(confirmations).toBe(1);expect(preparations).toBe(0);
   expect(await page.evaluate(key=>localStorage.getItem(key),"aqua:pending-reward:mainnet-beta:"+address)).toBeNull();
-  await page.getByRole("button",{name:"Holdings",exact:false}).filter({hasText:"Holdings"}).first().click();
+  await page.getByRole("tab",{name:"Holdings",exact:false}).filter({hasText:"Holdings"}).first().click();
   await expect(page.getByRole("heading",{name:"Your positions",exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
 });
@@ -114,7 +114,7 @@ test("unknown routes recover instead of showing a blank shell",async({page})=>{
 });
 test("holdings asks for a wallet rather than inventing zero balances",async({page})=>{
   await page.goto("/#/portfolio");
-  await expect(page.getByRole("heading",{name:"Your holdings. Your rewards."})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Your holdings, together"})).toBeVisible();
   await expect(page.getByText("Priced holdings")).toHaveCount(0);
 });
 

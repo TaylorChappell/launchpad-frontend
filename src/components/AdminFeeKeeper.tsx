@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Activity, ArrowDownUp, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, RefreshCw } from "lucide-react";
 import { api } from "../api";
 import { useRuntime } from "../context";
-import { keeperAmount, keeperSteps, keeperUsd, type AdminFeeKeeperResponse, type KeeperConversion, type KeeperMarket, type KeeperRange } from "../fee-keeper-display";
+import { keeperHealth, keeperAmount, keeperSteps, keeperUsd, type AdminFeeKeeperResponse, type KeeperConversion, type KeeperMarket, type KeeperRange } from "../fee-keeper-display";
 import "./admin-fee-keeper.css";
 
 const date = (value: number | null | undefined) => value ? new Date(value).toLocaleString() : "—";
@@ -22,6 +22,7 @@ function KeeperReport({ token, search, refreshKey, range, setRange }: {
 }) {
   const [data, setData] = useState<AdminFeeKeeperResponse | null>(null);
   const [offset, setOffset] = useState(0), [busy, setBusy] = useState(true), [error, setError] = useState("");
+  const [queueFilter,setQueueFilter]=useState("all");
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
@@ -48,6 +49,8 @@ function KeeperReport({ token, search, refreshKey, range, setRange }: {
     return () => { controller.abort(); clearTimeout(timer); document.removeEventListener("visibilitychange", visibility); };
   }, [token, search, range, offset, refreshKey, revision]);
 
+  const health=data?keeperHealth(data):null;
+  const queue=data?.queue.filter(m=>queueFilter==="all"|| (queueFilter==="attention"?m.status==="blocked"||Boolean(m.conversionError):!m.conversionId&&m.status!=="blocked"&&!m.conversionError))??[];
   return <div className="ops-keeper">
     <div className="ops-toolbar">
       <div className="ops-filters" role="group" aria-label="Fee keeper history range">{([['1h', '1 hour'], ['24h', '24 hours'], ['7d', '7 days'], ['max', 'All time']] as const).map(([value, text]) =>
@@ -57,8 +60,9 @@ function KeeperReport({ token, search, refreshKey, range, setRange }: {
     {error && <div className="ops-error" role="alert">{error}{data && " Showing the last successful snapshot."}<button onClick={() => setRevision(value => value + 1)}>Try again</button></div>}
     {!data ? <div className="ops-empty">{error ? "Fee keeper data unavailable." : "Loading fee keeper activity…"}</div> : <>
       <section className="ops-keeper-health" aria-label="Fee keeper status">
-        <div><Activity size={21}/><span><b>Fee keeper activity</b><small>Last keeper update · {date(data.summary.lastAttemptAt)}</small></span></div>
+        <div><Activity size={21}/><span><b>Recorded activity · {health?.label}</b><small>Last keeper update · {date(data.summary.lastAttemptAt)}</small></span></div>
         <span className={`ops-status is-${data.settings.slicingEnabled ? "enabled" : "disabled"}`}>{data.settings.slicingEnabled ? "Paced sales enabled" : "Paced sales disabled"}</span>
+        <p className={`ops-health-reason is-${health?.tone}`}>{health?.message}<span>Last recorded SOL conversion · {date(data.summary.lastSaleAt)}</span></p>
         <small>Snapshot {date(data.generatedAt)} · refreshes every 15s while visible · keeper setting in this API: {data.settings.enabled ? "enabled" : "disabled"}</small>
       </section>
       <div className="ops-metrics">
@@ -84,11 +88,12 @@ function KeeperReport({ token, search, refreshKey, range, setRange }: {
         <div><span>Catch-up</span><b>{data.settings.catchupEnabled ? "Automatic" : "Disabled"}</b></div>
       </div><p className="ops-keeper-note">Impact limits can delay the batch target. Existing conversions retain their saved policy. Settings reflect this API; a separate keeper service must use matching settings. Network fees exclude account rent and trading fees.</p></section>
       <section className="ops-panel" aria-label="Fee keeper queue"><header><h2>What the keeper is doing</h2><p>Current state per coin. Recorded vault balances and dollar estimates can lag the chain; a planned sale is not a confirmed sale.</p></header>
+        <div className="ops-filters" role="group" aria-label="Filter loaded queue">{[["all","All"],["attention","Needs attention"],["waiting","Waiting"]].map(([value,label])=><button key={value} aria-pressed={queueFilter===value} onClick={()=>setQueueFilter(value)}>{label}</button>)}</div>
         <div className="ops-table-scroll" role="region" aria-label="Fee keeper market queue" tabIndex={0}><table className="ops-keeper-queue"><thead><tr><th>Coin / last check</th><th>Recorded vault fees</th><th>Active sale</th><th>Stage / reason</th><th>Pacing</th><th>Backlog / hourly flow</th></tr></thead>
-          <tbody>{data.queue.map(market => <QueueRow key={market.launchId} market={market} now={data.generatedAt} slicing={data.settings.slicingEnabled}/>)}</tbody></table>
-          {!data.queue.length && <div className="ops-empty">No markets match your search.</div>}
+          <tbody>{queue.map(market => <QueueRow key={market.launchId} market={market} now={data.generatedAt} slicing={data.settings.slicingEnabled}/>)}</tbody></table>
+          {!queue.length && <div className="ops-empty">No loaded markets match this filter.</div>}
         </div>
-        <p className="ops-keeper-note">Showing {data.queue.length} of {data.summary.markets} markets, with problems and active sales first. Dollar balances and hourly rates use the last indexed token price. Clear times assume the last hour’s fee inflow and selling rate continue.{Boolean(data.summary.throughput?.unknownPrices) && ` Prices unavailable for ${data.summary.throughput!.unknownPrices} markets.`}</p>
+        <p className="ops-keeper-note">Showing {queue.length} of {data.queue.length} loaded markets ({data.summary.markets} total), with problems and active sales first. Dollar balances and hourly rates use the last indexed token price. Clear times assume the last hour’s fee inflow and selling rate continue.{Boolean(data.summary.throughput?.unknownPrices) && ` Prices unavailable for ${data.summary.throughput!.unknownPrices} markets.`}</p>
       </section>
       <section className="ops-panel" aria-label="Fee keeper conversion history"><header><h2>Conversion history</h2><p>Latest activity in the selected period. Open a conversion to inspect each transaction, its size and confirmed network fee.</p></header>
         {data.summary.sales.estimatedTimeCount > 0 && <p className="ops-keeper-note">{data.summary.sales.estimatedTimeCount} older sale(s) use their last stored update time because a swap confirmation timestamp is unavailable.</p>}

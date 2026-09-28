@@ -52,10 +52,11 @@ test("unmounting cancels browser polling only", async () => {
   await assert.rejects(watchLaunchSubmission(api, "coin", controller.signal, () => {}, () => {}), { name: "AbortError" });
 });
 
-test("launch UI removes the step list and keeps exactly two completion actions", () => {
+test("launch UI shows recoverable progress and keeps exactly two completion actions", () => {
   const source = readFileSync(new URL("../src/pages/Create.tsx", import.meta.url), "utf8");
   const launching = source.slice(source.indexOf('<section className="launch-simple-status">'), source.indexOf('{completedLaunch ?'));
-  assert.doesNotMatch(launching, /<ol|<li|chainSteps\.filter/);
+  assert.match(launching, /launch-progress-steps/);
+  assert.match(launching, /progress\[item.key\]==="done"/);
   const actions = source.slice(source.indexOf('<div className="launch-complete-actions">'), source.indexOf('</section> : <>'));
   assert.match(actions, /Go to coin/); assert.match(actions, /Launch another coin/);
   assert.doesNotMatch(actions, /Build website|Manage creator lock|Copy market link/);

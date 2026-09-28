@@ -43,10 +43,10 @@ test("one market navigation keeps content clear at phone, tablet and desktop siz
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/#/token/mobile?tab=community");
     await expect(page.locator(".community-scroll")).toContainText("Welcome to the Ocean community");
-    const tabs=page.getByRole("navigation",{name:"Market navigation",exact:true});
+    const tabs=page.getByRole("tablist",{name:"Market navigation",exact:true});
     await expect(tabs).toHaveCount(1);
     await expect(tabs.locator(".market-tab-label")).toHaveText(["Transactions", "Community", "Proposals", "Rewards", "Holders"]);
-    await expect(tabs.getByRole("button",{name:"Community",exact:true})).toHaveCount(1);
+    await expect(tabs.getByRole("tab",{name:"Community",exact:true})).toHaveCount(1);
     const boxes = await page.evaluate(() => {
       const box = (selector: string) => { const r = document.querySelector(selector)!.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right }; };
       return { chart: box("#market-chart"), trade: box("#market-trade"), tabs: box(".market-information-tabs"), community: box(".community"), overflow: document.documentElement.scrollWidth - innerWidth };
@@ -64,8 +64,8 @@ test("one market navigation keeps content clear at phone, tablet and desktop siz
         const menu=document.querySelector(".market-information-tabs")!.getBoundingClientRect();
         return panel.top-menu.bottom;
       },selector);
-      await tabs.getByRole("button", { name: "Community", exact: true }).click();
-      await expect(tabs.getByRole("button", { name: "Community", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await tabs.getByRole("tab", { name: "Community", exact: true }).click();
+      await expect(tabs.getByRole("tab", { name: "Community", exact: true })).toHaveAttribute("aria-pressed", "true");
       await expect.poll(()=>clearMenu(".community")).toBeGreaterThanOrEqual(8);
       await expect.poll(()=>clearMenu(".community")).toBeLessThan(35);
       if (width === 390) await page.screenshot({ path: info.outputPath("mobile-community.png") });
@@ -89,7 +89,7 @@ test("phone market navigation scrolls smoothly and keeps later tabs reachable",a
   test.skip(info.project.name!=="mobile","Phone section navigation.");
   await setup(page);
   await page.goto("/#/token/mobile?tab=transactions");
-  const tabs=page.getByRole("navigation",{name:"Market navigation",exact:true});
+  const tabs=page.getByRole("tablist",{name:"Market navigation",exact:true});
   await expect(tabs).toBeVisible();
   await tabs.scrollIntoViewIfNeeded();
   await page.evaluate(()=>{
@@ -97,22 +97,22 @@ test("phone market navigation scrolls smoothly and keeps later tabs reachable",a
     Object.assign(window,{marketScrollPositions:positions});
     window.addEventListener("scroll",()=>positions.push(window.scrollY));
   });
-  await tabs.getByRole("button",{name:"Community",exact:true}).click();
+  await tabs.getByRole("tab",{name:"Community",exact:true}).click();
   await expect.poll(()=>page.locator(".community").evaluate(el=>Math.round(el.getBoundingClientRect().top))).toBeLessThan(170);
   await expect.poll(()=>page.evaluate(()=>new Set((window as unknown as {marketScrollPositions:number[]}).marketScrollPositions.map(Math.round)).size)).toBeGreaterThan(2);
-  await tabs.getByRole("button",{name:"Holders",exact:true}).click();
+  await tabs.getByRole("tab",{name:"Holders",exact:true}).click();
   await expect(page.locator(".holder-activity")).toContainText("320 wallets");
-  await expect(tabs.getByRole("button",{name:"Holders",exact:true})).toBeInViewport();
+  await expect(tabs.getByRole("tab",{name:"Holders",exact:true})).toBeInViewport();
   await page.emulateMedia({reducedMotion:"reduce"});
-  await tabs.getByRole("button",{name:"Transactions",exact:true}).click();
-  await tabs.getByRole("button",{name:"Community",exact:true}).click();
-  await expect(tabs.getByRole("button",{name:"Community",exact:true})).toHaveAttribute("aria-pressed","true");
+  await tabs.getByRole("tab",{name:"Transactions",exact:true}).click();
+  await tabs.getByRole("tab",{name:"Community",exact:true}).click();
+  await expect(tabs.getByRole("tab",{name:"Community",exact:true})).toHaveAttribute("aria-pressed","true");
   await expect.poll(()=>page.locator(".community").evaluate(el=>Math.round(el.getBoundingClientRect().top))).toBeLessThan(170);
   await expect(page.locator(".community")).toBeInViewport();
   for (const tab of ["governance", "proposals"]) {
     await page.goto(`/#/token/mobile?tab=${tab}`);
-    await expect(tabs.getByRole("button",{name:"Proposals",exact:true})).toHaveAttribute("aria-pressed","true");
-    await expect(tabs.getByRole("button",{name:"Proposals",exact:true})).toBeInViewport();
+    await expect(tabs.getByRole("tab",{name:"Proposals",exact:true})).toHaveAttribute("aria-pressed","true");
+    await expect(tabs.getByRole("tab",{name:"Proposals",exact:true})).toBeInViewport();
     await expect(page.locator(".community-proposals")).toContainText("Proposals are unavailable for this market.");
     await expect(page.getByRole("dialog",{name:"Market details",exact:true})).toHaveCount(0);
   }
@@ -133,7 +133,7 @@ test("phone navigation locks the page, closes with Escape and opens destinations
   await expect(more).toBeFocused();
   expect(await page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
   await more.click();
-  await dialog.getByRole("link", { name: "My holdings", exact: true }).click();
+  await dialog.getByRole("link", { name: "Portfolio", exact: true }).click();
   await expect(page).toHaveURL(/portfolio/);
   await expect(dialog).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
@@ -342,7 +342,7 @@ test("More details sits below trading and preserves the page when dismissed", as
   await expect(sheet).toBeVisible();
   await sheet.getByRole("button",{name:"Close details"}).click();
   await expect(page).toHaveURL(/tab=transactions/);
-  await expect(page.getByRole("navigation",{name:"Market navigation"}).getByRole("button",{name:"Transactions",exact:true})).toHaveAttribute("aria-pressed","true");
+  await expect(page.getByRole("tablist",{name:"Market navigation"}).getByRole("tab",{name:"Transactions",exact:true})).toHaveAttribute("aria-pressed","true");
 });
 
 test("market header keeps social icons and launch age together", async ({page},info)=>{

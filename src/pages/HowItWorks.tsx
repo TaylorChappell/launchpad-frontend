@@ -137,10 +137,10 @@ export function HowItWorks() {
   };
 
   return <main className="how-story-page aqua-docs-page">
-    <PageBubbles count={24}/>
+    <PageBubbles count={4}/>
 
     <section className="aqua-docs-hero" id="protocol-reference">
-      <h1>How AQUA<br/><span>actually works.</span></h1>
+      <h1>Help with <span>AQUA.</span></h1>
       <p>A guide to launching, rewards, community, DEX funding and building with Atlantis. AQUA creates markets directly on Orca without a bonding curve or a separate token reserve.</p>
       <div className="aqua-docs-actions">
         <Link className="primary" to="/create">Launch a coin <ArrowRight size={17}/></Link>
@@ -154,6 +154,14 @@ export function HowItWorks() {
       </div>
     </section>
 
+    <section className="help-quick-answers" aria-label="Common questions"><h2>What do you need help with?</h2>
+      <details><summary>Why does selling return less than my position value?</summary><p>Your position is valued at the latest indexed price. A sale also depends on liquidity, price movement and fees. Review Estimated received and Minimum received before approving. Slippage is a tolerance, not an extra fee.</p></details>
+      <details><summary>Why can’t I claim rewards?</summary><p>Open Portfolio → Rewards or Ripple. The claim button shows whether funds are ready and why a claim is unavailable. Total earned includes previous claims and is different from Available to claim.</p><Link to="/portfolio?tab=rewards">Open rewards</Link></details>
+      <details><summary>Where is my Ripple post?</summary><p>Use the X account linked to your wallet, keep your AQUA sign-in active, and hold the coin before posting and at allocation. Include its contract address, AQUA market link or explicit $ticker. For a shared ticker, use the address or market link.</p><Link to="/portfolio?tab=ripple">Check my Ripple posts</Link></details>
+      <details><summary>My launch was interrupted. What next?</summary><p>Return to Launch with the original wallet and use Resume launch. AQUA checks completed steps before continuing. Check a submitted transaction before approving another attempt.</p><Link to="/create">Resume launch</Link></details>
+      <details><summary>Why didn’t my website publish?</summary><p>Open Publish in Atlantis Studio. Complete missing Variables & Secrets, save changes and retry. Your draft and published version have separate states. A deployment error shows the next action.</p><Link to="/studio">Open Studio</Link></details>
+      <details><summary>How do I verify a wallet transaction?</summary><p>Compare the program and accounts with AQUA’s reference before signing. AQUA never needs your seed phrase.</p><button className="text-button" onClick={()=>scrollTo("accounts")}>View official program and accounts</button></details>
+    </section>
     <div className="aqua-docs-shell">
       <aside className="aqua-docs-sidebar">
         <div className="aqua-docs-sidebar-inner">
@@ -193,7 +201,7 @@ export function HowItWorks() {
         </DocSection>
 
         <DocSection id="wallets" eyebrow="THE PROTOCOL" title="Connect the wallet that holds your coins">
-          <p>Choose Phantom, MetaMask or Solflare. Use the same Solana account you used to buy the coin; a different account has a different balance. Connecting lets AQUA read your public address. Signing in proves ownership, and transactions need a separate wallet approval.</p>
+          <p>Choose Phantom, MetaMask, Solflare or Jupiter. Use the same Solana account you used to buy the coin; a different account has a different balance. Connecting lets AQUA read your public address. Signing in proves ownership, and transactions need a separate wallet approval.</p>
           <p>On a phone, the Phantom connection can open its app to complete the connection. Return to AQUA when prompted. Keep some SOL in the connected account for transaction fees and any account rent, even when your rewards are another token.</p>
         </DocSection>
 
@@ -287,11 +295,11 @@ export function HowItWorks() {
         <DocSection id="website-publishing" eyebrow="ATLANTIS STUDIO" title="Publish when your website is ready">
           <p>Use <strong>Publish</strong> to choose an available website address on aquafamily.fun. Edits stay private until published. If a publish fails, the previous published version stays in place. Frontend and backend exports are also available for independent hosting.</p>
           <div className="aqua-docs-definition">
-            <div><b>Variables</b><span>Open the separate Variables menu to set the token CA, your deployed backend URL and other public values. These values are visible to site visitors, so never store private keys or secrets there.</span></div>
+            <div><b>Variables &amp; Secrets</b><span>Open Variables & Secrets. Frontend values are public; Backend values and secrets are private to your app. Add provider API keys under Backend. Publish saved changes to apply them.</span></div>
             <div><b>Fill on launch</b><span>This is an explicit per-project choice. When enabled, a confirmed launch from that project fills connected CA fields and trading links and queues the hosted website update. Without consent, the manual CA stays under your control.</span></div>
             <div><b>Connected fields</b><span>Older hardcoded addresses need to be connected in Atlantis first. A failed website update can be retried through Publish; launching a coin and publishing a website have separate statuses.</span></div>
           </div>
-          <p>Atlantis can suggest known public variable values and provide an <strong>Open variables</strong> link in the conversation. A custom backend must be deployed before its URL will work. AQUA market-data integrations use the public AQUA API and do not require your own backend.</p>
+          <p>Atlantis can prepare public settings, required secret fields and generated app secrets. Supported hosted APIs publish with your website. Larger external backends need their deployed URL configured before they can serve requests. AQUA market-data integrations use the public AQUA API and do not require your own backend.</p>
         </DocSection>
 
         <DocSection id="trading-fees" eyebrow="FEES AND REWARDS" title="Each coin chooses its reward fee">
@@ -336,7 +344,7 @@ export function HowItWorks() {
           </div>
           <Callout title="Ripple Rewards · earn for sharing">
             Ripple has its own tab beside Rewards in My holdings. When active, each coin directs its chosen 3–30% share (15% by default) of newly settled trading rewards after existing operating and campaign allocations to its Ripple pool. This share is set at launch and adds no extra token fee. Another 10% of Community Boost goes to Ripple before the remaining boost is divided between holders and any active DEX fund. Existing allocations and direct creator top-ups are unchanged.
-            Sign in to AQUA, connect X and hold the coin in that wallet before posting its contract address, AQUA market link or explicit $TICKER. Discovery searches only connected holders with a valid AQUA session. Your wallet must still hold the coin when rewards are allocated. Shared tickers need a contract address or matching market link. Original posts and replies are discovered automatically, measured after 24 hours and allocated SOL in daily rounds. Each distinct qualifying tweet receives base points; engagement increases its share. Repeated content is excluded. Ripple claims stay separate from the coin’s permanent reward mode.
+            Sign in to AQUA, connect X and hold the coin in that wallet before posting its contract address, AQUA market link or explicit $TICKER. Discovery searches only connected holders with a valid AQUA session. Your wallet must still hold the coin when rewards are allocated. Shared tickers need a contract address or matching market link. Original posts and replies are discovered automatically while eligible. Engagement is checked repeatedly during the tracking window; only additional qualifying engagement earns additional credit. Live processing uses shorter rounds, with hourly processing available as a fallback. Timing depends on service availability and X provider limits. Stronger engagement receives a larger share, and unused funding carries forward. Repeated content is excluded. Ripple claims stay separate from the coin’s permanent reward mode.
           </Callout>
           <Callout title="Jackpot scoring rewards behaviour across the whole hour">
             Balance earns score over time. New purchases mature into full scoring weight over 15 minutes, so buying immediately before the close has little effect. Any outbound transfer is treated like a sale and removes the same proportion of score already earned. Wallets with no outbound movement receive a modest 10% consistency multiplier. Winners are drawn without replacement, so one wallet cannot take two places in the same hour.

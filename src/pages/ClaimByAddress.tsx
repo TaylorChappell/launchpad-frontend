@@ -1,3 +1,4 @@
+import { useDialog } from "../components/useDialog";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { PublicKey } from "@solana/web3.js";
 import { ArrowLeft, ArrowRight, CheckCircle2, Copy, Loader2, Search, Wallet, X } from "lucide-react";
@@ -25,6 +26,8 @@ export function ClaimByAddress() {
   const [share,setShare]=useState<SharedRewardClaim|null>(null);
   const [shareOpen,setShareOpen]=useState(false);
   const sharedSignature=useRef("");
+  const proofDialog=useDialog<HTMLElement>(popupOpen&&Boolean(challenge),()=>setPopupOpen(false));
+  const [copied,setCopied]=useState(false);
   useEffect(()=>{if(!challenge || verified) return;const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer);},[challenge?.id,verified]);
 
   async function lookup(event: FormEvent) {
@@ -86,12 +89,6 @@ export function ClaimByAddress() {
     return()=>{active=false;window.clearInterval(timer);document.removeEventListener("visibilitychange",onVisible);};
   },[challenge?.id,challenge?.token]);
 
-  useEffect(()=>{
-    if(!popupOpen) return;
-    const onEscape=(event:KeyboardEvent)=>{if(event.key==="Escape") setPopupOpen(false);};
-    document.addEventListener("keydown",onEscape);
-    return()=>document.removeEventListener("keydown",onEscape);
-  },[popupOpen]);
 
   async function start(launchId:string,kind:"creator"|"cumulative"|"legacy"="creator",epochId?:string,forceNew=false) {
     if(!forceNew && challenge && challenge.launchId===launchId && challenge.kind===kind && challenge.epochId===(epochId??null) && (challenge.recoveryExpiresAt??challenge.expiresAt)>Date.now() && !claimed) { setPopupOpen(true); return; }
@@ -140,10 +137,11 @@ export function ClaimByAddress() {
 
   return <main className="page address-claim-page">
     {share&&shareOpen&&<RewardClaimShare claim={share} onClose={()=>setShareOpen(false)}/>}
-    <Link className="back" to="/portfolio"><ArrowLeft size={16}/> My holdings</Link>
+    <Link className="back" to="/portfolio"><ArrowLeft size={16}/> Portfolio</Link>
     <header className="address-claim-header"><span className="workspace-icon"><Wallet size={24}/></span><h1>Claim with your address</h1><p>Enter your Solana wallet to find rewards and fees.</p></header>
+    <ol className="claim-steps" aria-label="Claim progress">{["Find wallet","Verify ownership","Claim"].map((step,index)=><li key={step} aria-current={(verified?2:address?1:0)===index?"step":undefined}><span>{index+1}</span>{step}</li>)}</ol>
     <form className="address-claim-lookup" onSubmit={e=>void lookup(e)}>
-      <label htmlFor="claim-wallet">Solana wallet address</label><div><input id="claim-wallet" value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter your wallet address" autoComplete="off" spellCheck={false}/><button className="primary" disabled={busy || !input.trim()}>{busy?<Loader2 className="spin" size={16}/>:<Search size={16}/>} Find fees</button></div>
+      <label htmlFor="claim-wallet">Solana wallet address</label><div><input id="claim-wallet" value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter your wallet address" autoComplete="off" spellCheck={false}/><button className="primary" disabled={busy || !input.trim()}>{busy?<Loader2 className="spin" size={16}/>:<Search size={16}/>} Find rewards &amp; fees</button></div>
     </form>
     {error&&!popupOpen&&<p className="address-claim-error" role="alert">{error}</p>}
     {markets&&<section className="address-claim-results"><h2>Fees and rewards for {address.slice(0,5)}…{address.slice(-5)}</h2>
@@ -157,12 +155,13 @@ export function ClaimByAddress() {
       {!rewardClaimsEnabled&&holderTotal>0&&<p className="address-claim-note">Reward claims are currently unavailable.</p>}
     </section>}
     {challenge&&popupOpen&&createPortal(<div className="address-claim-overlay" onMouseDown={e=>{if(e.target===e.currentTarget) setPopupOpen(false)}}>
-      <section className="address-claim-proof" role="dialog" aria-modal="true" aria-labelledby="address-claim-title">
+      <section ref={proofDialog} className="address-claim-proof" role="dialog" aria-modal="true" aria-labelledby="address-claim-title">
         <button className="address-claim-close" aria-label="Close claim popup" onClick={()=>setPopupOpen(false)}><X size={19}/></button>
         <h2 id="address-claim-title">{claimed?"Claim submitted":verified?"Wallet verified":expired?"Request expired":"Verify your wallet"}</h2>
         {!verified&&!expired&&!claimed&&<>
-          <div className="address-claim-payment"><span>From</span><code>{challenge.wallet}</code><span>Minimum</span><div className="address-claim-amounts"><strong>{formatSol(String(challenge.amountLamports))} SOL</strong>{challenge.usdc&&<><span>or</span><strong>{Number(challenge.usdc.minimumRaw)/10**challenge.usdc.decimals} USDC</strong></>}</div><span>To</span><div className="address-claim-destination"><code>{challenge.depositAddress}</code><button aria-label="Copy deposit address" onClick={()=>void navigator.clipboard.writeText(challenge.depositAddress)}><Copy size={15}/></button></div></div>
-          <p className="address-claim-note">Send {challenge.usdc?"either":"this"} amount or more on Solana. Verification payments are not refunded. Your claim goes to the sending wallet.</p>
+          <p className="claim-payout-preview">Reward value: {rewardSelected ? formatUsd(challenge.kind==="legacy"?(rewards?.rewards.find(item=>item.epochId===challenge.epochId)?.amountUsdCents??0):(rewards?.markets.find(item=>item.launchId===challenge.launchId)?.grossRedeemableUsdCents??0)) + " in rewards" : selected ? formatSol(selected.availableLamports) + " SOL in creator fees" : "your available rewards"}. The verification transfer below is a separate, non-refundable payment.</p>
+          <div className="address-claim-payment"><span>From</span><code>{challenge.wallet}</code><span>Minimum</span><div className="address-claim-amounts"><strong>{formatSol(String(challenge.amountLamports))} SOL</strong>{challenge.usdc&&<><span>or</span><strong>{Number(challenge.usdc.minimumRaw)/10**challenge.usdc.decimals} USDC</strong></>}</div><span>To</span><div className="address-claim-destination"><code>{challenge.depositAddress}</code><button aria-label="Copy deposit address" onClick={()=>void navigator.clipboard.writeText(challenge.depositAddress).then(()=>setCopied(true)).catch(()=>setError("Copy unavailable. Select and copy the address above."))}>{copied?<CheckCircle2 size={15}/>:<Copy size={15}/>}</button></div></div>
+          <p className="address-claim-note">Send {challenge.usdc?"either":"this"} amount or more on Solana. Verification payments are not refunded. Send from the wallet shown above, not an exchange. Your claim goes to that same wallet.</p>
           <p className="address-claim-wait" role="status"><Loader2 className="spin" size={16}/> Detecting your transfer automatically · Expires {new Date(challenge.expiresAt).toLocaleTimeString()}</p>
         </>}
         {expired&&<><p>{canCheckPayment?"Already sent before expiry? Check that payment below. You don't need to send again.":"This request's payment window has ended."}</p><button className="soft-button" disabled={busy} onClick={()=>void start(challenge.launchId,challenge.kind,challenge.epochId??undefined,true)}>Start a new request</button></>}

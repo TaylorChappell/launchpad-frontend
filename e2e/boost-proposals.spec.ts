@@ -51,7 +51,7 @@ async function setup(page: Page, state = "voting", automatic: "profile" | "boost
     return r.fulfill({ json: data });
   });
   await page.goto("/#/token/coin");
-  if (openGovernance) await page.getByRole("navigation", { name: "Market navigation" }).getByRole("button", { name: "Proposals", exact: true }).click();
+  if (openGovernance) await page.getByRole("tablist", { name: "Market navigation" }).getByRole("tab", { name: "Proposals", exact: true }).click();
   return data;
 }
 
@@ -128,7 +128,7 @@ test("a proposal survey returns focus to the Proposals tab and restores scrollin
   await page.keyboard.press("Escape");
   await expect(survey).toHaveCount(0);
   await expect(page.getByRole("button",{name:"Challenge proposal",exact:true})).toBeFocused();
-  await expect(page.getByRole("navigation",{name:"Market navigation"}).getByRole("button",{name:"Proposals",exact:true})).toHaveAttribute("aria-pressed","true");
+  await expect(page.getByRole("tablist",{name:"Market navigation"}).getByRole("tab",{name:"Proposals",exact:true})).toHaveAttribute("aria-pressed","true");
   await expect(page.getByRole("dialog",{name:"Market details",exact:true})).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.style.overflow)).not.toBe("hidden");
 });

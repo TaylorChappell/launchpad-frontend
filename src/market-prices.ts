@@ -1,6 +1,6 @@
 import type { Launch, MarketSnapshot } from "./types";
 
-export type MarketPrice = Pick<Launch,"id"|"priceUsd"|"marketCapUsd"|"fdvUsd"|"priceUpdatedAt"|"priceStatus"|"aquaIndexed">;
+export type MarketPrice = Pick<Launch,"id"|"priceUsd"|"pairPriceUsd"|"marketCapUsd"|"fdvUsd"|"priceUpdatedAt"|"priceStatus"|"aquaIndexed">;
 export function mergeMarketPrice(launch:Launch, price:MarketPrice|undefined):Launch {
   if (!price || price.id!==launch.id || (price.priceUpdatedAt??0)<(launch.priceUpdatedAt??0)) return launch;
   return {...launch,...price};

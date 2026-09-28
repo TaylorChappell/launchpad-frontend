@@ -23,7 +23,6 @@ const descriptions: Record<MarketProposalType, string> = {
   cto: "Nominate a new developer wallet and put a clear handover plan to a holder vote.",
 };
 const liveStatuses = ["voting", "funding", "approved", "ready", "withdrawing", "withdrawn"];
-const isFinishedMiniBoost = (proposal: MarketProposal) => proposal.isAutomatic && proposal.type === "dex_boost" && !liveStatuses.includes(proposal.status);
 const blankProfile: DexProfile = { description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" };
 type Dialog = { kind: "create"; type: MarketProposalType } | { kind: "details" | "challenge" | "activity"; proposal: MarketProposal };
 type GovernanceContextValue = {
@@ -51,8 +50,8 @@ export function MarketInformationTabs({ section, onChange, newComments = false, 
     const button = selected.getBoundingClientRect(), bounds = nav.getBoundingClientRect();
     nav.scrollTo({ left: nav.scrollLeft + button.left - bounds.left - (nav.clientWidth - button.width) / 2, behavior: "instant" });
   }, [section]);
-  return <nav ref={navigation} id="market-navigation" className="workspace-tabs market-information-tabs" aria-label="Market navigation">
-    {MARKET_INFORMATION_SECTIONS.map(label => <button key={label} aria-pressed={section === label} aria-controls="market-information" onClick={() => onChange(label)}>
+  return <nav ref={navigation} id="market-navigation" className="workspace-tabs market-information-tabs" role="tablist" aria-label="Market navigation" onKeyDown={event=>{if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;event.preventDefault();const index=MARKET_INFORMATION_SECTIONS.findIndex(value=>value===section);const next=event.key==="Home"?0:event.key==="End"?4:(index+(event.key==="ArrowRight"?1:-1)+5)%5;onChange(MARKET_INFORMATION_SECTIONS[next]);navigation.current?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus({preventScroll:true});}}>
+    {MARKET_INFORMATION_SECTIONS.map(label => <button key={label} id={"market-tab-"+label.toLowerCase()} role="tab" tabIndex={section===label?0:-1} aria-selected={section===label} aria-pressed={section === label} aria-controls="market-information" onClick={() => onChange(label)}>
       <span className="market-tab-label">{label}</span>
       {label === "Community" && <span className="market-tab-indicators">{newComments && <span className="market-unread-dot" aria-label="New community posts" title="New community posts"/>}<RecentUpdateBell at={latestProjectUpdateAt}/></span>}
     </button>)}
@@ -185,11 +184,19 @@ export function MarketProposals() {
   </div>;
 }
 
+function FundingProgress({proposal}:{proposal:MarketProposal}) {
+  if(!["funding","ready","withdrawing","withdrawn","completed"].includes(proposal.status))return null;
+  const stage=proposal.status==="funding"?0:proposal.status==="ready"?1:proposal.status==="completed"?3:2;
+  const refunded=proposal.outcome==="below_minimum"||proposal.outcome==="funding_expired";
+  return <div className="proposal-funding-progress"><ol aria-label="Funding progress">{["Raising funds","Ready","Purchase pending",refunded?"Returned":"Completed"].map((label,index)=><li key={label} aria-current={stage===index?"step":undefined} className={index<stage?"complete":""}>{label}</li>)}</ol><small>{(Number(proposal.fundedLamports)/1e9).toLocaleString(undefined,{maximumFractionDigits:4})} SOL raised · ${proposal.fundedUsd.toFixed(2)} recorded value</small><details><summary>Why can the funding value change?</summary><p>The reserve is in SOL and the purchase is priced in USD. Available buying power changes with SOL’s price and is checked again before spending.</p></details></div>;
+}
+
 function AutomaticProfileCard({ proposal: p }: { proposal: MarketProposal }) {
   const { now } = useProposals();
   const funding = p.status === "funding";
   return <article className="proposal-vote-card automatic-funding-card">
     <header><div><DexScreenerIcon/><h3>DEX profile</h3></div><span className="proposal-state">{funding ? "Auto funding" : p.status === "ready" ? "Ready to purchase" : p.status}</span></header>
+    <FundingProgress proposal={p}/>
     <div className="proposal-funded"><div><span>{funding ? "10% of incoming rewards" : "Profile fund"}</span><b>${p.fundedUsd.toFixed(2)} / $300</b></div><progress value={p.fundedUsd} max={300}/></div>
     {funding && <p className="proposal-detail-note">Expires in {countdown(p.fundingEndsAt ?? now, now)}.</p>}
     {p.outcome === "funding_expired" && <p className="proposal-detail-note">The target was not reached within 24 hours. All funds returned to holders.</p>}
@@ -234,6 +241,7 @@ function ProposalCard({ proposal, compact = false }: { proposal: MarketProposal;
       {(!wallet.address || (!data.testingMode && !data.votePower?.eligible)) && <p className="proposal-eligibility">{voteHint}</p>}
       <details className="proposal-vote-rules"><summary>How this vote passes</summary><p>{proposal.type === "cto" ? "24-hour vote." : "15-minute vote."} Passes when Yes has more than 50% of the eligible voting power cast at the end. Votes are weighted by holdings and held time. No minimum turnout is required. Ties and no votes do not pass.</p></details>
     </>}
+    {(proposal.type === "dex_payment" || proposal.payload.dexService === "community_takeover")&&<FundingProgress proposal={proposal}/>}
     {(proposal.type === "dex_payment" || proposal.payload.dexService === "community_takeover") && ["funding", "ready", "withdrawing", "withdrawn", "completed"].includes(proposal.status) && <div className="proposal-funded"><div><span>Profile funding</span><b>${proposal.fundedUsd.toFixed(2)} / ${proposal.targetUsd.toFixed(0)}</b></div><progress value={proposal.fundedUsd} max={proposal.targetUsd}/></div>}
     {proposal.spendingPaused && <p className="proposal-detail-note">Holders are voting on replacement DEX details. Funding continues and existing SOL stays reserved; spending is paused until the vote resolves.</p>}
     {proposal.payload.dexService === "community_takeover" && <p className="proposal-detail-note">DEX profile takeover · $200 funding target from market fees. AQUA will submit the approved details after funding; DEX Screener reviews the request.</p>}
@@ -286,6 +294,7 @@ function BoostProposalCard({ proposal: p }: { proposal: MarketProposal }) {
   const title = voting ? "Choose the funding rate" : p.status === "approved" ? "Waiting for DEX funding" : p.status === "funding" ? "Funding a DEX boost" : p.outcome === "below_minimum" ? "Funds returned to holders" : p.status === "rejected" ? "Boost not approved" : p.status === "cancelled" ? "Boost cancelled" : p.status === "completed" ? `${p.boostPack}x boost purchased` : `${p.boostPack}x boost funded`;
   return <article className="proposal-vote-card boost-proposal-card">
     <header><div><DexScreenerIcon/><h3>{p.isAutomatic ? "Mini DEX boost" : "DEX boost"}</h3></div><span className={"proposal-state " + p.status}>{p.isAutomatic && p.status === "funding" ? "Auto funding" : p.status === "approved" ? "Queued" : p.status === "ready" ? "Ready to purchase" : p.status === "withdrawn" ? "Purchase pending" : p.status}</span></header>
+    <FundingProgress proposal={p}/>
     {!p.isAutomatic && <h4>{title}</h4>}{!p.isAutomatic && <p className="proposal-reason">{String(p.payload.reason ?? "")}</p>}
     {voting ? <><div className="proposal-vote-meta"><span>{p.eligibleVoters} eligible voters</span><time>{countdown(p.endsAt, now)} left</time></div>
       <div className="boost-poll-options">{boostChoices.map(choice => {
@@ -299,7 +308,7 @@ function BoostProposalCard({ proposal: p }: { proposal: MarketProposal }) {
       {wallet.address && !data.testingMode && !data.votePower?.eligible && <p className="proposal-eligibility">Voting requires a current and time-weighted holding of at least 0.1%.</p>}
       <details className="proposal-vote-rules"><summary>Voting rules</summary><p>15-minute vote, weighted by holdings and held time. Most voting power wins. Ties favour No, then the lower percentage. No votes means no boost.</p></details></> : <>
       {p.fundingPercent && <div className="proposal-funding-terms"><span>Reward allocation <b>{p.fundingPercent}%</b></span><span>{p.status === "funding" ? "Funding ends in" : "Funding period"}<b>{p.status === "funding" && p.fundingEndsAt ? countdown(p.fundingEndsAt, now) : fundingPeriod}</b></span></div>}
-      {p.status === "funding" && <div className="proposal-funded"><div><span>{affordable && p.fundedUsd >= minimum ? `${affordable.boosts}x affordable` : `$${minimum} minimum`}</span><b>${p.fundedUsd.toFixed(2)}</b></div><progress aria-label="Boost funding" value={p.fundedUsd} max={p.fundedUsd < minimum ? minimum : nextPack ? nextPack.cents / 100 : 3999}/><small>{p.isAutomatic && p.fundedUsd < minimum ? "$100 starts a 10x purchase; the pack costs $99." : nextPack ? `$${(nextPack.cents / 100).toLocaleString()} unlocks ${nextPack.boosts}x` : "Largest pack funded. Surplus returns to holders."}</small></div>}
+      {p.status === "funding" && <div className="proposal-funded"><div><span>{affordable && p.fundedUsd >= minimum ? `${affordable.boosts}× ad pack affordable` : `$${minimum} minimum`}</span><b>${p.fundedUsd.toFixed(2)}</b></div><progress aria-label="Boost funding" value={p.fundedUsd} max={p.fundedUsd < minimum ? minimum : nextPack ? nextPack.cents / 100 : 3999}/><small>{p.isAutomatic && p.fundedUsd < minimum ? "$100 funds a 10× advertising pack costing $99." : nextPack ? `$${(nextPack.cents / 100).toLocaleString()} unlocks ${nextPack.boosts}x` : "Largest pack funded. Surplus returns to holders."}</small></div>}
       {p.isAutomatic && p.status === "funding" && <p className="proposal-detail-note">Starts at 90 minutes, plus 20 minutes per milestone. Closes after 30 minutes without a market trade.</p>}
       {Boolean(p.payload.inheritedAutomaticFund) && <p className="proposal-detail-note">Carries the mini fund’s time and milestone progress into this vote.</p>}
       {p.status === "approved" && <p className="proposal-detail-note">Funding starts after the DEX profile is paid and open challenges are resolved.</p>}
@@ -309,7 +318,7 @@ function BoostProposalCard({ proposal: p }: { proposal: MarketProposal }) {
       {p.status === "rejected" && <p className="proposal-detail-note">{p.outcome === "no_votes" ? "No eligible votes were cast." : "No won the poll."}</p>}
       {p.dexOrderReference && <p className="proposal-detail-note">Purchase reference: {p.dexOrderReference}</p>}
     </>}
-    <details className="proposal-public-details"><summary>Boost packs & funding</summary><BoostPackPrices packs={packs}/><p>At $100, $250, $400, $900 and $4,000, funding gains 20 minutes once per milestone. The largest affordable pack is selected when funding closes. Any remainder returns to holders.</p></details>
+    <details className="proposal-public-details"><summary>Advertising packs &amp; funding</summary><p>Boosts buy visibility on DEX Screener. The multiplier describes the advertising pack, not an investment return. Completed campaigns remain in history; eligible activity can start another campaign.</p><BoostPackPrices packs={packs}/><p>At $100, $250, $400, $900 and $4,000, funding gains 20 minutes once per milestone. The largest affordable pack is selected when funding closes. Any remainder returns to holders.</p></details>
     {Boolean(p.openChallenges) && <p className="proposal-detail-note">Purchase paused while a holder challenge is reviewed.</p>}
     {["approved", "funding", "ready"].includes(p.status) && data.enabled && wallet.address && data.votePower?.eligible && <button className="proposal-text-action" disabled={busy} onClick={() => open({ kind: "challenge", proposal: p })}>Challenge proposal</button>}
   </article>;
@@ -320,7 +329,7 @@ export function CommunityProposalVotes() {
   const { config } = useRuntime();
   if ((!config.marketGovernanceEnabled && !launch.showcase) || (data && !data.enabled && !data.automaticFundingEnabled)) return <section className="community-proposals"><h2>Proposals</h2><p>{data?.disabledReason ?? "Proposals are unavailable for this market."}</p></section>;
   if (!data) return <section className="community-proposals"><h2>Proposals</h2>{error ? <div role="alert"><p>Proposals could not be loaded.</p><button className="soft-button" onClick={() => void refresh()}>Retry proposals</button></div> : <p role="status">Loading proposals…</p>}</section>;
-  const proposals = data.proposals.filter((item) => !item.isDefault && !isFinishedMiniBoost(item) && item.outcome !== "transferred_to_vote" && !(!item.isAutomatic && !["cto", "dex_boost"].includes(item.type) && ["rejected", "cancelled"].includes(item.status)));
+  const proposals = data.proposals.filter((item) => !item.isDefault && item.outcome !== "transferred_to_vote" && !(!item.isAutomatic && !["cto", "dex_boost"].includes(item.type) && ["rejected", "cancelled"].includes(item.status)));
   const active = proposals.filter((item) => liveStatuses.includes(item.status));
   const history = proposals.filter((item) => !liveStatuses.includes(item.status));
   return <section className="community-proposals"><header><div><small>{data.enabled ? "HOLDER GOVERNANCE" : "MARKET ACTIVITY"}</small><h2>{data.enabled ? "Community proposals" : "Automatic boost funding"}</h2></div><span>{active.length} active</span></header>{error && <p role="alert">Showing the last proposal update. <button className="proposal-text-action" onClick={() => void refresh()}>Retry proposals</button></p>}{!proposals.length && <p>No community proposals yet.</p>}<div className="community-proposal-grid">{active.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal}/>)}</div>{history.length > 0 && <details className="community-proposal-history"><summary>Past proposals · {history.length}</summary>{history.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal}/>)}</details>}</section>;

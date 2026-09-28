@@ -28,3 +28,10 @@ export function saveMarketSnapshot(key: string, data: MarketPage, now = Date.now
   while (snapshots.size > maxEntries) snapshots.delete(snapshots.keys().next().value!);
   try { sessionStorage.setItem(storageKey, JSON.stringify([...snapshots.values()])); } catch { /* Memory cache remains available. */ }
 }
+
+/** Refresh the visible first page without dropping older loaded pages. Fresh rows win ties. */
+export function refreshMarketSnapshot(cached:MarketPage|null,fresh:MarketPage):MarketPage {
+  if(!cached||!fresh.hasMore||cached.nextOffset<=fresh.nextOffset)return fresh;
+  const ids=new Set(fresh.launches.map(item=>item.id));
+  return {...fresh,launches:[...fresh.launches,...cached.launches.filter(item=>!ids.has(item.id))],hasMore:cached.hasMore,nextOffset:cached.nextOffset};
+}

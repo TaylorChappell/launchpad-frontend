@@ -5,7 +5,7 @@ const states = {
   vote: { label: "DEX vote", title: "Holders are voting on a DEX Screener proposal" },
   funding: { label: "DEX funding", title: "Market rewards are accumulating toward the DEX Screener funding target" },
   funded: { label: "DEX funded", title: "DEX funding target reached; profile payment is awaiting confirmation" },
-  paid: { label: "DEX paid", title: "DEX Screener profile paid, not an endorsement or security verification" },
+  paid: { label: "DEX profile paid", title: "DEX Screener profile paid, not an endorsement or security verification" },
 };
 
 export function DexStatusBadge({ state }: { state: ReturnType<typeof dexBadgeState> }) {

@@ -17,3 +17,5 @@ createRoot(document.getElementById("root")!).render(<StrictMode><RuntimeProvider
 
 import "./x-identity.css";
 import "./mobile.css";
+
+import "./experience.css";

@@ -63,7 +63,7 @@ test('community replaces comments; details and position sit under trading; comme
   await position.locator('summary').click();
   await expect(position.locator('.market-position')).toHaveCount(0);
   state.failComments=true;
-  await tabs.getByRole('button',{name:/^Community/}).click();
+  await tabs.getByRole('tab',{name:/^Community/}).click();
   await expect(page.locator('.community')).toContainText('Temporarily unavailable');
   await expect(tabs.locator('.market-unread-dot')).toBeVisible();
   state.failComments=false;
@@ -76,7 +76,7 @@ test('community replaces comments; details and position sit under trading; comme
   state.comment={id:'00000000-0000-4000-8000-000000000002',createdAt:Date.now()};
   await page.reload();
   await expect(tabs.locator('.market-unread-dot')).toBeVisible();
-  await tabs.getByRole('button',{name:'Transactions',exact:true}).click();
+  await tabs.getByRole('tab',{name:'Transactions',exact:true}).click();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:`/tmp/market-ux-${info.project.name}.png`,fullPage:true});

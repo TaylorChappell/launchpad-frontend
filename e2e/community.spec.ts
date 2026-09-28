@@ -129,7 +129,7 @@ test('formats an update, attaches its image, and creates a holder-only poll',asy
 test('remembers market and community tabs on refresh and when opening another coin',async({page})=>{
  await setup(page);const room=page.locator('.community');await room.getByRole('button',{name:'Polls',exact:true}).click();await page.reload();await expect(room.getByRole('button',{name:'Polls',exact:true})).toHaveAttribute('aria-pressed','true');
  await page.route('**/api/launches/second',async route=>{await route.fulfill({json:{launch:{id:'second',name:'Second coin',symbol:'TWO',creatorWallet:creator,mint:creator,status:'live',pairSymbol:'SOL',stockSymbol:'SOL',pairType:'sol',rewardMode:'holder_rewards',stock:{mint:creator,symbol:'SOL',name:'Solana'},totalSupplyRaw:'1000',tokenDecimals:6,createdAt:Date.now()},trades:[],creatorLock:null,rewardModeState:null}});});
- await page.goto('/#/token/second');await expect(page.getByRole('button',{name:'Community',exact:true})).toHaveAttribute('aria-pressed','true');await expect(page.locator('.community').getByRole('button',{name:'Polls',exact:true})).toHaveAttribute('aria-pressed','true');
+ await page.goto('/#/token/second');await expect(page.getByRole('tab',{name:'Community',exact:true})).toHaveAttribute('aria-pressed','true');await expect(page.locator('.community').getByRole('button',{name:'Polls',exact:true})).toHaveAttribute('aria-pressed','true');
 });
 
 test('AQUA admin can review reports centrally and confirm deletion',async({page})=>{

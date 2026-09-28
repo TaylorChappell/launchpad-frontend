@@ -117,6 +117,7 @@ function LockManager({ launch, onChanged }: { launch: Launch; onChanged?: () => 
       <aside className="manage-quote">
         <h2>{active?"Your updated fee share":"Your creator fee"}</h2><strong>{quote?`${estimatedShare.toFixed(3)}%`:"—"}</strong><p>of each eligible transfer during your lock</p>
         <dl><div><dt>{active?"Combined supply":"Locked supply"}</dt><dd>{quote?`${supplyPercent.toFixed(supplyPercent<.01?4:2)}%`:"—"}</dd></div><div><dt>Total tokens locked</dt><dd>{quote?`${displayTokenAmount(totalLockedRaw,launch.tokenDecimals)} ${launch.symbol}`:"—"}</dd></div><div><dt>Transfer fee on deposit</dt><dd>{quote?.estimatedTransferFeeRaw?`${displayTokenAmount(quote.estimatedTransferFeeRaw,launch.tokenDecimals)} ${launch.symbol}`:"—"}</dd></div><div><dt>New unlock date</dt><dd>{quote?.unlockAt?dateLabel(quote.unlockAt):"—"}</dd></div></dl>
+        <p className="creator-lock-review">These tokens cannot be transferred or sold before the unlock date. Your existing lock, if any, uses the same new date.</p>
         <p>{targetPercent}% of supply for {maximumDays} days reaches the maximum share.</p>
         {quoteError&&<p className="creator-earnings-error" role="alert">{quoteError}</p>}
         <button className="primary full" disabled={busy||Boolean(receipt)||availableRaw===null||BigInt(amountRaw)<=0n||exceedsAvailable||!quote||!canAdd} onClick={()=>void act("lock")}>{busy&&<Loader2 size={16} className="spin"/>}Review lock in wallet</button>

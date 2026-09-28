@@ -60,8 +60,10 @@ function RippleBalances({ address, data, error, onRefresh }: RippleProps) {
     finally { if (current.current === address) setSigning(false); }
   }
   const [visible, setVisible] = useState(5);
+  const [order,setOrder]=useState<"earned"|"recent">("earned");
   const delayed = data?.service?.mode === "paused" || data?.service?.mode === "unavailable" || data?.status === "paused";
   const posts = [...(data?.posts ?? [])].sort((a, b) => {
+    if(order==="recent")return b.createdAt-a.createdAt||b.id.localeCompare(a.id);
     const leftUsd = a.earnedUsdCents == null ? null : BigInt(a.earnedUsdCents);
     const rightUsd = b.earnedUsdCents == null ? null : BigInt(b.earnedUsdCents);
     if (leftUsd !== null && rightUsd === null) return -1;
@@ -74,10 +76,18 @@ function RippleBalances({ address, data, error, onRefresh }: RippleProps) {
     {data?.signedIn === false && <div className="ripple-sign-in"><span>Sign in to AQUA to earn new Ripple rewards.</span><button className="soft-button" disabled={signing} onClick={() => void signIn()}>{signing ? <Loader2 size={14} className="spin"/> : null}Sign in</button></div>}
     {signInError && <p className="danger-note ripple-session-error" role="alert">{signInError}</p>}
     <WalletRewards kind="ripple" compact onClaimed={onRefresh}/>
+    <div className="ripple-feed-tools"><details className="ripple-help"><summary>Missing a post?</summary><div>
+      <p>Posts belong to the X account linked to this wallet. Keep your AQUA sign-in active and hold the coin before posting and when rewards are allocated.</p>
+      <ul><li>Use the coin’s contract address, AQUA market link or explicit $ticker. Shared tickers need the address or market link.</li><li>Views and new engagement affect rewards; a detected post is not a guaranteed payout.</li><li>Previously counted engagement is not paid again. Unused rewards carry forward.</li></ul>
+      <p>{data?.signedIn===false?"Your AQUA sign-in needs renewing using the button above.":data?.signedIn?"Your AQUA session is active.":"Sign-in status is unavailable. Refresh to check."}</p>
+      {data?.reason&&<p>{data.reason}</p>}
+      {data?.posts.filter(post=>post.reason).map(post=><p key={post.launchId+post.id}><a href={`https://x.com/i/status/${post.id}`} target="_blank" rel="noreferrer">${post.symbol} post</a>: {post.reason}</p>)}
+      <button className="soft-button" onClick={onRefresh}>Refresh my posts</button>
+    </div></details><label>Sort posts<select value={order} onChange={e=>{setOrder(e.target.value as "earned"|"recent");setVisible(5);}}><option value="earned">Highest earned</option><option value="recent">Most recent</option></select></label></div>
     <div className="ripple-posts">
       {delayed && <p className="ripple-service-notice" role="status">Post detection is temporarily delayed. Your saved posts and rewards are still here.</p>}
       {error && <p className="danger-note" role="alert">{error} <button className="text-button" onClick={onRefresh}>Try again</button></p>}
-      {!data ? !error && <p className="ripple-empty">Loading your posts…</p> : !data.posts.length ? <p className="ripple-empty">{delayed ? "Your detected posts will appear here." : "No posts yet. Mention a coin’s $ticker or contract address on X to appear here."}</p> : posts.slice(0, visible).map(post => <article key={`${post.launchId}:${post.id}`}>
+      {!data ? !error && <p className="ripple-empty">Loading your posts…</p> : !data.posts.length ? <p className="ripple-empty">{delayed ? "Your detected posts will appear here." : "No posts yet. Hold a coin, stay signed in and include its $ticker or contract address on X."}</p> : posts.slice(0, visible).map(post => <article key={`${post.launchId}:${post.id}`}>
         <div className="ripple-post-top"><div className="ripple-post-identity"><a href={`https://x.com/i/status/${post.id}`} target="_blank" rel="noreferrer">{post.isReply ? "Reply on X" : "Post on X"}<ExternalLink size={13}/></a><small><Link to={`/token/${post.launchId}`}>${post.symbol}</Link> · {new Date(post.createdAt).toLocaleDateString()}</small></div>
           <div className="ripple-post-amount"><b>{rippleDollars(post.earnedUsdCents,post.amountLamports)}</b><small title="USD value when rewards were allocated">Total earned</small></div>
         </div>

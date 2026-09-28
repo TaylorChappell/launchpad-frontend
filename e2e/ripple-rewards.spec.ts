@@ -29,10 +29,10 @@ async function setup(page:Page,pending=false,linked=true,tracking="live",admin=f
 }
 test("Ripple has its own tab with separate claims, post rewards and no mobile overflow",async({page})=>{
   await setup(page);await page.goto("/#/portfolio");
-  const nav=page.getByRole("navigation",{name:"Portfolio sections"});
-  await expect(nav.getByRole("button")).toHaveText(["Holdings0","Rewards","Ripple142","Activity","Created"]);
+  const nav=page.getByRole("tablist",{name:"Portfolio sections"});
+  await expect(nav.getByRole("tab")).toHaveText(["Holdings0","Rewards","Ripple142","Activity","Created"]);
   await expect(page.getByRole("region",{name:"Ripple Rewards",exact:true})).toHaveCount(0);
-  await nav.getByRole("button",{name:/^Ripple\s*142$/}).click();
+  await nav.getByRole("tab",{name:/^Ripple\s*142$/}).click();
   await expect(page).toHaveURL(/tab=ripple/);
   const panel=page.getByRole("region",{name:"Ripple Rewards",exact:true});
   await expect(panel.getByRole("heading",{name:"Ripple Rewards",exact:true})).toBeVisible();
@@ -86,7 +86,7 @@ test("an expired AQUA session can sign in again while existing Ripple claims sta
   await expect(panel.getByRole("button",{name:"Check confirmation",exact:true})).toBeVisible();expect(signatures).toBe(0);
   await panel.getByRole("button",{name:"Sign in",exact:true}).click();
   await expect(panel.getByText("Sign in to AQUA to earn new Ripple rewards.")).toHaveCount(0);expect(signatures).toBe(1);
-  await expect(page.getByRole("navigation",{name:"Portfolio sections"}).getByRole("button",{name:"Ripple",exact:true}).locator("span")).toHaveCount(0);
+  await expect(page.getByRole("tablist",{name:"Portfolio sections"}).getByRole("tab",{name:"Ripple",exact:true}).locator("span")).toHaveCount(0);
   await expect(panel.getByRole("button",{name:"Check confirmation",exact:true})).toBeVisible();
 });
 

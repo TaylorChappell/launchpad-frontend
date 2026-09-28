@@ -34,9 +34,10 @@ async function setup(page: Page, enabled = true, configurationSupported = true, 
       if(r.request().method()==="PUT"){const body=r.request().postDataJSON();expect(body.revision).toBe(privateConfig.revision);for(const op of body.operations){if(op.kind==="variable")privateConfig.variables[op.name]=op.value;else{if(op.action==="remove"){delete secretValues[op.name];privateConfig.secrets=privateConfig.secrets.filter(s=>s.name!==op.name);}else{secretValues[op.name]=op.action==="generate"?"fixture-generated":op.value;privateConfig.secrets=privateConfig.secrets.filter(s=>s.name!==op.name).concat({name:op.name,configured:true});}}}privateConfig.revision++;calls.push("private-save");}
       return r.fulfill({json:privateConfig});
     }
+    if(path.endsWith("/hosting/verify")) return r.fulfill({json:{verified:true,reachable:true,revision:project.revision,message:"Your published version is reachable."}});
     if(path.endsWith("/hosting")) {
       expect(r.request().headers().authorization).toBe(`Bearer ${token}`);
-      if(r.request().method() === "POST") { expect(r.request().postDataJSON()).toEqual({slug:"sea-cat",revision:project.revision}); calls.push("publish");site={slug:"sea-cat",url:"https://stg-sea-cat.aquafamily.fun",revision:1,published:true,publishedAt:Date.now()}; }
+      if(r.request().method() === "POST") { expect(r.request().postDataJSON()).toEqual({slug:"sea-cat",revision:project.revision}); calls.push("publish");site={slug:"sea-cat",url:"https://sea-cat.aquafamily.fun",revision:project.revision,published:true,publishedAt:Date.now()}; }
       if(r.request().method() === "DELETE") { calls.push("unpublish");site.published=false; }
       return r.fulfill({json:{enabled,configurationSupported,domain:"aquafamily.fun",prefix:"stg-",site,...(hosted?{app:{mode:"hosted",database:true,missingSecrets:privateConfig.secrets.filter(s=>!s.configured).map(s=>s.name)}}:{})}});
     }
@@ -104,7 +105,7 @@ test("saves configuration from its own Variables menu and then publishes",async(
 test("an outdated backend cannot silently discard frontend configuration",async({page})=>{
   await setup(page,true,false);
   const dialog=page.getByRole("dialog",{name:"Publish website",exact:true});
-  await expect(dialog.getByRole("alert")).toContainText("backend needs the latest staging deployment");
+  await expect(dialog.getByRole("alert")).toContainText("Publishing settings are temporarily unavailable");
   await expect(dialog.getByRole("button",{name:"Publish website",exact:true})).toBeDisabled();
 });
 
@@ -141,17 +142,18 @@ test("hosted apps show missing secrets, save masked values and publish the whole
   await publish.getByRole("button",{name:"Open Variables & Secrets"}).click();
   const panel=page.getByRole("dialog",{name:"Variables & Secrets",exact:true});
   await panel.getByRole("button",{name:"Backend Private"}).click();
-  await expect(panel.getByText("Required · add a value before publishing")).toBeVisible();
+  await expect(panel.getByText("Required before publishing")).toBeVisible();
   await panel.getByLabel("API_KEY",{exact:true}).fill("fixture-private-key");
   await panel.getByRole("button",{name:"Save changes",exact:true}).click();
-  await expect(panel.getByText("Saved securely",{exact:true})).toBeVisible();
+  await expect(panel.getByText("Configured",{exact:true})).toBeVisible();
   await expect(panel.getByLabel("API_KEY",{exact:true})).toHaveValue("");
   await expect(panel).not.toContainText("fixture-private-key");
   await panel.getByRole("button",{name:"Add backend value"}).click();
   await panel.getByLabel("Name",{exact:true}).fill("SESSION_SECRET");
   await panel.getByLabel("Generate a random app secret").check();
-  await panel.getByRole("button",{name:"Save secret",exact:true}).click();
-  await expect(panel.getByText("Saved securely",{exact:true})).toHaveCount(2);
+  await panel.getByRole("button",{name:"Add to changes",exact:true}).click();
+  await panel.getByRole("button",{name:"Save changes",exact:true}).click();
+  await expect(panel.getByText("Configured",{exact:true})).toHaveCount(2);
   await page.screenshot({path:testInfo.outputPath("backend-secrets.png")});
   expect(await panel.evaluate(el=>el.scrollWidth<=el.clientWidth+2)).toBe(true);
   await panel.getByRole("button",{name:"Close dialog"}).click();
@@ -169,4 +171,33 @@ test("GitHub setup starts closed in Export",async({page})=>{
   await expect(guide).not.toHaveAttribute("open","");
   await guide.locator("summary").click();
   await expect(guide).toHaveAttribute("open","");
+});
+
+test("private settings retain every draft across add, remove and section switches",async({page})=>{
+  const calls=await setup(page,true,true,"",true);
+  await page.getByRole("button",{name:"Open Variables & Secrets"}).click();
+  const panel=page.getByRole("dialog",{name:"Variables & Secrets",exact:true});
+  await panel.getByRole("button",{name:"Backend Private"}).click();
+  await panel.getByLabel("API_KEY",{exact:true}).fill("draft-provider-key");
+  await panel.getByRole("button",{name:"Add backend value"}).click();
+  await panel.getByLabel("Name",{exact:true}).fill("SESSION_SECRET");
+  await panel.getByLabel("Generate a random app secret").check();
+  await panel.getByRole("button",{name:"Add to changes",exact:true}).click();
+  await panel.getByRole("button",{name:"Frontend Public"}).click();
+  await panel.getByRole("button",{name:"Backend Private"}).click();
+  await expect(panel.getByLabel("API_KEY",{exact:true})).toHaveValue("draft-provider-key");
+  await panel.getByRole("button",{name:"Remove API_KEY",exact:true}).click();
+  await expect(panel.getByText("Will be removed",{exact:true})).toBeVisible();
+  expect(calls).toEqual([]);
+  await panel.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(panel.getByLabel("API_KEY",{exact:true})).toHaveValue("draft-provider-key");
+  await panel.getByRole("button",{name:"Close dialog"}).click();
+  await expect(panel.getByText("Your backend settings have unsaved changes.")).toBeVisible();
+  await panel.getByRole("button",{name:"Keep editing"}).click();
+  const request=page.waitForRequest(r=>r.method()==="PUT"&&r.url().endsWith("/private-config"));
+  await panel.getByRole("button",{name:"Save changes",exact:true}).click();
+  const operations=(await request).postDataJSON().operations;
+  expect(operations).toEqual(expect.arrayContaining([{name:"API_KEY",kind:"secret",action:"set",value:"draft-provider-key"},{name:"SESSION_SECRET",kind:"secret",action:"generate"}]));
+  expect(calls).toEqual(["private-save"]);
+  await expect(panel.getByLabel("API_KEY",{exact:true})).toHaveValue("");
 });

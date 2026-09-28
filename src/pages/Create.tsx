@@ -47,7 +47,7 @@ const governanceWizardSteps = [
   { label: "Reward mode", short: "Choose how the holder share works" },
   { label: "Settings", short: "Fees and community funding" },
   { label: "DEX profile", short: "Optional profile draft" },
-  { label: "Dev buy", short: "Optional first buy" },
+  { label: "Review & launch", short: "Review and optional first buy" },
 ] as const;
 const standardWizardSteps = governanceWizardSteps.filter((item) => item.label !== "DEX profile");
 const chainSteps: Array<{ key: ProgressKey; label: string; detail: string }> = [
@@ -607,16 +607,16 @@ export function Create() {
   }
 
   return <main className="page launch-wizard-page launch-wizard-only">
-    {!launching && !completedLaunch && <div className="at-launch-entry"><span><strong>Start with Atlantis Studio.</strong> Create your artwork, website and launch draft in one place.</span><Link to="/studio">Open Studio ↗</Link></div>}
+    {!launching && !completedLaunch && <div className="at-launch-entry"><span>Need artwork or a website? Atlantis Studio can help.</span><Link to="/studio">Open Studio ↗</Link></div>}
     {studioImportMessage && <div className="at-import-notice" role="status">{studioImportMessage}</div>}
-    <PageBubbles count={22}/>
+    <PageBubbles count={6}/>
     {(pending || recoverableLaunch || savedLaunchId) && !launching && !completedLaunch && <section className="launch-resume-banner" aria-label="Resume your launch">
       <span className="resume-coin-bubble" aria-hidden="true">
         {recoverableLaunch && (!pending || pending.launchId === recoverableLaunch.id) ? <TokenMark launch={recoverableLaunch}/> : <RefreshCw/>}
       </span>
       <div className="launch-resume-copy">
         <b>{pending ? form.symbol ? `Continue $${form.symbol}` : "Continue your launch" : recoverableLaunch ? `Continue $${recoverableLaunch.symbol}` : "Continue your previous launch"}</b>
-        <small>Your progress is saved. Continue where you left off.</small>
+        <small>{pending ? `Next: ${chainSteps.find(item=>item.key===pending.stage)?.label??"confirm launch"}. Completed steps are kept.` : "Resume the existing coin. Completed steps will not be repeated."}</small>
       </div>
       <button type="button" onClick={() => void resumeExistingLaunch()}><span>Resume launch</span><ArrowRight aria-hidden="true"/></button>
     </section>}
@@ -627,7 +627,7 @@ export function Create() {
         <section className="launch-simple-status">
           <span className="launching-orb"><Loader2 className="spin"/></span>
           <h2>Launching</h2>
-          <p role="status">{relayMessage || activeProgress}</p>
+          <p role="status">{relayMessage || activeProgress}</p><ol className="launch-progress-steps">{chainSteps.filter(item=>!["funding","devBuy"].includes(item.key)||hasInitialBuy).map(item=><li key={item.key} className={progress[item.key]}><span>{progress[item.key]==="done"?<Check size={14}/>:progress[item.key]==="active"?<Loader2 size={14} className="spin"/>:null}</span>{item.label}{progress[item.key]==="done"&&<small>Complete</small>}</li>)}</ol>
         </section>
       </div>}
       {completedLaunch ? <section className="launch-complete-screen" aria-live="polite">
@@ -644,7 +644,7 @@ export function Create() {
       <aside className="wizard-rail" aria-label="Launch steps">
         <div className="wizard-rail-head"><span>Create coin</span><b>{step + 1} of {wizardSteps.length}</b></div>
         <div className="wizard-rail-track"><i style={{ height: `${(step / (wizardSteps.length - 1)) * 100}%` }}/></div>
-        {wizardSteps.map((item, index) => <button key={item.label} aria-current={index === step ? "step" : undefined} className={`${index === step ? "active" : ""} ${index < step ? "done" : ""}`} onClick={() => { if (index <= step) setStep(index); }} disabled={index > step}>
+        {wizardSteps.map((item, index) => <button key={item.label} aria-current={index === step ? "step" : undefined} className={`${index === step ? "active" : ""} ${index < step ? "done" : ""}`} onClick={() => { if (index <= step || validForStep.slice(0,index).every(Boolean)) setStep(index); }} disabled={index > step && !validForStep.slice(0,index).every(Boolean)}>
           <span>{index < step ? <Check size={15}/> : index + 1}</span><div><b>{item.label}</b><small>{item.short}</small></div>
         </button>)}
         <div className="wizard-rail-pulse" aria-hidden="true"><i/><i/><i/></div>
@@ -664,14 +664,14 @@ export function Create() {
               <Field label="Description" wide><textarea value={form.description} rows={4} maxLength={360} placeholder="What is this coin about?" onChange={(event) => update("description", event.target.value)}/><small className="field-count">{form.description.length}/360</small></Field>
             </div>
           </div>
-          <section className="wizard-socials"><header><span>Socials</span><small>Optional</small></header><div className="wizard-field-grid three">
+          <details className="wizard-socials"><summary>Social links · optional</summary><div className="wizard-field-grid three">
             <Field label="X"><input value={form.xUrl} placeholder="x.com/account or post" onChange={(event) => update("xUrl", event.target.value)}/></Field>
             <Field label="Website"><input value={form.websiteUrl} placeholder="project.com" onChange={(event) => update("websiteUrl", event.target.value)}/></Field>
             <Field label="Telegram"><input value={form.telegramUrl} placeholder="t.me/community" onChange={(event) => update("telegramUrl", event.target.value)}/></Field>
-          </div></section>
+          </div></details>
         </WizardSection>}
 
-        {step === 1 && <WizardSection title="Choose the pair and reward" description="Choose the asset your coin trades against and pays rewards in.">
+        {step === 1 && <WizardSection title="Choose a trading pair" description="This is the asset buyers pay and sellers receive. Choose how rewards work in the next step.">
           <div className="stock-search"><Search size={17}/><input value={stockQuery} aria-label="Search pairs or paste a Pump.fun mint address" placeholder={pairLookupEnabled ? "Search pairs or paste a Pump.fun CA" : "Search SOL, ORCA, or stocks"} onChange={(event) => { setStockQuery(event.target.value); setPairResult(null); setVisibleStocks(10); }}/><span>{pairOptions.length} assets</span></div>
           {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Loading pairs</span></div> : <>
             <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { editedDraftKey.current=draftKey; setStock(item); setAcknowledged(false); }}>
@@ -729,18 +729,19 @@ export function Create() {
           <button className="proposal-text-action" onClick={() => { setDexFundingEnabled(false); setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" }); setStep(devBuyStep); }}>Skip profile details <ArrowRight/></button>
         </WizardSection>}
 
-        {step === devBuyStep && <WizardSection title="Optional dev buy" description="Your buy executes as liquidity opens, before other buyers. Enter SOL or leave zero to skip.">
+        {step === devBuyStep && <WizardSection title="Review & launch" description="Check your coin, settings and cost before approving in your wallet.">
           <Field label={`Optional first buy in ${currencySymbol}`} wide><div className="unit-input launch-amount-input"><input inputMode="decimal" value={form.launchAmount} placeholder="0" onChange={(event) => update("launchAmount", event.target.value.replace(",", ".").replace(/[^0-9.]/g, ""))}/><span>{currencySymbol}</span></div></Field>
           {launchCost && <div className="launch-cost-card">
-            <div><span><b>Estimated launch cost</b><small>before any optional first buy</small></span><strong>{launchCost.estimatedTotalSol.minimum.toFixed(2)}–{launchCost.estimatedTotalSol.maximum.toFixed(2)} SOL</strong></div>
-            <p>Includes the {launchCost.platformFeeSol.toFixed(2)} SOL launch fee and estimated network costs.</p>
+            <div><span><b>Estimated total</b><small>including your optional first buy</small></span><strong>{(launchCost.estimatedTotalSol.minimum+(amountValid?amount:0)).toFixed(2)}–{(launchCost.estimatedTotalSol.maximum+(amountValid?amount:0)).toFixed(2)} SOL</strong></div>
+            <p>Includes the {launchCost.platformFeeSol.toFixed(2)} SOL launch fee and estimated network costs{hasInitialBuy?`, plus your ${form.launchAmount} SOL first buy`:""}.</p>
           </div>}
           <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} · {form.rewardMode === "holder_rewards" ? "Holder Rewards" : form.rewardMode === "buyback_burn" ? "Buyback & Burn" : "Hourly Jackpot"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
           <div className="launch-settings-review"><span>Rewards fee <b>{form.rewardFeeBps/100}%</b></span><span>Ripple share <b>{form.rippleRewardBps/100}%</b></span><button type="button" onClick={() => setStep(settingsStep)}>Edit settings</button></div>
-          <label className="terms-acceptance"><input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)}/><span>I have read and agree to the <Link to="/terms" target="_blank">Terms of Service</Link>, including the cryptoasset, permanent-liquidity and third-party risks.</span></label>
+          <p className="field-help">Fees and Ripple share are fixed at launch. Review them before continuing.</p><label className="terms-acceptance"><input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)}/><span>I have read and agree to the <Link to="/terms" target="_blank">Terms of Service</Link>, including the cryptoasset, permanent-liquidity and third-party risks.</span></label>
           <button className="wizard-launch-button" onClick={() => void beginLaunch()} disabled={!validForStep.every(Boolean) || launching || !acceptedTerms} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
         </WizardSection>}
 
+        {!validForStep[step]&&<p className="wizard-validation" role="status">{step===0?[form.name.trim().length<2?"Add a name (at least 2 characters)":null,form.symbol.trim().length<2?"add a ticker (at least 2 characters)":null,!file?"add artwork":null].filter(Boolean).join(" · "):step===1?"Choose a pair and accept its acknowledgement if required.":step===2?"Choose an available reward mode.":step===settingsStep?"Choose an available fee and Ripple share.":dexProfileEnabled&&step===dexProfileStep?"Fix the profile links, or skip this optional step.":"Enter a valid first-buy amount, or leave it empty."}</p>}
         <footer className="wizard-actions"><button className="wizard-back" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ArrowLeft/> Back</button>{step < wizardSteps.length - 1 && <button className="wizard-next" onClick={nextStep} disabled={!validForStep[step]}>Continue <ArrowRight/></button>}</footer>
       </div>
       </>}

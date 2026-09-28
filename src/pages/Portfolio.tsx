@@ -1,3 +1,4 @@
+import { SectionTabs } from "../components/SectionTabs";
 import { RippleRewards } from "../components/RippleRewards";
 import { WalletIdentity } from "../components/WalletIdentity";
 import { useCallback, useEffect, useState } from "react";
@@ -31,12 +32,13 @@ function PortfolioContent({address}:{address:string|null}){
     if(!address)return;
     const controller=new AbortController();let timer:ReturnType<typeof setTimeout>;
     const load=async()=>{
+      if(document.hidden){timer=setTimeout(()=>void load(),30000);return;}
       try{
         const next=await api.rippleActivity(address,controller.signal);
         if(!Array.isArray(next.posts))throw Error("Post history is unavailable.");
         if(!controller.signal.aborted){setRipple(next);setRippleError("");}
       }catch(e){if(!controller.signal.aborted)setRippleError(e instanceof Error?e.message:"Post history could not load.");}
-      finally{if(!controller.signal.aborted)timer=setTimeout(()=>void load(),document.hidden?30_000:tab==="Ripple"?5_000:20_000);}
+      finally{if(!controller.signal.aborted)timer=setTimeout(()=>void load(),tab==="Ripple"?15_000:60_000);}
     };
     void load();return()=>{controller.abort();clearTimeout(timer);};
   },[address,tab,rippleRevision,revision]);
@@ -49,19 +51,19 @@ function PortfolioContent({address}:{address:string|null}){
     let active=true,pending=false;
     const load=async()=>{
       if(pending)return;pending=true;
-      const results=await Promise.allSettled([api.holdings(address),api.rewards(address),api.claimHistory(address)] as const);
+      const results=await Promise.allSettled([api.holdings(address),api.rewards(address),tab==="Activity"?api.claimHistory(address):Promise.resolve(null)] as const);
       if(active){
         const [h,r,c]=results;const next:Record<string,string>={};
         if(h.status==="fulfilled")setHoldings(h.value.holdings);else next.holdings="Holdings could not refresh.";
         if(r.status==="fulfilled")setRewards(r.value);else next.rewards="Rewards could not refresh.";
-        if(c.status==="fulfilled")setHistory(c.value);else next.activity="Claim history could not refresh.";
+        if(c.status==="fulfilled"){if(c.value)setHistory(c.value);}else next.activity="Claim history could not refresh.";
         setErrors(old=>({...old,holdings:"",rewards:"",activity:"",...next}));
       }pending=false;
     };
     void load();const refresh=()=>{if(document.visibilityState==="visible")void load();};
     const timer=window.setInterval(refresh,20_000);window.addEventListener("focus",refresh);
     return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",refresh);};
-  },[address,revision]);
+  },[address,revision,tab]);
   useEffect(()=>{
     if(!address||tab!=="Created")return;let active=true;
     api.launches({creator:address,status:"live",limit:24,sort:"creator_claims"}).then(d=>{if(active){setCreated(d.launches.filter(l=>l.status==="live"));setMore(d.hasMore);setOffset(d.nextOffset);setErrors(e=>({...e,created:""}));}}).catch(()=>{if(active)setErrors(e=>({...e,created:"Your created markets could not load."}));});
@@ -73,21 +75,19 @@ function PortfolioContent({address}:{address:string|null}){
   const pending=rewards?.markets.reduce((s,m)=>s+m.pendingUsdCents/100,0);
   const refresh=()=>setRevision(n=>n+1);
   if(!address)return <main className="page holder-workspace">
-    <header className="workspace-heading"><div><h1>My holdings</h1><p>A home for the coins and communities you hold.</p></div></header>
-    <section className="portfolio-connect"><div className="portfolio-connect-copy"><span className="workspace-icon"><Wallet size={25}/></span><h1>Your holdings.<br/>Your rewards.</h1><p>Follow your positions, collect your rewards and see what your communities are building.</p><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet <ArrowRight size={17}/></button><Link className="portfolio-connect-help" to="/claim-by-address">Can’t connect your wallet?</Link></div><div className="portfolio-connect-features">
-      <div><Coins/><span><b>Every position, one view</b><p>Your token balances and current market values.</p></span></div>
-      <div><Gift/><span><b>Rewards within reach</b><p>See what’s available and claim directly to your wallet.</p></span></div>
-      <div><Layers3/><span><b>Your community activity</b><p>Claim receipts, governance and the coins you’ve created.</p></span></div>
-    </div></section>
+    <header className="workspace-heading"><div><h1>Portfolio</h1><p>A home for the coins and communities you hold.</p></div></header>
+    <SectionTabs label="Portfolio sections" items={tabs.map(value=>({value,label:value}))} value={tab} onChange={selectTab} className="workspace-tabs" panelId="portfolio-panel"/>
+    <section id="portfolio-panel" role="tabpanel" aria-labelledby={`portfolio-panel-${tab.toLowerCase()}`} className="portfolio-connect compact-connect"><span className="workspace-icon"><Wallet size={25}/></span><h2>{tab==="Ripple"?"Your X posts and Ripple rewards":`Your ${tab.toLowerCase()}, together`}</h2><p>Connect your wallet to view {tab==="Ripple"?"your linked X account, posts and available rewards":tab.toLowerCase()+" for this wallet"}.</p><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet <ArrowRight size={17}/></button><Link className="portfolio-connect-help" to="/claim-by-address">Claim using your wallet address</Link></section>
   </main>;
   return <main className="page holder-workspace">
-    <header className="workspace-heading"><div><h1>My holdings</h1><p>Positions, rewards and the communities you’re part of.</p></div><div className="workspace-heading-actions"><span className="wallet-address"><Wallet size={14}/><WalletIdentity wallet={address}/></span><button className="workspace-refresh" aria-label="Refresh holdings" onClick={refresh}><RefreshCw size={16}/></button></div></header>
+    <header className="workspace-heading"><div><h1>Portfolio</h1><p>Positions, rewards and the communities you’re part of.</p></div><div className="workspace-heading-actions"><span className="wallet-address"><Wallet size={14}/><WalletIdentity wallet={address}/></span><button className="workspace-refresh" aria-label="Refresh holdings" onClick={refresh}><RefreshCw size={16}/></button></div></header>
     {Object.values(errors).some(Boolean)&&<p className="danger-note" role="alert">{Object.values(errors).filter(Boolean).join(" ")} Previous values may be stale. <button className="text-button" onClick={refresh}>Try again</button></p>}
     <section className="portfolio-overview">
       <article className="portfolio-value"><span className="workspace-eyebrow">HOLDINGS VALUE</span><strong>{value===undefined?"—":usd.format(value)}</strong><span>{holdings===null?"Loading positions…":holdings.length+" positions"}{unpriced>0?" · "+unpriced+" awaiting price":""}</span><Link to="/">Explore markets <ArrowUpRight size={15}/></Link></article>
-      <article className="portfolio-reward-summary"><img className="rewards-gift-art" src={import.meta.env.BASE_URL+"aqua-gift.webp"} alt=""/><small>Ready to claim</small><strong>{claimable===undefined?"—":usd.format(claimable)}</strong><div><span>Pending allocation <b>{pending===undefined?"—":usd.format(pending)}</b></span><button className="primary" onClick={()=>selectTab("Rewards")}>View rewards <ArrowRight size={16}/></button></div></article>
+      <article className="portfolio-reward-summary"><img className="rewards-gift-art" src={import.meta.env.BASE_URL+"aqua-gift.webp"} alt=""/><small>Holder rewards available</small><strong>{claimable===undefined?"—":usd.format(claimable)}</strong><div><span>Pending allocation <b>{pending===undefined?"—":usd.format(pending)}</b></span><button className="primary" onClick={()=>selectTab("Rewards")}>View rewards <ArrowRight size={16}/></button></div></article>
     </section>
-    <nav className="workspace-tabs" aria-label="Portfolio sections">{tabs.map(t=><button key={t} aria-current={tab===t?"page":undefined} onClick={()=>selectTab(t)}>{t}{t==="Holdings"&&holdings&&<span>{holdings.length}</span>}{t==="Ripple"&&rippleCount>0&&<span>{rippleCount}</span>}{t==="Rewards"&&rewards?.markets.some(m=>m.canClaim)&&<i/>}</button>)}</nav>
+    <SectionTabs label="Portfolio sections" items={tabs.map(value=>({value,label:<>{value}{value==="Holdings"&&holdings&&<span>{holdings.length}</span>}{value==="Ripple"&&rippleCount>0&&<span>{rippleCount}</span>}{value==="Rewards"&&rewards?.markets.some(m=>m.canClaim)&&<i/>}</>}))} value={tab} onChange={selectTab} className="workspace-tabs" panelId="portfolio-panel"/>
+    <div id="portfolio-panel" role="tabpanel" aria-labelledby={`portfolio-panel-${tab.toLowerCase()}`} tabIndex={0}>
     {tab==="Holdings"&&<section className="workspace-panel">
       <header><h2>Your positions</h2></header>
       {holdings===null?<div className="workspace-loading">{errors.holdings?"Positions unavailable":"Loading your positions…"}</div>:holdings.length?<div className="table-scroll"><table className="market-table position-table"><thead><tr><th>Token</th><th>Balance</th><th>Value</th><th>Rewards</th><th/></tr></thead><tbody>{holdings.map(h=>{
@@ -97,7 +97,7 @@ function PortfolioContent({address}:{address:string|null}){
     </section>}
     {tab==="Ripple"&&<RippleRewards key={address} address={address} data={ripple} error={rippleError} onRefresh={refreshRipple}/>}
     {tab==="Rewards"&&<section className="workspace-panel portfolio-rewards-panel"><header><h2>Your rewards</h2></header><WalletRewards data={rewards} launches={(holdings??[]).map(h=>h.launch)} onClaimed={refresh}/></section>}
-    {tab==="Activity"&&<><section className="workspace-panel"><header><h2>Claim history</h2>{history?.hasMore&&<span>Latest 200 receipts</span>}</header>
+    {tab==="Activity"&&<><section className="workspace-panel"><header><h2>Reward claim history</h2><span>Confirmed claims and updates from your holdings</span>{history?.hasMore&&<span>Latest 200 receipts</span>}</header>
       {history?.lifetime.length?<div className="lifetime-rewards">{history.lifetime.map(t=><div key={t.stock_mint}><small>Total {t.symbol} claimed</small><strong>{displayTokenAmount(t.amount_raw,t.decimals)} <span>{t.symbol}</span></strong></div>)}</div>:null}
       {history===null?<div className="workspace-loading">{errors.activity?"History unavailable":"Loading claim receipts…"}</div>:history.claims.length?<div className="table-scroll"><table className="market-table"><thead><tr><th>Market</th><th>Claimed</th><th>Date</th><th>Receipt</th></tr></thead><tbody>{history.claims.map(c=><tr key={c.signature+c.launch_id}><td><Link to={"/token/"+c.launch_id}>{c.name}</Link></td><td>{displayTokenAmount(c.amount_raw,Number(c.stock_decimals))} {c.reward_symbol}</td><td>{new Date(Number(c.claimed_at)).toLocaleDateString()}</td><td><a href={"https://solscan.io/tx/"+c.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View <ArrowUpRight size={13}/></a></td></tr>)}</tbody></table></div>:<div className="workspace-empty"><Gift/><h3>No claims yet.</h3><p>Your confirmed reward claims will appear here.</p></div>}
     </section>{config.marketGovernanceEnabled&&<HoldingUpdates wallet={address}/>}</>}
@@ -114,5 +114,6 @@ function PortfolioContent({address}:{address:string|null}){
       {created===null?<div className="workspace-loading">{errors.created?"Markets unavailable":"Loading your coins…"}</div>:!created.length&&<div className="workspace-empty"><Layers3/><h3>Build your own community.</h3><p>Launch a coin, then create its website or experience in Atlantis Studio.</p><Link className="primary" to="/create">Launch a coin <ArrowRight size={15}/></Link></div>}
       {more&&<button className="soft-button creator-market-more" disabled={loadingMore} onClick={async()=>{setLoadingMore(true);try{const d=await api.launches({creator:address,status:"live",limit:24,sort:"creator_claims",offset});setCreated(c=>[...(c??[]),...d.launches.filter(l=>l.status==="live")]);setMore(d.hasMore);setOffset(d.nextOffset);}catch{setErrors(e=>({...e,created:"Could not load more coins."}));}finally{setLoadingMore(false);}}}>Load more</button>}
     </section>}
+    </div>
   </main>;
 }

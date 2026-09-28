@@ -284,6 +284,7 @@ export type Launch = {
   fdvUsd: number;
   tvlUsd: number;
   priceUsd: number;
+  pairPriceUsd?: number | null;
   volume24hUsd: number;
   change24h: number;
   holderCount: number;
@@ -525,7 +526,7 @@ export type WalletRewardsResponse = {
   rewards: WalletReward[];
   holdings: WalletRewardHolding[];
   markets: WalletRewardMarket[];
-  rippleClaim?: {availableUsdCents:number;minimumUsdCents:number;canClaim:boolean};
+  rippleClaim?: {availableUsdCents:number;minimumUsdCents:number;canClaim:boolean;settledUsdCents?:number;reason?:string|null};
 };
 
 export type TransactionEnvelope = {

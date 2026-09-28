@@ -12,9 +12,10 @@ type Props = {
   busy: boolean;
   hasBackend: boolean;
   save: () => Promise<StudioProject | null>;
+  onPrivateDirtyChange?: (dirty:boolean)=>void;
   run: (label: string, action: () => Promise<void>) => Promise<void>;
 };
-export function StudioVariables({ project, state, edit, token, dirty, busy, hasBackend, save, run }: Props) {
+export function StudioVariables({ project, state, edit, token, dirty, busy, hasBackend, save, run, onPrivateDirtyChange }: Props) {
   const [section,setSection]=useState<"frontend"|"backend">("frontend");
   const hosted=state.files.some(file=>file.path==="backend/atlantis.json");
   const [supported, setSupported] = useState<boolean | null>(null);
@@ -48,8 +49,8 @@ export function StudioVariables({ project, state, edit, token, dirty, busy, hasB
   return <div className="at-variables">
     <p className="at-variables-intro">Your app’s settings, all in one place.</p>
     <div className="at-config-tabs" role="group" aria-label="Configuration section"><button type="button" aria-pressed={section==="frontend"} onClick={()=>setSection("frontend")}>Frontend<span>Public</span></button><button type="button" aria-pressed={section==="backend"} onClick={()=>setSection("backend")}>Backend<span>Private</span></button></div>
-    {section==="backend"?<StudioBackendVariables projectId={project.id} token={token} busy={busy} run={run}/>:<>
-    {!supported && <p role="alert">Update the staging backend to edit variables.</p>}
+    <div hidden={section!=="backend"}><StudioBackendVariables projectId={project.id} token={token} busy={busy} run={run} onDirtyChange={onPrivateDirtyChange}/></div><div hidden={section!=="frontend"}>
+    {!supported && <p role="alert">Settings are temporarily unavailable. Try again shortly or contact AQUA support.</p>}
     <fieldset className="at-variables-fields" disabled={busy || !supported} aria-label="Website variables">
       <section className="at-variable-section" aria-labelledby={inputId+"-ca-title"}>
         <div className="at-variable-heading"><h3 id={inputId+"-ca-title"}>Contract address</h3><span className="at-variable-key">CA</span></div>
@@ -91,6 +92,6 @@ export function StudioVariables({ project, state, edit, token, dirty, busy, hasB
         <button type="button" className="at-primary" disabled={!dirty || !backendValid} onClick={()=>void run("Saving variables",async()=>{const saved=await save();if(saved && mounted.current)setNotice("Variables saved");})}>Save variables</button>
       </div>
     </fieldset>
-    <p className="at-variables-public">These values are visible to visitors. Add API keys and passwords in Backend.</p></>}
+    <p className="at-variables-public">These values are visible to visitors. Add API keys and passwords in Backend.</p></div>
   </div>;
 }

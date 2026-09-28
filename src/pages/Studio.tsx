@@ -222,6 +222,8 @@ function StudioWorkspace() {
     [notice, setNotice] = useState(""),
     [modal, setModal] = useState<Modal>(null),
     [input, setInput] = useState("");
+  const [privateSettingsDirty,setPrivateSettingsDirty]=useState(false);
+  const [confirmCloseSettings,setConfirmCloseSettings]=useState(false);
   const [repo, setRepo] = useState(""),
     [privateRepo, setPrivateRepo] = useState(true),
     [github, setGithub] = useState<GithubConnection | null>(null),
@@ -502,7 +504,7 @@ function StudioWorkspace() {
     };
   }, [token, project?.id, generationBusy]);
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty && !privateSettingsDirty) return;
     const warn = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
@@ -533,17 +535,18 @@ function StudioWorkspace() {
       window.removeEventListener("beforeunload", warn);
       document.removeEventListener("click", guardNavigation, true);
     };
-  }, [dirty]);
+  }, [dirty,privateSettingsDirty]);
   useEffect(() => {
     if (!modal) return;
     const close = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !taskLock.current) {
+        if(modal==="variables"&&privateSettingsDirty){setConfirmCloseSettings(true);return;}
         setModal(null);
       }
     };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
-  }, [modal]);
+  }, [modal,privateSettingsDirty]);
   async function signIn() {
     await task("Signing in", async () => {
       if (!wallet.address) {
@@ -1374,7 +1377,8 @@ function StudioWorkspace() {
           <div className="at-entry-card at-access-card">
             <img className="at-entry-logo" src={`${import.meta.env.BASE_URL}atlantis-studio-logo.png`} alt="" width={96} height={96} />
             <h2>{wallet.address ? "Opening your studio" : "Open Atlantis Studio"}</h2>
-            <p>{wallet.address ? "Opening your saved projects. Future visits will open automatically while this login remains valid." : "Connect your Solana wallet to access your projects, artwork and websites."}</p>
+            <p>{wallet.address ? "Opening your saved projects. Future visits will open automatically while this login remains valid." : "Describe a website, mini-game or community app. Preview it, add your settings and publish from one workspace."}</p>
+            {!wallet.address&&<div className="at-example-site" aria-label="Example Studio website"><small>EXAMPLE · YOUR COMMUNITY</small><strong>A home for your coin.</strong><span>Your story, market and community links in one place.</span><div><span>Explore market ↗</span><span>Join the community</span></div></div>}
             <button className="at-primary at-entry-continue" disabled={actionDisabled || Boolean(wallet.connecting)} onClick={() => wallet.address ? void signIn() : wallet.setModalOpen(true)}>
               {busy || wallet.connecting ? <><LoaderCircle size={17} className="at-spin" /> Opening Studio</> : wallet.address ? <>Try opening again<ArrowRight size={17} /></> : <>Connect wallet<ArrowRight size={17} /></>}
             </button>
@@ -2427,10 +2431,12 @@ function StudioWorkspace() {
           }
           onClose={() => {
             if (!busy) {
+              if(modal==="variables"&&privateSettingsDirty){setConfirmCloseSettings(true);return;}
               setModal(null);
             }
           }}
         >
+          {modal==="variables"&&confirmCloseSettings&&<div className="at-notice" role="alert"><p>Your backend settings have unsaved changes.</p><button onClick={()=>setConfirmCloseSettings(false)}>Keep editing</button><button onClick={()=>{setPrivateSettingsDirty(false);setConfirmCloseSettings(false);setModal(null);}}>Discard and close</button></div>}
           {error && (
             <p className="at-modal-error" role="alert">
               {error}
@@ -2536,7 +2542,7 @@ function StudioWorkspace() {
               </div>
             </>
           ) : modal === "variables" && project ? (
-            <StudioVariables key={project.id} project={project} state={state ?? project.state} edit={edit} token={token} dirty={dirty} busy={actionDisabled} hasBackend={hasBackend} save={save} run={task}/>
+            <StudioVariables key={project.id} project={project} state={state ?? project.state} edit={edit} token={token} dirty={dirty} busy={actionDisabled} hasBackend={hasBackend} save={save} run={task} onPrivateDirtyChange={setPrivateSettingsDirty}/>
           ) : modal === "publish" && project ? (
             <StudioPublish onOpenVariables={()=>openModal("variables")} key={project.id} project={project} token={token} dirty={dirty} busy={actionDisabled} save={save} run={task}/>
           ) : modal === "export" ? (

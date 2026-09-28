@@ -74,7 +74,7 @@ async function setup(page: Page, restored = false, authenticated = false, signIn
     return r.fulfill({ json: { post:comment } });
   });
   await page.goto("/#/token/coin");
-  await page.getByRole("button", { name: "Community", exact: true }).click();
+  await page.getByRole("tab", { name: "Community", exact: true }).click();
   return posts;
 }
 

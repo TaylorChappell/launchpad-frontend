@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { studioRequest, type StudioProject, type StudioHosting } from "../studio-api";
 
+type Verification = {verified:boolean;reachable:boolean;revision:number|null;message:string};
+type Phase = "idle"|"saving"|"publishing"|"checking";
 type Props = {
   onOpenVariables: () => void;
   project: StudioProject;
@@ -11,6 +13,7 @@ type Props = {
   run: (label: string, action: () => Promise<void>) => Promise<void>;
 };
 export function StudioPublish({ onOpenVariables, project, token, dirty, busy, save, run }: Props) {
+  const [phase,setPhase]=useState<Phase>("idle"),[verification,setVerification]=useState<Verification|null>(null);
   const [hosting, setHosting] = useState<StudioHosting | null>(null);
   const [slug, setSlug] = useState("");
   const [error, setError] = useState("");
@@ -29,12 +32,23 @@ export function StudioPublish({ onOpenVariables, project, token, dirty, busy, sa
     }).catch(error => { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Could not load publishing."); });
     return () => { mounted.current = false; controller.abort(); };
   }, [project.id, token, reload]);
+  async function checkLive(id:string) {
+    setPhase("checking");
+    try {
+      const result=await studioRequest<Verification>(`/projects/${id}/hosting/verify`,token);
+      if(mounted.current)setVerification(result);
+    } catch {
+      if(mounted.current)setVerification({verified:false,reachable:false,revision:null,message:"Published version saved. The live address could not be verified; check again shortly."});
+    } finally { if(mounted.current)setPhase("idle"); }
+  }
   if (error) return <div><p role="alert">{error}</p><button onClick={() => setReload(value => value + 1)}>Try again</button></div>;
   if (!hosting) return <p role="status">Loading website…</p>;
+  const working=busy||phase!=="idle";
   const published = hosting.site?.published;
   const changed = dirty || hosting.configurationChanged || project.revision !== hosting.site?.revision;
   const validSlug = slug.length >= 3 && slug.length <= 40 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug);
   return <div className="at-publish">
+    <ol className="at-publish-progress" aria-label="Publication status">{["Draft","Saved","Publishing","Published"].map((label,index)=><li key={label} aria-current={(phase!=="idle"?2:dirty?0:published&&!changed?3:1)===index?"step":undefined}>{label}</li>)}</ol>
     <p>Publish your app on {hosting.domain}. Your edits stay private until you publish them.</p>
     <div className="at-publish-includes" aria-label="Included in publish"><span>Website</span>{hosting.app?.mode==="hosted"&&<><span>API</span>{hosting.app.database&&<span>App data</span>}</>}</div>
     {hosting.app?.mode==="hosted"&&<p className="at-muted">Your website and API publish together. We check the app before making it live.</p>}
@@ -42,25 +56,32 @@ export function StudioPublish({ onOpenVariables, project, token, dirty, busy, sa
     {!!hosting.app?.missingSecrets.length&&<div className="at-publish-requires"><strong>Add required secrets</strong><p>{hosting.app.missingSecrets.join(", ")}</p><button onClick={onOpenVariables}>Open Variables &amp; Secrets</button></div>}
     {!hosting.enabled && <p className="at-notice">Website publishing is not available yet.</p>}
     <label className="at-field">Website address
-      <div className="at-publish-address"><input aria-label="Website name" value={slug} maxLength={40} disabled={busy || Boolean(hosting.site)} onChange={event => setSlug(event.target.value.toLowerCase())} autoComplete="off" spellCheck={false}/><span>.{hosting.domain}</span></div>
+      <div className="at-publish-address"><input aria-label="Website name" value={slug} maxLength={40} disabled={working || Boolean(hosting.site)} onChange={event => setSlug(event.target.value.toLowerCase())} autoComplete="off" spellCheck={false}/><span>.{hosting.domain}</span></div>
     </label>
     {!hosting.site && <p className="at-muted">Use 3–40 lowercase letters, numbers or hyphens. This address stays with your project.</p>}
-    {published && <div className="at-publish-live"><span><strong>Website published</strong><small>{changed ? "You have changes to publish." : "Your saved version is live."}</small></span><a href={`https://${hosting.site!.slug}.${hosting.domain}`} target="_blank" rel="noreferrer">Visit website ↗</a></div>}
-    {!hosting.configurationSupported && <p role="alert">The backend needs the latest staging deployment before this website can be published.</p>}
+    {published && <div className="at-publish-live"><span><strong>{verification?.verified&&verification.revision===hosting.site?.revision?"Live version verified":"Publication saved"}</strong><small>{changed ? "You have unpublished changes." : "All saved changes are published."}</small><small>Saved version {project.revision} · published version {hosting.site?.revision}</small></span><a href={hosting.site!.url} target="_blank" rel="noreferrer">Visit website ↗</a></div>}
+    {!hosting.configurationSupported && <p role="alert">Publishing settings are temporarily unavailable. Try again later or contact AQUA if this continues.</p>}
+    {phase!=="idle"&&<p className="at-notice" role="status">{phase==="saving"?"Saving your latest changes…":phase==="publishing"?"Checking the app and uploading this version…":"Checking the live address…"}</p>}
+    {verification&&<p role="status" className="at-notice">{verification.message}</p>}
     {notice && <p role="status" className="at-notice">{notice}</p>}
     <div className="at-export-actions">
-      <button className="at-primary" disabled={busy || !hosting.enabled || !hosting.configurationSupported || !validSlug || Boolean(hosting.app?.error) || Boolean(hosting.app?.missingSecrets.length)} onClick={() => void run(hosting.app?.mode==="hosted"?"Checking and publishing app":"Publishing website", async () => {
-        setNotice("");
-        const saved = await save();
-        if (!saved) return;
-        const next = await studioRequest<StudioHosting>(`/projects/${saved.id}/hosting`, token, { slug, revision: saved.revision });
-        if (mounted.current) { setHosting(next); setNotice("Published. Allow up to 15 seconds for the website to update."); setConfirmUnpublish(false); }
+      <button className="at-primary" disabled={working || !hosting.enabled || !hosting.configurationSupported || !validSlug || Boolean(hosting.app?.error) || Boolean(hosting.app?.missingSecrets.length)} onClick={() => void run(hosting.app?.mode==="hosted"?"Checking and publishing app":"Publishing website", async () => {
+        setNotice("");setVerification(null);setPhase("saving");
+        try {
+          const saved = await save();
+          if (!saved) return;
+          setPhase("publishing");
+          const next = await studioRequest<StudioHosting>(`/projects/${saved.id}/hosting`, token, { slug, revision: saved.revision });
+          if (mounted.current) { setHosting(next); setConfirmUnpublish(false); await checkLive(saved.id); }
+        } finally { if(mounted.current)setPhase("idle"); }
       })}>{published ? "Publish changes" : hosting.app?.mode==="hosted"?"Publish app":"Publish website"}</button>
-      {published && <button disabled={busy} onClick={() => setConfirmUnpublish(true)}>Unpublish</button>}
+      {published&&<button disabled={working} onClick={()=>void checkLive(project.id)}>Check live website</button>}
+      {published && <button disabled={working} onClick={() => setConfirmUnpublish(true)}>Unpublish</button>}
     </div>
-    {confirmUnpublish && <div className="at-publish-confirm"><p>Take this website offline? Your project and its address will be kept.</p><div className="at-export-actions"><button disabled={busy} onClick={() => void run("Taking website offline", async () => {
+    {!hosting.site&&!validSlug&&<p className="at-muted">Enter a valid website name to publish.</p>}
+    {confirmUnpublish && <div className="at-publish-confirm"><p>Take this website offline? Your project and its address will be kept.</p><div className="at-export-actions"><button disabled={working} onClick={() => void run("Taking website offline", async () => {
       const next = await studioRequest<StudioHosting>(`/projects/${project.id}/hosting`, token, undefined, "DELETE");
-      if (mounted.current) { setHosting(next); setConfirmUnpublish(false); setNotice("Unpublished. It may take up to 15 seconds to go offline."); }
-    })}>Unpublish website</button><button disabled={busy} onClick={() => setConfirmUnpublish(false)}>Cancel</button></div></div>}
+      if (mounted.current) { setHosting(next); setVerification(null); setConfirmUnpublish(false); setNotice("Unpublished. It may take up to 15 seconds to go offline."); }
+    })}>Unpublish website</button><button disabled={working} onClick={() => setConfirmUnpublish(false)}>Cancel</button></div></div>}
   </div>;
 }

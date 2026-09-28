@@ -1,3 +1,5 @@
+import { rawUsd, usd } from "../money";
+import { isPriceLive } from "../market-prices";
 import { useAssetBalance } from "../useAssetBalance";
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
@@ -16,11 +18,11 @@ export function TradePanel({ launch, pairDecimals, initialSide = "buy", onBusyCh
   const [side, setSide] = useState<"buy" | "sell">(initialSide);
   const [currency, setCurrency] = useState<"SOL" | "PAIR">("SOL");
   const [amount, setAmount] = useState("");
-  const [slippageInput, setSlippageInput] = useState("15");
+  const [slippageInput, setSlippageInput] = useState("1");
   const slippage = Math.round(Number(slippageInput) * 100);
   const validSlippage = /^\d+(?:\.\d{0,2})?$/.test(slippageInput) && slippage >= 0 && slippage <= 5_000;
   const [acceptedRisk,setAcceptedRisk] = useState(false);
-  const highSlippage = slippage > 1500;
+  const highSlippage = slippage >= 500;
   useEffect(()=>setAcceptedRisk(false),[slippageInput,launch.id,side,amount]);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteError, setQuoteError] = useState("");
@@ -47,9 +49,11 @@ export function TradePanel({ launch, pairDecimals, initialSide = "buy", onBusyCh
   const valid = validSlippage && /^\d+$/.test(raw) && BigInt(raw) > 0n && outputDecimals !== null;
   const insufficient = balance !== null && /^\d+$/.test(raw) && BigInt(raw)>BigInt(balance);
   const assetKey = [launch.id, side, buyCurrency].join(":");
-  const displayed = amount && quote?.assetKey === assetKey ? quote : null;
   const key = [launch.id, side, buyCurrency, raw, slippage].join(":");
   const current = quote?.key === key && clock - quote.receivedAt < 25_000 ? quote : null;
+  const displayed = current;
+  const outputPrice = isPriceLive(launch, clock) ? side === "buy" ? launch.priceUsd : launch.pairPriceUsd : null;
+  const receiveUsd = displayed ? rawUsd(displayed.estimated, outputDecimals, outputPrice) : null;
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(Date.now()), 1_000);
@@ -118,16 +122,22 @@ export function TradePanel({ launch, pairDecimals, initialSide = "buy", onBusyCh
       {inputSymbol === "SOL" && side === "buy" && <div className="trade-presets">{["0.1", "0.5", "1"].map((value) => <button key={value} onClick={() => setAmount(value)}>{value} SOL</button>)}</div>}
       {wallet.address && <div className="trade-detail-row"><span>Available</span><strong>{balance !== null && inputDecimals !== null ? displayTokenAmount(balance,inputDecimals) : "Balance unavailable"} {inputSymbol}</strong></div>}
       {side === "sell" && balance !== null && <div className="trade-presets">{[25,50,75,100].map(percent=><button key={percent} onClick={()=>setAmount(displayTokenAmount((BigInt(balance)*BigInt(percent)/100n).toString(),launch.tokenDecimals).replaceAll(",",""))}>{percent===100?"Max":percent+"%"}</button>)}</div>}
-      <div className="trade-receive"><span>Estimated received</span><strong>{displayed && outputDecimals !== null ? displayTokenAmount(displayed.estimated, outputDecimals) : "—"}</strong><b>{outputSymbol}</b></div>
+      <div className="trade-receive"><span>Estimated received</span><strong>{displayed && outputDecimals !== null ? displayTokenAmount(displayed.estimated, outputDecimals) : "—"}</strong><b>{outputSymbol}</b>{receiveUsd !== null && <small>≈ {usd(receiveUsd)}</small>}</div>
+      <dl className="trade-quote-summary"><div><dt>Minimum received</dt><dd>{displayed && outputDecimals !== null ? displayTokenAmount(displayed.minimum, outputDecimals) + " " + outputSymbol : "—"}</dd></div><div><dt>Price impact</dt><dd>{displayed?.impact != null ? displayed.impact.toFixed(2) + "%" : "Not supplied by this route"}</dd></div></dl>
+      {displayed?.impact != null && displayed.impact >= 5 && <p className="danger-note">High price impact. A smaller trade may receive a better rate.</p>}
+      {side === "sell" && <p className="trade-route-note">You receive {outputSymbol}{receiveUsd !== null ? ` (approximately ${usd(receiveUsd)})` : ""}. Network costs are additional.</p>}
       <label className="slippage-control">Slippage<span className="custom-slippage"><input aria-label="Slippage percentage" inputMode="decimal" value={slippageInput} onChange={(event) => { const value = event.target.value.replace(",", "."); if (/^\d*\.?\d{0,2}$/.test(value)) setSlippageInput(value); }}/><span>%</span></span></label>
     </fieldset>
+    <p className="trade-route-note">Slippage limits price movement after the quote; it is not an extra fee.</p>
     {highSlippage && <label className="trade-ack danger-note"><input type="checkbox" checked={acceptedRisk} onChange={e=>setAcceptedRisk(e.target.checked)}/>I accept up to {slippageInput}% price movement. This tolerance is separate from transfer fees and can result in substantially less received.</label>}
     {insufficient && <p role="alert" className="danger-note">Insufficient {inputSymbol}. Reduce the amount or add funds to your wallet.</p>}
     {(!validSlippage || quoteError || (amount && !valid) || (!displayed && !busy)) && <div className="quote-status" aria-live="polite"><span className={quoteError ? "quote-error" : ""}>{!validSlippage ? "Enter a slippage percentage from 0 to 50%." : quoteError || (pending ? "Getting quote…" : amount && !valid ? "Enter a valid amount within the asset’s decimal precision." : "Enter an amount to get a quote.")}</span></div>}
     {current?.route === "jupiter_then_orca" && <p className="trade-route-note">Two wallet approvals: SOL converts to {launch.pairSymbol}, then buys {launch.symbol}. The estimate uses the minimum conversion output.</p>}
     <button className="primary full" disabled={Boolean(launch.showcase) || busy || (Boolean(wallet.address) && (!canTrade || !current || Boolean(quoteError) || pending || insufficient || (highSlippage && !acceptedRisk)))} onClick={() => void execute()}>{busy ? <><Loader2 className="spin"/>Waiting for confirmation</> : launch.showcase ? "Preview only" : !wallet.address ? "Connect wallet" : !canTrade ? "Trading unavailable" : !current ? "Quote required" : `${side === "buy" ? "Buy" : "Sell"} ${launch.symbol}`}</button>
+    {wallet.address && pending && <p className="trade-route-note" role="status">Refreshing your quote…</p>}
+    {wallet.address && valid && !current && !pending && !quoteError && <p className="trade-route-note">Quote expired. <button className="text-button" onClick={()=>setRefresh(n=>n+1)}>Get a fresh quote</button></p>}
     {!canTrade && <p className="trade-route-note">{launch.showcase ? "Sample market. Trading is disabled." : launch.status !== "live" ? "Trading opens after launch confirmation." : "Transactions are currently unavailable."}</p>}
     {status && <p className="trade-result" role="status">{status}{signature && <a href={`https://solscan.io/tx/${signature}${config.network === "devnet" ? "?cluster=devnet" : ""}`} target="_blank" rel="noreferrer">View transaction <ExternalLink size={12}/></a>}</p>}
-    <details className="execution-breakdown"><summary>Fees &amp; execution</summary><dl><div><dt>Route</dt><dd>{current ? current.route === "orca" ? "Orca Whirlpool" : current.route === "jupiter" ? "Jupiter" : `Jupiter → ${launch.pairSymbol} → Orca` : "Quoted before approval"}</dd></div><div><dt>Token transfer fee</dt><dd>{(launch.transferFeeBps / 100).toFixed(2)}%</dd></div></dl><p>Swap quotes account for applicable token transfer fees. Solana transaction fees and account rent are additional and shown in your wallet. Quotes can change before approval.</p></details>
+    <details className="execution-breakdown"><summary>Fees &amp; execution</summary><dl><div><dt>Route</dt><dd>{current ? current.route === "orca" ? "Orca Whirlpool" : current.route === "jupiter" ? "Jupiter" : `Jupiter → ${launch.pairSymbol} → Orca` : "Quoted before approval"}</dd></div><div><dt>Rewards fee</dt><dd>{((launch.rewardFeeBps ?? Math.max(100, launch.transferFeeBps - 100)) / 100).toFixed(2)}%</dd></div><div><dt>Platform fee</dt><dd>1%</dd></div><div><dt>Orca fee</dt><dd>{launch.orcaFeeRate == null ? "Included in quote" : (launch.orcaFeeRate / 10000).toFixed(2) + "%"}</dd></div></dl><p>The quote includes applicable swap and token transfer fees; do not add these fees again. Solana transaction fees and account rent are additional and shown in your wallet. Quotes can change before approval.</p></details>
   </section>;
 }

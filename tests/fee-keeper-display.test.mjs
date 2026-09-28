@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { keeperAmount, keeperSteps, keeperUsd } from '../src/fee-keeper-display.ts';
+import { keeperAmount, keeperSteps, keeperUsd, keeperHealth } from '../src/fee-keeper-display.ts';
 
 test('token display preserves integers above the JS safe range and handles decimals, zero, dust and unknown values', () => {
   assert.equal(keeperAmount('9007199254740993',6),'9,007,199,254.740993');
@@ -19,4 +19,13 @@ test('direct SOL swaps are not duplicated when legacy pool and final-swap signat
   assert.equal(steps.filter(s=>s.signature==='pool').length,1);
   assert.equal(steps.find(s=>s.signature==='pool').bytes,null);
   assert.equal(steps.find(s=>s.signature==='pool').status,'recorded');
+});
+
+test('keeper health distinguishes pacing, stalled updates and per-market failures',()=>{
+  const data={generatedAt:1_000_000,settings:{intervalMs:60_000},summary:{lastAttemptAt:990_000,active:0,blocked:0}};
+  assert.equal(keeperHealth(data).label,'Waiting');
+  data.summary.active=2;assert.equal(keeperHealth(data).label,'Running');
+  data.summary.blocked=1;assert.equal(keeperHealth(data).label,'Needs attention');
+  data.summary.lastAttemptAt=700_000;assert.equal(keeperHealth(data).label,'Stale');
+  data.summary.lastAttemptAt=null;assert.equal(keeperHealth(data).label,'Stale');
 });

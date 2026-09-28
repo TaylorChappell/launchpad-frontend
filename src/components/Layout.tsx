@@ -1,6 +1,6 @@
 import { XConnect } from "./XConnect";
 import { Compass, Menu, PanelsTopLeft, Plus, Search, X, WalletCards, ChevronDown } from "lucide-react";
-import { StudioAnnouncement } from "./StudioAnnouncement";
+import { usePageScroll } from "../navigation-state";
 import { NavLink, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRuntime, useWallet } from "../context";
@@ -17,7 +17,7 @@ const links = [
   { to: "/", label: "Explore", icon: Compass },
   { to: "/create", label: "Launch", icon: Plus },
   { to: "/studio", label: "Atlantis Studio", icon: PanelsTopLeft },
-  { to: "/portfolio", label: "My holdings", icon: WalletCards },
+  { to: "/portfolio", label: "Portfolio", icon: WalletCards },
 ];
 const bottomLinks = links.map(link => ({ ...link, label: link.to === "/studio" ? "Studio" : link.to === "/portfolio" ? "Portfolio" : link.label }));
 const moreLinks = [
@@ -30,6 +30,7 @@ const moreLinks = [
 const COMMUNITY_UPDATE_KEY = "aqua:update:holder-workspace-v2";
 
 export function Layout({ children }: { children: ReactNode }) {
+  usePageScroll();
   const wallet = useWallet();
   const currentPath = useLocation().pathname;
   const trading = currentPath.startsWith("/token/") || currentPath.startsWith("/studio");
@@ -39,9 +40,6 @@ export function Layout({ children }: { children: ReactNode }) {
   const moreMenu = useRef<HTMLDetailsElement>(null);
   useEffect(() => { document.documentElement.dataset.theme = "light"; }, []);
   useEffect(() => { if (moreMenu.current) moreMenu.current.open = false; setMobile(false); }, [currentPath]);
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }, [currentPath]);
   useEffect(() => {
     const root = document.documentElement;
     const measure = () => {
@@ -104,6 +102,7 @@ export function Layout({ children }: { children: ReactNode }) {
   }, [searchOpen, wallet.modalOpen]);
 
   return <div className={`app-shell ${trading ? "trading-shell" : ""} ${currentPath.startsWith("/studio")?"studio-shell":""}`}>
+    <a className="skip-link" href="#main-content" onClick={event=>{event.preventDefault();const main=document.querySelector("main");if(main){main.tabIndex=-1;main.focus();main.scrollIntoView({block:"start"});}}}>Skip to content</a>
     {isPreview && <div className="environment-bar"><span>{config.useTestnet ? "DEVNET PREVIEW" : "TRANSACTIONS PAUSED"}</span><p>{config.useTestnet ? "No live funds are used." : "The live program is not currently accepting transactions."}</p></div>}
     <header className="site-header" ref={header}>
       <div className="header-inner">
@@ -117,7 +116,8 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </div>
     </header>
-    {error && <div className="system-banner"><b>Backend unavailable</b><span>Live data could not be loaded. Actions remain disabled until the connection recovers.</span></div>}
+    {error && <div className="system-banner"><b>Connection interrupted</b><span>Live data could not be loaded. Actions remain disabled until the connection recovers.</span></div>}
+    {showCommunityUpdate && <aside className="aqua-update-banner" aria-label="AQUA update"><span>Build your coin’s website with Atlantis Studio.</span><NavLink to="/studio">Explore Studio</NavLink><button aria-label="Dismiss update" onClick={()=>setShowCommunityUpdate(false)}><X size={16}/></button></aside>}
     {children}
     <footer className="site-footer">
       <small>© {new Date().getFullYear()} AQUA. All rights reserved.</small>
@@ -127,7 +127,6 @@ export function Layout({ children }: { children: ReactNode }) {
         <a href="https://www.orca.so/" target="_blank" rel="noreferrer" aria-label="Visit Orca" title="Orca"><OrcaMark/></a>
       </div>
     </footer>
-    {showCommunityUpdate && <StudioAnnouncement onClose={()=>setShowCommunityUpdate(false)}/>}
     <nav className="bottom-nav" aria-label="Mobile navigation">{bottomLinks.map((link) => { const Icon = link.icon; return <NavLink key={link.to} to={link.to} end={link.to === "/"}><Icon size={20} /><span>{link.label}</span></NavLink>; })}<button aria-label="More navigation" aria-expanded={mobile} aria-controls="mobile-navigation" onClick={()=>setMobile(true)} className={moreLinks.some(link=>link.to===currentPath)?"active":""}><Menu size={20}/><span>More</span></button></nav>
     {mobile && <MobileNavigation onClose={()=>setMobile(false)} onSearch={()=>{setMobile(false);setSearchOpen(true);}}/>}
     <WalletModal />

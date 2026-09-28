@@ -46,16 +46,16 @@ timingSafeEqual(
 );`;
 
 function CopyButton({ value, label = "Copy" }: { value: string; label?: string }) {
-  const [copied, setCopied] = useState(false);
-  return <button className="dev-copy" onClick={async () => { await navigator.clipboard.writeText(value); setCopied(true); window.setTimeout(() => setCopied(false), 1600); }} aria-label={`Copy ${label}`}>
-    {copied ? <Check/> : <Clipboard/>}<span>{copied ? "Copied" : label}</span>
+  const [copied, setCopied] = useState(false),[error,setError]=useState(false);
+  return <button className="dev-copy" onClick={async () => { try { await navigator.clipboard.writeText(value); setCopied(true);setError(false); window.setTimeout(() => setCopied(false), 1600); } catch {setError(true);setCopied(false);} }} aria-label={`Copy ${label}`}>
+    {copied ? <Check/> : <Clipboard/>}<span>{error ? "Select text to copy" : copied ? "Copied" : label}</span>
   </button>;
 }
 
 export function Developers() {
   const { enabled: xEnabled } = useXFeature();
   const baseHost = useMemo(() => { try { return new URL(API_URL).host; } catch { return API_URL; } }, []);
-  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth", block: "start" });
 
   return <main className="dev-page">
     <section className="dev-hero">
@@ -78,6 +78,7 @@ export function Developers() {
           <p>The AQUA API serves normalized data from AQUA’s indexers. Responses use JSON, event <code>created</code> timestamps are Unix milliseconds, scheduled round boundaries are Unix seconds, raw token quantities are strings, and monetary values are returned in human-readable units.</p>
           <div className="dev-code"><header><span>Request</span><CopyButton value={curlExample}/></header><pre><code>{curlExample}</code></pre></div>
           <p>Use <code>{API_URL}/v1</code> for new integrations. The previous <code>{LEGACY_PUBLIC_API_ORIGIN}/v1</code> address remains supported. Public data reads work directly from browsers, including Atlantis websites.</p>
+          <details className="dev-pagination"><summary>Reading a paginated response</summary><p>Market lists return <code>data</code>, <code>hasMore</code> and <code>nextCursor</code>. Request up to 100 rows with <code>limit</code>, then pass <code>nextCursor</code> as the next request’s <code>cursor</code>. Stop when <code>hasMore</code> is false. Events instead use their sequence as the cursor.</p><pre>{JSON.stringify({object:"list",data:[],hasMore:false,nextCursor:null},null,2)}</pre><small>Example empty market response.</small></details>
           <div className="dev-callout"><ShieldCheck/><div><b>Read-only by design</b><span>The public API does not expose keeper, admin or transaction-signing routes. Public reads need no account. Managing webhooks requires a wallet-authenticated AQUA session.</span></div></div>
         </section>
 
@@ -89,7 +90,11 @@ export function Developers() {
 
         <section id="endpoints" className="dev-section">
           <span className="dev-kicker"><Code2/>REST API</span><h2>Endpoints</h2><p>Collection routes support <code>limit</code> and <code>cursor</code>. Market IDs may be replaced with the market token mint where noted.</p>
-          <div className="dev-endpoints">{endpoints.filter(([, path]) => xEnabled || !path.startsWith("/v1/wallets/")).map(([method, path, description]) => <div key={`${method}:${path}`}><span className={`dev-method ${method.toLowerCase()}`}>{method}</span><code>{path}</code><p>{description}</p><ChevronRight/></div>)}</div>
+          <div className="dev-endpoints">{endpoints.filter(([, path]) => xEnabled || !path.startsWith("/v1/wallets/")).map(([method, path, description]) => {
+            const authenticated=path.startsWith("/v1/webhooks");
+            const request=`curl -X ${method} "${API_URL}${path}"`+(authenticated?' -H "Authorization: Bearer SESSION_TOKEN"':' -H "Accept: application/json"')+(method==="POST"&&path==="/v1/webhooks"?` -H "Content-Type: application/json" --data '{"url":"https://your-app.example/events","eventTypes":["market.live"]}'`:"");
+            return <details key={`${method}:${path}`}><summary><span className={`dev-method ${method.toLowerCase()}`}>{method}</span><code>{path}</code><p>{description}</p><ChevronRight/></summary><div className="dev-endpoint-example"><p>{authenticated?"Requires your wallet session. Never expose session tokens in public frontend code.":"Public read · no API key required."} Replace <code>:wallet</code> with a wallet address or <code>:id</code> with the resource ID where shown.</p><div className="dev-code"><header><span>Example request</span><CopyButton value={request}/></header><pre><code>{request}</code></pre></div></div></details>;
+          })}</div>
         </section>
 
         <section id="events" className="dev-section">

@@ -43,7 +43,7 @@ export type AdminFeeKeeperResponse = {
   settings: { enabled: boolean; conversionEnabled: boolean; slicingEnabled: boolean; intervalMs: number;
     conversionIntervalMs?: number; catchupEnabled?: boolean; buyParticipationBps?: number;
     minimumUsd: number; preferredSliceUsd: number; clearHours: number; maxImpactBps: number; slippageBps: number };
-  summary: { markets: number; active: number; blocked: number; lastAttemptAt: number | null;
+  summary: { lastSaleAt?:number|null; markets: number; active: number; blocked: number; lastAttemptAt: number | null;
     throughput?: {backlogUsd: number | null; incomingHourUsd: number | null; convertedHourUsd: number | null; catchupMarkets: number; unknownPrices: number};
     sales: { count: number; solLamports: string; averageLamports: string; largestLamports: string; estimatedTimeCount: number };
     transactions: { confirmed: number; feeLamports: string; missingFeeCount: number } };
@@ -62,4 +62,13 @@ export function keeperSteps(conversion: KeeperConversion): KeeperStep[] {
     }
   }
   return steps.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+}
+
+// This describes recorded activity, not a separate daemon's process health.
+export function keeperHealth(data: AdminFeeKeeperResponse) {
+  const last=data.summary.lastAttemptAt;
+  if(!last||data.generatedAt-last>Math.max(180_000,data.settings.intervalMs*3))return {label:"Stale",tone:"stale",message:"No recent keeper update. Check the keeper service and its connection."};
+  if(data.summary.blocked>0)return {label:"Needs attention",tone:"blocked",message:`${data.summary.blocked} market${data.summary.blocked===1?"":"s"} blocked. Open the affected row for the reason.`};
+  if(data.summary.active>0)return {label:"Running",tone:"running",message:`${data.summary.active} conversion${data.summary.active===1?"":"s"} in progress. Review the queue for the next step.`};
+  return {label:"Waiting",tone:"waiting",message:"Recent checks recorded. Markets may be waiting for enough fees, buying activity or a safe quote."};
 }
