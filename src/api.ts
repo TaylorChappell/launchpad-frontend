@@ -21,7 +21,7 @@ export class ApiError extends Error {
 }
 
 export type AddressClaimMarket = { launchId: string; name: string; symbol: string; availableLamports: string; pendingLamports: string };
-export type AddressClaimChallenge = { id: string; token: string; wallet: string; launchId: string; kind: "creator" | "cumulative" | "legacy"; epochId: string | null; depositAddress: string; amountLamports: number; usdc?: { mint: string; minimumRaw: string; decimals: number }; expiresAt: number };
+export type AddressClaimChallenge = { id: string; token: string; wallet: string; launchId: string; kind: "creator" | "cumulative" | "legacy"; epochId: string | null; depositAddress: string; amountLamports: number; usdc?: { mint: string; minimumRaw: string; decimals: number }; expiresAt: number; recoveryExpiresAt?: number };
 const addressClaimAuth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
 async function uncachedRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -51,7 +51,7 @@ export const api = {
   confirmRippleClaim: (claimant:string,signature:string,epochIds:string[]) => request<{claimed:true;signature:string}>("/api/ripple/confirm",json({claimant,signature,epochIds})),
   addressClaimLookup: (wallet: string) => uncachedRequest<{ wallet: string; claimsEnabled: boolean; rewardClaimsEnabled: boolean; markets: AddressClaimMarket[] }>(`/api/address-claims/${encodeURIComponent(wallet)}`),
   addressClaimStart: (wallet: string, launchId: string, kind: "creator" | "cumulative" | "legacy" = "creator", epochId?: string) => request<AddressClaimChallenge>("/api/address-claims/challenges", json({wallet,launchId,kind, ...(epochId ? {epochId} : {})})),
-  addressClaimStatus: (id: string, token: string) => uncachedRequest<{ verified: boolean; signature: string | null; expiresAt: number; claimed: boolean; payout: {status:string;signature:string|null}|null; usdc?: AddressClaimChallenge["usdc"] }>(`/api/address-claims/challenges/${encodeURIComponent(id)}`,{headers:addressClaimAuth(token)}),
+  addressClaimStatus: (id: string, token: string) => uncachedRequest<{ verified: boolean; signature: string | null; expiresAt: number; recoveryExpiresAt?: number; claimed: boolean; payout: {status:string;signature:string|null}|null; usdc?: AddressClaimChallenge["usdc"] }>(`/api/address-claims/challenges/${encodeURIComponent(id)}`,{headers:addressClaimAuth(token)}),
   addressClaimVerify: (id: string, token: string, signature: string) => request<{verified:boolean;signature:string}>(`/api/address-claims/challenges/${encodeURIComponent(id)}/verify`,{...json({signature}),headers:{"Content-Type":"application/json",...addressClaimAuth(token)}}),
   addressClaimPayout: (id: string, token: string) => request<{id:string;status:string;signature:string|null}>(`/api/address-claims/challenges/${encodeURIComponent(id)}/claim`,{...json({}),headers:{"Content-Type":"application/json",...addressClaimAuth(token)}}),
   showcase: (signal?:AbortSignal) => request<{enabled:boolean;launches:Launch[]}>("/api/showcase",{signal}),

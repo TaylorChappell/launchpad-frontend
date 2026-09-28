@@ -8,6 +8,7 @@ import type { WalletRewardMarket, WalletRewardsResponse } from "../types";
 import "../address-claims.css";
 import { RewardClaimShare, type SharedRewardClaim } from "../components/RewardClaimShare";
 import { useRuntime } from "../context";
+import { addressClaimSignature } from "../address-claim-signature";
 
 const formatSol = (lamports: string) => (Number(lamports) / 1_000_000_000).toLocaleString("en", { maximumFractionDigits: 6 });
 const formatUsd = (cents: number) => new Intl.NumberFormat("en", { style: "currency", currency: "USD" }).format(cents/100);
@@ -20,13 +21,14 @@ export function ClaimByAddress() {
   const [challenge,setChallenge]=useState<AddressClaimChallenge|null>(null),[verified,setVerified]=useState(false);
   const [payout,setPayout]=useState<{status:string;signature:string|null}|null>(null),[claimed,setClaimed]=useState(false),[popupOpen,setPopupOpen]=useState(false);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[now,setNow]=useState(Date.now());
+  const [paymentSignature,setPaymentSignature]=useState("");
   const [share,setShare]=useState<SharedRewardClaim|null>(null);
   const [shareOpen,setShareOpen]=useState(false);
   const sharedSignature=useRef("");
   useEffect(()=>{if(!challenge || verified) return;const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer);},[challenge?.id,verified]);
 
   async function lookup(event: FormEvent) {
-    event.preventDefault(); setError(""); setMarkets(null); setRewards(null); setChallenge(null); setPayout(null); setClaimed(false); setPopupOpen(false); setVerified(false);setShare(null);setShareOpen(false);sharedSignature.current="";
+    event.preventDefault(); setError(""); setPaymentSignature(""); setMarkets(null); setRewards(null); setChallenge(null); setPayout(null); setClaimed(false); setPopupOpen(false); setVerified(false);setShare(null);setShareOpen(false);sharedSignature.current="";
     let wallet: string;
     try { wallet = new PublicKey(input.trim()).toBase58(); if(wallet!==input.trim()) throw new Error(); }
     catch { setError("Enter a valid Solana wallet address."); return; }
@@ -57,9 +59,10 @@ export function ClaimByAddress() {
       try {
         const result=await api.addressClaimStatus(challenge.id,challenge.token);
         if(active) {
-          setVerified(result.verified);
-          if (result.usdc) setChallenge(current => current?.id === challenge.id && !current.usdc ? { ...current, usdc: result.usdc } : current);
-          if(!result.verified) setError("");
+          setVerified(current => current || result.verified);
+          setChallenge(current => current?.id === challenge.id && ((!current.usdc && result.usdc) || result.recoveryExpiresAt !== undefined && current.recoveryExpiresAt !== result.recoveryExpiresAt)
+            ? { ...current, usdc: result.usdc ?? current.usdc, recoveryExpiresAt: result.recoveryExpiresAt ?? current.recoveryExpiresAt } : current);
+          if(result.verified) setError("");
           if(result.payout) setPayout(result.payout);
           if(result.claimed) {
             setClaimed(true);
@@ -90,15 +93,27 @@ export function ClaimByAddress() {
     return()=>document.removeEventListener("keydown",onEscape);
   },[popupOpen]);
 
-  async function start(launchId:string,kind:"creator"|"cumulative"|"legacy"="creator",epochId?:string) {
-    if(challenge && challenge.launchId===launchId && challenge.kind===kind && challenge.epochId===(epochId??null) && challenge.expiresAt>Date.now() && !claimed) { setPopupOpen(true); return; }
+  async function start(launchId:string,kind:"creator"|"cumulative"|"legacy"="creator",epochId?:string,forceNew=false) {
+    if(!forceNew && challenge && challenge.launchId===launchId && challenge.kind===kind && challenge.epochId===(epochId??null) && (challenge.recoveryExpiresAt??challenge.expiresAt)>Date.now() && !claimed) { setPopupOpen(true); return; }
     setError("");setBusy(true);setPayout(null);setClaimed(false);setVerified(false);setShare(null);setShareOpen(false);sharedSignature.current="";
     try {
       const result=await api.addressClaimStart(address,launchId,kind,epochId);
       setChallenge(result);
+      setPaymentSignature("");
       setPopupOpen(true);
       try { localStorage.setItem(storageKey(address),JSON.stringify(result)); } catch { /* Keep this request open. */ }
     } catch(e) { setError(e instanceof Error?e.message:"Could not start verification."); }
+    finally { setBusy(false); }
+  }
+  async function checkPayment(event: FormEvent) {
+    event.preventDefault();
+    if (!challenge || busy) return;
+    setBusy(true); setError("");
+    try {
+      const signature = addressClaimSignature(paymentSignature);
+      const result = await api.addressClaimVerify(challenge.id, challenge.token, signature);
+      if (result.verified) setVerified(true);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not check this payment."); }
     finally { setBusy(false); }
   }
   async function claim() {
@@ -121,6 +136,7 @@ export function ClaimByAddress() {
     return ticker?`$${ticker}`:"Coin";
   };
   const expired=Boolean(challenge && !verified && now>=challenge.expiresAt);
+  const canCheckPayment=Boolean(challenge && !verified && !claimed && now<(challenge.recoveryExpiresAt??challenge.expiresAt));
 
   return <main className="page address-claim-page">
     {share&&shareOpen&&<RewardClaimShare claim={share} onClose={()=>setShareOpen(false)}/>}
@@ -149,7 +165,8 @@ export function ClaimByAddress() {
           <p className="address-claim-note">Send {challenge.usdc?"either":"this"} amount or more on Solana. Verification payments are not refunded. Your claim goes to the sending wallet.</p>
           <p className="address-claim-wait" role="status"><Loader2 className="spin" size={16}/> Detecting your transfer automatically · Expires {new Date(challenge.expiresAt).toLocaleTimeString()}</p>
         </>}
-        {expired&&<><p>Start a new request before sending a verification payment.</p><button className="primary" disabled={busy} onClick={()=>void start(challenge.launchId,challenge.kind,challenge.epochId??undefined)}>New request</button></>}
+        {expired&&<><p>{canCheckPayment?"Already sent before expiry? Check that payment below. You don't need to send again.":"This request's payment window has ended."}</p><button className="soft-button" disabled={busy} onClick={()=>void start(challenge.launchId,challenge.kind,challenge.epochId??undefined,true)}>Start a new request</button></>}
+        {canCheckPayment&&<form className="address-claim-signature" onSubmit={event=>void checkPayment(event)}><label htmlFor="address-claim-signature">Already sent? Check your transaction</label><div><input id="address-claim-signature" value={paymentSignature} onChange={event=>setPaymentSignature(event.target.value)} placeholder="Transaction signature or Solscan link" autoComplete="off" maxLength={250}/><button className="soft-button" type="submit" disabled={busy||!paymentSignature.trim()}>{busy?<Loader2 size={16} className="spin"/>:"Check payment"}</button></div></form>}
         {verified&&!claimed&&(!payout||payout.status==="ready")&&<><p>Ready to send {rewardSelected?"rewards":`${selected?.symbol??"creator"} fees`} to your wallet.</p><button className="primary" disabled={busy} onClick={()=>void claim()}>{busy?<Loader2 size={16} className="spin"/>:<CheckCircle2 size={16}/>} Claim now</button></>}
         {(claimed||payout&&payout.status!=="ready")&&<p className="address-claim-success"><CheckCircle2 size={16}/> {payout?.status==="claimed"?"Payout confirmed":"Payout processing"}{payout?.signature&&<> · <a href={`https://solscan.io/tx/${payout.signature}`} target="_blank" rel="noreferrer">View transaction</a></>}</p>}
         {error&&<p className="address-claim-error" role="alert">{error}</p>}
