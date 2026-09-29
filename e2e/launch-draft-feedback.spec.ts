@@ -61,6 +61,8 @@ test('loading covers the form until a linked draft is checked',async({page},info
   await setup(page,{...draft,launchId:'old-launch'},false,gate);await page.goto('/#/create');
   await expect(page.locator('.wizard-draft-loading')).toBeVisible();
   await expect(page.locator('.wizard-form-content')).toHaveAttribute('inert','');
+  await expect(page.getByText('Loading your draft…',{exact:true})).toBeInViewport();
+  await expect(page.getByRole('button',{name:'Resume launch',exact:true})).toBeDisabled();
   await page.screenshot({path:info.outputPath('compact-draft-loading.png'),fullPage:true});
   release();await expect(page.getByPlaceholder('Aqua Robotics')).toHaveValue('Ocean draft');
   await expect(page.locator('.wizard-form-content')).not.toHaveAttribute('inert','');

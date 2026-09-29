@@ -699,7 +699,7 @@ export function Create() {
         <b>{pending ? form.symbol ? `Continue $${form.symbol}` : "Continue your launch" : recoverableLaunch ? `Continue $${recoverableLaunch.symbol}` : "Continue your previous launch"}</b>
         <small>{pending ? `Next: ${chainSteps.find(item=>item.key===pending.stage)?.label??"confirm launch"}. Completed steps are kept.` : "Resume the existing coin. Completed steps will not be repeated."}</small>
       </div>
-      <button type="button" onClick={() => void resumeExistingLaunch()}><span>Resume launch</span><ArrowRight aria-hidden="true"/></button>
+      <button type="button" disabled={draftLoading} onClick={() => void resumeExistingLaunch()}><span>Resume launch</span><ArrowRight aria-hidden="true"/></button>
     </section>}
     <section className={`wizard-shell ${launching ? "is-launching" : ""}`}>
       <div className="wizard-caustics" aria-hidden="true"/>

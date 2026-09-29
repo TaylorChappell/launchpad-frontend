@@ -306,7 +306,7 @@
 .wizard-main { position:relative; }
 .wizard-form-content { display:flex; flex-direction:column; flex:1; min-width:0; }
 .wizard-draft-loading {
-  position:absolute; inset:0; z-index:5; display:flex; align-items:center; justify-content:center; gap:10px;
+  position:absolute; inset:0; z-index:5; display:flex; align-items:flex-start; justify-content:center; gap:10px; padding:28px 16px 0; line-height:24px;
   border-radius:inherit; background:rgba(248,253,255,.84); backdrop-filter:blur(4px); color:#165778;
   font-size:14px; font-weight:600;
 }
