@@ -162,3 +162,30 @@ test('sparse trade charts show USD market cap with a wider initial view',async({
  await expect(chart.locator('.candle-ohlc')).toContainText('$0.0000024');
  await expect(chart.locator('.tradingview-canvas')).toHaveAttribute('data-bars','2');
 });
+
+test('non-SOL history distinguishes indexing, missing supply and missing USD from no trades',async({page})=>{
+ await setup(page);
+ let state:'pending'|'supply'|'ready'='pending';
+ await page.route('**/trade-candles?*',route=>{
+  const data=history('5m','NVDAx');
+  return route.fulfill({json:{...data,historyPending:state==='pending',candles:state==='pending'?[]:data.candles.map(c=>({...c,cap:state==='supply'?null:c.cap}))}});
+ });
+ await page.goto('/#/token/stock-pending');
+ await expect(page.getByText('Syncing trade history…',{exact:true})).toBeVisible();
+ await expect(page.getByText('No indexed trades yet.',{exact:true})).toHaveCount(0);
+ state='supply';await page.goto('/#/token/stock-supply');
+ await expect(page.getByText('Market-cap data is temporarily unavailable.',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'View price',exact:true}).click();
+ await expect(page.locator('.tradingview-canvas')).toHaveAttribute('data-bars','60');
+ state='ready';await page.goto('/#/token/stock-ready');
+ await expect(page.locator('.tradingview-canvas')).toHaveAttribute('data-bars','60');
+ await expect(page.locator('.candle-ohlc')).toContainText('$');
+ await expect(page.getByText('No indexed trades yet.',{exact:true})).toHaveCount(0);
+});
+
+test('missing custom-pair USD reference does not claim the market has no trades',async({page})=>{
+ await setup(page,{pairPriceUsd:0});
+ await page.goto('/#/token/custom-no-usd');
+ await expect(page.getByText('USD reference price is temporarily unavailable.',{exact:true})).toBeVisible();
+ await expect(page.getByText('No indexed trades yet.',{exact:true})).toHaveCount(0);
+});

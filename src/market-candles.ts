@@ -94,7 +94,7 @@ export function compactCandles(candles: ChartCandle[], limit = 32): ChartCandle[
 
 export const candleIntervals = {"5m":300,"15m":900,"1h":3600,"4h":14400,"1d":86400} as const;
 export type CandleInterval = keyof typeof candleIntervals;
-export type CandlePage = CandleHistory & { source:"indexed_pool_trades"; currency:string; nextBefore: number | null };
+export type CandlePage = CandleHistory & { source:"indexed_pool_trades"; currency:string; nextBefore: number | null; historyPending?:boolean };
 /** Merge by bucket, preserving older loaded history while refreshing current bars. */
 export function mergeCandleHistory(previous: CandleHistory, incoming: CandleHistory): CandleHistory {
   if(previous.intervalSeconds!==incoming.intervalSeconds)return incoming;

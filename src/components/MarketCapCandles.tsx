@@ -22,7 +22,7 @@ export function MarketCapCandles({ launch }: { launch: Launch }) {
       try{
         const history=await loadCandlePage(launch.id,interval);
         if(active){setLoaded(previous=>previous?.interval===interval && !(history.nextBefore!==null && history.nextBefore>(previous.history.candles.at(-1)?.time??0))
-          ? {interval,history:{...history,...mergeCandleHistory(previous.history,history),nextBefore:previous.history.nextBefore}}
+          ? {interval,history:{...history,...mergeCandleHistory(previous.history,history),nextBefore:previous.history.nextBefore??(history.nextBefore!==null&&history.nextBefore<(previous.history.candles[0]?.time??Infinity)?history.nextBefore:null)}}
           : {interval,history});setError("");}
       }catch(e){if(active)setError(e instanceof Error?e.message:"Couldn't load chart.");}
       finally{pending=false;}
@@ -43,6 +43,8 @@ export function MarketCapCandles({ launch }: { launch: Launch }) {
   },[loaded,interval,launch.id]);
   const candles=useMemo(()=>loaded?usdTradeCandles(loaded.history,metric,launch.pairPriceUsd):[],[loaded,metric,launch.pairPriceUsd]);
   const missingUsd=!!loaded&&loaded.history.currency!=="USD"&&!(Number.isFinite(launch.pairPriceUsd)&&Number(launch.pairPriceUsd)>0);
+  const hasTrades=!!loaded?.history.candles.length;
+  const canShowPrice=metric==="cap"&&!!loaded&&usdTradeCandles(loaded.history,"price",launch.pairPriceUsd).length>0;
   const currency="USD";
   useEffect(()=>setInspected(null),[interval,metric,launch.pairPriceUsd]);
   const current=inspected??candles.at(-1);
@@ -56,7 +58,9 @@ export function MarketCapCandles({ launch }: { launch: Launch }) {
     <div className="chart-canvas candle-stage">
       <CandleChart candles={candles} currency={currency} viewKey={`${launch.id}:${loaded?.interval}:${metric}:${reset}`} onInspect={setInspected} onReachStart={loadOlder}/>
       {loading&&<div className={`candle-overlay ${candles.length?"candle-refreshing":""}`} role="status">Loading candles…</div>}
-      {!loading&&!candles.length&&!error&&<div className="candle-overlay">{missingUsd&&loaded?.history.candles.length?"USD reference price is temporarily unavailable.":"No indexed trades yet."}</div>}
+      {!loading&&!candles.length&&!error&&<div className="candle-overlay"><span>{hasTrades
+        ? missingUsd?"USD reference price is temporarily unavailable.":canShowPrice?"Market-cap data is temporarily unavailable.":"Chart data is temporarily unavailable."
+        :loaded?.history.historyPending?"Syncing trade history…":"No indexed trades yet."}</span>{canShowPrice&&<button onClick={()=>setMetric("price")}>View price</button>}</div>}
       {error&&<div className={`candle-overlay ${candles.length?"candle-delayed":""}`} role="status"><span>{error.includes("latest chart API")?"This timeframe needs the latest chart API.":candles.length?"Chart updates delayed.":"Couldn't load chart."}</span><button onClick={()=>{setError("");setRetry(n=>n+1);}}>Retry</button></div>}
       {!loading&&(loadingOlder||olderError)&&<span className="candle-history-status" role="status">{loadingOlder?"Loading earlier trades…":"Earlier trades unavailable. Pan left to retry."}</span>}
     </div>
