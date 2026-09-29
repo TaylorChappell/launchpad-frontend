@@ -77,7 +77,7 @@ export function candlePrice(value: number, currency = "USD"): string {
       :value!==0&&Math.abs(value)<.000001?value.toExponential(2):new Intl.NumberFormat("en",{maximumSignificantDigits:5}).format(value);
     return `${amount} ${currency}`;
   }
-  if (Math.abs(value) >= 1000) return new Intl.NumberFormat("en",{style:"currency",currency:"USD",notation:"compact",maximumFractionDigits:2}).format(value);
+  if (Math.abs(value) >= 1000) return new Intl.NumberFormat("en",{style:"currency",currency:"USD",notation:"compact",minimumFractionDigits:0,maximumFractionDigits:2}).format(value);
   if (value !== 0 && Math.abs(value) < .000001) return `$${value.toExponential(2)}`;
   return new Intl.NumberFormat("en",{style:"currency",currency:"USD",maximumSignificantDigits:5}).format(value);
 }
