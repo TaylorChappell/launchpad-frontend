@@ -383,7 +383,15 @@ test('restored market cards and filter dialog fit both layouts and keep draft ch
  const card=page.locator('.token-card').first();await expect(card).toBeVisible();
  await expect(card.locator('.reward-card-focus')).toBeVisible();
  await expect(card.locator('.token-stats .metric small')).toHaveText(['Market cap','24h volume','Holders']);
- expect(await card.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+ // The clipped water-hover pseudo-element is intentionally wider than the card.
+ // Measure the actual content so decoration cannot hide a real layout failure.
+ await expect(card).toHaveCSS('overflow-x','hidden');
+ const content=card.locator('.token-card-link');
+ expect(await content.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+ const bounds=await card.boundingBox();
+ expect(bounds!.x).toBeGreaterThanOrEqual(0);
+ expect(bounds!.x+bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await expect(page.getByRole('textbox',{name:'Search all markets'})).toHaveCount(0);
  await page.screenshot({path:info.outputPath('compact-explore.png'),fullPage:true});
  const opener=page.getByRole('button',{name:'Filters',exact:true});await opener.click();
