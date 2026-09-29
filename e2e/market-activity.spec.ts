@@ -41,7 +41,7 @@ test('community replaces comments; details and position sit under trading; comme
   await expect(tabs.locator('.market-unread-dot')).toBeVisible();
   await page.getByRole('button',{name:'More details',exact:true}).click();
   await expect(page.getByText('Our new website is live.')).toHaveCount(0);
-  await expect(page.getByRole('heading',{name:'About Ocean Club'})).toBeVisible();
+  await expect(page.getByRole('dialog',{name:'Market details'}).getByText('A community building together.',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Close details',exact:true}).click();
   const position=page.locator('.market-position-dropdown');
   await expect(position.locator('.market-position')).toHaveCount(0);

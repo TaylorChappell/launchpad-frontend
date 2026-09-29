@@ -316,3 +316,14 @@
   .refresh-feedback svg.lucide-rotate-cw { animation:none !important; }
   .refresh-feedback[data-refreshing] { opacity:.65; }
 }
+
+.market-social-links { display:flex; align-items:center; gap:4px; }
+.market-social-links a { display:inline-flex; align-items:center; justify-content:center; flex:none; width:32px; height:32px; border-radius:50%; color:#45748f; transition:background 160ms ease,color 160ms ease; }
+.market-social-links a:hover { color:#106e9d; background:#e2f2fb; }
+.market-social-links a:focus-visible { outline:2px solid #1686bb; outline-offset:2px; }
+.market-social-links svg { width:16px; height:16px; }
+.token-card-socials { justify-content:flex-end; margin-top:8px; padding-top:5px; border-top:1px solid #c9e0ed88; }
+.token-card .token-pair .asset-mark { width:20px; height:20px; border-radius:50%; overflow:hidden; background:#edf7fc; }
+.token-card .token-pair .asset-mark img { border-radius:50%; object-fit:cover; }
+@media (max-width:600px) { .market-social-links a { width:44px; height:44px; } .token-card-socials { gap:0; padding-top:2px; } }
+@media (prefers-reduced-motion:reduce) { .market-social-links a { transition:none; } }

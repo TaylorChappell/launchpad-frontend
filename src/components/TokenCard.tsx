@@ -1,3 +1,4 @@
+import { MarketSocialLinks } from "./MarketSocialLinks";
 import { RecentUpdateBell } from "./RecentUpdateBell";
 import { assetLogoUrl } from "../asset-logo";
 import { useEffect, useState } from "react";
@@ -74,6 +75,7 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
       : <div className="reward-card-focus mode-jackpot"><span>HOURLY JACKPOT</span><div className="card-jackpot-prizes">{prizes.map((amount, index) => { const rewardSymbol = jackpot?.rewardSymbol ?? "SOL"; return <div key={index}><span>{["1st", "2nd", "3rd", "4th", "5th"][index]}</span><b aria-label={`${amount} ${rewardSymbol}`}><PayoutAssetMark launch={launch} symbol={rewardSymbol} position={index}/>{amount}</b></div>; })}</div></div>}
     <div className="token-card-status"><DexStatusBadge state={dexBadgeState(launch)}/>{creatorLock && <span className="creator-lock-badge" title="Verified creator lock" aria-label={`${creatorLockPercentLabel(creatorLock)} of supply locked by the creator`}><LockKeyhole aria-hidden="true"/>{creatorLockPercentLabel(creatorLock)} locked</span>}</div><div className="token-stats"><Metric label="Market cap" value={indexed ? "$" + compact.format(launch.marketCapUsd) : "Indexing"} tone={indexed ? marketCapTone(launch.marketCapUsd) : ""}/><Metric label="24h volume" value={indexed ? "$" + compact.format(launch.volume24hUsd) : "Indexing"}/><Metric label="Holders" value={indexed ? compact.format(launch.holderCount) : "Indexing"}/></div>
     </Link>
+    <MarketSocialLinks launch={launch} className="token-card-socials"/>
     <RecentUpdateBell at={launch.latestProjectUpdateAt} launchId={launch.id}/>
   </article>;
 }

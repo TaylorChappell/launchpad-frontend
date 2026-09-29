@@ -3,7 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 const mint = "11111111111111111111111111111111";
 const launch = {
   id: "mobile", mint, creatorWallet: mint, name: "Ocean Club", symbol: "OCEAN",
-  description: "A community building together.", xUrl: "https://x.com/aquafamily", marketPolicyAddress: mint, stockMint: mint, stockSymbol: "ORCA", stockName: "Orca",
+  description: "A community building together.", xUrl: "https://x.com/aquafamily", websiteUrl: "https://ocean.example.org", telegramUrl: "https://t.me/ocean_club", marketPolicyAddress: mint, stockMint: mint, stockSymbol: "ORCA", stockName: "Orca",
   stock: { mint, symbol: "ORCA", name: "Orca", logoUrl: null },
   pairMint: mint, pairType: "stock", pairSymbol: "ORCA", rewardMode: "holder_rewards", status: "live",
   txCount: 0, marketCapUsd: 124000, tvlUsd: 21000, volume24hUsd: 54000, change24h: 12,
@@ -246,6 +246,15 @@ test("mobile Buy and Sell open the matching trade sheet and stack with the walle
 test("mobile trade sheet requests the chosen side and clears the previous amount on reopen",async({page},info)=>{
   test.skip(info.project.name!=="mobile","Mobile trade direction.");
   await setup(page,true);
+  await page.addInitScript(address=>{
+    localStorage.setItem("aqua:wallet","phantom");
+    Object.assign(window,{phantom:{solana:{isPhantom:true,connect:async()=>({publicKey:{toString:()=>address}}),on(){},removeListener(){}}}});
+  },mint);
+  await page.route('https://rpc.invalid/**',route=>{
+    const request=route.request().postDataJSON();
+    const value=request.method==='getBalance'?1000000000:[{pubkey:mint,account:{lamports:1,owner:'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',executable:false,rentEpoch:0,data:{program:'spl-token',parsed:{info:{tokenAmount:{amount:'8000000',decimals:6,uiAmount:8}}},space:165}}}];
+    return route.fulfill({json:{jsonrpc:'2.0',id:request.id,result:{context:{slot:1},value}}});
+  });
   const quotes:Array<{side:string|null;amount:string|null}>=[];
   await page.route("**/api/launches/mobile/quote?*",route=>{
     const query=new URL(route.request().url()).searchParams;
@@ -263,9 +272,16 @@ test("mobile trade sheet requests the chosen side and clears the previous amount
   await sheet.getByRole("button",{name:"Close trade",exact:true}).click();
   await actions.getByRole("button",{name:"Sell",exact:true}).click();
   await expect(sheet.getByRole("textbox",{name:"You pay",exact:true})).toHaveValue("");
-  await sheet.getByRole("textbox",{name:"You pay",exact:true}).fill("2");
+  await sheet.getByRole("button",{name:"25%",exact:true}).click();
+  await expect(sheet.getByRole("textbox",{name:"You pay",exact:true})).toHaveValue("2");
   await expect.poll(()=>quotes.at(-1)).toEqual({side:"sell",amount:"2000000"});
   await expect(sheet.locator(".trade-receive b")).toHaveText("SOL");
+  await expect(sheet.locator('.trade-detail-row')).toContainText('8 OCEAN');
+  const [presets,available]=await sheet.evaluate(el=>['.trade-presets','.trade-detail-row'].map(selector=>{
+    const {top,bottom}=el.querySelector(selector)!.getBoundingClientRect();return {top,bottom};
+  }));
+  expect(available.top).toBeGreaterThanOrEqual(presets.bottom);
+  await sheet.screenshot({path:info.outputPath('compact-sell-available.png')});
 });
 
 test("a pending mobile trade stays mounted through dismiss attempts and a resize",async({page},info)=>{
@@ -314,13 +330,14 @@ test("More details sits below trading and preserves the page when dismissed", as
   expect(positions[1].top-positions[0].bottom).toBeLessThan(24);
   await more.click();
   const sheet=page.getByRole("dialog",{name:"Market details",exact:true});
-  await expect(sheet.getByRole("heading",{name:"About Ocean Club",exact:true})).toBeVisible();
   await expect(sheet.getByText("A community building together.", {exact:true})).toBeVisible();
   await expect(sheet.getByText("OCEAN / ORCA", {exact:true})).toBeVisible();
   expect(await sheet.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
   const scroll=await page.evaluate(()=>scrollY);
   await sheet.getByRole("button",{name:"Copy token mint"}).scrollIntoViewIfNeeded();
   await expect(sheet.getByRole("button",{name:"Close details"})).toBeInViewport();
+  await expect(sheet.locator(".market-chain-details")).not.toHaveAttribute("open", "");
+  await sheet.getByText("On-chain details",{exact:true}).click();
   await expect(sheet.getByRole("link",{name:"Inspect mint"})).toHaveAttribute("href",`https://solscan.io/account/${mint}`);
   expect(await page.evaluate(()=>scrollY)).toBe(scroll);
   await page.keyboard.press("Escape");
@@ -329,12 +346,13 @@ test("More details sits below trading and preserves the page when dismissed", as
   expect(await page.evaluate(()=>scrollY)).toBe(scroll);
   expect(await page.evaluate(()=>document.documentElement.style.overflow)).not.toBe("hidden");
   await more.click();
-  await page.screenshot({path:info.outputPath("market-details-sheet.png"),animations:"disabled"});
+  await page.screenshot({path:info.outputPath("compact-market-details.png"),animations:"disabled"});
   await sheet.getByRole("button",{name:"Close details"}).click();
   if(info.project.name==="mobile"){
     await page.setViewportSize({width:320,height:568});
     await more.click();
     expect(await sheet.evaluate(el=>el.getBoundingClientRect().right)).toBeLessThanOrEqual(320);
+    await sheet.getByText("On-chain details",{exact:true}).click();
     await sheet.getByRole("link",{name:"Pool explorer"}).scrollIntoViewIfNeeded();
     await expect(sheet.getByRole("link",{name:"Pool explorer"})).toBeInViewport();
     await sheet.getByRole("button",{name:"Close details"}).click();
@@ -382,6 +400,16 @@ test('restored market cards and filter dialog fit both layouts and keep draft ch
  await setup(page);await page.goto('/#/');
  const card=page.locator('.token-card').first();await expect(card).toBeVisible();
  await expect(card.locator('.reward-card-focus')).toBeVisible();
+ await expect(card.locator('.market-social-links a')).toHaveCount(3);
+ await expect(card.getByRole('link',{name:'Ocean Club on Telegram',exact:true})).toHaveAttribute('href','https://t.me/ocean_club');
+ await expect(card.getByRole('link',{name:'Ocean Club website',exact:true})).toHaveAttribute('href','https://ocean.example.org/');
+ await expect(card.getByRole('button',{name:'Share market',exact:true})).toHaveCount(0);
+ await expect(card.locator('.token-pair .asset-mark')).toHaveCSS('border-radius','50%');
+ await page.context().route('https://x.com/**',route=>route.fulfill({contentType:'text/html',body:'<title>Ocean on X</title>'}));
+ const popupPromise=page.waitForEvent('popup');
+ await card.getByRole('link',{name:'Ocean Club on X',exact:true}).click();
+ const popup=await popupPromise;await expect(popup).toHaveURL('https://x.com/aquafamily');await popup.close();
+ await expect(page).not.toHaveURL(/token\/mobile/);
  await expect(card.locator('.token-stats .metric small')).toHaveText(['Market cap','24h volume','Holders']);
  // The clipped water-hover pseudo-element is intentionally wider than the card.
  // Measure the actual content so decoration cannot hide a real layout failure.

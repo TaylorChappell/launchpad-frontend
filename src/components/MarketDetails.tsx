@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, Copy, ExternalLink, Globe2, Info } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, ExternalLink, Info, LockKeyhole } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useRuntime } from "../context";
 import { solscanAccountUrl } from "../creator-lock";
 import type { CreatorLock, Launch } from "../types";
+import { MarketSocialLinks } from "./MarketSocialLinks";
 import { CoinSettings } from "./CoinSettings";
 import { MarketSheet } from "./MarketSheet";
 import { Metric } from "./TokenCard";
@@ -32,30 +33,36 @@ export function MarketDetails({ launch, creatorLock, developerBuy }: {
     <CoinSettings key={launch.id} launch={launch}/>
     {open && <MarketSheet launch={launch} title="Market details" closeLabel="Close details" onClose={close}>
       <div className="market-details-content">
-        <section className="market-details-about"><h3>About {launch.name}</h3><p>{launch.description || "This market has no description yet."}</p>
-          {(launch.xUrl || launch.websiteUrl) && <div className="market-details-links">{launch.xUrl && <a href={launch.xUrl} target="_blank" rel="noreferrer">X <ExternalLink size={14}/></a>}{launch.websiteUrl && <a href={launch.websiteUrl} target="_blank" rel="noreferrer"><Globe2 size={15}/>Website <ExternalLink size={14}/></a>}</div>}
-        </section>
-        <section><h3>Market overview</h3><div className="market-details-metrics">
+        {(launch.description || launch.xUrl || launch.websiteUrl || launch.telegramUrl) && <section className="market-details-about">
+          {launch.description && <p>{launch.description}</p>}
+          <MarketSocialLinks launch={launch}/>
+        </section>}
+        <div className="market-details-metrics">
           <Metric label="Market cap" value={launch.aquaIndexed ? `$${compact.format(launch.marketCapUsd)}` : "Indexing"}/>
           <Metric label="Liquidity" value={launch.aquaIndexed ? `$${compact.format(launch.tvlUsd)}` : "Indexing"}/>
-          <Metric label="Trading pair" value={`${launch.symbol} / ${launch.pairSymbol}`}/>
-          <Metric label={mode === "buyback_burn" ? "Burn asset" : mode === "jackpot" ? "Prize asset" : "Reward asset"} value={mode === "buyback_burn" ? launch.symbol : mode === "jackpot" ? "SOL" : launch.stockSymbol}/>
-        </div><dl className="market-details-facts">
-          <div><dt>Holders</dt><dd>{launch.holderCount.toLocaleString()}</dd></div>
+          <Metric label="Holders" value={launch.holderCount.toLocaleString()}/>
+        </div>
+        <dl className="market-details-facts">
+          <div><dt>Trading pair</dt><dd>{launch.symbol} / {launch.pairSymbol}</dd></div>
+          <div><dt>{mode === "buyback_burn" ? "Burn asset" : mode === "jackpot" ? "Prize asset" : "Reward asset"}</dt><dd>{mode === "buyback_burn" ? launch.symbol : mode === "jackpot" ? "SOL" : launch.stockSymbol}</dd></div>
           <div><dt>Creator</dt><dd><WalletIdentity wallet={launch.creatorWallet}/></dd></div>
           <div><dt>Developer buy</dt><dd>{developerBuy}</dd></div>
-        </dl></section>
-        <section><h3>Locks &amp; verification</h3><dl className="market-details-facts">
-          <div><dt>Opening LP lock</dt><dd>{launch.liquidityLockedPermanently ? "Permanently locked" : "Not verified"}</dd></div>
-          <div><dt>Creator token lock</dt><dd>{creatorLock?.status === "active" ? `Active until ${new Date(creatorLock.unlockAt * 1000).toLocaleString()}` : "No active verified lock"}</dd></div>
-        </dl><div className="market-details-links">
-          {launch.lockConfig && <a href={solscanAccountUrl(launch.lockConfig, config.network)} target="_blank" rel="noreferrer">Verify LP lock <ExternalLink size={14}/></a>}
-          {launch.marketPolicyAddress && <a href={solscanAccountUrl(launch.marketPolicyAddress, config.network)} target="_blank" rel="noreferrer">Mode policy <ExternalLink size={14}/></a>}
-        </div><p className="market-details-note">DEX profile payment is not an endorsement or security assessment.</p></section>
-        {!launch.showcase && <section><h3>On-chain details</h3><div className="market-mint"><small>Token mint</small><code>{launch.mint}</code><button aria-label="Copy token mint" onClick={() => { void navigator.clipboard.writeText(launch.mint).then(() => toast.success("Mint copied"), () => toast.error("Clipboard unavailable")); }}><Copy size={17}/></button></div><div className="market-details-links">
-          <a href={solscanAccountUrl(launch.mint, config.network)} target="_blank" rel="noreferrer">Inspect mint <ExternalLink size={14}/></a>
-          <a href={solscanAccountUrl(launch.whirlpoolAddress || launch.mint, config.network)} target="_blank" rel="noreferrer">Pool explorer <ExternalLink size={14}/></a>
-        </div></section>}
+        </dl>
+        <dl className="market-details-locks">
+          <div><dt><LockKeyhole size={14} aria-hidden="true"/>LP lock</dt><dd><span className={launch.liquidityLockedPermanently ? "verified-lock" : ""}>{launch.liquidityLockedPermanently ? "Permanently locked" : "Not verified"}</span>{launch.lockConfig && <a href={solscanAccountUrl(launch.lockConfig, config.network)} target="_blank" rel="noreferrer" aria-label="Verify LP lock" title="Verify LP lock"><ExternalLink size={14}/></a>}</dd></div>
+          <div><dt>Creator lock</dt><dd>{creatorLock?.status === "active" ? `Until ${new Date(creatorLock.unlockAt * 1000).toLocaleString()}` : "None verified"}</dd></div>
+        </dl>
+        {!launch.showcase && <>
+          <div className="market-mint"><div><small>Token mint</small><code title={launch.mint}>{launch.mint.slice(0, 8)}…{launch.mint.slice(-6)}</code></div><button aria-label="Copy token mint" title="Copy full token mint" onClick={() => { void navigator.clipboard.writeText(launch.mint).then(() => toast.success("Mint copied"), () => toast.error("Clipboard unavailable")); }}><Copy size={17}/></button></div>
+          <details className="market-chain-details"><summary>On-chain details<ChevronDown size={16}/></summary>
+            <code className="market-full-mint">{launch.mint}</code>
+            <div className="market-details-links">
+              <a href={solscanAccountUrl(launch.mint, config.network)} target="_blank" rel="noreferrer">Inspect mint <ExternalLink size={13}/></a>
+              <a href={solscanAccountUrl(launch.whirlpoolAddress || launch.mint, config.network)} target="_blank" rel="noreferrer">Pool explorer <ExternalLink size={13}/></a>
+              {launch.marketPolicyAddress && <a href={solscanAccountUrl(launch.marketPolicyAddress, config.network)} target="_blank" rel="noreferrer">Mode policy <ExternalLink size={13}/></a>}
+            </div><p className="market-details-note">DEX profile payment is not an endorsement or security assessment.</p>
+          </details>
+        </>}
       </div>
     </MarketSheet>}
   </>;
