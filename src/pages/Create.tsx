@@ -276,6 +276,7 @@ export function Create() {
       // Apply only a complete import. Launch must retain its Studio project link.
       setForm({...empty,name:draft.name,symbol:draft.symbol,description:draft.description,xUrl:draft.xUrl,websiteUrl:draft.websiteUrl||project.hostedWebsiteUrl||"",telegramUrl:draft.telegramUrl,rewardMode:draft.rewardMode});
       setStock(selected ?? (draft.stockMint ? null : stocks[0]));
+      setRestoredPair(null);
       setDexFundingEnabled(config.marketGovernanceEnabled && draft.dexFundingEnabled);
       setDexProfile(importedProfile);
       if (artworkFile) chooseArtwork(artworkFile);
@@ -290,7 +291,10 @@ export function Create() {
     return () => { cancelled = true; };
   },[wallet.address,studioId,stockLoading,pairsRefreshing,stocks,config.marketGovernanceEnabled,pairLookupEnabled,studioImportAttempt]);
 
-  const update = <K extends keyof Form>(key: K, value: Form[K]) => { setForm((current) => ({ ...current, [key]: value })); };
+  function editDraft() {
+    if (draftIdentity.current.launchId) draftIdentity.current = {id: crypto.randomUUID(), launchId: undefined, legacy: false};
+  }
+  const update = <K extends keyof Form>(key: K, value: Form[K]) => { editDraft(); setForm((current) => ({ ...current, [key]: value })); };
 
   // Keep the available pairs visible while independent catalogue sources load.
   useEffect(() => {
@@ -734,8 +738,8 @@ export function Create() {
           <div className="coin-identity-grid">
             <label className="wizard-artwork">
               {preview ? <img src={preview} alt="Token artwork preview"/> : <><ImagePlus/><b>Add artwork</b><small>PNG, JPG, WebP or GIF</small></>}
-              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => { chooseArtwork(event.target.files?.[0] ?? null); }}/>
-              {preview && <button type="button" aria-label="Remove artwork" onClick={(event) => { event.preventDefault(); chooseArtwork(null); }}><X size={15}/></button>}
+              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => { editDraft(); chooseArtwork(event.target.files?.[0] ?? null); }}/>
+              {preview && <button type="button" aria-label="Remove artwork" onClick={(event) => { event.preventDefault(); editDraft(); chooseArtwork(null); }}><X size={15}/></button>}
             </label>
             <div className="wizard-field-grid">
               <Field label="Coin name"><input value={form.name} maxLength={32} placeholder="Aqua Robotics" onChange={(event) => update("name", event.target.value)}/></Field>
@@ -753,7 +757,7 @@ export function Create() {
         {step === 1 && <WizardSection title="Choose a trading pair" description="Choose the asset your coin pairs with. Sales on AQUA return SOL.">
           <div className="stock-search"><Search size={17}/><input value={stockQuery} aria-label="Search pairs or paste a Pump.fun mint address" placeholder={pairLookupEnabled ? "Search pairs or paste a Pump.fun CA" : "Search SOL, ORCA, or stocks"} onChange={(event) => { setStockQuery(event.target.value); setPairResult(null); setVisibleStocks(10); }}/><span>{pairOptions.length} assets</span></div>
           {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Loading pairs</span></div> : <>
-            <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { setRestoredPair(null); setStock(item); setAcknowledged(false); }}>
+            <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { editDraft(); setRestoredPair(null); setStock(item); setAcknowledged(false); }}>
               <StockLogo stock={item}/><div><b>{item.symbol}</b><small>{item.name}</small></div><span className="stock-market-depth">{item.mint === "So11111111111111111111111111111111111111112" ? <><b>Native pair</b><small>SOL rewards</small></> : item.mint === "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE" ? <><b>Official ORCA</b><small>ORCA rewards</small></> : item.assetKind ? <><b>{item.assetKind === "aqua" ? "AQUA pair" : "Pump.fun"}</b><small>{item.liquidityUsd === undefined ? "Swap routes available" : `$${compactNumber.format(item.liquidityUsd)} liquidity`}</small></> : <><b>${compactNumber.format(item.orcaTvlUsd)} TVL</b><small>${compactNumber.format(item.orcaVolume24hUsd)} 24h</small></>}</span><i>{stock?.mint === item.mint && <Check size={14}/>}</i>
             </button>)}</div>
             {pairChecking && <div className="pair-lookup-status" role="status"><Loader2 size={16} className="spin"/>Checking this coin and its swap routes…</div>}
@@ -795,17 +799,17 @@ export function Create() {
           <CoinFeeBreakdown rewardFeeBps={form.rewardFeeBps} orcaFeeRate={config.launchSettings?.orcaFeeRate}/>
           <section className="launch-growth-settings"><h3>Community funding</h3>
             <div className="launch-advanced-fields">
-              <label htmlFor="launch-marketing-mode">Marketing<Select id="launch-marketing-mode" aria-label="Marketing" aria-describedby="launch-funding-help" value={marketingMode} onChange={event=>setMarketingMode(event.target.value as typeof marketingMode)}><option value="off">Off</option><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></Select></label>
-              <label htmlFor="launch-dex-funding-mode">DEX fund<Select id="launch-dex-funding-mode" aria-label="DEX fund" aria-describedby="launch-funding-help" value={dexFundingMode} onChange={event=>setDexFundingMode(event.target.value as typeof dexFundingMode)}><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></Select></label>
+              <label htmlFor="launch-marketing-mode">Marketing<Select id="launch-marketing-mode" aria-label="Marketing" aria-describedby="launch-funding-help" value={marketingMode} onChange={event=>{editDraft();setMarketingMode(event.target.value as typeof marketingMode);}}><option value="off">Off</option><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></Select></label>
+              <label htmlFor="launch-dex-funding-mode">DEX fund<Select id="launch-dex-funding-mode" aria-label="DEX fund" aria-describedby="launch-funding-help" value={dexFundingMode} onChange={event=>{editDraft();setDexFundingMode(event.target.value as typeof dexFundingMode);}}><option value="proposal">Proposal only</option><option value="automatic">Automatic</option></Select></label>
             </div>
             <p id="launch-funding-help">Automatic also includes holder proposals.</p>
           </section>
         </WizardSection>}
 
         {dexProfileEnabled && step === dexProfileStep && <WizardSection title="DEX Screener profile" description="Add an optional profile draft. Your community can propose updates later.">
-          <div className="launch-dex-fields"><DexProfileFields profile={dexProfile} update={(key, value) => setDexProfile((current) => ({ ...current, [key]: value }))} optional/></div>
+          <div className="launch-dex-fields"><DexProfileFields profile={dexProfile} update={(key, value) => {editDraft();setDexProfile((current) => ({ ...current, [key]: value }));}} optional/></div>
           {!dexDraftValid && <p className="survey-error">Use full https:// URLs, or leave these fields empty.</p>}
-          <button className="proposal-text-action" onClick={() => { setDexFundingEnabled(false); setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" }); setStep(devBuyStep); }}>Skip profile details <ArrowRight/></button>
+          <button className="proposal-text-action" onClick={() => { editDraft(); setDexFundingEnabled(false); setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" }); setStep(devBuyStep); }}>Skip profile details <ArrowRight/></button>
         </WizardSection>}
 
         {step === devBuyStep && <WizardSection title="Review & launch" description="Check your coin, settings and cost before approving in your wallet.">

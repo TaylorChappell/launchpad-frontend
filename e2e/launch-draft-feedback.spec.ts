@@ -29,7 +29,7 @@ async function setup(page: Page, saved: any = draft, live = false, gate?: Promis
       return r.fulfill({json:{brand:'AQUA',network:'mainnet-beta',useTestnet:false,transactionsEnabled:true,marketGovernanceEnabled:false,publicRpcUrl:'https://rpc.invalid',whirlpools:{},fees:{},creatorLocks:{},sniperDefense:{supported:false}}});
     }
     if(path === '/api/stocks') return r.fulfill({json:{stocks:[pair],refreshing:true}});
-    if(path === '/api/launches') return r.fulfill({json:{launches:url.searchParams.get('status') === 'live' ? (live?[coin]:[]) : [coin],hasMore:false}});
+    if(path === '/api/launches') return r.fulfill({json:{launches:url.searchParams.get('status') === 'pending' ? [coin] : url.searchParams.get('status') === 'live' && live ? [coin] : [],hasMore:false}});
     if(path === '/api/launches/old-launch') { if(gate) await gate; return r.fulfill({json:{launch:coin}}); }
     if(path.endsWith('/submission')) return r.fulfill({json:{launchId:'old-launch',status:'complete',symbol:'OCEAN',rewardMode:'holder_rewards'}});
     if(path === '/api/market-prices/stream') return r.fulfill({contentType:'text/event-stream',body:'data: {"prices":[]}\n\n'});
@@ -91,6 +91,17 @@ test('completed launch clears its own saved draft and cannot be resaved by a pen
 test('resuming another coin does not delete an unrelated unfinished draft',async({page})=>{
   await setup(page,{...draft,form:{...draft.form,name:'Next coin',symbol:'NEXT'}});await page.goto('/#/create');
   await expect(page.getByPlaceholder('Aqua Robotics')).toHaveValue('Next coin');
+  await page.getByRole('button',{name:'Resume launch',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'$OCEAN launched'})).toBeVisible();
+  await page.reload();await expect(page.getByPlaceholder('Aqua Robotics')).toHaveValue('Next coin');
+});
+
+test('editing an earlier launch creates a separate draft that survives resuming the old coin',async({page})=>{
+  await setup(page,{...draft,launchId:'old-launch'});await page.goto('/#/create');
+  await expect(page.getByPlaceholder('Aqua Robotics')).toHaveValue('Ocean draft');
+  await page.getByPlaceholder('Aqua Robotics').fill('Next coin');
+  await expect.poll(async()=> (await stored(page))?.form.name).toBe('Next coin');
+  expect((await stored(page)).launchId).toBeUndefined();
   await page.getByRole('button',{name:'Resume launch',exact:true}).click();
   await expect(page.getByRole('heading',{name:'$OCEAN launched'})).toBeVisible();
   await page.reload();await expect(page.getByPlaceholder('Aqua Robotics')).toHaveValue('Next coin');
