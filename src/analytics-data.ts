@@ -18,6 +18,9 @@ export const loadAnalytics = (range: AnalyticsRange, refresh = false) => analyti
 
 /** Warm the small fixed set once the requested overview is ready. These reads
  * share the same promises as visible panels, including during rapid switching. */
-export async function preloadAnalytics() {
-  await Promise.allSettled(analyticsRanges.flatMap(range => [loadAnalytics(range), autoRewardsApi.activity(null, 0, "", range)]));
+export async function preloadAnalytics(activeRange: AnalyticsRange) {
+  // The visible panels own this period's refresh timers. Warming it here can
+  // finish just before the payout timer fires and cause a second forced read.
+  await Promise.allSettled(analyticsRanges.filter(range => range !== activeRange)
+    .flatMap(range => [loadAnalytics(range), autoRewardsApi.activity(null, 0, "", range)]));
 }

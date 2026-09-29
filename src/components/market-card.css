@@ -1,11 +1,12 @@
 /* Market cards share one baseline for identity, price, rewards and activity. */
 .explore-page .aqua-market-card {
   display:flex; flex-direction:column; container-type:inline-size;
-  padding:22px; border-radius:16px; min-height:0;
+  min-height:0;
 }
 .explore-page .aqua-market-card,
 .explore-page .aqua-market-card.featured,
 .explore-page .aqua-market-card.boosted {
+  padding:var(--market-card-padding,22px); border-radius:16px;
   border-color:#cce4f2 !important;
   background:#f9fcff !important;
   box-shadow:0 4px 16px #317aab06 !important;
@@ -83,7 +84,7 @@
   .explore-page .aqua-market-card .token-stats .metric b { font-size:20px; }
 }
 @media (max-width:600px) {
-  .explore-page .aqua-market-card { padding:18px; }
+  .explore-page .aqua-market-card { --market-card-padding:18px; }
   .aqua-market-card .token-card-link { gap:20px; }
   .aqua-market-card .token-card-socials a { width:44px; height:44px; }
   .aqua-market-card .card-copy-ca { height:44px; min-width:48px; }
@@ -93,7 +94,7 @@
   .watch-card:has(.market-update-link) .token-head { padding-right:72px; }
 }
 @media (max-width:359px) {
-  .explore-page .aqua-market-card { padding:16px; }
+  .explore-page .aqua-market-card { --market-card-padding:16px; }
   .aqua-market-card .token-head { gap:9px; }
   .aqua-market-card .token-mark { width:38px; height:38px; }
   .aqua-market-card .card-tags .market-tag { font-size:8px; padding:3px 4px; }

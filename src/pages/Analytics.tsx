@@ -32,7 +32,7 @@ export function Analytics(){
     if(cached)show(cached);
     setRefreshing(!cached||force);setOffline(false);
     const load=async(refresh=false)=>{
-      try{const value=await loadAnalytics(range,refresh);if(active){show(value);void preloadAnalytics();}}
+      try{const value=await loadAnalytics(range,refresh);if(active){show(value);void preloadAnalytics(range);}}
       catch{if(active)setOffline(true);}
       finally{if(active)setRefreshing(false);}
     };
