@@ -16,6 +16,6 @@ export function AutoRewards(){
    {config?.walletlessEnabled?<Turnstile key={revision} siteKey={config.siteKey} onToken={setCaptcha}/>:<p>{config?'Walletless activation is not available yet.':'Loading verification…'}</p>}
    <button className="primary" type="submit" disabled={busy||!captcha||!wallet.trim()}>{busy?'Enabling…':'Enable auto rewards'}</button>
   </form>}{error&&<p className="danger-note" role="alert">{error}</p>}
-  <div className="auto-rewards-notes"><p>Hold over $5 of a coin to receive its new holder rewards. Existing rewards stay available to claim manually.</p><p>One wallet per network each day, resetting at midnight UK time. Payments go only to the address entered.</p><Link to="/portfolio">Manage auto rewards in your holdings</Link></div>
+  <div className="auto-rewards-notes"><p>Hold over $5 of a coin to receive its new holder rewards. Existing rewards stay available to claim manually.</p><Link to="/portfolio">Manage auto rewards in your holdings</Link></div>
  </section></main>;
 }
