@@ -666,8 +666,12 @@ export function Create() {
       });
       draftIdentity.current = {...draftIdentity.current, launchId: intent.launchId};
       // Persist the association before wallet approvals, including when the tab closes during completion.
-      try { await saveLaunchDraft(draftKey, draftSnapshot()); }
-      catch { setDraftError("Draft could not save. Keep this page open until launch."); }
+      try {
+        await saveLaunchDraft(draftKey, draftSnapshot());
+        // A quick launch can cancel the debounced save that normally retires the guest copy.
+        const guest = migratedGuest.current;
+        if (guest) { await removeLaunchDraft(guest.key, guest.id); if (migratedGuest.current === guest) migratedGuest.current = null; }
+      } catch { setDraftError("Draft could not save. Keep this page open until launch."); }
       setStage("approval", "done");
       await continueLaunch({ envelope: intent, stage: "mint", launchId: intent.launchId });
     } catch (error) {
