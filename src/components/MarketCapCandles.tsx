@@ -1,27 +1,53 @@
-import { useMemo, useState } from "react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { MarketSnapshot } from "../types";
+import { useEffect, useMemo, useState } from "react";
+import { Info, RotateCcw } from "lucide-react";
+import { loadCandleHistory } from "../candle-history";
+import { candlePrice, chartCandles, withLiveCandle, type CandleHistory, type ChartCandle, type ChartRange } from "../market-candles";
+import { isPriceLive } from "../market-prices";
+import type { Launch } from "../types";
+import { CandleChart } from "./CandleChart";
 
-const money = new Intl.NumberFormat("en-US", { notation: "compact", style: "currency", currency: "USD", maximumFractionDigits: 2 });
-const windows = { "1H": 3_600_000, "24H": 86_400_000, "7D": 604_800_000, "ALL": Infinity };
-export function MarketCapLine({ snapshots, range: selected, onRangeChange }: { snapshots: MarketSnapshot[]; range: string; onRangeChange: (range:string)=>void }) {
-  const range = selected.toUpperCase() as keyof typeof windows;
-  const [metric,setMetric] = useState<"cap"|"price">("cap");
-  const points = useMemo(() => [...new Map(snapshots.map((point) => ({
-    time: point.sampledAt < 1e12 ? point.sampledAt * 1000 : point.sampledAt,
-    value: Number(metric === "price" ? point.priceUsd : point.marketCapUsd ?? point.fdvUsd),
-  })).filter((point) => Number.isFinite(point.time) && Number.isFinite(point.value) && point.value >= 0).map((point) => [point.time, point])).values()].sort((a, b) => a.time - b.time), [snapshots,metric]);
-  const cutoff = Date.now() - windows[range];
-  const visible = points.filter((point) => point.time >= cutoff);
-  return <div className="market-cap-line interactive-market-chart">
-    <div className="chart-controls"><div aria-label="Chart timeframe">{(Object.keys(windows) as Array<keyof typeof windows>).map((value) => <button key={value} aria-pressed={range === value} onClick={() => onRangeChange(value.toLowerCase())}>{value === "ALL" ? "All time" : value}</button>)}</div><div><button aria-pressed={metric==="cap"} onClick={()=>setMetric("cap")}>Market cap</button><button aria-pressed={metric==="price"} onClick={()=>setMetric("price")}>Price</button></div></div>
-    {visible.length ? <div className="chart-canvas"><ResponsiveContainer width="100%" height="100%"><AreaChart data={visible} margin={{ top: 16, right: 12, bottom: 8, left: 0 }} accessibilityLayer>
-      <defs><linearGradient id="market-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#278fc3" stopOpacity={0.2}/><stop offset="100%" stopColor="#278fc3" stopOpacity={0.01}/></linearGradient></defs>
-      <CartesianGrid vertical={false} stroke="#e2edf2"/>
-      <XAxis dataKey="time" type="number" domain={["dataMin", "dataMax"]} tickFormatter={(value: number) => new Date(value).toLocaleString([], range === "1H" || range === "24H" ? { hour: "2-digit", minute: "2-digit" } : { month: "short", day: "numeric" })} minTickGap={55} tickLine={false} axisLine={false} tick={{ fill: "#527083", fontSize: 11 }}/>
-      <YAxis orientation="right" width={72} tickFormatter={(value: number) => money.format(value)} domain={["auto", "auto"]} tickLine={false} axisLine={false} tick={{ fill: "#527083", fontSize: 11 }}/>
-      <Tooltip labelFormatter={(value) => new Date(Number(value)).toLocaleString()} formatter={(value) => [new Intl.NumberFormat("en",{style:"currency",currency:"USD",maximumSignificantDigits:5}).format(Number(value)), metric === "cap" ? "Market cap" : "Price"]} contentStyle={{ background: "#fff", color: "#163d52", border: "1px solid #c5dce8", borderRadius: 8, fontSize: 12 }}/>
-      <Area type="linear" dataKey="value" stroke="#2086bd" strokeWidth={2} fill="url(#market-chart-fill)" isAnimationActive={false} dot={visible.length === 1} activeDot={{ r: 4 }}/>
-    </AreaChart></ResponsiveContainer></div> : <div className="chart-no-data">{points.length ? "No indexed snapshots in this timeframe. Try All time." : "Waiting for the first market snapshot."}</div>}
+export function MarketCapCandles({ launch }: { launch: Launch }) {
+  const [range,setRange]=useState<ChartRange>("24h");
+  const [metric,setMetric]=useState<"cap"|"price">("cap");
+  const [loaded,setLoaded]=useState<{range:ChartRange;history:CandleHistory} | null>(null);
+  const [error,setError]=useState(false);
+  const [retry,setRetry]=useState(0);
+  const [reset,setReset]=useState(0);
+  const [inspected,setInspected]=useState<ChartCandle | null>(null);
+  useEffect(()=>{
+    let active=true,pending=false;
+    setError(false);
+    const refresh=async()=>{
+      if(pending)return;pending=true;
+      try{const history=await loadCandleHistory(launch.id,range);if(active){setLoaded({range,history});setError(false);}}
+      catch{if(active)setError(true);}
+      finally{pending=false;}
+    };
+    void refresh();
+    const timer=window.setInterval(()=>{if(!document.hidden)void refresh();},15_000);
+    return()=>{active=false;window.clearInterval(timer);};
+  },[launch.id,range,retry]);
+  const candles=useMemo(()=>{
+    if(!loaded)return [];
+    const live=isPriceLive(launch)?{sampledAt:launch.priceUpdatedAt!,priceUsd:launch.priceUsd,marketCapUsd:launch.marketCapUsd}:undefined;
+    return chartCandles(withLiveCandle(loaded.history,live),metric);
+  },[loaded,metric,launch.priceUpdatedAt,launch.priceStatus,launch.priceUsd,launch.marketCapUsd]);
+  useEffect(()=>setInspected(null),[range,metric]);
+  const current=inspected??candles.at(-1);
+  const loading=loaded?.range!==range&&!error;
+  const interval=loaded?.history.intervalSeconds??900;
+  const intervalLabel=interval>=86400?`${interval/86400}d`:interval>=3600?`${interval/3600}h`:`${interval/60}m`;
+  return <div className="market-cap-line interactive-market-chart candle-market" aria-busy={loading}>
+    <div className="chart-controls"><div aria-label="Chart timeframe">{(["1h","24h","7d","all"] as const).map(value=><button key={value} aria-pressed={range===value} onClick={()=>setRange(value)}>{value==="all"?"All time":value.toUpperCase()}</button>)}</div>
+      <div aria-label="Chart value"><button aria-pressed={metric==="cap"} onClick={()=>setMetric("cap")}>Market cap</button><button aria-pressed={metric==="price"} onClick={()=>setMetric("price")}>Price</button></div></div>
+    <div className="candle-legend"><span>USD · {intervalLabel} candles</span><span className="candle-ohlc">{current&&(["open","high","low","close"] as const).map(field=><span key={field}>{field[0].toUpperCase()} <b>{candlePrice(current[field])}</b></span>)}</span>
+      <button title="USD candles use indexed pool-price samples. They can miss price moves between samples; gaps have no indexed data." aria-label="About chart data"><Info size={14}/></button>
+      <button title="Reset chart view" aria-label="Reset chart view" onClick={()=>setReset(n=>n+1)}><RotateCcw size={14}/></button></div>
+    <div className="chart-canvas candle-stage">
+      <CandleChart candles={candles} viewKey={`${launch.id}:${loaded?.range}:${metric}:${reset}`} onInspect={setInspected}/>
+      {loading&&<div className="candle-overlay" role="status">Loading chart…</div>}
+      {!loading&&!candles.length&&!error&&<div className="candle-overlay">Waiting for indexed price history.</div>}
+      {error&&<div className={`candle-overlay ${candles.length?"candle-delayed":""}`} role="status">{candles.length?"Chart updates delayed.":"Couldn't load chart."}<button onClick={()=>{setError(false);setRetry(n=>n+1);}}>Retry</button></div>}
+    </div>
   </div>;
 }

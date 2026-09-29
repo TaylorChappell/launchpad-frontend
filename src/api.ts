@@ -1,4 +1,5 @@
 import {readWithRetry} from "./read-retry";
+import type { CandleHistory, ChartRange } from "./market-candles";
 import type { DexProfile, LaunchRelayStatus, SignedTransactionEnvelope } from "./types";
 import {cachedRead,clearReadCache} from "./read-cache";
 import type { WalletNotification, AdminDiagnostics, AnalyticsResponse, BatchStepValidation, CreatorLock, CreatorLockBalance, CreatorLockTransactionEnvelope, CumulativeRewardClaimConfirmation, CumulativeRewardClaimEnvelope, GovernanceMarket, GovernanceResponse, Launch, LaunchConfirmation, LaunchIntentResponse, LaunchRetryResponse, MarketGovernanceResponse, MarketProposalType, MarketSnapshot, RewardModeState, RuntimeConfig, StockOption, Trade, TransactionEnvelope, WalletRewardsResponse } from "./types";
@@ -67,6 +68,7 @@ export const api = {
   holders: (id: string, offset=0) => request<{summary:{total:string;top_ten:string;creator:string};holders:Array<{wallet:string;balance_raw:string;last_accrual_at:number;creator_wallet:string;indexed_total_raw:string}>;hasMore:boolean;note:string}>(`/api/launches/${encodeURIComponent(id)}/holders?offset=${offset}`),
   launch: (id: string) => request<{ launch: Launch; trades: Trade[]; tradesHasMore?: boolean; creatorLock: CreatorLock | null; rewardModeState: RewardModeState }>(`/api/launches/${encodeURIComponent(id)}`),
   trades: (id: string, offset: number, limit = 10, before?: Trade) => request<{ trades: Trade[]; hasMore: boolean }>(`/api/launches/${encodeURIComponent(id)}/trades?offset=${before?.block_time ? 0:offset}&limit=${limit}${before?.block_time ? "&before="+before.block_time+"&beforeId="+encodeURIComponent(before.id):""}`),
+  usdCandles: (id: string, range: ChartRange) => request<CandleHistory>(`/api/launches/${encodeURIComponent(id)}/usd-candles?range=${range}`),
   marketData: (id: string, range = "24h") => request<{ snapshots: MarketSnapshot[] }>(`/api/launches/${encodeURIComponent(id)}/market-data?range=${encodeURIComponent(range)}`),
   search: (query: string, signal?: AbortSignal) => request<{ launches: Launch[] }>(`/api/search?q=${encodeURIComponent(query)}`, {signal}),
   stocks: () => request<{ stocks: StockOption[]; customPairsEnabled?: boolean; customPairWarning?: string }>("/api/stocks"),

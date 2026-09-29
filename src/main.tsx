@@ -20,3 +20,5 @@ import "./mobile.css";
 
 import "./experience.css";
 import "./components/market-card.css";
+
+import "./components/candles.css";

@@ -18,16 +18,16 @@ import { api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { MarketDetails } from "../components/MarketDetails";
 import { MarketTrade } from "../components/MarketTrade";
-import type { CreatorLock, Launch, MarketSnapshot, RewardModeState, StockOption, Trade } from "../types";
+import type { CreatorLock, Launch, RewardModeState, StockOption, Trade } from "../types";
 import { Metric, TokenMark } from "../components/TokenCard";
-import { MarketCapLine } from "../components/MarketCapCandles";
+import { MarketCapCandles } from "../components/MarketCapCandles";
 import { activeCreatorLock, creatorLockPercentLabel, solscanAccountUrl } from "../creator-lock";
 import { GovernanceVote } from "../components/GovernanceVote";
 import { MarketProposals, MarketGovernanceProvider } from "../components/MarketProposals";
 import { MarketDexStatusBadge } from "../components/MarketProposals";
 import { launchAge } from "../time";
 import { useMarketPrices } from "../useMarketPrices";
-import { mergeMarketPrice, withLatestMarketPoint } from "../market-prices";
+import { mergeMarketPrice } from "../market-prices";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 4 });
@@ -83,10 +83,8 @@ export function Token() {
   const [incomingTrades,setIncomingTrades]=useState<Trade[]>([]);
   const [tradesHaveMore, setTradesHaveMore] = useState(false);
   const [loadingTrades, setLoadingTrades] = useState(false);
-  const [snapshots, setSnapshots] = useState<MarketSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [range, setRange] = useState("24h");
   const [params,setParams] = useSearchParams();
   const preferredSection=()=>{
     const names=MARKET_INFORMATION_SECTIONS;
@@ -176,13 +174,6 @@ export function Token() {
     };
   }, [id]);
 
-  useEffect(()=>{
-    let active=true,pending=false; setSnapshots([]);
-    const refresh=async()=>{if(pending)return;pending=true;try{const data=await api.marketData(id,range);if(active)setSnapshots(data.snapshots);}catch{/* Preserve the last valid chart. */}finally{pending=false;}};
-    void refresh();const timer=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh();},15_000);
-    return()=>{active=false;window.clearInterval(timer);};
-  },[id,range]);
-
   useEffect(() => {
     if(launch?.rewardMode!=="jackpot"||section!=="Rewards")return;
     const timer = window.setInterval(() => {if(!document.hidden)setNowSeconds(Math.floor(Date.now() / 1_000));}, 1_000);
@@ -240,7 +231,7 @@ export function Token() {
     </section>
 
     <div className="token-layout"><section className="token-main">
-      <div id="market-chart" className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div></header><div className="chart market-line-shell"><MarketCapLine snapshots={withLatestMarketPoint(snapshots,launch)} range={range} onRangeChange={setRange}/></div></div>
+      <div id="market-chart" className="chart-panel market-cap-chart-panel"><header><div><small>MARKET CAP</small><b>{launch.aquaIndexed ? money.format(launch.marketCapUsd) : "Pending"}</b></div></header><div className="chart market-line-shell"><MarketCapCandles key={id} launch={launch}/></div></div>
 
       <MarketInformationTabs section={section} onChange={openInformation} newComments={newerComment(launch.latestComment,seen.key===readKey?seen.cursor:null)} latestProjectUpdateAt={launch.latestProjectUpdateAt}/>
       <section id="market-information" className="market-information" role="tabpanel" aria-labelledby={"market-tab-"+section.toLowerCase()} tabIndex={0}>

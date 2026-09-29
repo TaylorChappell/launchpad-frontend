@@ -126,6 +126,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <a href={xUrl} target="_blank" rel="noreferrer" aria-label="AQUA on X" title="AQUA on X"><XBrandIcon/></a>
         <a href="https://www.orca.so/" target="_blank" rel="noreferrer" aria-label="Visit Orca" title="Orca"><OrcaMark/></a>
       </div>
+      <small className="chart-attribution">TradingView Lightweight Charts™ · Copyright (с) 2025 <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer">TradingView, Inc.</a></small>
     </footer>
     <nav className="bottom-nav" aria-label="Mobile navigation">{bottomLinks.map((link) => { const Icon = link.icon; return <NavLink key={link.to} to={link.to} end={link.to === "/"}><Icon size={20} /><span>{link.label}</span></NavLink>; })}<button aria-label="More navigation" aria-expanded={mobile} aria-controls="mobile-navigation" onClick={()=>setMobile(true)} className={moreLinks.some(link=>link.to===currentPath)?"active":""}><Menu size={20}/><span>More</span></button></nav>
     {mobile && <MobileNavigation onClose={()=>setMobile(false)} onSearch={()=>{setMobile(false);setSearchOpen(true);}}/>}
