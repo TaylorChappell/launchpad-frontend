@@ -1,5 +1,5 @@
 import { api, ApiError } from "./api";
-import { snapshotCandles, type CandleHistory, type ChartRange } from "./market-candles";
+import { snapshotCandles, type CandleHistory, candleIntervals, type CandleInterval, type CandlePage, type ChartRange } from "./market-candles";
 
 export async function loadCandleHistory(id: string, range: ChartRange): Promise<CandleHistory> {
   try {
@@ -12,4 +12,12 @@ export async function loadCandleHistory(id: string, range: ChartRange): Promise<
   const data = await api.marketData(id,range);
   if (!Array.isArray(data.snapshots)) throw new Error("Chart history is unavailable.");
   return snapshotCandles(data.snapshots,range);
+}
+
+export async function loadCandlePage(id:string,interval:CandleInterval,before?:number):Promise<CandlePage>{
+  const data=await api.candlePage(id,interval,before);
+  if((before!==undefined&&data.nextBefore!==null&&data.nextBefore>=before)||!Array.isArray(data.candles)||data.intervalSeconds!==candleIntervals[interval]||!(data.nextBefore===null||typeof data.nextBefore==="number")) {
+    throw new Error("This candle interval needs the latest chart API.");
+  }
+  return data;
 }

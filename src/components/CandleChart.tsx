@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import type { IChartApi, ISeriesApi, UTCTimestamp, CandlestickData } from "lightweight-charts";
 import { candlePrice, type ChartCandle } from "../market-candles";
 
-export function CandleChart({ candles, viewKey, mini = false, onInspect }: {
-  candles: ChartCandle[]; viewKey: string; mini?: boolean; onInspect?: (candle: ChartCandle | null) => void;
+export function CandleChart({ candles, viewKey, mini = false, onInspect, onReachStart }: {
+  candles: ChartCandle[]; viewKey: string; mini?: boolean; onInspect?: (candle: ChartCandle | null) => void; onReachStart?: () => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const series = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const inspect = useRef(onInspect); inspect.current = onInspect;
+  const reachStart = useRef(onReachStart); reachStart.current=onReachStart;
   const previous = useRef<ChartCandle[]>([]);
   const fitted = useRef<string | null>(null);
   const [ready,setReady] = useState(false);
@@ -38,6 +39,9 @@ export function CandleChart({ candles, viewKey, mini = false, onInspect }: {
         const value = series.current && event.seriesData.get(series.current);
         inspect.current?.(value && "open" in value ? value as ChartCandle : null);
       });
+      if(!mini) instance.timeScale().subscribeVisibleLogicalRangeChange(range=>{
+        if(range&&range.from<10&&previous.current.length)reachStart.current?.();
+      });
       previous.current=[]; fitted.current=null; setReady(true);
     }).catch(()=>{if(!disposed)setFailed(true);});
     return () => { disposed=true; instance?.remove(); chart.current=null; series.current=null; };
@@ -45,16 +49,24 @@ export function CandleChart({ candles, viewKey, mini = false, onInspect }: {
   useEffect(()=>{
     if (!ready || !series.current || !chart.current) return;
     const data = (mini?candles.slice(-32):candles) as CandlestickData<UTCTimestamp>[];
-    const smallest = Math.min(...data.map(p=>p.low));
+    const smallest = data.reduce((lowest,p)=>Math.min(lowest,p.low),Infinity);
     if (smallest>0 && Number.isFinite(smallest)) series.current.applyOptions({priceFormat:{type:"custom",formatter:candlePrice,minMove:Math.pow(10,Math.max(-15,Math.floor(Math.log10(smallest))-4))}});
     const old=previous.current;
+    const visible=chart.current.timeScale().getVisibleLogicalRange();
     const sameView=fitted.current===viewKey;
     const samePrefix=sameView && old.length>0 && data.length>=old.length && old.slice(0,-1).every((p,i)=>{
       const n=data[i];return n.time===p.time&&n.open===p.open&&n.high===p.high&&n.low===p.low&&n.close===p.close;
     }) && data[old.length-1]?.time===old.at(-1)?.time;
     if(samePrefix) for(const bar of data.slice(old.length-1)) series.current.update(bar);
     else series.current.setData(data);
-    if (!sameView && data.length) {chart.current.timeScale().fitContent();fitted.current=viewKey;}
+    if (!sameView && data.length) {
+      if(mini)chart.current.timeScale().fitContent();
+      else chart.current.timeScale().setVisibleLogicalRange({from:Math.max(-.5,data.length-100),to:data.length+3});
+      fitted.current=viewKey;
+    } else if(visible&&old.length&&data.length&&data[0].time<old[0].time) {
+      const added=data.findIndex(p=>p.time===old[0].time);
+      if(added>0)chart.current.timeScale().setVisibleLogicalRange({from:visible.from+added,to:visible.to+added});
+    }
     previous.current=data;
   },[candles,viewKey,mini,ready]);
   return <div className={`tradingview-canvas ${mini?"is-mini":""}`} ref={container} role="img"

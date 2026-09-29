@@ -44,11 +44,13 @@ export function MarketInformationTabs({ section, onChange, newComments = false, 
   section: string; onChange: (value: string) => void; newComments?: boolean; latestProjectUpdateAt?: number | null;
 }) {
   const navigation = useRef<HTMLElement>(null);
+  const tabPositioned = useRef(false);
   useEffect(() => {
     const nav = navigation.current, selected = nav?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]');
     if (!nav || !selected) return;
     const button = selected.getBoundingClientRect(), bounds = nav.getBoundingClientRect();
-    nav.scrollTo({ left: nav.scrollLeft + button.left - bounds.left - (nav.clientWidth - button.width) / 2, behavior: "instant" });
+    nav.scrollTo({ left: nav.scrollLeft + button.left - bounds.left - (nav.clientWidth - button.width) / 2, behavior: tabPositioned.current&&!window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "smooth" : "instant" });
+    tabPositioned.current=true;
   }, [section]);
   return <nav ref={navigation} id="market-navigation" className="workspace-tabs market-information-tabs" role="tablist" aria-label="Market navigation" onKeyDown={event=>{if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;event.preventDefault();const index=MARKET_INFORMATION_SECTIONS.findIndex(value=>value===section);const next=event.key==="Home"?0:event.key==="End"?4:(index+(event.key==="ArrowRight"?1:-1)+5)%5;onChange(MARKET_INFORMATION_SECTIONS[next]);navigation.current?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus({preventScroll:true});}}>
     {MARKET_INFORMATION_SECTIONS.map(label => <button key={label} id={"market-tab-"+label.toLowerCase()} role="tab" tabIndex={section===label?0:-1} aria-selected={section===label} aria-pressed={section === label} aria-controls="market-information" onClick={() => onChange(label)}>

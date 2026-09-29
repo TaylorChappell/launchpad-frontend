@@ -40,3 +40,14 @@ test('mini candles cover the entire history and preserve extrema',()=>{
  assert.equal(bars.at(-1).close,points.at(-1).close);
  assert.equal(Math.max(...bars.map(p=>p.high)),100);
 });
+
+test('merging pages keeps all history ordered and rejects stale candle revisions',async()=>{
+ const {mergeCandleHistory}=await import('../src/market-candles.ts');
+ const older=snapshotCandles([point(0,2),point(5,3)],'1h');
+ const newer=snapshotCandles([point(5,4),point(10,5)],'1h');
+ const merged=mergeCandleHistory(older,newer);
+ assert.equal(merged.candles.length,3);assert.equal(merged.candles[1].price.close,4);
+ const stale={...older,candles:older.candles.map(p=>({...p,lastSampleAt:p.lastSampleAt-1}))};
+ assert.equal(mergeCandleHistory(merged,stale).candles[1].price.close,4);
+ assert.equal(mergeCandleHistory(older,{...newer,intervalSeconds:60}).candles.length,2);
+});

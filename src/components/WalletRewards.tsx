@@ -13,13 +13,13 @@ type PendingClaim={wallet:string;launchId:string;name:string;signature:string;se
 function savedClaim(key:string):PendingClaim|null{
   try { const value=JSON.parse(localStorage.getItem(key)??"null");return value&&typeof value.wallet==="string"&&typeof value.launchId==="string"&&typeof value.signature==="string"&&(typeof value.sequence==="string"||typeof value.epochId==="string"||Array.isArray(value.epochIds)&&value.epochIds.length>0)?value:null; }catch{return null;}
 }
-export function WalletRewards({launch,data,launches=[],onClaimed,kind="normal",compact=false}:{compact?:boolean;kind?:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches?:Launch[];onClaimed?:()=>void}){
+export function WalletRewards({launch,data,launches=[],onClaimed,kind="normal",compact=false,active=true}:{active?:boolean;compact?:boolean;kind?:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches?:Launch[];onClaimed?:()=>void}){
   const wallet=useWallet(),{config}=useRuntime();
   if(launch?.showcase)return <div className="wallet-rewards"><div className="reward-claim-list"><article className="reward-claim-row ready"><div className="reward-claim-coin"><TokenMark launch={launch}/><div><b>{launch.name}</b><small>Sample allocation</small></div></div><div className="reward-row-amount"><strong>$12.50</strong><small>Preview only</small></div><button className="primary" disabled>Claim</button></article></div></div>;
   // Remount on wallet/network change: pending receipts always belong to their signer.
-  return <RewardContent key={config.network+":"+wallet.address+":"+(launch?.id??"all")+":"+kind} kind={kind} compact={compact} launch={launch} data={data} launches={launches} onClaimed={onClaimed}/>;
+  return <RewardContent key={config.network+":"+wallet.address+":"+(launch?.id??"all")+":"+kind} active={active} kind={kind} compact={compact} launch={launch} data={data} launches={launches} onClaimed={onClaimed}/>;
 }
-function RewardContent({launch,data,launches,onClaimed,kind,compact}:{compact:boolean;kind:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches:Launch[];onClaimed?:()=>void}){
+function RewardContent({launch,data,launches,onClaimed,kind,compact,active}:{active:boolean;compact:boolean;kind:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches:Launch[];onClaimed?:()=>void}){
   const wallet=useWallet(),{config}=useRuntime(),address=wallet.address;
   const storageKey=["aqua:pending-reward",config.network,address].join(":")+(kind==="ripple"?":ripple":"");
   const [loaded,setLoaded]=useState<WalletRewardsResponse|null>(null),[known,setKnown]=useState<Launch[]>([]);
@@ -32,12 +32,12 @@ function RewardContent({launch,data,launches,onClaimed,kind,compact}:{compact:bo
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
   const rewardData=data===undefined?loaded:data;
   useEffect(()=>{
-    if(!address||data!==undefined)return;
-    let active=true,inFlight=false;
-    const load=async()=>{if(inFlight)return;inFlight=true;try{const result=await (kind==="ripple"?api.rippleRewards(address):api.rewards(address));if(active){setLoaded(result);setError("");}}catch{if(active)setError("Rewards could not load. Try again.");}finally{inFlight=false;}};
+    if(!active||!address||data!==undefined)return;
+    let subscribed=true,inFlight=false;
+    const load=async()=>{if(inFlight)return;inFlight=true;try{const result=await (kind==="ripple"?api.rippleRewards(address):api.rewards(address));if(subscribed){setLoaded(result);setError("");}}catch{if(subscribed)setError("Rewards could not load. Try again.");}finally{inFlight=false;}};
     void load();const timer=window.setInterval(()=>{if(document.visibilityState==="visible")void load();},20_000);
-    return()=>{active=false;window.clearInterval(timer);};
-  },[address,data,revision,kind]);
+    return()=>{subscribed=false;window.clearInterval(timer);};
+  },[address,data,revision,kind,active]);
   const missingIds=(rewardData?.markets??[]).filter(m=>!launches.some(l=>l.id===m.launchId)&&launch?.id!==m.launchId).map(m=>m.launchId).sort().join(",");
   useEffect(()=>{let active=true;if(missingIds)api.launches({ids:missingIds,limit:100}).then(r=>{if(active)setKnown(r.launches);}).catch(()=>{});return()=>{active=false;};},[missingIds]);
   const allLaunches=[...launches,...known,...(launch?[launch]:[])];
@@ -162,9 +162,9 @@ function RewardContent({launch,data,launches,onClaimed,kind,compact}:{compact:bo
     finally{running.current=false;if(alive.current){setBusy(false);if(receipts.length){setShare({wallet:address,network:config.network,receipts});setShareOpen(true);}}}
   }
   const claimable=markets.filter(m=>m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1));
-  if(launch&&address&&rewardData&&!markets.length&&!pending&&!success&&!error)return <p className="reward-scope-note">Your rewards will appear here when this market allocates them.</p>;
+  if(launch&&address&&rewardData&&!markets.length&&!pending&&!success&&!error)return <div className="market-wallet-rewards"><p className="reward-scope-note">Your rewards will appear here when this market allocates them.</p></div>;
   if(!address)return <section className="wallet-inline"><Gift size={24}/><div><h3>Your rewards are here.</h3><p>Connect your wallet to see your allocation and claim it.</p></div><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet</button></section>;
-  return <div className="wallet-rewards">
+  return <div className={"wallet-rewards"+(launch?" market-wallet-rewards":"")}>
     {share&&shareOpen&&<RewardClaimShare claim={share} onClose={()=>setShareOpen(false)}/>}
     {!launch&&<div className={compact?"ripple-claim-actions":"claim-all-bar"}>{compact?<h3>Your posts</h3>:<span>{claimable.length} coin{claimable.length===1?"":"s"} ready to claim{claimable.length>1&&<small>Approve each coin in your wallet.</small>}</span>}{compact&&<span className="ripple-available">Available to claim <b>{rewardData ? usd(rewardData.rippleClaim?.availableUsdCents??0) : "—"}</b></span>}<button className="primary" disabled={busy||Boolean(pending)||(compact?!rewardData?.rippleClaim?.canClaim:!claimable.length)} onClick={()=>void (compact?claimRipple():claimBatch(claimable))}>{busy?<><Loader2 size={15} className="spin"/> Claiming…</>:compact?"Claim":"Claim all"}</button></div>}
     {compact && !busy && !pending && !error && !rewardData?.rippleClaim?.canClaim && <p className="claim-eligibility" role="status">{!rewardData ? "Loading your available rewards…" : rewardData.rippleClaim?.reason ?? `Claims unlock above ${usd(rewardData.rippleClaim?.minimumUsdCents ?? 500)} in settled rewards.`}</p>}
@@ -172,7 +172,7 @@ function RewardContent({launch,data,launches,onClaimed,kind,compact}:{compact:bo
     {pending&&<div className="claim-notice"><Loader2 size={20} className={busy?"spin":""}/><div><b>{pending.name} · claim submitted</b><a href={"https://solscan.io/tx/"+pending.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View transaction <ArrowUpRight size={13}/></a></div><button className="soft-button" disabled={busy} onClick={()=>void retry()}>Check confirmation</button></div>}
     {status&&<p className="claim-status" role="status">{busy&&<Loader2 className="spin" size={16}/>}{status}</p>}
     {error&&<p className="danger-note" role="alert">{error} {!pending&&!busy&&<button className="text-button" onClick={()=>{setRevision(n=>n+1);onClaimed?.();}}>Try again</button>}</p>}
-    {!compact&&(!rewardData&&!error?<div className="workspace-loading">Loading your rewards…</div>:markets.length?<div className="reward-claim-list">{markets.map(m=>{
+    {!compact&&(!rewardData&&!error?<div className={launch?"market-reward-skeleton":"workspace-loading"} role="status" aria-label="Loading rewards">{launch?<><span/><span/><span/></>:"Loading your rewards…"}</div>:markets.length?<div className="reward-claim-list">{markets.map(m=>{
       const coin=allLaunches.find(l=>l.id===m.launchId);
       const eligible=m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1);
       return <article className={"reward-claim-row"+(eligible?" ready":"")} key={m.launchId+":"+(m.claimableEpochIds[0]??m.claimSequence??"pending")}>

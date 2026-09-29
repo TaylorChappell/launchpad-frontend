@@ -1,53 +1,67 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Info, RotateCcw } from "lucide-react";
-import { loadCandleHistory } from "../candle-history";
-import { candlePrice, chartCandles, withLiveCandle, type CandleHistory, type ChartCandle, type ChartRange } from "../market-candles";
+import { loadCandlePage } from "../candle-history";
+import { candlePrice, candleIntervals, chartCandles, mergeCandleHistory, withLiveCandle, type CandlePage, type ChartCandle, type CandleInterval } from "../market-candles";
 import { isPriceLive } from "../market-prices";
 import type { Launch } from "../types";
 import { CandleChart } from "./CandleChart";
 
 export function MarketCapCandles({ launch }: { launch: Launch }) {
-  const [range,setRange]=useState<ChartRange>("24h");
+  const [interval,setInterval]=useState<CandleInterval>("1m");
   const [metric,setMetric]=useState<"cap"|"price">("cap");
-  const [loaded,setLoaded]=useState<{range:ChartRange;history:CandleHistory} | null>(null);
-  const [error,setError]=useState(false);
-  const [retry,setRetry]=useState(0);
-  const [reset,setReset]=useState(0);
+  const [loaded,setLoaded]=useState<{interval:CandleInterval;history:CandlePage} | null>(null);
+  const [error,setError]=useState("");
+  const [olderError,setOlderError]=useState(false),[loadingOlder,setLoadingOlder]=useState(false);
+  const [retry,setRetry]=useState(0),[reset,setReset]=useState(0);
   const [inspected,setInspected]=useState<ChartCandle | null>(null);
+  const generation=useRef(0),olderPending=useRef<symbol|null>(null);
   useEffect(()=>{
     let active=true,pending=false;
-    setError(false);
+    generation.current++;olderPending.current=null;setLoadingOlder(false);setOlderError(false);setError("");
     const refresh=async()=>{
       if(pending)return;pending=true;
-      try{const history=await loadCandleHistory(launch.id,range);if(active){setLoaded({range,history});setError(false);}}
-      catch{if(active)setError(true);}
+      try{
+        const history=await loadCandlePage(launch.id,interval);
+        if(active){setLoaded(previous=>previous?.interval===interval && !(history.nextBefore!==null && history.nextBefore>(previous.history.candles.at(-1)?.time??0))
+          ? {interval,history:{...mergeCandleHistory(previous.history,history),nextBefore:previous.history.nextBefore}}
+          : {interval,history});setError("");}
+      }catch(e){if(active)setError(e instanceof Error?e.message:"Couldn't load chart.");}
       finally{pending=false;}
     };
     void refresh();
     const timer=window.setInterval(()=>{if(!document.hidden)void refresh();},15_000);
-    return()=>{active=false;window.clearInterval(timer);};
-  },[launch.id,range,retry]);
+    return()=>{active=false;generation.current++;window.clearInterval(timer);};
+  },[launch.id,interval,retry]);
+  const loadOlder=useCallback(async()=>{
+    if(olderPending.current||loaded?.interval!==interval||loaded.history.nextBefore===null)return;
+    const current=generation.current,token=Symbol();olderPending.current=token;setLoadingOlder(true);setOlderError(false);
+    try{
+      const page=await loadCandlePage(launch.id,interval,loaded.history.nextBefore);
+      if(current===generation.current)setLoaded(previous=>previous?.interval===interval
+        ? {interval,history:{...mergeCandleHistory(previous.history,page),nextBefore:page.nextBefore}} : previous);
+    }catch{if(current===generation.current)setOlderError(true);}
+    finally{if(olderPending.current===token){olderPending.current=null;setLoadingOlder(false);}}
+  },[loaded,interval,launch.id]);
   const candles=useMemo(()=>{
     if(!loaded)return [];
     const live=isPriceLive(launch)?{sampledAt:launch.priceUpdatedAt!,priceUsd:launch.priceUsd,marketCapUsd:launch.marketCapUsd}:undefined;
     return chartCandles(withLiveCandle(loaded.history,live),metric);
   },[loaded,metric,launch.priceUpdatedAt,launch.priceStatus,launch.priceUsd,launch.marketCapUsd]);
-  useEffect(()=>setInspected(null),[range,metric]);
+  useEffect(()=>setInspected(null),[interval,metric]);
   const current=inspected??candles.at(-1);
-  const loading=loaded?.range!==range&&!error;
-  const interval=loaded?.history.intervalSeconds??900;
-  const intervalLabel=interval>=86400?`${interval/86400}d`:interval>=3600?`${interval/3600}h`:`${interval/60}m`;
+  const loading=loaded?.interval!==interval&&!error;
   return <div className="market-cap-line interactive-market-chart candle-market" aria-busy={loading}>
-    <div className="chart-controls"><div aria-label="Chart timeframe">{(["1h","24h","7d","all"] as const).map(value=><button key={value} aria-pressed={range===value} onClick={()=>setRange(value)}>{value==="all"?"All time":value.toUpperCase()}</button>)}</div>
+    <div className="chart-controls"><div aria-label="Candle timeframe">{(Object.keys(candleIntervals) as CandleInterval[]).map(value=><button key={value} aria-pressed={interval===value} onClick={()=>setInterval(value)}>{value}</button>)}</div>
       <div aria-label="Chart value"><button aria-pressed={metric==="cap"} onClick={()=>setMetric("cap")}>Market cap</button><button aria-pressed={metric==="price"} onClick={()=>setMetric("price")}>Price</button></div></div>
-    <div className="candle-legend"><span>USD · {intervalLabel} candles</span><span className="candle-ohlc">{current&&(["open","high","low","close"] as const).map(field=><span key={field}>{field[0].toUpperCase()} <b>{candlePrice(current[field])}</b></span>)}</span>
-      <button title="USD candles use indexed pool-price samples. They can miss price moves between samples; gaps have no indexed data." aria-label="About chart data"><Info size={14}/></button>
+    <div className="candle-legend"><span>USD · {loaded?.interval??interval} candles</span><span className="candle-ohlc">{current&&(["open","high","low","close"] as const).map(field=><span key={field}>{field[0].toUpperCase()} <b>{candlePrice(current[field])}</b></span>)}</span>
+      <button title="USD candles use indexed pool-price samples. Pan left for earlier candles; empty periods have no indexed data." aria-label="About chart data"><Info size={14}/></button>
       <button title="Reset chart view" aria-label="Reset chart view" onClick={()=>setReset(n=>n+1)}><RotateCcw size={14}/></button></div>
     <div className="chart-canvas candle-stage">
-      <CandleChart candles={candles} viewKey={`${launch.id}:${loaded?.range}:${metric}:${reset}`} onInspect={setInspected}/>
-      {loading&&<div className="candle-overlay" role="status">Loading chart…</div>}
+      <CandleChart candles={candles} viewKey={`${launch.id}:${loaded?.interval}:${metric}:${reset}`} onInspect={setInspected} onReachStart={olderError?undefined:loadOlder}/>
+      {loading&&<div className={`candle-overlay ${candles.length?"candle-refreshing":""}`} role="status">Loading candles…</div>}
       {!loading&&!candles.length&&!error&&<div className="candle-overlay">Waiting for indexed price history.</div>}
-      {error&&<div className={`candle-overlay ${candles.length?"candle-delayed":""}`} role="status">{candles.length?"Chart updates delayed.":"Couldn't load chart."}<button onClick={()=>{setError(false);setRetry(n=>n+1);}}>Retry</button></div>}
+      {error&&<div className={`candle-overlay ${candles.length?"candle-delayed":""}`} role="status"><span>{error.includes("latest chart API")?"This timeframe needs the latest chart API.":candles.length?"Chart updates delayed.":"Couldn't load chart."}</span><button onClick={()=>{setError("");setRetry(n=>n+1);}}>Retry</button></div>}
+      {!loading&&!error&&loaded?.history.nextBefore!==null&&loaded&&<button className="candle-history-control" disabled={loadingOlder} onClick={()=>void loadOlder()}>{loadingOlder?"Loading earlier candles…":olderError?"Retry earlier candles":"Earlier candles"}</button>}
     </div>
   </div>;
 }

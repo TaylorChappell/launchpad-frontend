@@ -68,3 +68,17 @@ export function compactCandles(candles: ChartCandle[], limit = 32): ChartCandle[
   }
   return result;
 }
+
+export const candleIntervals = {"1m":60,"5m":300,"15m":900,"1h":3600,"4h":14400,"1d":86400} as const;
+export type CandleInterval = keyof typeof candleIntervals;
+export type CandlePage = CandleHistory & { nextBefore: number | null };
+/** Merge by bucket, preserving older loaded history while refreshing current bars. */
+export function mergeCandleHistory(previous: CandleHistory, incoming: CandleHistory): CandleHistory {
+  if(previous.intervalSeconds!==incoming.intervalSeconds)return incoming;
+  const rows=new Map(previous.candles.map(p=>[p.time,p]));
+  for(const p of incoming.candles){
+    const old=rows.get(p.time);
+    if(!old||p.lastSampleAt>=old.lastSampleAt)rows.set(p.time,p);
+  }
+  return {...previous,candles:[...rows.values()].sort((a,b)=>a.time-b.time)};
+}
