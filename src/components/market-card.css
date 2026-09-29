@@ -39,10 +39,14 @@
 .aqua-market-card .asset-mark.solana { background:#102637; padding:2px; }
 .aqua-market-card .asset-mark.stock { color:#1479a2; }
 .aqua-market-card .generic-stock-mark { fill:#258ab0; stroke:#258ab0; }
-.card-market-art { position:relative; min-width:0; height:76px; }
-.card-trend { position:absolute; inset:8px 0 0; color:#168ec9; }
+.card-market-art { position:relative; min-width:0; height:76px; isolation:isolate; }
+.card-trend { position:absolute; inset:8px 36px 0 0; color:#168ec9; }
 .card-trend.is-falling { color:#e76c7d; }
 .card-trend > svg { display:block; width:100%; height:100%; overflow:visible; }
+.card-pair-medallion { position:absolute; right:9px; top:50%; transform:translateY(-50%); display:grid; place-items:center; width:70px; height:70px; border:1px solid #fff; border-radius:50%; background:#e0f4ff; box-shadow:0 0 0 9px #c1e8fc55,0 0 0 18px #caeeff44; pointer-events:none; }
+.card-pair-medallion > .asset-mark { display:grid; place-items:center; width:58px; height:58px; border:3px solid #fff; box-shadow:0 2px 7px #276b981c; }
+.card-pair-medallion > .asset-mark.solana { padding:6px; }
+.card-pair-medallion .asset-mark img { object-fit:contain; }
 .aqua-market-card .card-reward-strip { display:flex; align-items:center; gap:10px; margin:0; padding:10px 12px; min-height:58px; border:1px solid #c6e7fa !important; border-radius:9px; min-width:0; background:#eaf6ff !important; }
 .card-reward-heading { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
 .card-reward-heading > .aqua-reward-mode-icon { flex:none; width:22px; height:26px; color:#0888c6; }
@@ -73,6 +77,8 @@
 .aqua-market-card .dex-status-badge { font-size:10px; padding:4px 6px; }
 .aqua-market-card .creator-lock-badge { height:23px; font-size:9px; padding:0 6px; }
 @container (max-width:300px) {
+  .card-pair-medallion { width:60px; height:60px; }
+  .card-pair-medallion > .asset-mark { width:50px; height:50px; }
   .aqua-market-card .token-title b { font-size:16px; }
   .watch-card .aqua-market-card .token-title { gap:6px; }
   .aqua-market-card .card-reward-strip { gap:8px; padding:10px; }

@@ -67,7 +67,7 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
       </div>
       <div className="card-market-overview">
         <div className="card-cap"><small>Market cap</small><strong>{indexed ? cardAmount(launch.marketCapUsd, true) : "Indexing"}</strong><div className="token-pair"><AssetMark launch={launch}/><span title={`${launch.pairSymbol} pair`}>{launch.pairSymbol} pair</span></div></div>
-        <div className="card-market-art"><MarketCardTrend id={launch.id} enabled={Boolean(indexed)} priceUsd={launch.priceUsd} priceUpdatedAt={launch.priceUpdatedAt} priceStatus={launch.priceStatus}/></div>
+        <div className="card-market-art"><MarketCardTrend id={launch.id} enabled={Boolean(indexed)} priceUsd={launch.priceUsd} priceUpdatedAt={launch.priceUpdatedAt} priceStatus={launch.priceStatus}/><div className="card-pair-medallion" aria-hidden="true"><AssetMark launch={launch}/></div></div>
       </div>
       <CardRewards launch={launch}/>
       <div className="token-stats"><Metric label="24h volume" value={indexed ? cardAmount(launch.volume24hUsd, true) : "Indexing"}/><Metric label="Holders" value={indexed ? cardAmount(launch.holderCount) : "Indexing"}/></div>
