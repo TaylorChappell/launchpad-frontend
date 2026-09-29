@@ -20,13 +20,16 @@ async function setup(page:Page){
   else if(path.endsWith('/market-data'))json={snapshots:[]};
   else if(path==='/api/stocks')json={stocks:[]};
   else if(path==='/api/launches')json={launches:[]};
+  else if(path.includes('/notifications/'))json={notifications:[]};
+  else if(path.endsWith('/holdings'))json={holdings:[]};
+  else if(path.endsWith('/claim-history'))json={claims:[],lifetime:[],hasMore:false};
   else if(path.includes('governance'))json={enabled:false};
   else if(path==='/api/market-prices/stream')return route.fulfill({contentType:'text/event-stream',body:'data: {"prices":[]}\n\n'});
   else if(path==='/api/market-prices')json={prices:[]};
   return route.fulfill({json});
  });
  await page.route('https://rpc.invalid/**',route=>route.fulfill({json:{jsonrpc:'2.0',id:route.request().postDataJSON().id,result:{context:{slot:1},value:0}}}));
- await page.route('**/account/**',route=>route.fulfill({json:{enabled:false,profiles:[]}}));
+ await page.route('**/account/**',route=>route.fulfill({json:{enabled:false,profiles:{}}}));
 }
 
 test('TradingView candles render SOL, stock and custom coins with seamless controls',async({page},info)=>{
