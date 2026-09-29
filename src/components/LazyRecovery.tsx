@@ -1,3 +1,4 @@
+import { RefreshButton } from "./RefreshButton";
 import { lazy, type ComponentType } from "react";
 import { RefreshCw } from "lucide-react";
 import "./lazy-recovery.css";
@@ -12,7 +13,7 @@ function PageAssetRecovery() {
     <RefreshCw size={25} aria-hidden="true" />
     <h2>This page needs a refresh.</h2>
     <p>AQUA may have updated, or a page file could not be downloaded. Reload to get the current version.</p>
-    <button onClick={reload}>Reload AQUA <RefreshCw size={15} /></button>
+    <RefreshButton onClick={reload}>Reload AQUA <RefreshCw size={15} /></RefreshButton>
     <small>Running Studio jobs continue in the background. Save any open edits before reloading.</small>
   </section>;
 }

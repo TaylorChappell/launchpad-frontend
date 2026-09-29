@@ -1,3 +1,4 @@
+import { RefreshButton } from "../components/RefreshButton";
 import {useEffect,useState,type CSSProperties} from 'react';
 import {Link} from 'react-router-dom';
 import {ArrowDown,ArrowUpRight,Check,Clock3,Loader2,RefreshCw,Trophy,Waves,Zap} from 'lucide-react';
@@ -36,11 +37,11 @@ export function CommunityBoost(){
    <div className="cb-hero-copy"><h1>Community<br/><em>Boost.</em></h1><p>Your community. The next wave.<br/>Back a coin to receive {enabled?enabled.bonusBps/100:10}% of AQUA treasury fees for 24 hours.</p></div>
    <div className="cb-hero-display"><div className="cb-orbit" aria-hidden="true"><div><Zap/></div></div><div className="cb-countdown"><strong aria-label="Round countdown">{enabled?countdown(open?enabled.round.endsAt:enabled.round.startsAt,now):'— : — : —'}</strong><small>A new winner at 00:00 UTC</small></div></div>
   </section>
-  {error&&<div className="cb-alert" role="alert"><span><b>Leaderboard connection interrupted.</b> {data?'Showing the last update. Voting is paused until refreshed.':error}</span><button onClick={refresh} disabled={Boolean(busy)}><RefreshCw/> Retry</button></div>}
+  {error&&<div className="cb-alert" role="alert"><span><b>Leaderboard connection interrupted.</b> {data?'Showing the last update. Voting is paused until refreshed.':error}</span><RefreshButton onClick={refresh} disabled={Boolean(busy)}><RefreshCw/> Retry</RefreshButton></div>}
   {data&&!data.enabled&&<section className="cb-unavailable"><h2>Voting is currently unavailable</h2><p>{data.reason}</p><button onClick={refresh}>Check again</button></section>}
   <div className={`cb-content ${activeBonus?'':'cb-content-wide'}`}>
    <section className="cb-rankings" aria-labelledby="cb-ranking-title">
-    <header className="cb-section-header"><div><h2 id="cb-ranking-title">Live leaderboard</h2></div><button className="cb-refresh" aria-label="Refresh leaderboard" disabled={Boolean(busy)} onClick={refresh}><RefreshCw/></button></header>
+    <header className="cb-section-header"><div><h2 id="cb-ranking-title">Live leaderboard</h2></div><RefreshButton className="cb-refresh" aria-label="Refresh leaderboard" disabled={Boolean(busy)} onClick={refresh}><RefreshCw/></RefreshButton></header>
     <p className="cb-ranking-note">Ranked by time-weighted AQUA votes. Eligible AQUA holders can back one coin.</p>
     <div className="cb-table-labels" aria-hidden="true"><span>RANK / COIN</span><span>AQUA WEIGHT</span><span>YOUR VOTE</span></div>
     {!data&&!error?<div className="cb-loading" role="status"><Loader2 className="spin"/> Loading the race…</div>:leaders.length?<ol className="cb-leaders">{leaders.slice(0,visible).map((coin,index)=>{

@@ -1,3 +1,4 @@
+import { RefreshButton } from "./RefreshButton";
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
@@ -15,7 +16,7 @@ export function AdminCommunityReports({token,search}:{token:string;search:string
     setBusy(true);setError('');try{await api.adminModerateCommunity(token,post.launchId,post.id,action);setTarget(null);await load();}catch(e){setError(e instanceof Error?e.message:'Could not moderate this post.');}finally{setBusy(false);}
   }
   const visible=posts.filter(post=>`${post.launchId} ${post.body} ${post.authorWallet}`.toLowerCase().includes(search.toLowerCase()));
-  return <section className="ops-panel"><header className="ops-community-heading"><div><h2>Community reports</h2><p>Private to AQUA admins. New reports also go to the operations Discord webhook.</p></div><button disabled={busy} onClick={()=>void load()} aria-label="Refresh reports"><RefreshCw size={16}/></button></header>
+  return <section className="ops-panel"><header className="ops-community-heading"><div><h2>Community reports</h2><p>Private to AQUA admins. New reports also go to the operations Discord webhook.</p></div><RefreshButton disabled={busy} onClick={()=>void load()} aria-label="Refresh reports"><RefreshCw size={16}/></RefreshButton></header>
     {error&&<p className="ops-error" role="alert">{error}</p>}
     {busy&&!posts.length?<div className="ops-empty" role="status">Loading reports…</div>:!visible.length?<div className="ops-empty"><ShieldCheck size={22}/><p>No reports in this view.</p></div>:<div className="ops-community-reports">{visible.map(post=><article key={post.id}>
       <header><Link to={`/token/${post.launchId}?tab=community&feed=${post.kind==='update'?'updates':post.kind==='poll'?'polls':'all'}`}>{post.launchId}</Link><span>{post.reports} reports · {post.reasons?.join(', ')}</span></header>

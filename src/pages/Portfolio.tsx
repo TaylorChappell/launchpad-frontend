@@ -1,3 +1,4 @@
+import { RefreshButton } from "../components/RefreshButton";
 import { SectionTabs } from "../components/SectionTabs";
 import { RippleRewards } from "../components/RippleRewards";
 import { WalletIdentity } from "../components/WalletIdentity";
@@ -77,7 +78,7 @@ function PortfolioContent({address}:{address:string|null}){
     <section className="portfolio-welcome"><span className="workspace-icon"><Wallet size={28}/></span><h1>Your portfolio</h1><p>Connect your wallet to see your coins and claim your rewards.</p><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet <ArrowRight size={17}/></button><Link className="portfolio-connect-help" to="/claim-by-address">Claim using a wallet address</Link></section>
   </main>;
   return <main className="page holder-workspace">
-    <header className="workspace-heading"><div><h1>Portfolio</h1><p>Positions, rewards and the communities you’re part of.</p></div><div className="workspace-heading-actions"><span className="wallet-address"><Wallet size={14}/><WalletIdentity wallet={address}/></span><button className="workspace-refresh" aria-label="Refresh holdings" onClick={refresh}><RefreshCw size={16}/></button></div></header>
+    <header className="workspace-heading"><div><h1>Portfolio</h1><p>Positions, rewards and the communities you’re part of.</p></div><div className="workspace-heading-actions"><span className="wallet-address"><Wallet size={14}/><WalletIdentity wallet={address}/></span><RefreshButton className="workspace-refresh" aria-label="Refresh holdings" onClick={refresh}><RefreshCw size={16}/></RefreshButton></div></header>
     {Object.values(errors).some(Boolean)&&<p className="danger-note" role="alert">{Object.values(errors).filter(Boolean).join(" ")} Previous values may be stale. <button className="text-button" onClick={refresh}>Try again</button></p>}
     <section className="portfolio-overview">
       <article className="portfolio-value"><span className="workspace-eyebrow">HOLDINGS VALUE</span><strong>{value===undefined?"—":usd.format(value)}</strong><span>{holdings===null?"Loading positions…":holdings.length+" positions"}{unpriced>0?" · "+unpriced+" awaiting price":""}</span><Link to="/">Explore markets <ArrowUpRight size={15}/></Link></article>

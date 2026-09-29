@@ -1,3 +1,4 @@
+import { RefreshButton } from "./RefreshButton";
 import { useEffect, useRef, useState } from "react";
 import { Loader2, RefreshCw, Reply, X } from "lucide-react";
 import { savedAccountSession } from "../account-api";
@@ -103,7 +104,7 @@ function CommentList({ launch, onRead }: { launch: Launch; onRead?: (comment: Ma
   }
 
   return <section className="market-comments" aria-labelledby="market-comments-heading">
-    <header className="market-comments-heading"><h2 id="market-comments-heading">Comments</h2><div><span>Newest first</span><button className="comment-refresh" aria-label="Refresh comments" title="Refresh comments" disabled={loading || posting} onClick={() => void load()}><RefreshCw size={14} className={loading ? "spin" : ""}/></button></div></header>
+    <header className="market-comments-heading"><h2 id="market-comments-heading">Comments</h2><div><span>Newest first</span><RefreshButton className="comment-refresh" aria-label="Refresh comments" title="Refresh comments" disabled={loading || posting} onClick={() => void load()}><RefreshCw size={14} className={loading ? "spin" : ""}/></RefreshButton></div></header>
     {launch.status !== "live" ? <p className="market-comments-empty">Comments open once this coin launches.</p> : wallet.address && session ?
       <form className="market-comment-composer" onSubmit={event => { event.preventDefault(); void publish(); }}>
         <CommentAvatar wallet={wallet.address}/><div className="comment-compose-content">

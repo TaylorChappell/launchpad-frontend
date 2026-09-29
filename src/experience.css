@@ -216,7 +216,7 @@
 .market-filter-modal { width:min(560px,100%); max-height:calc(100dvh - 40px); overflow-y:auto; border:1px solid #c2e1f1; border-radius:23px; background:#f8fcff; box-shadow:0 24px 80px #123e5a30; color:#214c66; }
 .market-filter-modal > header { display:flex; align-items:center; gap:11px; position:relative; padding:23px 25px 18px; }
 .market-filter-modal h2 { margin:0; font-size:21px; letter-spacing:-.035em; }
-.filter-modal-icon { display:grid; place-items:center; color:#1687bf; width:37px; height:37px; border:1px solid #c1e3f5; border-radius:11px; background:#e8f6ff; }
+.filter-modal-icon { display:grid; place-items:center; color:#111; width:37px; height:37px; border:0; background:transparent; }
 .market-filter-modal .modal-close { position:static; margin-left:auto; background:transparent; border:0; color:#66849a; min-height:36px; min-width:36px; }
 .market-filter-body { display:grid; gap:20px; padding:0 25px 22px; }
 .filter-form-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:15px; }
@@ -294,3 +294,25 @@
 .market-filter-overlay input:focus-visible { outline:none; border-color:#228dcb; box-shadow:0 0 0 3px #228dcb20; }
 .market-filter-overlay .filter-number:focus-within { border-color:#228dcb; box-shadow:0 0 0 3px #228dcb20; }
 .market-filter-overlay .filter-number input:focus-visible { box-shadow:none; }
+
+/* Lightweight feedback for user-triggered refreshes and the connected wallet menu. */
+.refresh-feedback[data-refreshing] svg.lucide-refresh-cw,
+.refresh-feedback[data-refreshing] svg.lucide-rotate-cw { animation: spin 650ms linear infinite; }
+.wallet-dropdown { transform-origin: top right; animation: wallet-menu-arrive 280ms cubic-bezier(.16,1,.3,1) both; }
+@keyframes wallet-menu-arrive {
+  from { opacity:0; transform:translateY(-7px) scale(.98); }
+  to { opacity:1; transform:translateY(0) scale(1); }
+}
+.wizard-main { position:relative; }
+.wizard-form-content { display:flex; flex-direction:column; flex:1; min-width:0; }
+.wizard-draft-loading {
+  position:absolute; inset:0; z-index:5; display:flex; align-items:center; justify-content:center; gap:10px;
+  border-radius:inherit; background:rgba(248,253,255,.84); backdrop-filter:blur(4px); color:#165778;
+  font-size:14px; font-weight:600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wallet-dropdown,
+  .refresh-feedback svg.lucide-refresh-cw,
+  .refresh-feedback svg.lucide-rotate-cw { animation:none !important; }
+  .refresh-feedback[data-refreshing] { opacity:.65; }
+}

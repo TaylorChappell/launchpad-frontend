@@ -1,3 +1,4 @@
+import { RefreshButton } from "./RefreshButton";
 import { Select } from "./Select";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, RotateCw, X } from "lucide-react";
@@ -66,7 +67,7 @@ export function StudioSitePreview({files,variables,mobile=false}:{files:StudioFi
       <Select aria-label="Preview page" value={current.path} onChange={event=>navigate("/"+event.target.value.replace(/^frontend\//,""))}>
         {pages.map(path=><option key={path} value={path}>{path.replace(/^frontend\//,"")}</option>)}
       </Select>
-      <button type="button" aria-label="Reload preview page" onClick={()=>move(0)}><RotateCw size={14}/></button>
+      <RefreshButton type="button" aria-label="Reload preview page" onClick={()=>move(0)}><RotateCw size={14}/></RefreshButton>
     </div>}
     {(notice || compiled.issues.length > 0) && <div className="at-preview-notice" role="status"><span>{notice || compiled.issues[0]}</span>{notice && <button type="button" aria-label="Dismiss preview message" onClick={()=>setNotice("")}><X size={14}/></button>}</div>}
     <div className="at-preview-viewport" ref={viewport} style={{height:frameHeight*scale}}><iframe style={{width:frameWidth,height:frameHeight,transform:`scale(${scale})`}} title="Isolated website preview" ref={frame} sandbox="allow-scripts allow-forms" referrerPolicy="no-referrer" srcDoc={compiled.html} onLoad={scroll}/></div>

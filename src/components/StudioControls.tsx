@@ -1,3 +1,4 @@
+import { RefreshButton } from "./RefreshButton";
 import {Children,cloneElement,isValidElement,useId,useState,type ReactNode} from "react";
 import {createPortal} from "react-dom";
 import {CircleAlert,RefreshCw,LockKeyhole,Unlock,X,ChevronDown,ChevronRight} from "lucide-react";
@@ -53,10 +54,10 @@ export function StudioSetupCard({
           </div>
         ))}
       </div>
-      <button disabled={busy} onClick={onRetry}>
+      <RefreshButton disabled={busy} onClick={onRetry}>
         <RefreshCw size={14} />
         Check again
-      </button>
+      </RefreshButton>
     </section>
   );
 }

@@ -1,3 +1,4 @@
+import { RefreshButton } from "./RefreshButton";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ExternalLink, RefreshCw } from "lucide-react";
@@ -52,7 +53,7 @@ function FilteredReport({token,search,refreshKey,status,setStatus}:{token:string
       {!!service.providerBackoffs?.length&&<ul>{service.providerBackoffs.map(item=><li key={item.scope}>{item.message} Retry {new Date(item.retryAt).toLocaleTimeString()}.</li>)}</ul>}
     </section>}
     <section className="ops-panel" aria-label="Ripple posts">
-      <header className="ops-ripple-heading"><div><h2>All Ripple posts</h2><p>Highest earnings first · refreshes automatically</p></div><button disabled={busy} onClick={()=>setRevision(n=>n+1)}><RefreshCw size={15} className={busy?"spin":""}/>Refresh posts</button></header>
+      <header className="ops-ripple-heading"><div><h2>All Ripple posts</h2><p>Highest earnings first · refreshes automatically</p></div><RefreshButton disabled={busy} onClick={()=>setRevision(n=>n+1)}><RefreshCw size={15} className={busy?"spin":""}/>Refresh posts</RefreshButton></header>
       {error&&<div className="ops-error" role="alert">{error} <button onClick={()=>setRevision(n=>n+1)}>Try again</button></div>}
       {!!data?.unpricedPosts&&<p className="ops-ripple-note">{data.unpricedPosts} post(s) have incomplete historical dollar values and are excluded from dollar totals.</p>}
       {!data? <div className="ops-empty">{error?"Posts unavailable.":"Loading Ripple posts…"}</div> : <>

@@ -1,3 +1,4 @@
+import { RefreshButton } from "./RefreshButton";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Activity, ArrowDownUp, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, RefreshCw } from "lucide-react";
@@ -55,7 +56,7 @@ function KeeperReport({ token, search, refreshKey, range, setRange }: {
     <div className="ops-toolbar">
       <div className="ops-filters" role="group" aria-label="Fee keeper history range">{([['1h', '1 hour'], ['24h', '24 hours'], ['7d', '7 days'], ['max', 'All time']] as const).map(([value, text]) =>
         <button key={value} aria-pressed={range === value} onClick={() => setRange(value)}>{text}</button>)}</div>
-      <button disabled={busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={15} className={busy ? "spin" : ""}/>{busy ? "Updating…" : "Refresh keeper"}</button>
+      <RefreshButton disabled={busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={15} className={busy ? "spin" : ""}/>{busy ? "Updating…" : "Refresh keeper"}</RefreshButton>
     </div>
     {error && <div className="ops-error" role="alert">{error}{data && " Showing the last successful snapshot."}<button onClick={() => setRevision(value => value + 1)}>Try again</button></div>}
     {!data ? <div className="ops-empty">{error ? "Fee keeper data unavailable." : "Loading fee keeper activity…"}</div> : <>

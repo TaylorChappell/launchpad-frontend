@@ -1,10 +1,11 @@
+import { RefreshButton } from "../components/RefreshButton";
 import { ChevronDown } from "lucide-react";
 import { Select } from "../components/Select";
 import { assetLogoUrl } from "../asset-logo";
 import { TransactionOutcomeError } from "../transaction-confirmation";
 import { pairCatalogPollDelay } from "../pair-catalog-refresh";
 import { runSequentialLaunch, watchLaunchSubmission } from "../launch-relay";
-import { readLaunchDraft,saveLaunchDraft } from "../launch-draft";
+import { readLaunchDraft,saveLaunchDraft,removeLaunchDraft } from "../launch-draft";
 import { ensureAccountSession } from "../account-api";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
@@ -36,6 +37,13 @@ type Form = {
   name: string; symbol: string; description: string; xUrl: string; websiteUrl: string;
   rewardFeeBps: number; rippleRewardBps: number;
   telegramUrl: string; devBuyCurrency: "SOL"; launchAmount: string; rewardMode: RewardMode;
+};
+type LaunchDraft = {
+  id?: string; launchId?: string; legacy?: boolean;
+  form: Omit<Form, "devBuyCurrency"> & {devBuyCurrency?: "SOL" | "USDC"};
+  file: File | null; dexFundingEnabled: boolean;
+  marketingMode?: "off" | "proposal" | "automatic"; dexFundingMode?: "proposal" | "automatic";
+  dexProfile: DexProfile; stockMint?: string;
 };
 type ChainStage = "mint" | "pool" | "prepare" | "funding" | "liquidity" | "lock" | "devBuy";
 type ProgressKey = "approval" | ChainStage;
@@ -104,7 +112,6 @@ export function Create() {
   const [pairsRefreshing, setPairsRefreshing] = useState(true);
   const [pairLoadVersion, setPairLoadVersion] = useState(0);
   const [pairLookupVersion, setPairLookupVersion] = useState(0);
-  const pairInitialized = useRef(false);
   const [stockQuery, setStockQuery] = useState("");
   const [pairResult, setPairResult] = useState<{ query: string; stock?: StockOption; error?: string } | null>(null);
   const [pairLookupEnabled, setPairLookupEnabled] = useState(false);
@@ -142,33 +149,93 @@ export function Create() {
   const [recoverableLaunch, setRecoverableLaunch] = useState<Launch | null>(null);
   const [completedLaunch, setCompletedLaunch] = useState<{ id: string; mint?: string; symbol: string; rewardMode: RewardMode } | null>(null);
 
-  const draftKey="launch:"+config.network+":"+(wallet.address??"guest");
-  const priorDraftKey=useRef(draftKey);
-  const editedDraftKey=useRef("");
-  const [draftReady,setDraftReady]=useState("");
-  const [draftError,setDraftError]=useState("");
-  useEffect(()=>{
-    if(stockLoading||pairsRefreshing||draftReady===draftKey)return;
-    let active=true;const carryGuest=priorDraftKey.current==="launch:"+config.network+":guest";priorDraftKey.current=draftKey;setDraftError("");
-    if(searchParams.get("studio")){setDraftReady(draftKey);return;}
-    readLaunchDraft<{form:Omit<Form,"devBuyCurrency"> & {devBuyCurrency?:"SOL"|"USDC"};file:File|null;dexFundingEnabled:boolean;marketingMode?:"off"|"proposal"|"automatic";dexFundingMode?:"proposal"|"automatic";dexProfile:DexProfile;stockMint:string}>(draftKey).then(async draft=>{
-      if(!active)return;
-      if(editedDraftKey.current===draftKey){setDraftError("");return;}
-      if(draft||!carryGuest){setForm(empty);setFile(null);setPreview("");setDexFundingEnabled(false);setMarketingMode("automatic");setDexFundingMode("automatic");setDexProfile({description:"",bannerUrl:"",websiteUrl:"",xUrl:"",telegramUrl:""});setStock(stocks[0]??null);setStep(0);}
-      if(draft?.form){setForm({...empty,...draft.form,devBuyCurrency:"SOL",launchAmount:draft.form.devBuyCurrency==="USDC"?"":draft.form.launchAmount??""});setDexFundingEnabled(Boolean(draft.dexFundingEnabled));setMarketingMode(draft.marketingMode??"automatic");setDexFundingMode(draft.dexFundingMode??"automatic");if(draft.dexProfile)setDexProfile(draft.dexProfile);if(draft.file instanceof File)chooseArtwork(draft.file);const saved=stocks.find(s=>s.mint===draft.stockMint);if(saved)setStock(saved);else if(draft.stockMint){
-        setStock(null);
-        if(pairLookupEnabled){try{const found=await api.lookupPair(draft.stockMint);if(!active)return;setStock(found.stock);}catch{if(!active)return;setDraftError("Draft restored. Your saved pair is unavailable; choose another pair.");return;}}
-      }}
-      setDraftError("");
-    }).catch(()=>{if(active)setDraftError("Local drafts unavailable. Keep this page open until launch.");}).finally(()=>{if(active)setDraftReady(draftKey);});
-    return()=>{active=false;};
-  },[draftKey,stockLoading,pairsRefreshing]);
-  useEffect(()=>{
-    if(draftReady!==draftKey||completedLaunch||!studioImportReady)return;
-    let active=true;
-    const timer=window.setTimeout(()=>{void saveLaunchDraft(draftKey,{form,file,dexFundingEnabled,marketingMode,dexFundingMode,dexProfile,stockMint:stock?.mint}).then(()=>{if(active)setDraftError("");}).catch(()=>{if(active)setDraftError("Draft could not save. Keep this page open until launch.");});},600);
-    return()=>{active=false;window.clearTimeout(timer);};
-  },[draftKey,draftReady,form,file,dexFundingEnabled,marketingMode,dexFundingMode,dexProfile,stock?.mint,completedLaunch,studioImportReady]);
+  const draftKey = "launch:" + config.network + ":" + (wallet.address ?? "guest");
+  const priorDraftKey = useRef(draftKey);
+  const draftIdentity = useRef({ id: crypto.randomUUID() as string, launchId: undefined as string | undefined, legacy: false });
+  const draftWritable = useRef(false);
+  const migratedGuest = useRef<{key: string; id: string} | null>(null);
+  const [draftReady, setDraftReady] = useState("");
+  const [draftError, setDraftError] = useState("");
+  const [restoredPair, setRestoredPair] = useState<string | null>("default");
+  const draftLoading = runtimeLoading || Boolean(wallet.connecting) || draftReady !== draftKey;
+  useEffect(() => {
+    if (runtimeLoading || wallet.connecting || draftReady === draftKey) return;
+    let active = true;
+    const previousKey = priorDraftKey.current;
+    const carryGuest = previousKey === "launch:" + config.network + ":guest";
+    draftWritable.current = false;
+    setDraftError("");
+    if (studioId) { draftWritable.current = true; setDraftReady(draftKey); return; }
+    void readLaunchDraft<LaunchDraft>(draftKey).then(async saved => {
+      let draft = saved;
+      // Older drafts had no launch ID. Retire those only when their creator and coin match a live launch.
+      if (draft?.form && wallet.address && (draft.launchId || draft.legacy || !draft.id)) {
+        try {
+          const candidates = draft.launchId ? [(await api.launch(draft.launchId)).launch]
+            : (await api.launches({creator: wallet.address, status: "live", limit: 100})).launches;
+          const launched = candidates.some(coin => coin?.status === "live" && coin.creatorWallet === wallet.address &&
+            (draft!.launchId ? coin.id === draft!.launchId : coin.name === draft!.form.name.trim() && coin.symbol === draft!.form.symbol.trim().toUpperCase()));
+          if (!active) return;
+          if (launched) { await removeLaunchDraft(draftKey, draft.id); draft = null; }
+        } catch { if (active) setDraftError("Could not check launch status. Your draft has been kept."); }
+      }
+      if (!active) return;
+      priorDraftKey.current = draftKey;
+      if (draft || !carryGuest || saved) {
+        setForm(empty); setFile(null); setPreview(""); setDexFundingEnabled(false);
+        setMarketingMode("automatic"); setDexFundingMode("automatic");
+        setDexProfile({description:"",bannerUrl:"",websiteUrl:"",xUrl:"",telegramUrl:""});
+        setStock(null); setStep(0); setAcknowledged(false); setAcceptedTerms(false);
+        draftIdentity.current = { id: draft?.id ?? crypto.randomUUID(), launchId: draft?.launchId, legacy: Boolean(draft && (draft.legacy || !draft.id)) };
+        setRestoredPair(draft?.stockMint ?? "default");
+      } else if (previousKey !== draftKey) {
+        migratedGuest.current = { key: previousKey, id: draftIdentity.current.id };
+      }
+      if (draft?.form) {
+        setForm({...empty,...draft.form,devBuyCurrency:"SOL",launchAmount:draft.form.devBuyCurrency==="USDC"?"":draft.form.launchAmount??""});
+        setDexFundingEnabled(Boolean(draft.dexFundingEnabled));
+        setMarketingMode(draft.marketingMode??"automatic"); setDexFundingMode(draft.dexFundingMode??"automatic");
+        if (draft.dexProfile) setDexProfile(draft.dexProfile);
+        if (draft.file instanceof File) chooseArtwork(draft.file);
+      }
+      draftWritable.current = true;
+    }).catch(() => { if (active) setDraftError("Local drafts unavailable. Keep this page open until launch."); })
+      .finally(() => { if (active) setDraftReady(draftKey); });
+    return () => { active = false; };
+  }, [draftKey, runtimeLoading, wallet.connecting, studioId]);
+
+  // Restore the form immediately; pair discovery continues independently in the background.
+  useEffect(() => {
+    if (draftLoading || studioId || !restoredPair) return;
+    if (restoredPair === "default") { if (stocks.length) { setStock(stocks[0]); setRestoredPair(null); } return; }
+    const saved = stocks.find(item => item.mint === restoredPair);
+    if (saved) { setStock(saved); setRestoredPair(null); return; }
+    if (stockLoading || pairsRefreshing) return;
+    if (!pairLookupEnabled) { setRestoredPair(null); setDraftError("Choose another pair; your saved pair is unavailable."); return; }
+    const controller = new AbortController();
+    void api.lookupPair(restoredPair, controller.signal).then(({stock: found}) => {
+      if (!controller.signal.aborted) { setStock(found); setRestoredPair(null); }
+    }).catch(() => {
+      if (!controller.signal.aborted) { setRestoredPair(null); setDraftError("Choose another pair; your saved pair is unavailable."); }
+    });
+    return () => controller.abort();
+  }, [draftLoading, studioId, restoredPair, stocks, stockLoading, pairsRefreshing, pairLookupEnabled]);
+
+  function draftSnapshot(): LaunchDraft {
+    return {...draftIdentity.current, form, file, dexFundingEnabled, marketingMode, dexFundingMode, dexProfile, stockMint: restoredPair === "default" ? undefined : restoredPair ?? stock?.mint};
+  }
+  useEffect(() => {
+    if (draftLoading || !draftWritable.current || completedLaunch || executionOpen || !studioImportReady) return;
+    let active = true;
+    const value = draftSnapshot();
+    const timer = window.setTimeout(() => {
+      void saveLaunchDraft(draftKey, value).then(async () => {
+        const guest = migratedGuest.current;
+        if (guest) { migratedGuest.current = null; await removeLaunchDraft(guest.key, guest.id); }
+      }).catch(() => { if (active) setDraftError("Draft could not save. Keep this page open until launch."); });
+    }, 600);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [draftKey, draftLoading, form, file, dexFundingEnabled, marketingMode, dexFundingMode, dexProfile, stock?.mint, restoredPair, completedLaunch, executionOpen, studioImportReady]);
 
   useEffect(() => {
     const id = studioId, address = wallet.address;
@@ -223,7 +290,7 @@ export function Create() {
     return () => { cancelled = true; };
   },[wallet.address,studioId,stockLoading,pairsRefreshing,stocks,config.marketGovernanceEnabled,pairLookupEnabled,studioImportAttempt]);
 
-  const update = <K extends keyof Form>(key: K, value: Form[K]) => { editedDraftKey.current=draftKey; setForm((current) => ({ ...current, [key]: value })); };
+  const update = <K extends keyof Form>(key: K, value: Form[K]) => { setForm((current) => ({ ...current, [key]: value })); };
 
   // Keep the available pairs visible while independent catalogue sources load.
   useEffect(() => {
@@ -240,10 +307,6 @@ export function Create() {
           ? current : result.stocks);
         setPairLookupEnabled(Boolean(result.customPairsEnabled));
         setPairWarning(result.customPairWarning ?? "");
-        if (!pairInitialized.current) {
-          pairInitialized.current = true;
-          setStock(current => current ?? result.stocks[0] ?? null);
-        }
         const pollDelay = pairCatalogPollDelay(result, Date.now() - started);
         setPairsRefreshing(Boolean(result.refreshing) && pollDelay !== null);
         setStockError(result.warning ?? (result.refreshing && pollDelay === null ? "Some pairs are taking longer to load." : ""));
@@ -336,6 +399,10 @@ export function Create() {
   }
 
   function finishLaunch(launchId: string, mint?: string, identity?: Pick<LaunchRelayStatus, "symbol" | "rewardMode">) {
+    if (draftIdentity.current.launchId === launchId) {
+      draftWritable.current = false;
+      void removeLaunchDraft(draftKey, draftIdentity.current.id).catch(() => setDraftError("Could not clear the completed draft."));
+    }
     try { localStorage.removeItem(relayStorageKey); } catch { /* Storage may be unavailable. */ }
     setRelayMessage(""); setSavedLaunchId(null);
     setPending(null); setExecutionState("complete"); setExecutionOpen(false); setRecoverableLaunch(null);
@@ -345,6 +412,9 @@ export function Create() {
 
   function launchAnother() {
     if (preview) URL.revokeObjectURL(preview);
+    draftIdentity.current = { id: crypto.randomUUID(), launchId: undefined, legacy: false };
+    draftWritable.current = true; setDraftError(""); setRestoredPair("default");
+    setDexFundingEnabled(false); setMarketingMode("automatic"); setDexFundingMode("automatic");
     setRelayMessage(""); setForm(empty); setFile(null); setPreview(""); setStep(0); setStock(null); setAcknowledged(false); setAcceptedTerms(false);
     setDexProfile({ description: "", bannerUrl: "", websiteUrl: "", xUrl: "", telegramUrl: "" });
     setProgress(initialProgress()); setPending(null); setCompletedLaunch(null); setExecutionState("running");
@@ -566,6 +636,7 @@ export function Create() {
   }
 
   async function beginLaunch() {
+    if (draftLoading) return;
     if (launching || !studioImportReady) return;
     if (!wallet.address) { wallet.setModalOpen(true); return; }
     if (!stock || !file || !validForStep.every(Boolean) || !acceptedTerms) { toast.error("Complete every required launch step and accept the Terms of Service first."); return; }
@@ -589,6 +660,10 @@ export function Create() {
         sniperDefense: false, xUrl: normaliseUrl(form.xUrl), websiteUrl: normaliseUrl(form.websiteUrl), telegramUrl: normaliseTelegram(form.telegramUrl),
         ...(dexProfileEnabled ? { dexFundingEnabled, dexProfile: Object.fromEntries(Object.entries(dexProfile).filter(([, value]) => value.trim()).map(([key, value]) => [key, value.trim()])) } : {}),
       });
+      draftIdentity.current = {...draftIdentity.current, launchId: intent.launchId};
+      // Persist the association before wallet approvals, including when the tab closes during completion.
+      try { await saveLaunchDraft(draftKey, draftSnapshot()); }
+      catch { setDraftError("Draft could not save. Keep this page open until launch."); }
       setStage("approval", "done");
       await continueLaunch({ envelope: intent, stage: "mint", launchId: intent.launchId });
     } catch (error) {
@@ -643,7 +718,7 @@ export function Create() {
           <button className="complete-secondary" onClick={launchAnother}>Launch another coin</button>
         </div>
       </section> : <>
-      <aside className="wizard-rail" aria-label="Launch steps">
+      <aside className="wizard-rail" aria-label="Launch steps" inert={draftLoading}>
         <div className="wizard-rail-head"><span>Create coin</span><b>{step + 1} of {wizardSteps.length}</b></div>
         <div className="wizard-rail-track"><i style={{ height: `${(step / (wizardSteps.length - 1)) * 100}%` }}/></div>
         {wizardSteps.map((item, index) => <button key={item.label} aria-current={index === step ? "step" : undefined} className={`${index === step ? "active" : ""} ${index < step ? "done" : ""}`} onClick={() => { if (index <= step || validForStep.slice(0,index).every(Boolean)) setStep(index); }} disabled={index > step && !validForStep.slice(0,index).every(Boolean)}>
@@ -652,13 +727,15 @@ export function Create() {
         <div className="wizard-rail-pulse" aria-hidden="true"><i/><i/><i/></div>
       </aside>
 
-      <div className="wizard-main">{draftError && <p className="survey-error" role="status">{draftError}</p>}
+      <div className="wizard-main" aria-busy={draftLoading}>
+        {draftLoading && <div className="wizard-draft-loading" role="status"><Loader2 className="spin" size={24}/><span>Loading your draft…</span></div>}
+        <div className="wizard-form-content" inert={draftLoading}>{draftError && <p className="survey-error" role="status">{draftError}</p>}
         {step === 0 && <WizardSection title="Create your coin" description="Add a name, ticker, and artwork. The description and socials are optional.">
           <div className="coin-identity-grid">
             <label className="wizard-artwork">
               {preview ? <img src={preview} alt="Token artwork preview"/> : <><ImagePlus/><b>Add artwork</b><small>PNG, JPG, WebP or GIF</small></>}
-              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => { editedDraftKey.current=draftKey; chooseArtwork(event.target.files?.[0] ?? null); }}/>
-              {preview && <button type="button" aria-label="Remove artwork" onClick={(event) => { event.preventDefault(); editedDraftKey.current=draftKey; chooseArtwork(null); }}><X size={15}/></button>}
+              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => { chooseArtwork(event.target.files?.[0] ?? null); }}/>
+              {preview && <button type="button" aria-label="Remove artwork" onClick={(event) => { event.preventDefault(); chooseArtwork(null); }}><X size={15}/></button>}
             </label>
             <div className="wizard-field-grid">
               <Field label="Coin name"><input value={form.name} maxLength={32} placeholder="Aqua Robotics" onChange={(event) => update("name", event.target.value)}/></Field>
@@ -676,19 +753,19 @@ export function Create() {
         {step === 1 && <WizardSection title="Choose a trading pair" description="Choose the asset your coin pairs with. Sales on AQUA return SOL.">
           <div className="stock-search"><Search size={17}/><input value={stockQuery} aria-label="Search pairs or paste a Pump.fun mint address" placeholder={pairLookupEnabled ? "Search pairs or paste a Pump.fun CA" : "Search SOL, ORCA, or stocks"} onChange={(event) => { setStockQuery(event.target.value); setPairResult(null); setVisibleStocks(10); }}/><span>{pairOptions.length} assets</span></div>
           {stockLoading ? <div className="stock-loading"><Loader2 className="spin"/><span>Loading pairs</span></div> : <>
-            <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { editedDraftKey.current=draftKey; setStock(item); setAcknowledged(false); }}>
+            <div className="stock-picker">{filteredStocks.map((item) => <button key={item.mint} className={stock?.mint === item.mint ? "selected" : ""} onClick={() => { setRestoredPair(null); setStock(item); setAcknowledged(false); }}>
               <StockLogo stock={item}/><div><b>{item.symbol}</b><small>{item.name}</small></div><span className="stock-market-depth">{item.mint === "So11111111111111111111111111111111111111112" ? <><b>Native pair</b><small>SOL rewards</small></> : item.mint === "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE" ? <><b>Official ORCA</b><small>ORCA rewards</small></> : item.assetKind ? <><b>{item.assetKind === "aqua" ? "AQUA pair" : "Pump.fun"}</b><small>{item.liquidityUsd === undefined ? "Swap routes available" : `$${compactNumber.format(item.liquidityUsd)} liquidity`}</small></> : <><b>${compactNumber.format(item.orcaTvlUsd)} TVL</b><small>${compactNumber.format(item.orcaVolume24hUsd)} 24h</small></>}</span><i>{stock?.mint === item.mint && <Check size={14}/>}</i>
             </button>)}</div>
             {pairChecking && <div className="pair-lookup-status" role="status"><Loader2 size={16} className="spin"/>Checking this coin and its swap routes…</div>}
-            {searchedPair?.error && <div className="stock-error" role="alert"><span>{searchedPair.error}</span><button onClick={() => { setPairResult(null); setPairLookupVersion(value => value + 1); }}><RefreshCw size={14}/> Retry</button></div>}
+            {searchedPair?.error && <div className="stock-error" role="alert"><span>{searchedPair.error}</span><RefreshButton onClick={() => { setPairResult(null); setPairLookupVersion(value => value + 1); }}><RefreshCw size={14}/> Retry</RefreshButton></div>}
             {filteredStocks.length === 0 && !pairsRefreshing && !pairChecking && !searchedPair?.error && <div className="no-stock-results">{mintSearch && !pairLookupEnabled ? "Custom pairs are not enabled yet." : `No pairs match “${stockQuery}”.`}</div>}
             {filteredStocks.length < stockResultsCount && <button className="stock-more" onClick={() => setVisibleStocks((value) => value + 20)}>Show more</button>}
           </>}
           {!stockLoading && pairsRefreshing && <div className="pair-lookup-status" role="status"><Loader2 size={16} className="spin"/>Loading more pairs…</div>}
-          {!stockLoading && stockError && <div className="stock-error"><Info/><span>{stockError}</span><button onClick={() => setPairLoadVersion(value => value + 1)}><RefreshCw size={14}/> Retry</button></div>}
+          {!stockLoading && stockError && <div className="stock-error"><Info/><span>{stockError}</span><RefreshButton onClick={() => setPairLoadVersion(value => value + 1)}><RefreshCw size={14}/> Retry</RefreshButton></div>}
           {stock && <div className="selected-stock-strip"><StockLogo stock={stock}/><div><small>Permanent pair and reward</small><b>${form.symbol || "COIN"} / {stock.symbol}</b></div><span>Holder rewards in {stock.symbol}</span></div>}
           {stock?.assetKind && <div className="selected-pair-address"><span>{stock.assetKind === "aqua" ? "AQUA" : "Pump.fun"} mint</span><a href={`https://solscan.io/token/${stock.mint}`} target="_blank" rel="noreferrer">{stock.mint}</a>{Boolean(stock.transferFeeBps) && <small>{(stock.transferFeeBps! / 100).toFixed(0)}% token transfer fee applies to swaps and rewards.</small>}</div>}
-          {pairWarning && <div className="stock-error"><span>AQUA pair: {pairWarning}</span><button onClick={() => setPairLoadVersion(value => value + 1)}><RefreshCw size={14}/> Retry</button></div>}
+          {pairWarning && <div className="stock-error"><span>AQUA pair: {pairWarning}</span><RefreshButton onClick={() => setPairLoadVersion(value => value + 1)}><RefreshCw size={14}/> Retry</RefreshButton></div>}
           {stock?.restricted && <label className="stock-ack"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)}/><span>I understand tokenized stocks may be restricted or unavailable in my jurisdiction.</span></label>}
         </WizardSection>}
 
@@ -745,7 +822,7 @@ export function Create() {
 
         {!validForStep[step]&&<p className="wizard-validation" role="status">{step===0?[form.name.trim().length<2?"Add a name (at least 2 characters)":null,form.symbol.trim().length<2?"add a ticker (at least 2 characters)":null,!file?"add artwork":null].filter(Boolean).join(" · "):step===1?"Choose a pair and accept its acknowledgement if required.":step===2?"Choose an available reward mode.":step===settingsStep?"Choose an available fee and Ripple share.":dexProfileEnabled&&step===dexProfileStep?"Fix the profile links, or skip this optional step.":"Enter a valid first-buy amount, or leave it empty."}</p>}
         <footer className="wizard-actions"><button className="wizard-back" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ArrowLeft/> Back</button>{step < wizardSteps.length - 1 && <button className="wizard-next" onClick={nextStep} disabled={!validForStep[step]}><span>Continue</span> <ArrowRight/></button>}</footer>
-      </div>
+      </div></div>
       </>}
     </section>
 

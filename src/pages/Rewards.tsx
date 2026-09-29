@@ -1,3 +1,4 @@
+import { RefreshButton } from "../components/RefreshButton";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, Coins, ExternalLink, Gift, Loader2, RefreshCw, Share2, WalletCards } from "lucide-react";
 import { toast } from "sonner";
@@ -169,7 +170,7 @@ export function Rewards() {
   return <main className="page rewards-page rewards-vault-page">
     <PageBubbles count={14}/>
     <header className="rewards-vault-heading">
-      <div><h1>Your rewards.</h1><p className="status-inline">{updatedAt ? "Last refreshed "+new Date(updatedAt).toLocaleTimeString() : "Loading reward allocations"}</p></div><button className="soft-button" onClick={()=>setRefreshKey(v=>v+1)}><RefreshCw size={14}/> Refresh</button>
+      <div><h1>Your rewards.</h1><p className="status-inline">{updatedAt ? "Last refreshed "+new Date(updatedAt).toLocaleTimeString() : "Loading reward allocations"}</p></div><RefreshButton className="soft-button" onClick={()=>setRefreshKey(v=>v+1)}><RefreshCw size={14}/> Refresh</RefreshButton>
     </header>
 
     <GovernanceVote/>

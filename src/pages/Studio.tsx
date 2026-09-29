@@ -1,3 +1,4 @@
+import { RefreshButton } from "../components/RefreshButton";
 import { Select } from "../components/Select";
 import { StudioSurvey } from "../components/StudioSurvey";
 import type { StudioSurveyData, StudioSurveyAnswer } from "../studio-api";
@@ -1717,7 +1718,7 @@ function StudioWorkspace() {
                               </div>
                             </>
                           ) : job.status === "failed" ? (
-                            <><p className="at-failed">{job.error}</p><div className="at-message-actions"><button disabled={actionDisabled || generationBusy || Boolean(review) || Boolean(prompt.trim())} title={prompt.trim() ? "Send or clear your current draft before retrying" : "Retry this prompt with the same effort"} onClick={() => void sendMessage({prompt:job.prompt,effort:job.effort,surveyAnswers:job.survey_answers??[]})}><RefreshCw size={13} /> Retry request</button></div></>
+                            <><p className="at-failed">{job.error}</p><div className="at-message-actions"><RefreshButton disabled={actionDisabled || generationBusy || Boolean(review) || Boolean(prompt.trim())} title={prompt.trim() ? "Send or clear your current draft before retrying" : "Retry this prompt with the same effort"} onClick={() => void sendMessage({prompt:job.prompt,effort:job.effort,surveyAnswers:job.survey_answers??[]})}><RefreshCw size={13} /> Retry request</RefreshButton></div></>
                           ) : (
                             <StudioWorking label={job.progress ?? (job.status === "queued" ? "Queued" : "Thinking")} />
                           )}
