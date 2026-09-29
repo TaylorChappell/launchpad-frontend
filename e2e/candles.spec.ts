@@ -66,7 +66,7 @@ test('new coins stay empty, API failures retry and mismatched resolutions are re
  await setup(page);
  await page.route('**/trade-candles?*',route=>route.fulfill({json:{source:"indexed_pool_trades",currency:"SOL",intervalSeconds:300,candles:[],nextBefore:null}}));
  await page.goto('/#/token/new');
- await expect(page.getByText('No indexed trades yet.',{exact:true})).toBeVisible();
+ await expect(page.locator('#market-chart').getByText('No indexed trades yet.',{exact:true})).toBeVisible();
  await expect(page.locator('.tradingview-canvas')).toHaveAttribute('data-bars','0');
  await page.unroute('**/trade-candles?*');
  let fail=true;
@@ -172,7 +172,7 @@ test('non-SOL history distinguishes indexing, missing supply and missing USD fro
  });
  await page.goto('/#/token/stock-pending');
  await expect(page.getByText('Syncing trade history…',{exact:true})).toBeVisible();
- await expect(page.getByText('No indexed trades yet.',{exact:true})).toHaveCount(0);
+ await expect(page.locator('#market-chart').getByText('No indexed trades yet.',{exact:true})).toHaveCount(0);
  state='supply';await page.goto('/#/token/stock-supply');
  await expect(page.getByText('Market-cap data is temporarily unavailable.',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'View price',exact:true}).click();
@@ -180,12 +180,12 @@ test('non-SOL history distinguishes indexing, missing supply and missing USD fro
  state='ready';await page.goto('/#/token/stock-ready');
  await expect(page.locator('.tradingview-canvas')).toHaveAttribute('data-bars','60');
  await expect(page.locator('.candle-ohlc')).toContainText('$');
- await expect(page.getByText('No indexed trades yet.',{exact:true})).toHaveCount(0);
+ await expect(page.locator('#market-chart').getByText('No indexed trades yet.',{exact:true})).toHaveCount(0);
 });
 
 test('missing custom-pair USD reference does not claim the market has no trades',async({page})=>{
  await setup(page,{pairPriceUsd:0});
  await page.goto('/#/token/custom-no-usd');
  await expect(page.getByText('USD reference price is temporarily unavailable.',{exact:true})).toBeVisible();
- await expect(page.getByText('No indexed trades yet.',{exact:true})).toHaveCount(0);
+ await expect(page.locator('#market-chart').getByText('No indexed trades yet.',{exact:true})).toHaveCount(0);
 });
