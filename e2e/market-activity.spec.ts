@@ -88,7 +88,7 @@ test('market bells link to Community in cards and table; exact custom icon wins 
   const card=page.locator('.token-card').first();
   await expect(card.getByRole('link',{name:'Read new project update'})).toBeVisible();
   await expect(page.getByRole('link',{name:'Read new project update'})).toHaveCount(1);
-  await expect(card.locator('.asset-mark img')).toHaveAttribute('src',new RegExp(`/api/pair-icons/${mint}$`));
+  await expect(card.locator('.token-pair .asset-mark img')).toHaveAttribute('src',new RegExp(`/api/pair-icons/${mint}$`));
   await expect(card.locator('.asset-mark.orca')).toHaveCount(0);
   await card.getByRole('link',{name:'Read new project update'}).click();
   await expect(page.getByText('Our new website is live.')).toBeVisible();

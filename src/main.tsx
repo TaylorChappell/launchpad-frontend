@@ -19,3 +19,4 @@ import "./x-identity.css";
 import "./mobile.css";
 
 import "./experience.css";
+import "./components/market-card.css";

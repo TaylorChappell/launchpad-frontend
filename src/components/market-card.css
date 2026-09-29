@@ -1,0 +1,83 @@
+/* Discovery cards: one visual hierarchy, with room for any asset or reward mode. */
+.explore-page .aqua-market-card {
+  display:flex; flex-direction:column; container-type:inline-size;
+  padding:18px; border-radius:20px; min-height:0;
+  background:linear-gradient(145deg,#fbfeff,#e0f3ff) !important;
+  box-shadow:0 8px 24px #317aab0d,inset 0 1px #fff !important;
+}
+.aqua-market-card::before { display:none; }
+.explore-page .aqua-market-card:hover { transform:translateY(-3px); }
+.aqua-market-card .token-card-link { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.aqua-market-card .token-card-link:focus-visible { outline:2px solid #1686bb; outline-offset:5px; border-radius:10px; }
+.aqua-market-card .token-head { min-width:0; align-items:flex-start; gap:10px; min-height:44px; }
+.aqua-market-card .token-mark { width:42px; height:42px; overflow:hidden; border-radius:50%; }
+.aqua-market-card .card-identity { min-width:0; flex:1; padding-top:2px; }
+.aqua-market-card .token-title { min-width:0; display:block; }
+.aqua-market-card .token-title b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#163f59; font-size:15px; line-height:1.3; }
+.card-subtitle { display:flex; align-items:center; gap:5px; margin-top:5px; color:#648399; font-size:11px; line-height:1.3; }
+.card-subtitle > span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.card-subtitle > span:last-child { flex:none; }
+.aqua-market-card .card-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:-9px; }
+.aqua-market-card .card-boost-tag { color:#856609; border-color:#e5d199; background:#fff9e6; }
+.card-market-overview { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:center; min-height:112px; }
+.card-cap { min-width:0; position:relative; z-index:2; }
+.card-cap > small { display:block; color:#63839a; font-size:12px; }
+.card-cap > strong { display:block; margin-top:5px; color:#103d5b; font:800 clamp(28px,9cqi,36px)/1.15 "Manrope",sans-serif; letter-spacing:-.04em; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.aqua-market-card .token-pair { min-width:0; margin-top:8px; gap:5px; color:#527991; font-size:11px; }
+.aqua-market-card .token-pair > span:last-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.aqua-market-card .token-pair .asset-mark { width:18px; height:18px; margin:0; }
+.aqua-market-card .asset-mark { border-radius:50%; overflow:hidden; background:#eff9ff; }
+.aqua-market-card .asset-mark.solana { background:#102637; padding:2px; }
+.aqua-market-card .asset-mark.stock { color:#1479a2; }
+.aqua-market-card .generic-stock-mark { fill:#258ab0; stroke:#258ab0; }
+.card-market-art { position:relative; min-width:0; height:112px; isolation:isolate; }
+.card-trend { position:absolute; inset:23px 30px 8px -14px; color:#1596e3; }
+.card-trend.is-falling { color:#d77985; }
+.card-trend > svg { display:block; width:100%; height:100%; overflow:visible; }
+.card-pair-medallion { position:absolute; right:1px; top:21px; display:grid; place-items:center; width:70px; height:70px; border:1px solid #fff; border-radius:50%; background:#e0f4ff; box-shadow:0 0 0 9px #c1e8fc55,0 0 0 18px #caeeff44; }
+.card-pair-medallion > .asset-mark { display:grid; place-items:center; width:58px; height:58px; border:3px solid #fff; box-shadow:0 2px 7px #276b981c; }
+.card-pair-medallion > .asset-mark.solana { padding:6px; }
+.card-pair-medallion .asset-mark img { object-fit:contain; }
+.aqua-market-card .card-reward-strip { display:flex; align-items:center; gap:10px; margin:0; padding:12px 10px; border-radius:13px; min-width:0; }
+.card-reward-heading { display:flex; align-items:center; gap:7px; flex:1.15; min-width:0; }
+.card-reward-heading > .aqua-reward-mode-icon { flex:none; width:25px; height:30px; color:#1385bb; }
+.card-reward-heading > div { min-width:0; }
+.aqua-market-card .card-reward-heading span { display:block; font:750 8px/1.4 "Manrope",sans-serif; letter-spacing:.05em; color:#63879b; }
+.aqua-market-card .card-reward-heading strong { display:block; margin:4px 0 0; color:#107cbb; font:750 16px/1.2 "Manrope",sans-serif; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+.card-reward-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); flex:1.5; min-width:0; margin:0; }
+.card-reward-stats > div { display:flex; flex-direction:column-reverse; min-width:0; gap:4px; padding-left:8px; border-left:1px solid #b7dbee; }
+.card-reward-stats > div + div { margin-left:7px; }
+.card-reward-stats dt { font-size:9px; line-height:1.3; color:#567b91; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+.card-reward-stats dd { margin:0; color:#204d68; font:750 14px/1.2 "Manrope",sans-serif; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.aqua-market-card .mode-buyback .aqua-reward-mode-icon { color:#b64858; }
+.aqua-market-card .mode-jackpot .aqua-reward-mode-icon { color:#a17b14; }
+.explore-page .aqua-market-card .token-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:0; padding:0 2px; border:0; }
+.aqua-market-card .token-stats .metric + .metric { border-left:1px solid #c7e1ef; padding-left:16px; }
+.aqua-market-card .token-stats .metric small { color:#65869b; font-size:11px; }
+.explore-page .aqua-market-card .token-stats .metric b { margin-top:5px; color:#1d4863; font:750 19px/1.2 "Manrope",sans-serif; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.aqua-market-card .card-footer { display:flex; align-items:center; flex-wrap:wrap; gap:5px 8px; margin-top:14px; padding-top:8px; border-top:1px solid #c3dfedaa; }
+.aqua-market-card .card-footer:empty { display:none; }
+.aqua-market-card .token-card-status { min-width:0; margin:0; gap:5px; flex:1; }
+.aqua-market-card .token-card-status > span { flex:none; }
+.aqua-market-card .token-card-socials { margin:0 0 0 auto; padding:0; border:0; gap:1px; }
+.aqua-market-card .token-card-socials a { width:30px; height:32px; }
+.aqua-market-card .dex-status-badge { font-size:9px; padding:4px 6px; }
+.aqua-market-card .creator-lock-badge { font-size:9px; padding:0 6px; }
+@container (max-width:300px) {
+  .card-reward-heading > .aqua-reward-mode-icon { display:none; }
+  .aqua-market-card .card-reward-heading strong { font-size:15px; }
+  .card-reward-stats dd { font-size:13px; }
+  .card-pair-medallion { width:60px; height:60px; top:25px; }
+  .card-pair-medallion > .asset-mark { width:50px; height:50px; }
+}
+@media (max-width:600px) {
+  .explore-page .aqua-market-card { padding:16px; }
+  .aqua-market-card .token-card-socials a { width:44px; height:44px; }
+  .aqua-market-card .card-footer { gap:3px 8px; padding-top:5px; }
+  .watch-card > .watch-button { min-width:44px; min-height:44px; top:9px; right:8px; }
+  .watch-card .aqua-market-card .market-update-link { width:40px; height:40px; top:11px; right:56px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .explore-page .aqua-market-card { transition:none; }
+  .explore-page .aqua-market-card:hover { transform:none; }
+}

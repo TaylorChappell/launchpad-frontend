@@ -410,9 +410,9 @@ test('restored market cards and filter dialog fit both layouts and keep draft ch
  await card.getByRole('link',{name:'Ocean Club on X',exact:true}).click();
  const popup=await popupPromise;await expect(popup).toHaveURL('https://x.com/aquafamily');await popup.close();
  await expect(page).not.toHaveURL(/token\/mobile/);
- await expect(card.locator('.token-stats .metric small')).toHaveText(['Market cap','24h volume','Holders']);
- // The clipped water-hover pseudo-element is intentionally wider than the card.
- // Measure the actual content so decoration cannot hide a real layout failure.
+ await expect(card.locator('.card-cap')).toContainText('Market cap');
+ await expect(card.locator('.token-stats .metric small')).toHaveText(['24h volume','Holders']);
+ // Measure actual content so clipping cannot hide a layout failure.
  await expect(card).toHaveCSS('overflow-x','hidden');
  const content=card.locator('.token-card-link');
  expect(await content.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
