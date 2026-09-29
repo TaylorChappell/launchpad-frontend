@@ -22,7 +22,7 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - name: Check market candles and auto rewards on desktop and mobile
-        run: npx playwright test e2e/candles.spec.ts e2e/market-cards.spec.ts e2e/auto-rewards.spec.ts
+        run: npx playwright test e2e/candles.spec.ts e2e/market-cards.spec.ts e2e/auto-rewards.spec.ts e2e/launchpad.spec.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

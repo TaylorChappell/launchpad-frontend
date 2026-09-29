@@ -48,6 +48,8 @@ test("analytics prioritizes totals, handles empty history and stays within the v
 });
 test.beforeEach(async({page})=>{
   await page.addInitScript(()=>localStorage.setItem("aqua:update:holder-workspace-v2","seen"));
+  await page.route("**/api/auto-rewards/activity?*",route=>route.fulfill({json:{running:false,nextPayoutAt:Date.now()+10800000,rounds:[],selectedRound:null,payouts:[],hasMore:false}}));
+  await page.route("**/api/auto-rewards/wallets/*",route=>route.fulfill({json:{wallet:new URL(route.request().url()).pathname.split("/").at(-1),enabled:false,enabledAt:null,nextPayoutAt:Date.now()+10800000,running:false}}));
   await page.route("**/api/config",route=>route.fulfill({json:{brand:"AQUA",network:"mainnet-beta",useTestnet:false,transactionsEnabled:false,marketGovernanceEnabled:false,publicRpcUrl:"https://rpc.invalid",whirlpools:{},fees:{transferFeeBps:200,platformBps:100,stockRewardsBps:100},creatorLocks:{minimumSeconds:86400,maximumSeconds:31536000,maximumFeeShareBps:5000},sniperDefense:{supported:false}}}));
   await page.route("**/api/launches?**",route=>route.fulfill({json:{launches:[],hasMore:false,nextOffset:0}}));
   await page.route("**/api/market-prices",route=>route.fulfill({json:{prices:[]}}));
