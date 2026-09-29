@@ -8,8 +8,8 @@ const states = {
   paid: { label: "DEX profile paid", title: "DEX Screener profile paid, not an endorsement or security verification" },
 };
 
-export function DexStatusBadge({ state }: { state: ReturnType<typeof dexBadgeState> }) {
+export function DexStatusBadge({ state, compact = false }: { state: ReturnType<typeof dexBadgeState>; compact?: boolean }) {
   if (!state) return null;
   const { label, title } = states[state];
-  return <span className={`dex-status-badge is-${state}`} title={title}><DexScreenerIcon/><span>{label}</span></span>;
+  return <span className={`dex-status-badge is-${state}`} title={title}><DexScreenerIcon/><span>{compact && state === "paid" ? "DEX paid" : label}</span></span>;
 }

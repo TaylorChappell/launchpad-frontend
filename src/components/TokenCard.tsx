@@ -2,7 +2,7 @@ import { MarketSocialLinks } from "./MarketSocialLinks";
 import { RecentUpdateBell } from "./RecentUpdateBell";
 import { assetLogoUrl } from "../asset-logo";
 import { useEffect, useId, useState } from "react";
-import { LockKeyhole } from "lucide-react";
+import { Gift, LockKeyhole } from "lucide-react";
 import { Link } from "react-router-dom";
 import { activeCreatorLock, creatorLockPercentLabel } from "../creator-lock";
 import type { Launch } from "../types";
@@ -50,7 +50,7 @@ function CardRewards({ launch }: { launch: Launch }) {
   const unit = mode === "buyback_burn" ? launch.symbol : mode === "jackpot" ? rewardSymbol : "";
   const valueLabel = mode === "buyback_burn" ? "Total burned" : mode === "jackpot" ? "Total pool" : "Accumulated holder rewards";
   return <div className={`reward-card-focus card-reward-strip ${mode === "buyback_burn" ? "mode-buyback" : mode === "jackpot" ? "mode-jackpot" : ""}`}>
-    <div className="card-reward-heading"><RewardModeIcon mode={mode}/><div><span>{mode === "buyback_burn" ? "BUYBACK & BURN" : mode === "jackpot" ? "HOURLY JACKPOT" : "HOLDER REWARDS"}</span><strong title={title}>{title}</strong></div></div>
+    <div className="card-reward-heading">{mode === "holder_rewards" ? <Gift className="aqua-reward-mode-icon" strokeWidth={1.7} aria-hidden="true"/> : <RewardModeIcon mode={mode}/>}<div><span>{mode === "buyback_burn" ? "Buyback & burn" : mode === "jackpot" ? "Hourly jackpot" : "Holder rewards"}</span><strong title={title}>{title}</strong></div></div>
     <div className="card-reward-total" aria-label={`${valueLabel}: ${value}${unit ? ` ${unit}` : ""}`}><b>{value}</b>{unit && <span>{` ${unit}`}</span>}</div>
   </div>;
 }
@@ -63,18 +63,17 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
     <Link className="token-card-link" to={"/token/" + launch.id} aria-label={`View ${launch.name} market`}>
       <div className="token-head">
         <TokenMark launch={launch}/>
-        <div className="card-identity"><div className="token-title"><b title={launch.name}>{launch.name}</b></div><div className="card-subtitle"><span title={`$${launch.symbol}`}>${launch.symbol}</span><span>·</span><span>{launchAge(launch.launchedAt, launch.createdAt).replace("Launched ", "")}</span></div></div>
+        <div className="card-identity"><div className="token-title"><b title={launch.name}>{launch.name}</b>{(featured || boosted) && <span className="card-tags">{featured && <span className="market-tag" title="AQUA featured">Featured</span>}{boosted && <span className="market-tag card-boost-tag" title="Community boost">Boosted</span>}</span>}</div><div className="card-subtitle"><span title={`$${launch.symbol}`}>${launch.symbol}</span><span>·</span><span>{launchAge(launch.launchedAt, launch.createdAt).replace("Launched ", "")}</span></div></div>
       </div>
-      {(featured || boosted) && <div className="card-tags">{featured && <span className="market-tag">AQUA featured</span>}{boosted && <span className="market-tag card-boost-tag">Community boost</span>}</div>}
       <div className="card-market-overview">
         <div className="card-cap"><small>Market cap</small><strong>{indexed ? cardAmount(launch.marketCapUsd, true) : "Indexing"}</strong><div className="token-pair"><AssetMark launch={launch}/><span title={`${launch.pairSymbol} pair`}>{launch.pairSymbol} pair</span></div></div>
-        <div className="card-market-art"><MarketCardTrend id={launch.id} enabled={Boolean(indexed)} priceUsd={launch.priceUsd} priceUpdatedAt={launch.priceUpdatedAt} priceStatus={launch.priceStatus}/><div className="card-pair-medallion" aria-hidden="true"><AssetMark launch={launch}/></div></div>
+        <div className="card-market-art"><MarketCardTrend id={launch.id} enabled={Boolean(indexed)} priceUsd={launch.priceUsd} priceUpdatedAt={launch.priceUpdatedAt} priceStatus={launch.priceStatus}/></div>
       </div>
       <CardRewards launch={launch}/>
       <div className="token-stats"><Metric label="24h volume" value={indexed ? cardAmount(launch.volume24hUsd, true) : "Indexing"}/><Metric label="Holders" value={indexed ? cardAmount(launch.holderCount) : "Indexing"}/></div>
     </Link>
     <footer className="card-footer">
-      {(dexStatus || creatorLock) && <div className="token-card-status"><DexStatusBadge state={dexStatus}/>{creatorLock && <span className="creator-lock-badge" title="Verified creator lock" aria-label={`${creatorLockPercentLabel(creatorLock)} of supply locked by the creator`}><LockKeyhole aria-hidden="true"/>{creatorLockPercentLabel(creatorLock)} locked</span>}</div>}
+      {(dexStatus || creatorLock) && <div className="token-card-status"><DexStatusBadge state={dexStatus} compact/>{creatorLock && <span className="creator-lock-badge" title="Verified creator lock" aria-label={`${creatorLockPercentLabel(creatorLock)} of supply locked by the creator`}><LockKeyhole aria-hidden="true"/>{creatorLockPercentLabel(creatorLock)} locked</span>}</div>}
       <MarketSocialLinks launch={launch} className="token-card-socials" copyAddress={launch.mint}/>
     </footer>
     <RecentUpdateBell at={launch.latestProjectUpdateAt} launchId={launch.id}/>

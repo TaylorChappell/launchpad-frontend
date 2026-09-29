@@ -42,7 +42,7 @@ export function MarketCardTrend({ id, enabled, priceUsd, priceUpdatedAt, priceSt
   }, [id, enabled]);
   return <div ref={ref} className={`card-trend ${trend?.falling ? "is-falling" : ""}`}>
     {trend && <svg viewBox="0 0 180 78" preserveAspectRatio="none" role="img" aria-label="24-hour price history">
-      <defs><linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1"><stop stopColor="currentColor" stopOpacity=".2"/><stop offset="1" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs>
+      <defs><linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1"><stop stopColor="currentColor" stopOpacity=".1"/><stop offset="1" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs>
       <path d={trend.area} fill={`url(#${gradient})`}/><path d={trend.path} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"/>
     </svg>}
   </div>;

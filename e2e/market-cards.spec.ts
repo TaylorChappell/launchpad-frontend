@@ -41,13 +41,14 @@ test('AQUA market cards support every reward mode, pair and incomplete market da
   await expect(aqua.locator('.card-cap > strong')).toHaveText('$1.8M');
   await expect(aqua.locator('.card-reward-total')).toHaveText('$94.3K');
   await expect(aqua.locator('.card-reward-strip')).not.toContainText(/Accumulated|Redeemable/);
-  await expect(aqua.locator('.card-pair-medallion .asset-mark.solana')).toBeVisible();
+  await expect(aqua.locator('.token-pair .asset-mark.solana')).toBeVisible();
+  await expect(aqua.locator('.card-pair-medallion')).toHaveCount(0);
   await expect(aqua.getByRole('img',{name:'24-hour price history'})).toBeVisible();
   await expect(aqua.locator('.card-trend svg path')).toHaveCount(2);
   await expect(cards.locator('.card-trend canvas')).toHaveCount(0);
   await expect(aqua.locator('.card-trend')).toHaveClass(/is-falling/);
   await expect(aqua.locator('.token-mark img')).toHaveCount(0);
-  await expect(aqua.locator('.market-tag')).toHaveText('AQUA featured');
+  await expect(aqua.locator('.token-title .market-tag')).toHaveText('Featured');
   const [bell,star]=await Promise.all([aqua.locator('.market-update-link').boundingBox(),page.getByRole('button',{name:'Watch AQUA',exact:true}).boundingBox()]);
   expect(bell!.x+bell!.width).toBeLessThanOrEqual(star!.x);
   await page.getByRole('button',{name:'Watch AQUA',exact:true}).click();
@@ -55,11 +56,11 @@ test('AQUA market cards support every reward mode, pair and incomplete market da
   await expect(page).not.toHaveURL(/token\//);
   await expect(cards.nth(1).locator('.card-reward-heading')).toContainText('Burn BURN');
   await expect(cards.nth(1).locator('.card-reward-total')).toHaveText('1.3M BURN');
-  await expect(cards.nth(1).locator('.card-pair-medallion .asset-mark.orca')).toHaveCount(1);
+  await expect(cards.nth(1).locator('.token-pair .asset-mark.orca')).toHaveCount(1);
   await expect(cards.nth(2).locator('.card-reward-heading')).toContainText('Win USDC');
   await expect(cards.nth(2).locator('.card-reward-total')).toHaveText('12.3 USDC');
   const custom=cards.nth(3);await custom.scrollIntoViewIfNeeded();
-  await expect(custom.locator('.card-pair-medallion .generic-stock-mark')).toBeVisible();
+  await expect(custom.locator('.token-pair .generic-stock-mark')).toBeVisible();
   await expect(custom.locator('.card-reward-heading')).toContainText('Earn NVDAx');
   await expect(custom.locator('.card-reward-total')).toHaveText('$0');
   await expect(custom.locator('.card-trend svg')).toHaveCount(0);
@@ -100,6 +101,13 @@ test('cards stay contained at small phone, tablet and desktop widths',async({pag
       footer:card.querySelector('.card-footer')!.scrollWidth-card.querySelector('.card-footer')!.clientWidth,
     })));
     for(const result of overflow){expect(result.card,`${width}px card`).toBeLessThanOrEqual(1);expect(result.content,`${width}px content`).toBeLessThanOrEqual(1);expect(result.footer,`${width}px footer`).toBeLessThanOrEqual(1);}
+    const layout=await page.locator('.aqua-market-card').evaluateAll(cards=>cards.map(card=>{
+      const cardBox=card.getBoundingClientRect(),cap=card.querySelector('.card-cap')!.getBoundingClientRect(),chart=card.querySelector('.card-market-art')!.getBoundingClientRect();
+      return {top:cardBox.top,capRight:cap.right,chartLeft:chart.left,rewardsTop:card.querySelector('.card-reward-strip')!.getBoundingClientRect().top};
+    }));
+    for(const card of layout)expect(card.capRight,`${width}px chart stays beside market cap`).toBeLessThanOrEqual(card.chartLeft);
+    const firstRow=layout.filter(card=>Math.abs(card.top-layout[0].top)<1);
+    for(const card of firstRow)expect(Math.abs(card.rewardsTop-firstRow[0].rewardsTop),`${width}px featured and unfeatured rewards align`).toBeLessThanOrEqual(1);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
   }
 });
