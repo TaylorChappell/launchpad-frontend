@@ -209,8 +209,45 @@ test('partial history fills automatically and corrected pages remove stale candl
  await chart.scrollIntoViewIfNeeded();
  await chart.screenshot({path:info.outputPath('compact-partial-history-recent-focus.png')});
  recovered=true;
- await page.clock.fastForward(16_000);
+ await page.clock.fastForward(5_100);
  await expect(chart.locator('.tradingview-canvas')).toHaveAttribute('data-bars','500');
  await expect(chart.getByText('Syncing trade history…',{exact:true})).toHaveCount(0);
  await chart.screenshot({path:info.outputPath('compact-recovered-500-candles.png')});
+});
+
+test('returning to a timeframe displays its preview while a slow request refreshes it',async({page})=>{
+ await setup(page);
+ await page.clock.install();
+ await page.goto('/#/token/cached-chart');
+ const chart=page.locator('#market-chart');
+ await expect(chart.locator('.tradingview-canvas')).toHaveAttribute('data-bars','60');
+ await chart.getByRole('button',{name:'15m',exact:true}).click();
+ await expect(chart.locator('.candle-legend')).toContainText('USD · 15m candles');
+ await page.clock.fastForward(3000);
+ let finish!:()=>void,requested=false;
+ const ready=new Promise<void>(resolve=>{finish=resolve;});
+ await page.route('**/trade-candles?interval=5m',async route=>{
+  requested=true;await ready;
+  const data=history('5m'),last=data.candles.at(-1)!;
+  await route.fulfill({json:{...data,candles:[last],coverage:{from:0,to:last.time+299}}});
+ });
+ await chart.getByRole('button',{name:'5m',exact:true}).click();
+ await expect.poll(()=>requested).toBe(true);
+ await expect(chart.locator('.candle-market')).toHaveAttribute('aria-busy','false');
+ await expect(chart.locator('.candle-legend')).toContainText('USD · 5m candles');
+ await expect(chart.locator('.tradingview-canvas')).toHaveAttribute('data-bars','60');
+ finish();
+ await expect(chart.locator('.tradingview-canvas')).toHaveAttribute('data-bars','1');
+});
+
+test('starts chart history before slow market details finish loading',async({page})=>{
+ await setup(page);
+ let finish!:()=>void,requested=false;
+ const ready=new Promise<void>(resolve=>{finish=resolve;});
+ await page.route('**/api/launches/parallel-chart',async route=>{await ready;await route.fallback();});
+ await page.route('**/trade-candles?*',async route=>{requested=true;await route.fallback();});
+ await page.goto('/#/token/parallel-chart',{waitUntil:'domcontentloaded'});
+ await expect.poll(()=>requested).toBe(true);
+ finish();
+ await expect(page.locator('.tradingview-canvas')).toHaveAttribute('data-bars','60');
 });

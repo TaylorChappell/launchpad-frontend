@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Info, RotateCcw } from "lucide-react";
 import { loadCandlePage } from "../candle-history";
+import { readCandlePreview } from "../candle-preview-cache";
 import { candlePrice, candleIntervals, usdTradeCandles, mergeCandlePage, type CandlePage, type ChartCandle, type CandleInterval } from "../market-candles";
 import type { Launch } from "../types";
 import { CandleChart } from "./CandleChart";
@@ -8,28 +9,40 @@ import { CandleChart } from "./CandleChart";
 export function MarketCapCandles({ launch }: { launch: Launch }) {
   const [interval,setInterval]=useState<CandleInterval>("5m");
   const [metric,setMetric]=useState<"cap"|"price">("cap");
-  const [loaded,setLoaded]=useState<{interval:CandleInterval;history:CandlePage} | null>(null);
+  const [loaded,setLoaded]=useState<{interval:CandleInterval;history:CandlePage} | null>(()=>{
+    const history=readCandlePreview(launch.id,"5m");
+    return history?{interval:"5m",history}:null;
+  });
   const [error,setError]=useState("");
   const [olderError,setOlderError]=useState(false),[loadingOlder,setLoadingOlder]=useState(false);
   const [retry,setRetry]=useState(0),[reset,setReset]=useState(0);
   const [inspected,setInspected]=useState<ChartCandle | null>(null);
   const generation=useRef(0),olderPending=useRef<symbol|null>(null),retryOlderAt=useRef(0);
   useEffect(()=>{
-    let active=true,pending=false;
+    let active=true,pending=false,timer:number|undefined;
     generation.current++;olderPending.current=null;retryOlderAt.current=0;setLoadingOlder(false);setOlderError(false);setError("");
+    const preview=readCandlePreview(launch.id,interval);
+    if(preview)setLoaded(previous=>previous?.interval===interval?previous:{interval,history:preview});
     const refresh=async()=>{
-      if(pending)return;pending=true;
+      if(!active||pending)return;
+      window.clearTimeout(timer);
+      if(document.hidden){timer=window.setTimeout(()=>void refresh(),15_000);return;}
+      pending=true;
+      let delay=15_000;
       try{
         const history=await loadCandlePage(launch.id,interval);
+        delay=history.historyPending?5000:15_000;
         if(active){setLoaded(previous=>previous?.interval===interval && !(history.nextBefore!==null && history.nextBefore>(previous.history.candles.at(-1)?.time??0))
           ? {interval,history:{...history,...mergeCandlePage(previous.history,history),nextBefore:history.nextBefore===null?null:(previous.history.candles[0]?.time??Infinity)<history.nextBefore?previous.history.nextBefore:history.nextBefore}}
           : {interval,history});setError("");}
       }catch(e){if(active)setError(e instanceof Error?e.message:"Couldn't load chart.");}
-      finally{pending=false;}
+      finally{pending=false;if(active)timer=window.setTimeout(()=>void refresh(),delay);}
     };
     void refresh();
-    const timer=window.setInterval(()=>{if(!document.hidden)void refresh();},15_000);
-    return()=>{active=false;generation.current++;window.clearInterval(timer);};
+    const resume=()=>{if(!document.hidden)void refresh();};
+    document.addEventListener("visibilitychange",resume);
+    window.addEventListener("focus",resume);
+    return()=>{active=false;generation.current++;window.clearTimeout(timer);document.removeEventListener("visibilitychange",resume);window.removeEventListener("focus",resume);};
   },[launch.id,interval,retry]);
   const loadOlder=useCallback(async()=>{
     if(olderPending.current||Date.now()<retryOlderAt.current||loaded?.interval!==interval||loaded.history.nextBefore===null)return;

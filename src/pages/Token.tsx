@@ -16,6 +16,7 @@ import { ArrowLeft, Copy, ExternalLink, Globe2, Loader2, LockKeyhole, Settings2,
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "../api";
+import { loadCandlePage } from "../candle-history";
 import { useRuntime, useWallet } from "../context";
 import { MarketDetails } from "../components/MarketDetails";
 import { MarketTrade } from "../components/MarketTrade";
@@ -148,6 +149,9 @@ export function Token() {
   useEffect(() => {
     let active = true, loading = false, first = true;
     setLaunch(null); setTrades([]); setIncomingTrades([]); setLoaded(false); setLoadError("");
+    // Start chart data alongside market details instead of waiting for them.
+    // The normal chart request shares this read and handles any error itself.
+    void loadCandlePage(id,"5m").catch(()=>{});
     const refresh = async () => {
       if (loading) return;
       loading = true;

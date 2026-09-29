@@ -1,4 +1,5 @@
 import { api, ApiError } from "./api";
+import { rememberCandlePreview } from "./candle-preview-cache";
 import { snapshotCandles, type CandleHistory, candleIntervals, type CandleInterval, type CandlePage, type ChartRange } from "./market-candles";
 
 export async function loadCandleHistory(id: string, range: ChartRange): Promise<CandleHistory> {
@@ -20,5 +21,6 @@ export async function loadCandlePage(id:string,interval:CandleInterval,before?:n
     throw new Error("This candle interval needs the latest chart API.");
   }
   if(data.coverage&&(!Number.isFinite(data.coverage.from)||!Number.isFinite(data.coverage.to)||data.coverage.from<0||data.coverage.to<data.coverage.from))throw new Error("Chart history coverage is invalid.");
+  if(before===undefined)rememberCandlePreview(id,interval,data);
   return data;
 }
