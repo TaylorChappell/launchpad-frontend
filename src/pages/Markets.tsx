@@ -16,6 +16,7 @@ import { useMarketPrices } from "../useMarketPrices";
 import { mergeMarketPrice, isPriceLive } from "../market-prices";
 import { useWatchlist } from "../useWatchlist";
 import { launchAge } from "../time";
+import { readMarketPreferences, saveMarketPreferences } from "../market-preferences";
 
 const compact=new Intl.NumberFormat("en",{style:"currency",currency:"USD",notation:"compact",maximumFractionDigits:2});
 const modes=[["all","All reward modes"],["holder_rewards","Holder rewards"],["buyback_burn","Buyback & burn"],["jackpot","Jackpot"]];
@@ -24,7 +25,14 @@ const modes=[["all","All reward modes"],["holder_rewards","Holder rewards"],["bu
 function currentMarketParams(){const hash=window.location.hash,index=hash.indexOf("?");return new URLSearchParams(index<0?"":hash.slice(index+1));}
 const sorts=[["volume","Top volume"],["trending","Trending"],["recent","New"],["watchlist","Watchlist"]];
 export function Markets(){
-  const [params,setParams]=useSearchParams(),watch=useWatchlist(),prices=useMarketPrices();
+  const [urlParams,setUrlParams]=useSearchParams(),watch=useWatchlist(),prices=useMarketPrices();
+  const [savedParams,setSavedParams]=useState(readMarketPreferences);
+  const savedParamsRef=useRef(savedParams);
+  const params=urlParams.size?urlParams:savedParams;
+  function remember(next:URLSearchParams){const saved=saveMarketPreferences(next);savedParamsRef.current=saved;setSavedParams(saved);}
+  function setParams(next:URLSearchParams,persist=true){if(persist)remember(next);setUrlParams(next,{replace:true});}
+  function latestParams(){const current=currentMarketParams();return current.size?current:new URLSearchParams(savedParamsRef.current);}
+  useEffect(()=>{if(urlParams.has("sort")||marketFilterKeys.some(key=>urlParams.has(key)))remember(urlParams);},[urlParams]);
   const sort=sorts.some(([value])=>value===params.get("sort"))?params.get("sort")!:"volume";
   const pair=(params.get("pair")??"all").slice(0,32);
   const [pairSymbols,setPairSymbols]=useState<string[]>(["SOL","ORCA","AQUA"]);
@@ -45,7 +53,7 @@ export function Markets(){
   const [launches,setLaunches]=useState<Launch[]>(()=>initial?.launches??[]),[state,setState]=useState(initial?"ready":"loading"),[more,setMore]=useState(initial?.hasMore??false),[offset,setOffset]=useState(initial?.nextOffset??0),[version,setVersion]=useState(0),[loadingMore,setLoadingMore]=useState(false),[displayedKey,setDisplayedKey]=useState(queryKey);
   const requestGeneration=useRef(0);
   const [refreshing,setRefreshing]=useState(false);
-  function update(key:string,value:string){const next=currentMarketParams();next.set(key,value);setParams(next,{replace:true});}
+  function update(key:string,value:string){const next=latestParams();next.set(key,value);setParams(next,key!=="view");}
   useEffect(()=>{let active=true;api.governance().then(g=>{if(active&&g.enabled){setBoosted(g.activeBonus?.mint??null);setAqua(g.governanceMint);}}).catch(()=>{});return()=>{active=false;};},[]);
   useEffect(()=>{
     const controller=new AbortController();requestGeneration.current++;setLoadingMore(false);setRefreshing(true);
@@ -63,8 +71,8 @@ export function Markets(){
     <section className="market-workspace" id="markets">
       <header className="workspace-heading"><div><h2>Explore markets</h2><p>Discover a community. See what holding earns.</p></div><button className="discovery-refresh" aria-label="Refresh market rankings" title="Refresh market rankings" onClick={()=>setVersion(v=>v+1)}><RefreshCw size={14}/>Refresh</button></header>
       <div className="discovery-toolbar"><div className="discovery-tabs" aria-label="Market sorting">{sorts.map(([value,label])=><button key={value} aria-pressed={sort===value} onClick={()=>update("sort",value)}>{value==="watchlist"&&<Star size={14}/>}<span>{label}</span></button>)}</div><div className="discovery-tools"><button className="discovery-filter-toggle" aria-expanded={filtersOpen} aria-haspopup="dialog" aria-label="Filters" onClick={()=>setFiltersOpen(open=>!open)}><SlidersHorizontal size={15}/><span>Filters</span>{filterCount>0&&<b>{filterCount}</b>}</button><div className="discovery-view" aria-label="Market layout"><button aria-label="Card view" title="Card view" aria-pressed={view==="cards"} onClick={()=>update("view","cards")}><Grid2X2 size={16}/></button><button aria-label="Table view" title="Table view" aria-pressed={view==="table"} onClick={()=>update("view","table")}><List size={17}/></button></div></div></div>
-      {filtersOpen&&<MarketFilters initial={filters} pairs={pairSymbols} onClose={()=>setFiltersOpen(false)} onApply={values=>{const next=currentMarketParams();marketFilterKeys.forEach(key=>{if(values[key]&&values[key]!=="all")next.set(key,values[key]);else next.delete(key);});setParams(next,{replace:true});setFiltersOpen(false);}}/>}
-      <div className="discovery-result-summary"><span>{state==="loading"?"Loading markets…":`${shown.length}${more?"+":""} markets`}</span>{q&&<button className="filter-chip" aria-label="Clear search" onClick={()=>{const next=currentMarketParams();next.delete("q");setParams(next,{replace:true});}}>{q}<X size={12}/></button>}{filterCount>0&&<button className="text-button" onClick={()=>{const next=currentMarketParams();["q",...marketFilterKeys].forEach(key=>next.delete(key));setParams(next,{replace:true});}}>Clear filters</button>}</div>
+      {filtersOpen&&<MarketFilters initial={filters} pairs={pairSymbols} onClose={()=>setFiltersOpen(false)} onApply={values=>{const next=latestParams();marketFilterKeys.forEach(key=>{if(values[key]&&values[key]!=="all")next.set(key,values[key]);else next.delete(key);});setParams(next);setFiltersOpen(false);}}/>}
+      <div className="discovery-result-summary"><span>{state==="loading"?"Loading markets…":`${shown.length}${more?"+":""} markets`}</span>{q&&<button className="filter-chip" aria-label="Clear search" onClick={()=>{const next=latestParams();next.delete("q");setParams(next,false);}}>{q}<X size={12}/></button>}{filterCount>0&&<button className="text-button" onClick={()=>{const next=latestParams();["q",...marketFilterKeys].forEach(key=>next.delete(key));setParams(next);}}>Clear filters</button>}</div>
       {(displayedKey===queryKey?state==="loading":!initial)?<div className="market-skeletons">{[0,1,2].map(x=><div key={x}/>)}</div>:view==="cards"?<div className="token-grid">{shown.map(launch=><div className="watch-card" key={launch.id}>{star(launch)}<TokenCard launch={launch} featured={launch.mint===aqua} boosted={launch.mint===boosted}/></div>)}</div>:<div className="table-scroll"><table className="market-table"><thead><tr><th>Market / age</th><th>Market cap</th><th>24h change</th><th>24h volume</th><th>Liquidity</th><th>Holders</th><th>Reward mode</th><th><span className="sr-only">Watchlist</span></th></tr></thead><tbody>{shown.map(launch=><tr key={launch.id}><td><Link className="market-identity" to={"/token/"+launch.id}><TokenMark launch={launch}/><span><b>{launch.name}</b><small>{launch.symbol} · {launch.pairSymbol} · {launchAge(launch.launchedAt,launch.createdAt)}</small><span className="market-tags">{launch.mint===aqua&&<span className="market-tag">AQUA featured</span>}{launch.mint===boosted&&<span className="market-tag">Community boost</span>}<DexStatusBadge state={dexBadgeState(launch)}/></span></span></Link><RecentUpdateBell at={launch.latestProjectUpdateAt} launchId={launch.id}/></td><td className="market-cap-value">{compact.format(launch.marketCapUsd)}{!isPriceLive(launch)&&<small className="status-inline">Price delayed</small>}</td><td>{Number(launch.change24h).toFixed(2)}%</td><td>{compact.format(launch.volume24hUsd)}</td><td>{compact.format(launch.tvlUsd)}</td><td>{launch.holderCount.toLocaleString()}</td><td>{modes.find(([value])=>value===launch.rewardMode)?.[1]}</td><td>{star(launch)}</td></tr>)}</tbody></table></div>}
       {state==="offline"&&<p role="alert">Market data could not refresh. <button className="soft-button" onClick={()=>setVersion(v=>v+1)}>Try again</button></p>}
       {state==="ready"&&!shown.length&&<div className="empty-state"><h3>{sort==="watchlist"?"Your watchlist is empty":"No matching markets"}</h3><p>{sort==="watchlist"?"Tap a star to save a market on this device.":"Try another name, reward mode or pair."}</p></div>}
@@ -72,4 +80,3 @@ export function Markets(){
     </section>
   </main>;
 }
-

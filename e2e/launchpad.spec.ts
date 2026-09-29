@@ -73,6 +73,29 @@ test("market controls are visible, bookmarkable and do not overflow",async({page
   await page.getByRole("button",{name:"Watchlist",exact:true}).click();
   await expect(page.getByRole("heading",{name:"Your watchlist is empty"})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
+  await page.reload();
+  await expect(page.getByRole("button",{name:"Watchlist",exact:true})).toHaveAttribute("aria-pressed","true");
+  await page.goto('/#/how-it-works');await page.goto('/#/');
+  await expect(page.getByRole("button",{name:"Watchlist",exact:true})).toHaveAttribute("aria-pressed","true");
+  await page.getByRole("button",{name:"Filters",exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Filter markets'});
+  await expect(dialog.getByRole('combobox',{name:'Pair',exact:true})).toHaveText('ORCA');
+  await dialog.getByRole('combobox',{name:'Pair',exact:true}).click();await page.getByRole('option',{name:'SOL',exact:true}).click();
+  await page.keyboard.press('Escape');
+  await page.reload();await page.getByRole("button",{name:"Filters",exact:true}).click();
+  await expect(dialog.getByRole('combobox',{name:'Pair',exact:true})).toHaveText('ORCA');
+  await dialog.getByRole('button',{name:'Reset',exact:true}).click();await dialog.getByRole('button',{name:'Apply filters'}).click();
+  await page.goto('/#/');await page.getByRole("button",{name:"Filters",exact:true}).click();
+  await expect(dialog.getByRole('combobox',{name:'Pair',exact:true})).toHaveText('All pairs');
+  await page.keyboard.press('Escape');
+  await page.goto('/#/?sort=recent&dex=unpaid');
+  await expect(page.getByRole('button',{name:'New',exact:true})).toHaveAttribute('aria-pressed','true');
+  await page.getByRole("button",{name:"Filters",exact:true}).click();
+  await expect(dialog.getByRole('button',{name:'Not paid',exact:true})).toHaveAttribute('aria-pressed','true');
+  await page.keyboard.press('Escape');await page.goto('/#/');
+  await expect(page.getByRole('button',{name:'New',exact:true})).toHaveAttribute('aria-pressed','true');
+  await page.getByRole('button',{name:'Clear filters'}).click();await page.reload();
+  await expect(page.getByRole('button',{name:'Clear filters'})).toHaveCount(0);
 });
 test("wallet modal closes immediately and returns focus",async({page})=>{
   await page.goto("/#/");
@@ -164,15 +187,65 @@ test("promotions has both programs, working Studio link and no horizontal overfl
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
 });
 
-test('analytics period changes cards, market totals and recent activity together',async({page},info)=>{
- await page.route('**/api/analytics*',r=>{
+test('analytics updates in place, animates bars and preserves expanded content across periods',async({page},info)=>{
+ let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve;});let requested=false;
+ const now=Date.now();
+ await page.route('**/api/analytics*',async r=>{
   const range=new URL(r.request().url()).searchParams.get('range')??'all',short=range==='24h';
-  return r.fulfill({json:{range,generatedAt:Date.now(),oldestIndexedAt:Date.now(),stalePriceMarkets:0,marketBreakdownLimit:100,totals:{buybackSol:short?1:9,liveMarkets:short?2:10,volumeUsd:short?100:900,dexFundedMarkets:short?1:3,rewardsAccumulatedUsd:short?10:50},markets:[{id:'m1',name:'Test coin',symbol:'TEST',volumeUsd:short?100:900,rewardsAccumulatedUsd:short?10:50,buybackSol:short?1:9}],claimedAssets:[],recentBuybacks:short?[]:[{signature:'receipt',createdAt:Date.now(),amountSol:9,amountTokens:100}],rewardHistory:[{time:Date.now(),allocatedUsd:short?10:50}],buybackHistory:[]}});
+  if(short){requested=true;await gate;}
+  return r.fulfill({json:{range,generatedAt:now,oldestIndexedAt:now,stalePriceMarkets:0,marketBreakdownLimit:100,totals:{buybackSol:short?1:9,liveMarkets:short?2:10,volumeUsd:short?100:900,dexFundedMarkets:short?1:3,rewardsAccumulatedUsd:short?10:50},markets:Array.from({length:12},(_,i)=>({id:'m'+i,name:'Test coin '+i,symbol:'TEST',volumeUsd:short?100:900,rewardsAccumulatedUsd:short?10:50,buybackSol:short?1:9})),claimedAssets:[],recentBuybacks:short?[]:[{signature:'receipt',createdAt:now,amountSol:9,amountTokens:100}],rewardHistory:(short?[1,2,7]:[40,8,2]).map((allocatedUsd,i)=>({time:now-(3-i)*3600000,allocatedUsd})),buybackHistory:[]}});
  });
  await page.goto('/#/analytics');await expect(page.locator('.network-metric-featured strong')).toHaveText('$50.00');await expect(page.getByText('All-time total',{exact:true})).toBeVisible();
+ await expect(page.locator('.data-freshness')).toHaveCount(0);
+ await page.getByRole('button',{name:'Show more markets'}).click();
+ await page.locator('.workspace-disclosure summary').click();
+ const chart=await page.locator('.allocation-chart .recharts-surface').elementHandle();
+ const panel=await page.locator('.network-metrics').elementHandle();
  await page.getByRole('button',{name:'24 hours',exact:true}).click();
- await expect(page.locator('.network-metric-featured strong')).toHaveText('$10.00');
- await expect(page.locator('.analytics-market-table tbody')).toContainText('$100');await expect(page.locator('.recent-buybacks')).toContainText('No buybacks in this period.');
- await expect(page.locator('.network-metrics article').filter({hasText:'Coins launched'}).locator('strong')).toHaveText('2');
- await page.screenshot({path:info.outputPath('compact-analytics.png'),fullPage:true});
+ try{
+  await expect.poll(()=>requested).toBe(true);
+  await expect(page.getByRole('button',{name:'24 hours',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('.network-metric-featured strong')).toHaveText('$50.00');
+  await expect(page.getByText('All-time total',{exact:true})).toBeVisible();
+  await expect(page.locator('.workspace-loading')).toHaveCount(0);
+  await expect(page.locator('.workspace-disclosure')).toHaveAttribute('open','');
+  await expect(page.locator('.analytics-market-table tbody tr')).toHaveCount(12);
+  const animation=page.evaluate(()=>new Promise<number>(resolve=>{
+   const shapes=new Set<string>(),start=performance.now();
+   const sample=()=>{shapes.add([...document.querySelectorAll('.allocation-chart .recharts-bar-rectangle path')].map(el=>el.getAttribute('d')).join('|'));if(performance.now()-start<1200)requestAnimationFrame(sample);else resolve(shapes.size);};sample();
+  }));
+  release();
+  await expect(page.locator('.network-metric-featured strong')).toHaveText('$10.00');
+  expect(await animation).toBeGreaterThan(2);
+  expect(await panel!.evaluate(el=>el.isConnected)).toBe(true);expect(await chart!.evaluate(el=>el.isConnected)).toBe(true);
+  await expect(page.locator('.workspace-disclosure')).toHaveAttribute('open','');
+  await expect(page.locator('.analytics-market-table tbody tr')).toHaveCount(12);
+  await expect(page.locator('.analytics-market-table tbody')).toContainText('$100');await expect(page.locator('.recent-buybacks')).toContainText('No buybacks in this period.');
+  await expect(page.locator('.network-metrics article').filter({hasText:'Coins launched'}).locator('strong')).toHaveText('2');
+  await page.screenshot({path:info.outputPath('compact-analytics.png'),fullPage:true});
+ }finally{release();}
+});
+
+test('analytics discards superseded periods and retains the last data on refresh failure',async({page})=>{
+ let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve;});let requested=false,fail=true;
+ await page.route('**/api/analytics*',async r=>{
+  const range=new URL(r.request().url()).searchParams.get('range')??'all';
+  if(range==='24h'){requested=true;await gate;}
+  if(range==='30d'&&fail)return r.fulfill({status:503,json:{error:'Unavailable'}});
+  return r.fulfill({json:{range,totals:{buybackSol:0,liveMarkets:1,volumeUsd:0,dexFundedMarkets:0,rewardsAccumulatedUsd:range==='7d'?70:range==='30d'?30:50},markets:[],claimedAssets:[],recentBuybacks:[],rewardHistory:[],buybackHistory:[]}}).catch(()=>{});
+ });
+ await page.goto('/#/analytics');await expect(page.locator('.network-metric-featured strong')).toHaveText('$50.00');
+ await page.getByRole('button',{name:'24 hours',exact:true}).click();
+ try{
+  await expect.poll(()=>requested).toBe(true);await page.getByRole('button',{name:'7 days',exact:true}).click();
+  await expect(page.locator('.network-metric-featured strong')).toHaveText('$70.00');release();
+  await page.getByRole('button',{name:'30 days',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('Showing the last received data.');
+  await expect(page.locator('.network-metric-featured strong')).toHaveText('$70.00');
+  await expect(page.locator('.network-metric-featured small')).toHaveText('Last 7 days');
+  await expect(page.locator('.workspace-loading')).toHaveCount(0);
+  fail=false;await page.getByRole('button',{name:'Try again',exact:true}).click();
+  await expect(page.locator('.network-metric-featured strong')).toHaveText('$30.00');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+ }finally{release();}
 });

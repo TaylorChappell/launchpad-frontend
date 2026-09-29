@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import { RotateCcw, SlidersHorizontal, X } from "lucide-react";
 import { Select } from "./Select";
 import { useDialog } from "./useDialog";
-export const marketFilterKeys=["pair","mode","dex","minCap","maxCap","minVolume","minLiquidity","minHolders","ageHours"] as const;
+import { marketFilterKeys } from "../market-preferences";
+export { marketFilterKeys } from "../market-preferences";
 export type MarketFilterValues=Record<(typeof marketFilterKeys)[number],string>;
 export function readMarketFilters(params:URLSearchParams):MarketFilterValues{return Object.fromEntries(marketFilterKeys.map(key=>[key,params.get(key)??(["pair","mode","dex"].includes(key)?"all":"")])) as MarketFilterValues;}
 export function MarketFilters({initial,pairs,onApply,onClose}:{initial:MarketFilterValues;pairs:string[];onApply:(values:MarketFilterValues)=>void;onClose:()=>void}){

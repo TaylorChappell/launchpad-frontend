@@ -1,5 +1,6 @@
-/* Shared motion for the two global dialogs. Keep closing/focus restoration immediate. */
+/* Shared motion for global dialogs and market filters. Keep closing/focus restoration immediate. */
 .wallet-overlay.wallet-connect-overlay,
+.wallet-overlay.market-filter-overlay,
 .aqua-search-overlay {
   background: rgba(17, 49, 70, .36);
   -webkit-backdrop-filter: blur(14px) saturate(.85);
@@ -9,7 +10,8 @@
 .wallet-overlay.wallet-connect-overlay::before,
 .wallet-overlay.wallet-connect-overlay::after { display: none; }
 .wallet-connect-overlay .wallet-modal.aqua-wallet-picker,
-.aqua-search-overlay .market-search-palette {
+.aqua-search-overlay .market-search-palette,
+.market-filter-overlay .market-filter-modal {
   box-shadow: 0 32px 100px #103e6b30, 0 8px 24px #103e6b14, inset 0 1px 0 #ffffff;
   animation: aqua-dialog-arrive 460ms cubic-bezier(.16, 1, .3, 1) both;
 }
@@ -109,7 +111,7 @@
   .market-search-palette .palette-input input { font-size: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .wallet-overlay.wallet-connect-overlay, .aqua-search-overlay,
+  .wallet-overlay.wallet-connect-overlay, .aqua-search-overlay, .wallet-overlay.market-filter-overlay, .market-filter-modal,
   .wallet-modal.aqua-wallet-picker, .aqua-wallet-picker *,
   .market-search-palette, .market-search-palette *, .market-search-palette *::after {
     animation: none !important;
