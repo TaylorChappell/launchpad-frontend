@@ -59,7 +59,7 @@ export const api = {
   marketPrices: (signal?:AbortSignal) => request<{prices:import("./market-prices").MarketPrice[]}>("/api/market-prices",{signal}),
   notifications: (wallet: string) => request<{ notifications: WalletNotification[] }>(`/api/notifications/${encodeURIComponent(wallet)}`),
   config: () => request<RuntimeConfig>("/api/config"),
-  analytics: (range:"24h"|"7d"|"30d"|"all"="all",signal?:AbortSignal) => request<AnalyticsResponse>("/api/analytics"+(range==="all"?"":"?range="+range),{signal}),
+  analytics: (range:"24h"|"7d"|"30d"|"all"="all",signal?:AbortSignal) => uncachedRequest<AnalyticsResponse>("/api/analytics"+(range==="all"?"":"?range="+range),{signal}),
   launches: (params: Record<string,string|number> = {}, signal?: AbortSignal) => request<{ launches: Launch[]; hasMore: boolean; nextOffset: number }>(`/api/launches?${new URLSearchParams(Object.entries(params).map(([k,v])=>[k,String(v)]))}`, {signal}),
   holdings: (wallet: string) => request<{ holdings: Array<{launch:Launch;balanceRaw:string;balanceUpdatedAt:number;valueUsd:number|null}> }>(`/api/wallets/${encodeURIComponent(wallet)}/holdings`),
   position: (wallet:string,id:string) => request<{balanceRaw:string;balanceUpdatedAt:number|null;valueUsd:number|null;valueSol:number|null;quoteSymbol:string;note:string;pnl:{available:false;reason:string}|{available:true;quoteDecimals:number;costBasis:number;bought:number;sold:number;realized:number;unrealized:number|null;total:number|null;returnPercent:number|null}}>(`/api/wallets/${encodeURIComponent(wallet)}/positions/${encodeURIComponent(id)}`),

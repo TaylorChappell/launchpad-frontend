@@ -112,6 +112,8 @@
 
 /* Reference pages are organised around questions and useful disclosure. */
 /* One moving selection keeps period changes visually continuous. */
+.analytics-controls { display:flex; align-items:center; gap:8px; max-width:100%; min-width:0; }
+.analytics-controls .workspace-refresh { flex-shrink:0; }
 .analytics-range { position:relative; isolation:isolate; display:grid; max-width:100%; min-width:0; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; padding:4px; border:1px solid var(--ux-border); border-radius:13px; background:#eaf4fa; }
 .analytics-range::before { content:""; position:absolute; z-index:-1; top:4px; bottom:4px; left:4px; width:calc((100% - 8px) / 4); border-radius:9px; background:#fff; box-shadow:0 2px 7px #174d7014; transform:translateX(calc(var(--range-index,3) * 100%)); transition:transform 320ms cubic-bezier(.22,1,.36,1); pointer-events:none; }
 .analytics-range button { min-height:40px; padding:8px; font-size:12px; border:0; border-radius:9px; background:transparent; color:var(--ux-muted); font-weight:650; white-space:nowrap; transition:color 180ms ease; }

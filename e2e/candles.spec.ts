@@ -100,7 +100,8 @@ test('earlier candles are available without truncating or changing the chosen re
  await expect(page.getByRole('button',{name:'Earlier candles',exact:true})).toHaveCount(0);
  const canvas=page.locator('.tradingview-canvas canvas').first();
  await canvas.scrollIntoViewIfNeeded();
- for(let i=0;i<16&&!beforeRequests.length;i++){
+ // The recent-candle opening view needs more drags to cross 500 bars on phones.
+ for(let i=0;i<36&&!beforeRequests.length;i++){
   const box=(await canvas.boundingBox())!;
   await page.mouse.move(box.x+20,box.y+box.height/2);await page.mouse.down();
   await page.mouse.move(box.x+box.width*.7,box.y+box.height/2,{steps:12});await page.mouse.up();

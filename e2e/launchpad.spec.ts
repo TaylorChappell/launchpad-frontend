@@ -32,7 +32,7 @@ test("legacy rewards opens the combined portfolio and retries an existing receip
 });
 
 test("analytics prioritizes totals, handles empty history and stays within the viewport",async({page})=>{
-  await page.route("**/api/analytics",r=>r.fulfill({json:{
+  await page.route("**/api/analytics*",r=>r.fulfill({json:{range:new URL(r.request().url()).searchParams.get('range')??'all',
     generatedAt:Date.now(),oldestIndexedAt:Date.now(),stalePriceMarkets:0,marketBreakdownLimit:100,
     totals:{buybackSol:1.25,buybackFundedSol:1.5,rewardsClaimedAllocationUsd:2,rewardsAccumulatedUsd:45,rewardsRedeemableUsd:12,dexFundedMarkets:3,liveMarkets:7,totalMarketCapUsd:8000,volume24hUsd:650},
     markets:[],claimedAssets:[],recentBuybacks:[],rewardHistory:[],buybackHistory:[]
@@ -250,4 +250,42 @@ test('analytics discards superseded periods and retains the last data on refresh
   await expect(page.locator('.network-metric-featured strong')).toHaveText('$30.00');
   await expect(page.getByRole('alert')).toHaveCount(0);
  }finally{release();}
+});
+
+test('analytics preloads periods once, reuses them across navigation and refreshes on demand',async({page})=>{
+ const overview:Record<string,number>={},payouts:Record<string,number>={};
+ const totals:Record<string,number>={all:50,'24h':24,'7d':70,'30d':30};
+ await page.clock.install();
+ await page.route('**/api/analytics*',r=>{
+  const range=new URL(r.request().url()).searchParams.get('range')??'all';overview[range]=(overview[range]??0)+1;
+  return r.fulfill({json:{range,totals:{buybackSol:0,liveMarkets:1,volumeUsd:0,dexFundedMarkets:0,rewardsAccumulatedUsd:totals[range]+100*(overview[range]-1)},markets:[],claimedAssets:[],recentBuybacks:[],rewardHistory:[],buybackHistory:[]}});
+ });
+ await page.route('**/api/auto-rewards/activity?*',r=>{
+  const range=new URL(r.request().url()).searchParams.get('range')??'all';payouts[range]=(payouts[range]??0)+1;
+  return r.fulfill({json:{running:false,nextPayoutAt:Date.now(),rounds:[],selectedRound:null,payouts:[],hasMore:false}});
+ });
+ await page.goto('/#/analytics');
+ await expect(page.locator('.network-metric-featured strong')).toHaveText('$50.00');
+ const warmed={all:1,'24h':1,'7d':1,'30d':1};
+ await expect.poll(()=>overview).toEqual(warmed);await expect.poll(()=>payouts).toEqual(warmed);
+ // Wait for response bodies to reach the cache, not just for requests to begin.
+ await expect.poll(()=>page.evaluate(()=>Object.keys(sessionStorage).filter(key=>key.startsWith('aqua:analytics')).map(key=>JSON.parse(sessionStorage.getItem(key)!).length))).toEqual([4,4]);
+ for(let cycle=0;cycle<2;cycle++)for(const [label,total] of [['24 hours',24],['7 days',70],['30 days',30],['All time',50]] as const){
+  await page.getByRole('button',{name:label,exact:true}).click();
+  await expect(page.locator('.network-metric-featured strong')).toHaveText('$'+total+'.00');
+  await expect(page.locator('.network-metrics')).toHaveAttribute('aria-busy','false');
+ }
+ await page.clock.fastForward(30_000);
+ expect(overview).toEqual(warmed);expect(payouts).toEqual(warmed);
+ await page.goto('/#/how-it-works');await page.goto('/#/analytics');
+ await expect(page.locator('.network-metric-featured strong')).toHaveText('$50.00');
+ await page.reload();await expect(page.locator('.network-metric-featured strong')).toHaveText('$50.00');
+ expect(overview).toEqual(warmed);expect(payouts).toEqual(warmed);
+ await page.getByRole('button',{name:'24 hours',exact:true}).click();
+ await page.getByRole('button',{name:'Refresh analytics',exact:true}).click();
+ await expect(page.locator('.network-metric-featured strong')).toHaveText('$124.00');
+ expect(overview).toEqual({...warmed,'24h':2});expect(payouts).toEqual(warmed);
+ await page.getByRole('button',{name:'Refresh auto rewards',exact:true}).click();
+ await expect.poll(()=>payouts).toEqual({...warmed,'24h':2});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
 });
