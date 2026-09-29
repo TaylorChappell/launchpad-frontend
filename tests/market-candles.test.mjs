@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {snapshotCandles,chartCandles,withLiveCandle,compactCandles,candlePrice,usdTradeCandles,initialCandleRange} from '../src/market-candles.ts';
+import {snapshotCandles,chartCandles,withLiveCandle,compactCandles,candlePrice,usdTradeCandles,initialCandleRange,spacedTradeCandles,mergeCandlePage} from '../src/market-candles.ts';
 const t=1790640000000;
 const point=(offset,price,cap=price*1000000000)=>({sampledAt:t+offset*60000,priceUsd:price,fdvUsd:cap});
 test('USD OHLC aggregates ordered samples, retaining both wicks and the historic cap',()=>{
@@ -80,4 +80,30 @@ test('initial chart view focuses recent trading and right-aligns sparse markets'
   const growing=initialCandleRange(20,width);
   assert.ok(growing.from<19);assert.ok(growing.to>19);assert.ok(growing.to-19<=6);
  }
+});
+
+test('a 25-hour repair gap leaves the opening view on the recent cluster without creating candles',()=>{
+ const candles=[...Array.from({length:8},(_,i)=>({time:300*i,open:150,high:160,low:140,close:155})),
+  ...Array.from({length:4},(_,i)=>({time:25*3600+300*i,open:45,high:46,low:44,close:45}))];
+ const points=spacedTradeCandles(candles,300);
+ assert.equal(points.filter(p=>'open' in p).length,12);
+ assert.equal(points.length,76);
+ assert.ok(points.every((p,i)=>i===0||p.time>points[i-1].time));
+ for(const width of [320,390,812,1440]){
+  const range=initialCandleRange(points.length,width);
+  const visible=points.filter((_,i)=>i>=range.from&&i<=range.to).filter(p=>'open' in p);
+  assert.equal(visible.length,4);assert.ok(visible.every(p=>p.close===45));
+ }
+ assert.deepEqual(spacedTradeCandles(candles.slice(-4),300),candles.slice(-4));
+});
+
+test('a repaired page removes invalid cached candles and accepts corrected earlier timestamps',()=>{
+ const previous=snapshotCandles([point(0,2),point(5,999),point(10,999),point(15,3)],'1h');
+ const repaired={...snapshotCandles([point(5,4)],'1h'),source:'indexed_pool_trades',currency:'SOL',nextBefore:t/1000+300,coverage:{from:t/1000+300,to:t/1000+899}};
+ previous.candles[1].lastSampleAt+=10_000;
+ const merged=mergeCandlePage(previous,repaired);
+ assert.deepEqual(merged.candles.map(c=>c.price.close),[2,4,3]);
+ assert.equal(merged.candles[1].lastSampleAt,repaired.candles[0].lastSampleAt);
+ const empty=mergeCandlePage(merged,{...repaired,candles:[],coverage:{from:0,to:t/1000+1000}});
+ assert.deepEqual(empty.candles,[]);
 });

@@ -190,3 +190,27 @@ test('missing custom-pair USD reference does not claim the market has no trades'
  await expect(page.getByText('USD reference price is temporarily unavailable.',{exact:true})).toBeVisible();
  await expect(page.locator('#market-chart').getByText('No indexed trades yet.',{exact:true})).toHaveCount(0);
 });
+
+test('partial history fills automatically and corrected pages remove stale candles',async({page},info)=>{
+ await setup(page);
+ await page.clock.install();
+ let recovered=false;
+ const template=history('5m');
+ const latest=template.candles.at(-1)!.time;
+ await page.route('**/trade-candles?*',route=>{
+  const candles=recovered?Array.from({length:500},(_,i)=>({...template.candles[59],time:latest-(499-i)*300,lastSampleAt:(latest-(499-i)*300)*1000}))
+    :[...template.candles.slice(0,8).map(c=>({...c,time:c.time-25*3600})),...template.candles.slice(-4)];
+  return route.fulfill({json:{...template,candles,historyPending:!recovered,coverage:{from:0,to:latest+299}}});
+ });
+ await page.goto('/#/token/recovering');
+ const chart=page.locator('#market-chart');
+ await expect(chart.locator('.tradingview-canvas')).toHaveAttribute('data-bars','12');
+ await expect(chart.getByText('Syncing trade history…',{exact:true})).toBeVisible();
+ await chart.scrollIntoViewIfNeeded();
+ await chart.screenshot({path:info.outputPath('compact-partial-history-recent-focus.png')});
+ recovered=true;
+ await page.clock.fastForward(16_000);
+ await expect(chart.locator('.tradingview-canvas')).toHaveAttribute('data-bars','500');
+ await expect(chart.getByText('Syncing trade history…',{exact:true})).toHaveCount(0);
+ await chart.screenshot({path:info.outputPath('compact-recovered-500-candles.png')});
+});

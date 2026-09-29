@@ -5,6 +5,7 @@ export type OHLC = { open: number; high: number; low: number; close: number };
 export type UsdCandle = { time: number; lastSampleAt: number; price: OHLC; cap: OHLC | null };
 export type CandleHistory = { intervalSeconds: number; candles: UsdCandle[] };
 export type ChartCandle = OHLC & { time: number };
+export type ChartPoint = {time:number} & Partial<OHLC>;
 const positive = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v > 0;
 const valid = (v: OHLC | null | undefined): v is OHLC => !!v && [v.open,v.high,v.low,v.close].every(positive)
   && v.high >= Math.max(v.open,v.close) && v.low <= Math.min(v.open,v.close);
@@ -61,6 +62,24 @@ export function initialCandleRange(count:number,width:number) {
   return {from:to-visible,to};
 }
 
+/** Empty time points separate missing intervals without inventing candles.
+ * Bound very long gaps so paging an old, thin market stays inexpensive. The
+ * newest 64 missing slots also keep a distant cluster out of the opening view.
+ */
+export function spacedTradeCandles(candles:ChartCandle[],intervalSeconds?:number):ChartPoint[] {
+  if(!positive(intervalSeconds))return candles;
+  const points:ChartPoint[]=[];
+  for(const bar of candles){
+    const previous=points.at(-1);
+    if(previous){
+      const missing=Math.min(64,Math.max(0,Math.floor((bar.time-previous.time)/intervalSeconds)-1));
+      for(let i=missing;i>0;i--)points.push({time:bar.time-i*intervalSeconds});
+    }
+    points.push(bar);
+  }
+  return points;
+}
+
 // Only extend the latest candle with a newer, live indexed price. Do not join
 // missing periods, reuse a stale quote or reconstruct past USD using today's FX.
 export function withLiveCandle(history: CandleHistory, point?: { sampledAt: number; priceUsd: number; marketCapUsd: number }): CandleHistory {
@@ -100,7 +119,17 @@ export function compactCandles(candles: ChartCandle[], limit = 32): ChartCandle[
 
 export const candleIntervals = {"5m":300,"15m":900,"1h":3600,"4h":14400,"1d":86400} as const;
 export type CandleInterval = keyof typeof candleIntervals;
-export type CandlePage = CandleHistory & { source:"indexed_pool_trades"; currency:string; nextBefore: number | null; historyPending?:boolean };
+export type CandlePage = CandleHistory & { source:"indexed_pool_trades"; currency:string; nextBefore: number | null; historyPending?:boolean; coverage?:{from:number;to:number} };
+/** A repaired page is authoritative over its covered time range. Old candles
+ * can disappear or have an earlier last trade after a bad receipt is removed.
+ */
+export function mergeCandlePage(previous:CandleHistory,incoming:CandlePage):CandleHistory {
+  if(previous.intervalSeconds!==incoming.intervalSeconds)return incoming;
+  if(!incoming.coverage)return mergeCandleHistory(previous,incoming);
+  const {from,to}=incoming.coverage;
+  const retained=previous.candles.filter(bar=>bar.time<from||bar.time>to);
+  return {...incoming,candles:[...retained,...incoming.candles].sort((a,b)=>a.time-b.time)};
+}
 /** Merge by bucket, preserving older loaded history while refreshing current bars. */
 export function mergeCandleHistory(previous: CandleHistory, incoming: CandleHistory): CandleHistory {
   if(previous.intervalSeconds!==incoming.intervalSeconds)return incoming;

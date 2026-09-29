@@ -19,5 +19,6 @@ export async function loadCandlePage(id:string,interval:CandleInterval,before?:n
   if(data.source!=="indexed_pool_trades"||typeof data.currency!=="string"||!data.currency||(before!==undefined&&data.nextBefore!==null&&data.nextBefore>=before)||!Array.isArray(data.candles)||data.intervalSeconds!==candleIntervals[interval]||!(data.nextBefore===null||typeof data.nextBefore==="number")) {
     throw new Error("This candle interval needs the latest chart API.");
   }
+  if(data.coverage&&(!Number.isFinite(data.coverage.from)||!Number.isFinite(data.coverage.to)||data.coverage.from<0||data.coverage.to<data.coverage.from))throw new Error("Chart history coverage is invalid.");
   return data;
 }

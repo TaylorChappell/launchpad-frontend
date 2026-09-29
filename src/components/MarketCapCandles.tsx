@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Info, RotateCcw } from "lucide-react";
 import { loadCandlePage } from "../candle-history";
-import { candlePrice, candleIntervals, usdTradeCandles, mergeCandleHistory, type CandlePage, type ChartCandle, type CandleInterval } from "../market-candles";
+import { candlePrice, candleIntervals, usdTradeCandles, mergeCandlePage, type CandlePage, type ChartCandle, type CandleInterval } from "../market-candles";
 import type { Launch } from "../types";
 import { CandleChart } from "./CandleChart";
 
@@ -22,7 +22,7 @@ export function MarketCapCandles({ launch }: { launch: Launch }) {
       try{
         const history=await loadCandlePage(launch.id,interval);
         if(active){setLoaded(previous=>previous?.interval===interval && !(history.nextBefore!==null && history.nextBefore>(previous.history.candles.at(-1)?.time??0))
-          ? {interval,history:{...history,...mergeCandleHistory(previous.history,history),nextBefore:previous.history.nextBefore??(history.nextBefore!==null&&history.nextBefore<(previous.history.candles[0]?.time??Infinity)?history.nextBefore:null)}}
+          ? {interval,history:{...history,...mergeCandlePage(previous.history,history),nextBefore:history.nextBefore===null?null:(previous.history.candles[0]?.time??Infinity)<history.nextBefore?previous.history.nextBefore:history.nextBefore}}
           : {interval,history});setError("");}
       }catch(e){if(active)setError(e instanceof Error?e.message:"Couldn't load chart.");}
       finally{pending=false;}
@@ -37,7 +37,7 @@ export function MarketCapCandles({ launch }: { launch: Launch }) {
     try{
       const page=await loadCandlePage(launch.id,interval,loaded.history.nextBefore);
       if(current===generation.current)setLoaded(previous=>previous?.interval===interval
-        ? {interval,history:{...page,...mergeCandleHistory(previous.history,page),nextBefore:page.nextBefore}} : previous);
+        ? {interval,history:{...previous.history,...mergeCandlePage(previous.history,page),historyPending:previous.history.historyPending||page.historyPending,nextBefore:page.nextBefore}} : previous);
     }catch{if(current===generation.current){retryOlderAt.current=Date.now()+3000;setOlderError(true);}}
     finally{if(olderPending.current===token){olderPending.current=null;setLoadingOlder(false);}}
   },[loaded,interval,launch.id]);
@@ -56,13 +56,13 @@ export function MarketCapCandles({ launch }: { launch: Launch }) {
       <button title="Candles represent indexed trades only. Dollar values use the latest available pair/USD rate, so historical USD values are estimates. Exchange-rate changes do not create candles. Pan left to load earlier trades automatically." aria-label="About chart data"><Info size={14}/></button>
       <button title="Reset chart view" aria-label="Reset chart view" onClick={()=>setReset(n=>n+1)}><RotateCcw size={14}/></button></div>
     <div className="chart-canvas candle-stage">
-      <CandleChart candles={candles} currency={currency} viewKey={`${launch.id}:${loaded?.interval}:${metric}:${reset}`} onInspect={setInspected} onReachStart={loadOlder}/>
+      <CandleChart candles={candles} intervalSeconds={loaded?.history.intervalSeconds} currency={currency} viewKey={`${launch.id}:${loaded?.interval}:${metric}:${reset}`} onInspect={setInspected} onReachStart={loadOlder}/>
       {loading&&<div className={`candle-overlay ${candles.length?"candle-refreshing":""}`} role="status">Loading candles…</div>}
       {!loading&&!candles.length&&!error&&<div className="candle-overlay"><span>{hasTrades
         ? missingUsd?"USD reference price is temporarily unavailable.":canShowPrice?"Market-cap data is temporarily unavailable.":"Chart data is temporarily unavailable."
         :loaded?.history.historyPending?"Syncing trade history…":"No indexed trades yet."}</span>{canShowPrice&&<button onClick={()=>setMetric("price")}>View price</button>}</div>}
       {error&&<div className={`candle-overlay ${candles.length?"candle-delayed":""}`} role="status"><span>{error.includes("latest chart API")?"This timeframe needs the latest chart API.":candles.length?"Chart updates delayed.":"Couldn't load chart."}</span><button onClick={()=>{setError("");setRetry(n=>n+1);}}>Retry</button></div>}
-      {!loading&&(loadingOlder||olderError)&&<span className="candle-history-status" role="status">{loadingOlder?"Loading earlier trades…":"Earlier trades unavailable. Pan left to retry."}</span>}
+      {!loading&&(loadingOlder||olderError||hasTrades&&loaded?.history.historyPending)&&<span className="candle-history-status" role="status">{loadingOlder?"Loading earlier trades…":olderError?"Earlier trades unavailable. Pan left to retry.":"Syncing trade history…"}</span>}
     </div>
   </div>;
 }
