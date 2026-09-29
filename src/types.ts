@@ -668,11 +668,31 @@ export type WalletNotification = {
 
 export type AdminRippleResponse = {
   service?:RippleServiceStatus;
+  overview?:AdminRippleOverview;pendingChecks?:number;auditChecks?:number;
   totalPosts:number;earnedUsdCents:string;claimedUsdCents:string;unpricedPosts:number;
   offset:number;limit:number;hasMore:boolean;
   posts:Array<{id:string;launchId:string;symbol:string;coinName:string;wallet:string|null;username:string|null;authorId:string;text:string;createdAt:number;
+    rewardStatus?:string;pendingChecks?:number;auditChecks?:number;expiredChecks?:number;oldestPendingAt?:number|null;checksCompleted?:number;totalChecks?:number;trackingEndReason?:string|null;
     amountLamports:string;earnedUsdCents:string|null;claimedUsdCents:string|null;status:"tracking"|"completed"|"excluded";reason:string|null;
     metrics:{like_count?:number;reply_count?:number;retweet_count?:number;quote_count?:number;impression_count?:number}}>;
+};
+export type RippleRoundDiagnostics = {
+  availableLamports:string;releaseLimitLamports:string;budgetLamports:string;allocatedLamports:string;carryoverLamports:string;
+  weightedScore:string;consideredChecks:number;rewardedPosts:number;deferredChecks:number;expiredChecks:number;solPriceUsd:number;
+};
+export type AdminRippleOverview = {
+  availableLamports:string;totalMarkets:number;catchupHours:number;
+  markets:Array<{launchId:string;symbol:string;availableLamports:string;lastFundedAt:number|null;pendingChecks:number;auditChecks:number;oldestPendingAt:number|null;
+    checkedAt:number|null;coveredUntil:number|null;scanError:string|null;scanPending:boolean;lastRoundAt:number|null;lastEpochId:string|null;
+    lastRound:RippleRoundDiagnostics|null;unpublishedEpochs:number;payoutStatus:string|null;payoutAttemptedAt:number|null;payoutSuccessAt:number|null;payoutMessage:string|null}>;
+  rounds:Array<{launchId:string;symbol:string;endsAt:number;epochId:string|null;epochStatus:string|null;diagnostics:RippleRoundDiagnostics|null}>;
+};
+export type AdminRipplePostDetails = {
+  launchId:string;postId:string;scoringVersion:number;nextCheckAt:number|null;trackingEndedAt:number|null;trackingEndReason:string|null;
+  excludedReason:string|null;highWater:Record<string,number>;catchupHours:number;
+  checks:Array<{number:number;measuredAt:number;processedAt:number|null;metrics:Record<string,number>;delta:Record<string,number>;score:number;effectiveScore:number;
+    expiresAt:number;pendingReason:string|null;outcome:string|null;reason:string|null;auditCandidate:boolean;epochId:string|null;epochStatus:string|null;
+    roundEndsAt:number|null;amountLamports:string;earnedUsdCents:string|null;claimedSignature:string|null}>;
 };
 export type RippleServiceStatus = {
  mode:"unavailable"|"paused"|"live"|"idle"|"polling";message:string|null;lastEventAt:number|null;settlementMinutes:number;

@@ -160,3 +160,40 @@ test("admin Ripple lists every post with dollar earnings, pagination and server-
   await expect(page.locator(".ops-pager")).toContainText("1–1 of 1");
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
 });
+
+
+test("admin inspects deferred Ripple engagement, audit flags and funding rounds",async({page},testInfo)=>{
+  await setup(page,false,true,"live",true);
+  await page.route("**/api/admin/diagnostics?*",r=>r.fulfill({json:{generatedAt:Date.now(),proposals:[],diagnostics:[],launches:[],runtime:{available:false},conversions:[],settlements:[],rewardPurchases:[],rewardEpochs:[],counts:{},flags:{},alerts:{configured:true,valid:true}}}));
+  const now=Date.now(),statuses:string[]=[];
+  const diagnostics={availableLamports:'1000000000',releaseLimitLamports:'250000000',budgetLamports:'25000000',allocatedLamports:'25000000',carryoverLamports:'975000000',weightedScore:'1000',consideredChecks:2,rewardedPosts:1,deferredChecks:1,expiredChecks:0,solPriceUsd:100};
+  await page.route("**/api/admin/ripple?*",r=>{
+    const status=new URL(r.request().url()).searchParams.get('status')??'all';statuses.push(status);
+    return r.fulfill({json:{totalPosts:1,earnedUsdCents:'0',claimedUsdCents:'0',unpricedPosts:0,pendingChecks:1,auditChecks:1,offset:0,limit:25,hasMore:false,
+      posts:[{id:'999',launchId:'coin',symbol:'AQUA',coinName:'Aqua',wallet:address,username:'aqua_tester',text:'Supporting $AQUA',createdAt:now-3600000,metrics:{like_count:10,impression_count:278},amountLamports:'0',earnedUsdCents:'0',claimedUsdCents:'0',status:'completed',rewardStatus:status==='audit'?'audit':'awaiting_funding',pendingChecks:1,auditChecks:1,checksCompleted:4,totalChecks:32,reason:null}],
+      overview:{availableLamports:'975000000',totalMarkets:1,catchupHours:72,markets:[{launchId:'coin',symbol:'AQUA',availableLamports:'975000000',lastFundedAt:now,pendingChecks:1,auditChecks:1,oldestPendingAt:now-3600000,checkedAt:now,coveredUntil:now-30000,scanPending:false,scanError:null,unpublishedEpochs:0,payoutStatus:'waiting',payoutAttemptedAt:now,payoutSuccessAt:now-900000,payoutMessage:'Waiting for a fresh holder check.'}],rounds:[{launchId:'coin',symbol:'AQUA',endsAt:now,epochId:'epoch',epochStatus:'claimable',diagnostics}]}}});
+  });
+  await page.route('**/api/admin/ripple/coin/posts/999',r=>{
+    expect(r.request().headers().authorization).toBe('Bearer verified-admin');
+    return r.fulfill({json:{launchId:'coin',postId:'999',scoringVersion:3,nextCheckAt:null,trackingEndReason:'Tracking window ended',excludedReason:null,highWater:{like_count:10},catchupHours:72,
+      checks:[{number:4,measuredAt:now-3600000,processedAt:null,metrics:{like_count:10,impression_count:278},delta:{like_count:10,impression_count:278},score:326,effectiveScore:316,expiresAt:now+3600000,pendingReason:'awaiting_funding',outcome:null,reason:null,auditCandidate:false,epochId:null,amountLamports:'0',earnedUsdCents:null},
+        {number:1,measuredAt:now-7200000,processedAt:now-6000000,metrics:{like_count:1},delta:{like_count:1},score:110,effectiveScore:100,expiresAt:now+3600000,reason:null,auditCandidate:true,amountLamports:'0',earnedUsdCents:null}]}});
+  });
+  await page.goto('/#/portfolio');await expect(page.getByRole('heading',{name:'Your positions',exact:true})).toBeVisible();
+  await page.goto('/#/admin?section=ripple');
+  await expect(page.getByRole('region',{name:'Ripple post records'})).toContainText('Awaiting funding');
+  await page.getByRole('combobox',{name:'Ripple status',exact:true}).click();await page.getByRole('option',{name:'Review historical $0',exact:true}).click();
+  await expect.poll(()=>statuses.at(-1)).toBe('audit');
+  await page.locator('.ops-ripple-funding>summary').click();
+  await expect(page.getByRole('region',{name:'Ripple funding by coin'})).toContainText('Waiting for a fresh holder check.');
+  await expect(page.getByRole('region',{name:'Ripple settlement rounds'})).toContainText('0.975 SOL');
+  await page.screenshot({path:testInfo.outputPath('compact-ripple-admin.png'),fullPage:true});
+  const inspect=page.getByRole('button',{name:'Inspect post 999'});await inspect.click();
+  const dialog=page.getByRole('dialog',{name:'Post reward history'});
+  await expect(dialog).toBeVisible();await expect(dialog).toContainText('Awaiting funding');await expect(dialog).toContainText('Historical $0 · review');
+  await expect(dialog).toContainText('72 hours per check');await expect(dialog).toContainText('316');
+  expect(await dialog.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
+  await page.screenshot({path:testInfo.outputPath('compact-ripple-history.png'),fullPage:true});
+  await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(inspect).toBeFocused();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
+});
