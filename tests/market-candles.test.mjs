@@ -68,12 +68,16 @@ test('USD conversion works for custom/stock pairs and never disguises missing ra
  for(const rate of [null,undefined,0,-1,NaN,Infinity])assert.deepEqual(usdTradeCandles(history,'cap',rate),[]);
  assert.equal(usdTradeCandles({...history,currency:'USD'},'cap',100)[0].close,20);
 });
-test('initial chart view gives sparse markets breathing room and keeps recent trades visible',()=>{
+test('initial chart view focuses recent trading and right-aligns sparse markets',()=>{
  for(const width of [320,390,812,1440]){
   const sparse=initialCandleRange(2,width);
   assert.ok(sparse.to-sparse.from>=80);assert.ok(sparse.from<0);assert.ok(sparse.to>2);
   assert.ok((width-90)/(sparse.to-sparse.from)<=5);
+  assert.ok(sparse.to-1<=6);
   const full=initialCandleRange(500,width);
-  assert.ok(full.from>0);assert.ok(full.to>500);assert.ok(full.to-500<20);
+  assert.ok(full.to-full.from<=64);assert.ok(full.from>420);
+  assert.ok(full.to>499);assert.ok(full.to-499<=6);
+  const growing=initialCandleRange(20,width);
+  assert.ok(growing.from<19);assert.ok(growing.to>19);assert.ok(growing.to-19<=6);
  }
 });

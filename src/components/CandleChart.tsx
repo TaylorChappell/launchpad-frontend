@@ -63,7 +63,10 @@ export function CandleChart({ candles, viewKey, currency="USD", mini = false, on
     if (!sameView && data.length) {
       userPanned.current=false;
       if(mini)chart.current.timeScale().fitContent();
-      else chart.current.timeScale().setVisibleLogicalRange(initialCandleRange(data.length,container.current?.clientWidth??800));
+      else {
+        chart.current.priceScale("right").applyOptions({autoScale:true});
+        chart.current.timeScale().setVisibleLogicalRange(initialCandleRange(data.length,container.current?.clientWidth??800));
+      }
       fitted.current=viewKey;
     } else if(visible&&old.length&&data.length&&data[0].time<old[0].time) {
       const added=data.findIndex(p=>p.time===old[0].time);

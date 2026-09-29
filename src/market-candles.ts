@@ -48,11 +48,17 @@ export function usdTradeCandles(history: CandleHistory & {currency:string}, metr
     .filter(bar=>valid(bar));
 }
 
-/** Keep sparse markets readable: two trades must not become two giant candles. */
+/** Open on recent trading, with the latest candle near the right edge.
+ * Limit desktop history so old launch spikes do not flatten the current action.
+ * Sparse markets still need breathing room instead of a few oversized candles.
+ */
 export function initialCandleRange(count:number,width:number) {
-  const visible=Math.max(80,Math.ceil(Math.max(0,width-90)/5));
-  const from=count<visible?-5:count-visible+12;
-  return {from,to:from+visible};
+  const plotWidth=Math.max(0,width-90);
+  const visible=count<10?Math.max(80,Math.ceil(plotWidth/5))
+    :Math.max(32,Math.min(64,Math.ceil(plotWidth/12)));
+  const right=Math.max(3,Math.min(6,Math.round(visible*.08)));
+  const to=Math.max(0,count-1)+right;
+  return {from:to-visible,to};
 }
 
 // Only extend the latest candle with a newer, live indexed price. Do not join
