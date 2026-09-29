@@ -1,3 +1,4 @@
+import { AutoRewardsActivity } from "../components/AutoRewardsActivity";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ArrowDownUp, ArrowUpRight, ChartNoAxesCombined, Coins, Gift } from "lucide-react";
@@ -54,6 +55,7 @@ export function Analytics(){
         </section>
       </div>
       <section className="workspace-panel"><header><div><h2>Market activity</h2><span>Leading markets in this period</span></div><Link to="/">Explore all <ArrowUpRight size={14}/></Link></header><div className="table-scroll"><table className="market-table analytics-market-table"><thead><tr><th>Market</th><th>Trading volume</th><th>Holder rewards</th><th>Buyback funding · SOL</th></tr></thead><tbody>{data.markets.slice(0,visible).map((m,i)=><tr key={m.id}><td><Link className="analytics-market-name" to={"/token/"+m.id}><span>{String(i+1).padStart(2,"0")}</span><div><b>{m.name}</b><small>{m.symbol}</small></div></Link></td><td className="market-cap-value">{compactUsd.format(m.volumeUsd??0)}</td><td>{usd.format(m.rewardsAccumulatedUsd)}</td><td><SolAmount value={sol.format(m.buybackSol)}/></td></tr>)}</tbody></table></div>{!data.markets.length&&<div className="workspace-empty"><h3>No live market activity yet.</h3></div>}{visible<data.markets.length&&<button className="workspace-load-more" onClick={()=>setVisible(n=>n+8)}>Show more markets</button>}</section>
+      <AutoRewardsActivity range={range}/>
       <details className="workspace-disclosure"><summary>Claimed assets &amp; data details</summary><div>
         {data.claimedAssets.length?<div className="table-scroll"><table className="market-table"><thead><tr><th>Claimed asset</th><th>Amount</th><th>Receipts</th></tr></thead><tbody>{data.claimedAssets.map(a=><tr key={a.mint}><td>{a.symbol}</td><td>{displayTokenAmount(a.amountRaw,a.decimals)}</td><td>{a.receipts}</td></tr>)}</tbody></table></div>:<p>No claims recorded in this period.</p>}
         <p>Reward totals use their value when allocated. Buyback funding is assigned to buybacks; only verified purchases count as completed buybacks.</p>

@@ -1,3 +1,4 @@
+import { AutoRewardsToggle } from "../components/AutoRewardsToggle";
 import { RefreshButton } from "../components/RefreshButton";
 import { SectionTabs } from "../components/SectionTabs";
 import { RippleRewards } from "../components/RippleRewards";
@@ -75,7 +76,7 @@ function PortfolioContent({address}:{address:string|null}){
   const pending=rewards?.markets.reduce((s,m)=>s+m.pendingUsdCents/100,0);
   const refresh=()=>setRevision(n=>n+1);
   if(!address)return <main className="page holder-workspace portfolio-signed-out">
-    <section className="portfolio-welcome"><span className="workspace-icon"><Wallet size={28}/></span><h1>Your portfolio</h1><p>Connect your wallet to see your coins and claim your rewards.</p><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet <ArrowRight size={17}/></button><Link className="portfolio-connect-help" to="/claim-by-address">Claim using a wallet address</Link></section>
+    <section className="portfolio-welcome"><span className="workspace-icon"><Wallet size={28}/></span><h1>Your portfolio</h1><p>Connect your wallet to see your coins and claim your rewards.</p><button className="primary" onClick={()=>wallet.setModalOpen(true)}>Connect wallet <ArrowRight size={17}/></button><Link className="portfolio-connect-help" to="/claim-by-address">Claim using a wallet address</Link><Link className="portfolio-connect-help" to="/auto-rewards">Enable auto rewards without connecting</Link></section>
   </main>;
   return <main className="page holder-workspace">
     <header className="workspace-heading"><div><h1>Portfolio</h1><p>Positions, rewards and the communities you’re part of.</p></div><div className="workspace-heading-actions"><span className="wallet-address"><Wallet size={14}/><WalletIdentity wallet={address}/></span><RefreshButton className="workspace-refresh" aria-label="Refresh holdings" onClick={refresh}><RefreshCw size={16}/></RefreshButton></div></header>
@@ -86,13 +87,13 @@ function PortfolioContent({address}:{address:string|null}){
     </section>
     <SectionTabs label="Portfolio sections" items={tabs.map(value=>({value,label:<>{value}{value==="Holdings"&&holdings&&<span>{holdings.length}</span>}{value==="Ripple"&&rippleCount>0&&<span>{rippleCount}</span>}{value==="Rewards"&&rewards?.markets.some(m=>m.canClaim)&&<i/>}</>}))} value={tab} onChange={selectTab} className="workspace-tabs" panelId="portfolio-panel"/>
     <div id="portfolio-panel" role="tabpanel" aria-labelledby={`portfolio-panel-${tab.toLowerCase()}`} tabIndex={0}>
-    {tab==="Holdings"&&<section className="workspace-panel">
+    {tab==="Holdings"&&<><AutoRewardsToggle key={address} address={address}/><section className="workspace-panel">
       <header><h2>Your positions</h2></header>
       {holdings===null?<div className="workspace-loading">{errors.holdings?"Positions unavailable":"Loading your positions…"}</div>:holdings.length?<div className="table-scroll"><table className="market-table position-table"><thead><tr><th>Token</th><th>Balance</th><th>Value</th><th>Rewards</th><th/></tr></thead><tbody>{holdings.map(h=>{
         const reward=rewards?.markets.find(m=>m.launchId===h.launch.id);
         return <tr key={h.launch.id}><td><Link className="market-identity" to={"/token/"+h.launch.id}><TokenMark launch={h.launch}/><span><b>{h.launch.name}</b><small>{h.launch.symbol}</small></span></Link></td><td>{displayTokenAmount(h.balanceRaw,h.launch.tokenDecimals)}</td><td><b>{h.valueUsd===null?"Price delayed":usd.format(h.valueUsd)}</b></td><td>{reward?.canClaim?<button className="reward-amount-link" onClick={()=>selectTab("Rewards")}>{usd.format(reward.netClaimableUsdCents/100)} claimable <ArrowUpRight size={12}/></button>:reward?usd.format(reward.accumulatingUsdCents/100):"—"}</td><td><Link className="row-open" aria-label={"Open "+h.launch.name} to={"/token/"+h.launch.id}><ArrowUpRight size={18}/></Link></td></tr>;
       })}</tbody></table></div>:<div className="workspace-empty"><Coins/><h3>Your first position starts here.</h3><p>Coins held in this wallet appear once they’re indexed.</p><Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link></div>}
-    </section>}
+    </section></>}
     {tab==="Ripple"&&<RippleRewards key={address} address={address} data={ripple} error={rippleError} onRefresh={refreshRipple}/>}
     {tab==="Rewards"&&<section className="workspace-panel portfolio-rewards-panel"><header><h2>Your rewards</h2></header><WalletRewards data={rewards} launches={(holdings??[]).map(h=>h.launch)} onClaimed={refresh}/></section>}
     {tab==="Activity"&&<><section className="workspace-panel"><header><h2>Reward claim history</h2><span>Confirmed claims and updates from your holdings</span>{history?.hasMore&&<span>Latest 200 receipts</span>}</header>

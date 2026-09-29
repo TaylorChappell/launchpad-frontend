@@ -1,3 +1,4 @@
+import { AdminAutoRewards } from "../components/AdminAutoRewards";
 import { RefreshButton } from "../components/RefreshButton";
 import { Select } from "../components/Select";
 import { AdminRipple } from "../components/AdminRipple";
@@ -16,11 +17,11 @@ import type { DexProfile, AdminDiagnostics, MarketProposal } from "../types";
 import "./admin.css";
 
 const SESSION_KEY = "aqua-admin-session-v1";
-const sections = ["overview", "keeper", "studio", "community", "dex", "logs", "rewards", "ripple", "custody"] as const;
+const sections = ["overview", "keeper", "studio", "community", "dex", "logs", "rewards", "auto-rewards", "ripple", "custody"] as const;
 type Section = typeof sections[number];
 type Row = Record<string, unknown>;
 type Action = "withdraw" | "paid" | "complete" | "uphold" | "reject" | "access";
-const labels: Record<Section, string> = { keeper: "Fee keeper", ripple:"Ripple rewards", community: "Community reports", overview: "Overview", studio: "Atlantis Studio", dex: "DEX & proposals", logs: "Logs & pipeline", rewards: "Reward epochs", custody: "Custody & settings" };
+const labels: Record<Section, string> = { "auto-rewards":"Auto rewards", keeper: "Fee keeper", ripple:"Ripple rewards", community: "Community reports", overview: "Overview", studio: "Atlantis Studio", dex: "DEX & proposals", logs: "Logs & pipeline", rewards: "Reward epochs", custody: "Custody & settings" };
 const actionLabels: Record<Action, string> = { withdraw: "Withdraw reserved SOL", paid: "Record DEX payment", complete: "Complete profile update", uphold: "Uphold challenges", reject: "Reject challenges", access: "Confirm AQUA profile access" };
 const sol = (value: unknown) => `${(Number(value ?? 0) / 1e9).toLocaleString(undefined, { maximumFractionDigits: 6 })} SOL`;
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
@@ -140,7 +141,8 @@ export function Admin() {
     {error && <div className="ops-error" role="alert">{error} Your previous snapshot is still shown.</div>}
     <div className="ops-workspace"><aside className="ops-sidebar"><nav aria-label="Admin sections">{sections.filter(s => s !== "dex" || config.marketGovernanceEnabled).map(s => <button key={s} aria-current={section === s ? "page" : undefined} onClick={() => navigate(s)}>{labels[s]}{s === "dex" && attention.length > 0 && <b>{attention.length}</b>}{s === "logs" && blocked.length > 0 && <b className="warning">{blocked.length}</b>}</button>)}</nav><div className="ops-sidebar-note"><ShieldCheck size={16}/><span>Wallet verified<small><WalletIdentity wallet={wallet.address} link={false}/></small></span></div></aside>
     <div className="ops-content">
-      {section !== "overview" && section !== "custody" && <div className="ops-section-title"><h2>{labels[section]}</h2><label className="ops-search"><Search size={17}/><input aria-label="Search admin records" value={search} maxLength={section==="ripple"||section==="keeper"?200:undefined} placeholder={section==="ripple"?"Search tweet, account, wallet or coin…":section==="keeper"?"Search coin, mint or market ID…":"Search market, mint, ID or error…"} onChange={e => setParams({ section, ...(e.target.value ? { search: e.target.value } : {}) }, { replace: true })}/>{search && <button aria-label="Clear search" onClick={() => setParams({ section }, { replace: true })}><X size={15}/></button>}</label></div>}
+      {section !== "overview" && section !== "custody" && section !== "auto-rewards" && <div className="ops-section-title"><h2>{labels[section]}</h2><label className="ops-search"><Search size={17}/><input aria-label="Search admin records" value={search} maxLength={section==="ripple"||section==="keeper"?200:undefined} placeholder={section==="ripple"?"Search tweet, account, wallet or coin…":section==="keeper"?"Search coin, mint or market ID…":"Search market, mint, ID or error…"} onChange={e => setParams({ section, ...(e.target.value ? { search: e.target.value } : {}) }, { replace: true })}/>{search && <button aria-label="Clear search" onClick={() => setParams({ section }, { replace: true })}><X size={15}/></button>}</label></div>}
+      {section === "auto-rewards" && <AdminAutoRewards token={token!}/>}
       {section === "overview" && <>
         <div className="ops-metrics"><Metric label="Needs your attention" value={attention.length + blocked.length} note="Proposals and blocked markets" onClick={() => navigate(attention.length ? "dex" : "logs")}/><Metric label="Live markets" value={data.counts.live_launches ?? 0} note="Graduated launches" onClick={() => navigate("logs")}/><Metric label="DEX reserved" value={data.dexReservedLamports !== undefined ? sol(data.dexReservedLamports) : data.runtime.available ? sol(data.runtime.balances?.reservedDexLamports) : "Unavailable"} note="Held for approved funding" onClick={() => navigate(config.marketGovernanceEnabled ? "dex" : "custody")}/><Metric label="Claimable epochs" value={data.counts.claimable_epochs ?? 0} note={`${data.counts.unclaimed_entitlements ?? 0} unclaimed entitlements`} onClick={() => navigate("rewards")}/></div>
         <div className="ops-metrics ops-financial-metrics">
