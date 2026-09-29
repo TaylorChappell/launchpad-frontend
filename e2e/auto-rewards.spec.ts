@@ -27,6 +27,7 @@ async function setup(page:Page,connected=false){
 test('walletless activation requires verification, shows the daily limit and can retry',async({page},info)=>{
  await setup(page);let attempts=0;await page.route('**/api/auto-rewards/walletless',r=>{expect(r.request().postDataJSON()).toEqual({wallet:address,captcha:'test-token'});attempts++;return r.fulfill(attempts===1?{status:429,json:{error:'This network has already enabled another wallet today. Try again tomorrow.'}}:{json:{wallet:address,enabled:true,enabledAt:Date.now(),nextPayoutAt:next,running:true}});});
  await page.goto('/#/auto-rewards');await page.getByLabel('Solana wallet address').fill(address);const enable=page.getByRole('button',{name:'Enable auto rewards',exact:true});await expect(enable).toBeDisabled();
+ await expect(page.getByText('Claimable new rewards over $5 per coin are paid to your wallet every 3 hours.',{exact:true})).toBeVisible();
  await page.screenshot({path:info.outputPath('compact-auto-rewards-form.png'),fullPage:true});
  await page.getByRole('button',{name:'Test verification'}).click();await enable.click();await expect(page.getByRole('alert')).toContainText('already enabled another wallet');await expect(enable).toBeDisabled();
  await page.getByRole('button',{name:'Test verification'}).click();await enable.click();await expect(page.getByRole('heading',{name:'Auto rewards enabled'})).toBeVisible();

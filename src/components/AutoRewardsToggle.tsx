@@ -13,6 +13,7 @@ export function AutoRewardsToggle({address}:{address:string}){
  }catch(e){if(current.current===address)setError(e instanceof Error?e.message:'Could not update auto rewards.');}finally{if(current.current===address)setBusy(false);}}
  return <div className="auto-rewards-setting"><strong>Auto rewards</strong>
   <button className="auto-rewards-switch" role="switch" aria-label="Auto rewards" aria-checked={status?.enabled??false} disabled={!status||busy} onClick={()=>void toggle()}><span/></button>
+  <p>Claimable new rewards must be over $5 per coin for automatic payout.</p>
   {error&&<p className="danger-note" role="alert">{error}</p>}
  </div>;
 }
