@@ -37,7 +37,7 @@ export function Analytics(){
       finally{if(active)setRefreshing(false);}
     };
     void load(force);
-    const timer=window.setInterval(()=>{if(!document.hidden)void load();},ANALYTICS_REFRESH_MS);
+    const timer=window.setInterval(()=>{if(!document.hidden)void load(true);},ANALYTICS_REFRESH_MS);
     // Shared requests finish into the cache even if another period is selected.
     return()=>{active=false;window.clearInterval(timer);};
   },[revision,range]);

@@ -287,5 +287,8 @@ test('analytics preloads periods once, reuses them across navigation and refresh
  expect(overview).toEqual({...warmed,'24h':2});expect(payouts).toEqual(warmed);
  await page.getByRole('button',{name:'Refresh auto rewards',exact:true}).click();
  await expect.poll(()=>payouts).toEqual({...warmed,'24h':2});
+ await page.clock.fastForward(5*60_000);
+ await expect(page.locator('.network-metric-featured strong')).toHaveText('$224.00');
+ await expect.poll(()=>payouts['24h']).toBe(3);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
 });

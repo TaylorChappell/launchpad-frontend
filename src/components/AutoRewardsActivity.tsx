@@ -24,7 +24,7 @@ export function AutoRewardsActivity({token='',range='all'}:{token?:string;range?
   if(cached||previousQuery.current!==query)setData(cached);
   previousQuery.current=query;setError('');
   const load=async(refresh=false)=>{if(pending)return;pending=true;try{const next=await autoRewardsApi.activity(round,offset,token,range,refresh);if(!Array.isArray(next.rounds)||!Array.isArray(next.payouts))throw new Error('Invalid payout response');if(active){setData(next);setError('');}}catch{if(active)setError('Payout activity could not refresh.');}finally{pending=false;}};
-  void load(force);const timer=setInterval(()=>{if(!document.hidden)void load();},token?30000:ANALYTICS_REFRESH_MS);
+  void load(force);const timer=setInterval(()=>{if(!document.hidden)void load(true);},token?30000:ANALYTICS_REFRESH_MS);
   return()=>{active=false;clearInterval(timer);};
  },[round,offset,revision,token,range]);
  const selected=data?.rounds.find(r=>Number(r.scheduled_at)===data.selectedRound);
