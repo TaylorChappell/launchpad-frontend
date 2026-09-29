@@ -378,12 +378,13 @@ test("Coin settings opens below More details and displays the coin's configured 
   await expect(page).toHaveURL(/tab=community/);
 });
 
-test('compact discovery and filter dialog keep draft changes separate and fit both layouts',async({page},info)=>{
+test('restored market cards and filter dialog fit both layouts and keep draft changes separate',async({page},info)=>{
  await setup(page);await page.goto('/#/');
- const card=page.locator('.compact-token-card').first();await expect(card).toBeVisible();
- expect((await card.boundingBox())!.height).toBeLessThan(220);
+ const card=page.locator('.token-card').first();await expect(card).toBeVisible();
+ await expect(card.locator('.reward-card-focus')).toBeVisible();
+ await expect(card.locator('.token-stats .metric small')).toHaveText(['Market cap','24h volume','Holders']);
+ expect(await card.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
  await expect(page.getByRole('textbox',{name:'Search all markets'})).toHaveCount(0);
- await expect(card.locator('.compact-card-metrics')).toContainText('Market cap');
  await page.screenshot({path:info.outputPath('compact-explore.png'),fullPage:true});
  const opener=page.getByRole('button',{name:'Filters',exact:true});await opener.click();
  const dialog=page.getByRole('dialog',{name:'Filter markets'});await expect(dialog).toBeVisible();

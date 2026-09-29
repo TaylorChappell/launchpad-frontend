@@ -205,29 +205,6 @@
 .aqua-select-options [aria-selected=true] { color:#0874ac; font-weight:700; }
 .aqua-select-options [aria-disabled=true] { opacity:.45; cursor:not-allowed; }
 @keyframes picker-open { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:none; } }
-.explore-page .compact-token-card { position:relative; min-height:0; padding:16px; border:1px solid #c4e1f0; border-radius:17px; background:linear-gradient(135deg,#fcfeff,#eff8ff); box-shadow:0 5px 18px #19597b07; }
-.explore-page .compact-token-card .token-card-link { display:block; }
-.compact-token-card .token-head { display:flex; align-items:center; gap:11px; padding:0 28px 13px 0; border:0; }
-.compact-token-card .token-mark { width:40px; height:40px; flex:0 0 40px; }
-.compact-token-card .compact-token-identity { min-width:0; flex:1; }
-.compact-token-card .token-title { display:flex; flex-wrap:nowrap; align-items:baseline; gap:8px; min-width:0; }
-.compact-token-card .token-title b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; color:#183f58; }
-.compact-token-card .token-title > span { flex:none; font-size:10px; color:#66849a; max-width:82px; overflow:hidden; text-overflow:ellipsis; }
-.compact-token-card .token-pair { display:flex; align-items:center; gap:5px; margin-top:5px; color:#618199; font-size:11px; }
-.compact-token-card .token-pair .asset-mark { width:14px; height:14px; }
-.compact-token-card .token-pair i { font-style:normal; color:#9ab6c6; margin-inline:2px; }
-.compact-card-metrics { display:grid; grid-template-columns:1.25fr 1fr; gap:12px; padding:2px 0 13px; }
-.compact-card-metrics > div { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; }
-.compact-card-metrics > div > span { flex-basis:100%; color:#66849a; font-size:10px; }
-.compact-card-metrics strong { color:#194a66; font-size:17px; line-height:1.35; font-variant-numeric:tabular-nums; }
-.compact-card-metrics small { font-size:10px; font-weight:650; }
-.compact-card-metrics .positive { color:#16816d; }.compact-card-metrics .negative { color:#b94e61; }
-.compact-card-reward { display:flex; align-items:center; gap:7px; min-height:29px; border-top:1px solid #d9eaf3; padding-top:10px; color:#36728f; }
-.compact-card-reward > span { display:flex; align-items:center; gap:6px; min-width:0; }
-.compact-card-reward b { font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.compact-card-reward small { margin-left:auto; font-size:10px; white-space:nowrap; color:#64849a; }
-.compact-card-reward > svg { flex:none; color:#1687bf; }
-.compact-price-delayed { position:absolute; left:12px; top:12px; width:7px; height:7px; border-radius:50%; background:#c28a3a; box-shadow:0 0 0 2px #fff; }
 .explore-page .watch-card > .watch-button { width:36px; height:36px; top:8px; right:8px; }
 .market-filter-overlay { z-index:500; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); background:#1746614d; padding:20px; }
 .market-filter-modal { width:min(560px,100%); max-height:calc(100dvh - 40px); overflow-y:auto; border:1px solid #c2e1f1; border-radius:23px; background:#f8fcff; box-shadow:0 24px 80px #123e5a30; color:#214c66; }
@@ -290,7 +267,6 @@
  .market-filter-modal > header { padding:19px 18px 16px; }.market-filter-body { padding:0 18px 18px; gap:17px; }.market-filter-modal footer { padding:15px 18px; }
  .filter-form-grid { gap:12px; }.aqua-select-trigger { min-height:44px; }.filter-form-grid input { min-height:44px; font-size:16px; }
  .portfolio-signed-out { min-height:calc(100dvh - 210px); padding-block:30px; }.portfolio-welcome { padding:30px 22px; }
- .explore-page .compact-token-card { padding:15px; }.compact-card-metrics strong { font-size:18px; }
 }
 @media(prefers-reduced-motion:reduce) { .aqua-select-options,.wizard-next::before,.wizard-next::after { animation:none!important; transition:none!important; } }
 .trade-receive { position:relative; overflow:visible; }
