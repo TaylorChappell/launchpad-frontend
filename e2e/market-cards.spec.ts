@@ -43,6 +43,8 @@ test('AQUA market cards support every reward mode, pair and incomplete market da
   await expect(aqua.locator('.card-reward-strip')).not.toContainText(/Accumulated|Redeemable/);
   await expect(aqua.locator('.card-pair-medallion .asset-mark.solana')).toBeVisible();
   await expect(aqua.getByRole('img',{name:'24-hour price history'})).toBeVisible();
+  await expect(aqua.locator('.card-trend svg path')).toHaveCount(2);
+  await expect(cards.locator('.card-trend canvas')).toHaveCount(0);
   await expect(aqua.locator('.card-trend')).toHaveClass(/is-falling/);
   await expect(aqua.locator('.token-mark img')).toHaveCount(0);
   await expect(aqua.locator('.market-tag')).toHaveText('AQUA featured');

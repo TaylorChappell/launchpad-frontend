@@ -52,8 +52,13 @@ export function withLiveCandle(history: CandleHistory, point?: { sampledAt: numb
   return {...history,candles:[...history.candles.slice(0,previous?.time===time?-1:undefined),next]};
 }
 
-export function candlePrice(value: number): string {
+export function candlePrice(value: number, currency = "USD"): string {
   if (!Number.isFinite(value)) return "—";
+  if(currency!=="USD"){
+    const amount=Math.abs(value)>=1000?new Intl.NumberFormat("en",{notation:"compact",maximumFractionDigits:2}).format(value)
+      :value!==0&&Math.abs(value)<.000001?value.toExponential(2):new Intl.NumberFormat("en",{maximumSignificantDigits:5}).format(value);
+    return `${amount} ${currency}`;
+  }
   if (Math.abs(value) >= 1000) return new Intl.NumberFormat("en",{style:"currency",currency:"USD",notation:"compact",maximumFractionDigits:2}).format(value);
   if (value !== 0 && Math.abs(value) < .000001) return `$${value.toExponential(2)}`;
   return new Intl.NumberFormat("en",{style:"currency",currency:"USD",maximumSignificantDigits:5}).format(value);
@@ -69,9 +74,9 @@ export function compactCandles(candles: ChartCandle[], limit = 32): ChartCandle[
   return result;
 }
 
-export const candleIntervals = {"1m":60,"5m":300,"15m":900,"1h":3600,"4h":14400,"1d":86400} as const;
+export const candleIntervals = {"5m":300,"15m":900,"1h":3600,"4h":14400,"1d":86400} as const;
 export type CandleInterval = keyof typeof candleIntervals;
-export type CandlePage = CandleHistory & { nextBefore: number | null };
+export type CandlePage = CandleHistory & { source:"indexed_pool_trades"; currency:string; nextBefore: number | null };
 /** Merge by bucket, preserving older loaded history while refreshing current bars. */
 export function mergeCandleHistory(previous: CandleHistory, incoming: CandleHistory): CandleHistory {
   if(previous.intervalSeconds!==incoming.intervalSeconds)return incoming;

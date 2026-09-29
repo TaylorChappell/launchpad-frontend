@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import type { IChartApi, ISeriesApi, UTCTimestamp, CandlestickData } from "lightweight-charts";
 import { candlePrice, type ChartCandle } from "../market-candles";
 
-export function CandleChart({ candles, viewKey, mini = false, onInspect, onReachStart }: {
-  candles: ChartCandle[]; viewKey: string; mini?: boolean; onInspect?: (candle: ChartCandle | null) => void; onReachStart?: () => void;
+export function CandleChart({ candles, viewKey, currency="USD", mini = false, onInspect, onReachStart }: {
+  candles: ChartCandle[]; viewKey: string; currency?:string; mini?: boolean; onInspect?: (candle: ChartCandle | null) => void; onReachStart?: () => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const series = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const inspect = useRef(onInspect); inspect.current = onInspect;
   const reachStart = useRef(onReachStart); reachStart.current=onReachStart;
+  const userPanned=useRef(false);
   const previous = useRef<ChartCandle[]>([]);
   const fitted = useRef<string | null>(null);
   const [ready,setReady] = useState(false);
@@ -40,7 +41,7 @@ export function CandleChart({ candles, viewKey, mini = false, onInspect, onReach
         inspect.current?.(value && "open" in value ? value as ChartCandle : null);
       });
       if(!mini) instance.timeScale().subscribeVisibleLogicalRangeChange(range=>{
-        if(range&&range.from<10&&previous.current.length)reachStart.current?.();
+        if(userPanned.current&&range&&range.from<10&&previous.current.length)reachStart.current?.();
       });
       previous.current=[]; fitted.current=null; setReady(true);
     }).catch(()=>{if(!disposed)setFailed(true);});
@@ -50,7 +51,7 @@ export function CandleChart({ candles, viewKey, mini = false, onInspect, onReach
     if (!ready || !series.current || !chart.current) return;
     const data = (mini?candles.slice(-32):candles) as CandlestickData<UTCTimestamp>[];
     const smallest = data.reduce((lowest,p)=>Math.min(lowest,p.low),Infinity);
-    if (smallest>0 && Number.isFinite(smallest)) series.current.applyOptions({priceFormat:{type:"custom",formatter:candlePrice,minMove:Math.pow(10,Math.max(-15,Math.floor(Math.log10(smallest))-4))}});
+    if (smallest>0 && Number.isFinite(smallest)) series.current.applyOptions({priceFormat:{type:"custom",formatter:(value:number)=>candlePrice(value,currency).replace(` ${currency}`,""),minMove:Math.pow(10,Math.max(-15,Math.floor(Math.log10(smallest))-4))}});
     const old=previous.current;
     const visible=chart.current.timeScale().getVisibleLogicalRange();
     const sameView=fitted.current===viewKey;
@@ -60,6 +61,7 @@ export function CandleChart({ candles, viewKey, mini = false, onInspect, onReach
     if(samePrefix) for(const bar of data.slice(old.length-1)) series.current.update(bar);
     else series.current.setData(data);
     if (!sameView && data.length) {
+      userPanned.current=false;
       if(mini)chart.current.timeScale().fitContent();
       else chart.current.timeScale().setVisibleLogicalRange({from:Math.max(-.5,data.length-100),to:data.length+3});
       fitted.current=viewKey;
@@ -68,9 +70,10 @@ export function CandleChart({ candles, viewKey, mini = false, onInspect, onReach
       if(added>0)chart.current.timeScale().setVisibleLogicalRange({from:visible.from+added,to:visible.to+added});
     }
     previous.current=data;
-  },[candles,viewKey,mini,ready]);
+  },[candles,viewKey,mini,ready,currency]);
   return <div className={`tradingview-canvas ${mini?"is-mini":""}`} ref={container} role="img"
-    aria-label={mini?"24-hour price history":"USD candlestick chart"} data-bars={candles.length}>
+    aria-label={mini?"24-hour price history":`${currency} trade candlestick chart`} data-bars={candles.length}
+    onPointerDown={()=>{userPanned.current=true;}} onWheel={()=>{userPanned.current=true;}}>
     {failed && !mini && <span className="candle-overlay">Chart unavailable. Please refresh.</span>}
   </div>;
 }

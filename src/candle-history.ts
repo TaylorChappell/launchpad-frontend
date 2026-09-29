@@ -16,7 +16,7 @@ export async function loadCandleHistory(id: string, range: ChartRange): Promise<
 
 export async function loadCandlePage(id:string,interval:CandleInterval,before?:number):Promise<CandlePage>{
   const data=await api.candlePage(id,interval,before);
-  if((before!==undefined&&data.nextBefore!==null&&data.nextBefore>=before)||!Array.isArray(data.candles)||data.intervalSeconds!==candleIntervals[interval]||!(data.nextBefore===null||typeof data.nextBefore==="number")) {
+  if(data.source!=="indexed_pool_trades"||typeof data.currency!=="string"||!data.currency||(before!==undefined&&data.nextBefore!==null&&data.nextBefore>=before)||!Array.isArray(data.candles)||data.intervalSeconds!==candleIntervals[interval]||!(data.nextBefore===null||typeof data.nextBefore==="number")) {
     throw new Error("This candle interval needs the latest chart API.");
   }
   return data;

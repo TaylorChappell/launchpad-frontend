@@ -21,8 +21,7 @@
 .candle-legend svg { width:14px; height:14px; }
 .site-footer { flex-wrap:wrap; }
 .site-footer > .chart-attribution { font-size:10px; }
-.candle-history-control { position:absolute; top:10px; left:10px; z-index:2; padding:5px 8px; border:1px solid #d7e8f1; border-radius:7px; background:#ffffffeb; color:#426b80; font-size:10px; cursor:pointer; }
-.candle-history-control:disabled { opacity:.65; cursor:wait; }
+.candle-history-status { position:absolute; top:10px; left:10px; z-index:2; padding:5px 8px; border-radius:7px; background:#ffffffeb; color:#426b80; font-size:10px; pointer-events:none; }
 .candle-refreshing { inset:8px 80px auto auto; padding:6px 9px; border-radius:8px; pointer-events:none; }
 .chart-controls button { transition:background .18s ease,color .18s ease,box-shadow .18s ease; }
 .token-page .smooth-market-panel { transition:height .24s ease; overflow:clip; }
