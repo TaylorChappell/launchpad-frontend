@@ -37,6 +37,24 @@ export function chartCandles(history: CandleHistory, metric: "price"|"cap"): Cha
     .map(p => [seconds(p.time),{time:seconds(p.time),...p[metric]!}])).values()].sort((a,b)=>a.time-b.time);
 }
 
+/** Display executed pair prices in dollars, without generating any new bars.
+ * Historical USD is an estimate at this reference rate, not recorded trade-time FX.
+ * Apply one rate to the complete loaded history so paged bars use the same units.
+ */
+export function usdTradeCandles(history: CandleHistory & {currency:string}, metric:"price"|"cap", pairPriceUsd?:number|null):ChartCandle[] {
+  const rate=history.currency==="USD"?1:pairPriceUsd;
+  if(!positive(rate))return [];
+  return chartCandles(history,metric).map(bar=>({time:bar.time,open:bar.open*rate,high:bar.high*rate,low:bar.low*rate,close:bar.close*rate}))
+    .filter(bar=>valid(bar));
+}
+
+/** Keep sparse markets readable: two trades must not become two giant candles. */
+export function initialCandleRange(count:number,width:number) {
+  const visible=Math.max(80,Math.ceil(Math.max(0,width-90)/5));
+  const from=count<visible?-5:count-visible+12;
+  return {from,to:from+visible};
+}
+
 // Only extend the latest candle with a newer, live indexed price. Do not join
 // missing periods, reuse a stale quote or reconstruct past USD using today's FX.
 export function withLiveCandle(history: CandleHistory, point?: { sampledAt: number; priceUsd: number; marketCapUsd: number }): CandleHistory {

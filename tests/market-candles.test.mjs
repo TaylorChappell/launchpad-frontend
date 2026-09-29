@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {snapshotCandles,chartCandles,withLiveCandle,compactCandles,candlePrice} from '../src/market-candles.ts';
+import {snapshotCandles,chartCandles,withLiveCandle,compactCandles,candlePrice,usdTradeCandles,initialCandleRange} from '../src/market-candles.ts';
 const t=1790640000000;
 const point=(offset,price,cap=price*1000000000)=>({sampledAt:t+offset*60000,priceUsd:price,fdvUsd:cap});
 test('USD OHLC aggregates ordered samples, retaining both wicks and the historic cap',()=>{
@@ -50,4 +50,30 @@ test('merging pages keeps all history ordered and rejects stale candle revisions
  const stale={...older,candles:older.candles.map(p=>({...p,lastSampleAt:p.lastSampleAt-1}))};
  assert.equal(mergeCandleHistory(merged,stale).candles[1].price.close,4);
  assert.equal(mergeCandleHistory(older,{...newer,intervalSeconds:60}).candles.length,2);
+});
+
+test('trade market caps and prices use USD, without inventing activity from FX changes',()=>{
+ const history={...snapshotCandles([point(0,2e-8,20),point(60,3e-8,30)],'1h'),currency:'SOL'};
+ const cap=usdTradeCandles(history,'cap',120);
+ assert.equal(cap[0].close,2400);assert.equal(candlePrice(cap[0].close),'$2.4K');
+ assert.equal(usdTradeCandles(history,'price',120)[0].close,2.4e-6);
+ const changed=usdTradeCandles(history,'cap',130);
+ assert.deepEqual(changed.map(c=>c.time),cap.map(c=>c.time));
+ assert.equal(changed.length,2);assert.equal(changed[0].close,2600);
+ assert.equal(history.candles[0].cap.close,20);
+});
+test('USD conversion works for custom/stock pairs and never disguises missing rates as dollars',()=>{
+ const history={...snapshotCandles([point(0,2,20)],'1h'),currency:'NVDAx'};
+ assert.equal(usdTradeCandles(history,'cap',3.5)[0].close,70);
+ for(const rate of [null,undefined,0,-1,NaN,Infinity])assert.deepEqual(usdTradeCandles(history,'cap',rate),[]);
+ assert.equal(usdTradeCandles({...history,currency:'USD'},'cap',100)[0].close,20);
+});
+test('initial chart view gives sparse markets breathing room and keeps recent trades visible',()=>{
+ for(const width of [320,390,812,1440]){
+  const sparse=initialCandleRange(2,width);
+  assert.ok(sparse.to-sparse.from>=80);assert.ok(sparse.from<0);assert.ok(sparse.to>2);
+  assert.ok((width-90)/(sparse.to-sparse.from)<=5);
+  const full=initialCandleRange(500,width);
+  assert.ok(full.from>0);assert.ok(full.to>500);assert.ok(full.to-500<20);
+ }
 });

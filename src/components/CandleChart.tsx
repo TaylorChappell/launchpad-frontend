@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { IChartApi, ISeriesApi, UTCTimestamp, CandlestickData } from "lightweight-charts";
-import { candlePrice, type ChartCandle } from "../market-candles";
+import { candlePrice, initialCandleRange, type ChartCandle } from "../market-candles";
 
 export function CandleChart({ candles, viewKey, currency="USD", mini = false, onInspect, onReachStart }: {
   candles: ChartCandle[]; viewKey: string; currency?:string; mini?: boolean; onInspect?: (candle: ChartCandle | null) => void; onReachStart?: () => void;
@@ -24,7 +24,7 @@ export function CandleChart({ candles, viewKey, currency="USD", mini = false, on
         autoSize:true,
         layout:{background:{type:ColorType.Solid,color:mini?"transparent":"#ffffff"},textColor:"#527083",fontFamily:"Manrope, sans-serif",fontSize:11,attributionLogo:!mini},
         grid:{vertLines:{visible:false},horzLines:{visible:!mini,color:"#e9f1f6"}},
-        rightPriceScale:{visible:!mini,borderVisible:false,minimumWidth:68,scaleMargins:{top:.14,bottom:.12}},
+        rightPriceScale:{visible:!mini,borderVisible:false,minimumWidth:68,scaleMargins:{top:.2,bottom:.18}},
         leftPriceScale:{visible:false},
         timeScale:{visible:!mini,borderVisible:false,timeVisible:true,secondsVisible:false,rightOffset:mini?1:3,barSpacing:mini?5:8,minBarSpacing:2},
         crosshair:{mode:mini?CrosshairMode.Hidden:CrosshairMode.Normal,vertLine:{color:"#81a5b9",labelBackgroundColor:"#174c66"},horzLine:{color:"#81a5b9",labelBackgroundColor:"#174c66"}},
@@ -63,7 +63,7 @@ export function CandleChart({ candles, viewKey, currency="USD", mini = false, on
     if (!sameView && data.length) {
       userPanned.current=false;
       if(mini)chart.current.timeScale().fitContent();
-      else chart.current.timeScale().setVisibleLogicalRange({from:Math.max(-.5,data.length-100),to:data.length+3});
+      else chart.current.timeScale().setVisibleLogicalRange(initialCandleRange(data.length,container.current?.clientWidth??800));
       fitted.current=viewKey;
     } else if(visible&&old.length&&data.length&&data[0].time<old[0].time) {
       const added=data.findIndex(p=>p.time===old[0].time);

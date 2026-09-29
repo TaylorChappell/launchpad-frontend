@@ -9,13 +9,13 @@ const history=(interval:string,currency="SOL")=>{
   return {time:end-(59-i)*intervalSeconds,lastSampleAt:(end-(59-i)*intervalSeconds)*1000,price,cap:Object.fromEntries(Object.entries(price).map(([k,v])=>[k,v*1e9]))};
  })};
 };
-async function setup(page:Page){
+async function setup(page:Page,launchOverrides:Record<string,unknown>={}){
  await page.addInitScript(()=>localStorage.setItem('aqua:update:holder-workspace-v2','seen'));
  await page.route('**/api/**',route=>{
   const url=new URL(route.request().url()),path=url.pathname;
   let json:unknown={};
   if(path==='/api/config')json={brand:'AQUA',network:'mainnet-beta',publicRpcUrl:'https://rpc.invalid',useTestnet:false,marketGovernanceEnabled:false,transactionsEnabled:false,whirlpools:{},fees:{transferFeeBps:200,platformBps:100,stockRewardsBps:100},creatorLocks:{minimumSeconds:86400,maximumSeconds:31536000,maximumFeeShareBps:5000},sniperDefense:{supported:false}};
-  else if(/^\/api\/launches\/[^/]+$/.test(path))json={launch:{id:path.split('/').at(-1),mint,creatorWallet:mint,name:'Ocean Club',symbol:'OCEAN',description:'A community coin.',pairType:path.includes('sol')?'sol':'stock',pairMint:mint,pairSymbol:path.includes('sol')?'SOL':path.includes('stock')?'NVDAx':'CUSTOM',stockMint:mint,stockSymbol:'SOL',stock:{mint,symbol:'SOL',name:'Solana'},rewardMode:'holder_rewards',status:'live',txCount:0,holderCount:320,devBuySol:0,rewardAccumulatedUsd:750,rewardRedeemableUsd:420,aquaIndexed:true,priceUpdatedAt:Date.now(),priceStatus:"live",priceUsd:.000003,marketCapUsd:3000,tvlUsd:2000,volume24hUsd:5000,tokenDecimals:6,totalSupplyRaw:'1000000000000000',createdAt:Date.now()},trades:[],creatorLock:null,rewardModeState:null};
+  else if(/^\/api\/launches\/[^/]+$/.test(path))json={launch:{id:path.split('/').at(-1),mint,creatorWallet:mint,name:'Ocean Club',symbol:'OCEAN',description:'A community coin.',pairType:path.includes('sol')?'sol':'stock',pairMint:mint,pairSymbol:path.includes('sol')?'SOL':path.includes('stock')?'NVDAx':'CUSTOM',stockMint:mint,stockSymbol:'SOL',stock:{mint,symbol:'SOL',name:'Solana'},rewardMode:'holder_rewards',status:'live',txCount:0,holderCount:320,devBuySol:0,rewardAccumulatedUsd:750,rewardRedeemableUsd:420,aquaIndexed:true,pairPriceUsd:120,priceUpdatedAt:Date.now(),priceStatus:"live",priceUsd:.000003,marketCapUsd:3000,tvlUsd:2000,volume24hUsd:5000,tokenDecimals:6,totalSupplyRaw:'1000000000000000',createdAt:Date.now(),...launchOverrides},trades:[],creatorLock:null,rewardModeState:null};
   else if(path.endsWith('/trade-candles'))json=history(url.searchParams.get('interval')??'5m',path.includes('stock')?'NVDAx':path.includes('custom')?'CUSTOM':'SOL');
   else if(path.endsWith('/market-data'))json={snapshots:[]};
   else if(path==='/api/stocks')json={stocks:[]};
@@ -41,15 +41,15 @@ test('TradingView candles render SOL, stock and custom coins with seamless contr
   await expect(chart.locator('.tradingview-canvas canvas').first()).toBeVisible();
   await expect(chart.locator('.tradingview-canvas')).toHaveAttribute('data-bars','60');
   // A newer live USD valuation must not append a candle to idle trade history.
-  await expect(chart.locator('.candle-legend')).toContainText(`${id==='stock'?'NVDAx':id==='custom'?'CUSTOM':'SOL'} · 5m candles`);
+  await expect(chart.locator('.candle-legend')).toContainText('USD · 5m candles');
   await chart.getByRole('button',{name:'Price',exact:true}).click();
-  await expect(chart.locator('.candle-ohlc')).toContainText(id==='stock'?'NVDAx':id==='custom'?'CUSTOM':'SOL');
+  await expect(chart.locator('.candle-ohlc')).toContainText('$');
   await chart.locator('canvas').first().evaluate(el=>el.setAttribute('data-original','true'));
   await expect(chart.locator('[aria-label="Candle timeframe"] button')).toHaveText(['5m','15m','1h','4h','1d']);
   await expect(chart.getByRole('button',{name:'5m',exact:true})).toHaveAttribute('aria-pressed','true');
   for(const frame of ['15m','1h','4h','1d']){
     await chart.getByRole('button',{name:frame,exact:true}).click();
-    await expect(chart.locator('.candle-legend')).toContainText(`${id==='stock'?'NVDAx':id==='custom'?'CUSTOM':'SOL'} · ${frame} candles`);
+    await expect(chart.locator('.candle-legend')).toContainText(`USD · ${frame} candles`);
     await expect(chart.locator('canvas').first()).toHaveAttribute('data-original','true');
   }
   await chart.getByRole('button',{name:'Reset chart view'}).click();
@@ -142,4 +142,23 @@ test('transaction header shares one row and rewards do not shift while loading',
  await expect(page.locator('.reward-scope-note')).toBeVisible();
  await expect(page.locator('.market-reward-skeleton')).toHaveCount(0);
  await page.locator('#market-information').screenshot({path:info.outputPath('compact-market-rewards.png')});
+});
+
+
+test('sparse trade charts show USD market cap with a wider initial view',async({page},info)=>{
+ await setup(page,{pairPriceUsd:120,priceUsd:2.4e-6,marketCapUsd:2400});
+ const end=Math.floor(Date.now()/300000)*300;
+ const price={open:2e-8,high:2.1e-8,low:1.9e-8,close:2e-8};
+ await page.route('**/trade-candles?*',route=>route.fulfill({json:{source:'indexed_pool_trades',currency:'SOL',intervalSeconds:300,nextBefore:null,candles:[end-600,end-300].map(time=>({time,lastSampleAt:time*1000,price,cap:{open:20,high:21,low:19,close:20}}))}}));
+ await page.goto('/#/token/sparse');
+ const chart=page.locator('#market-chart');
+ await expect(chart.locator('.tradingview-canvas')).toHaveAttribute('data-bars','2');
+ await expect(chart.locator('.candle-legend')).toContainText('USD · 5m candles');
+ await expect(chart.locator('.candle-ohlc')).toContainText('C $2.4K');
+ await expect(chart.locator('.candle-ohlc')).not.toContainText('SOL');
+ await chart.scrollIntoViewIfNeeded();
+ await chart.screenshot({path:info.outputPath('compact-sparse-usd-candles.png')});
+ await chart.getByRole('button',{name:'Price',exact:true}).click();
+ await expect(chart.locator('.candle-ohlc')).toContainText('$0.0000024');
+ await expect(chart.locator('.tradingview-canvas')).toHaveAttribute('data-bars','2');
 });
