@@ -6,7 +6,7 @@ async function setup(page:Page,connected=false){
   if(connected){localStorage.setItem('aqua:wallet','phantom');Object.assign(window,{phantom:{solana:{isPhantom:true,publicKey:{toString:()=>address},connect:async()=>({publicKey:{toString:()=>address}}),on(){},removeListener(){},signMessage:async()=>({signature:new Uint8Array(64).fill(1)})}}});}
  },{address,connected});
  // Only the test's routed widget is synthetic. Production still requires server-side Siteverify.
- await page.route('https://challenges.cloudflare.com/turnstile/v0/api.js?*',r=>r.fulfill({contentType:'application/javascript',body:`window.turnstile={render(el,opts){const b=document.createElement('button');b.type='button';b.textContent='Test verification';b.onclick=()=>{opts.callback('test-token');b.disabled=true;};el.appendChild(b);return 'widget';},remove(){}};`}));
+ await page.route('https://challenges.cloudflare.com/turnstile/v0/api.js?*',r=>r.fulfill({contentType:'application/javascript',body:`window.turnstile={render(el,opts){const b=document.createElement('button');b.type='button';b.textContent='Test verification';b.onclick=()=>{opts.callback('test-token');b.disabled=true;};el.style.minWidth=opts.size==='compact'?'150px':'300px';el.appendChild(b);return 'widget';},remove(){}};`}));
  await page.route('**/account/**',r=>{const path=new URL(r.request().url()).pathname;return r.fulfill({json:path.endsWith('/auth/challenge')?{id:'00000000-0000-4000-8000-000000000001',message:'Sign in to AQUA'}:path.endsWith('/auth/session')?{token:'a'.repeat(64),expiresAt:Date.now()+86400000}:{enabled:false,profiles:[]}});});
  await page.route('**/studio/promotion',r=>r.fulfill({json:{active:false}}));
  await page.route('**/api/**',r=>{
@@ -45,4 +45,8 @@ test('verified admins can enable a wallet with no CAPTCHA or duplicated search',
  await setup(page,true);let enabled=false;
  await page.route('**/api/admin/auto-rewards/wallets*',r=>{if(r.request().method()==='POST'){expect(r.request().headers().authorization).toBe('Bearer admin-session');expect(r.request().postDataJSON()).toEqual({wallet:address,enabled:true});enabled=true;return r.fulfill({json:{wallet:address,enabled:true}});}return r.fulfill({json:{wallets:enabled?[{wallet:address,enabled:true,enabled_at:round,source:'admin'}]:[],hasMore:false}});});
  await page.goto('/#/admin?section=auto-rewards');await page.getByRole('button',{name:'Verify wallet',exact:true}).click();await expect(page.getByRole('heading',{name:'Auto rewards wallets'})).toBeVisible();await expect(page.getByLabel('Search admin records')).toHaveCount(0);await page.getByLabel('Wallet address',{exact:true}).fill(address);await page.getByRole('button',{name:'Enable auto rewards',exact:true}).click();await expect(page.getByRole('button',{name:'Disable',exact:true})).toBeVisible();
+});
+
+test('walletless verification fits a narrow phone without horizontal scrolling',async({page},info)=>{
+ await page.setViewportSize({width:320,height:740});await setup(page);await page.goto('/#/auto-rewards');await expect(page.getByRole('button',{name:'Test verification'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);await page.screenshot({path:info.outputPath('compact-auto-rewards-narrow.png'),fullPage:true});
 });

@@ -11,7 +11,7 @@ export function Turnstile({siteKey,onToken}:{siteKey:string;onToken:(token:strin
  const element=useRef<HTMLDivElement>(null),callback=useRef(onToken);callback.current=onToken;const [error,setError]=useState('');
  useEffect(()=>{let active=true,id:string|undefined;void load().then(()=>{
   if(!active||!element.current||!window.turnstile)return;
-  id=window.turnstile.render(element.current,{sitekey:siteKey,action:'auto-rewards',theme:'light',size:'flexible',callback:(token:string)=>callback.current(token),'expired-callback':()=>callback.current(''),'error-callback':()=>{callback.current('');setError('CAPTCHA could not verify. Refresh and try again.');}});
+  id=window.turnstile.render(element.current,{sitekey:siteKey,action:'auto-rewards',theme:'light',size:element.current.clientWidth<300?'compact':'flexible',callback:(token:string)=>callback.current(token),'expired-callback':()=>callback.current(''),'error-callback':()=>{callback.current('');setError('CAPTCHA could not verify. Refresh and try again.');}});
  }).catch(e=>{if(active)setError(e.message);});return()=>{active=false;if(id)window.turnstile?.remove(id);};},[siteKey]);
  return <><div className="auto-rewards-captcha" ref={element}/>{error&&<p role="alert">{error}</p>}</>;
 }
