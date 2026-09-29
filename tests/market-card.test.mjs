@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cardAmount,cardRawAmount,cardJackpotTop,cardTrend} from '../src/market-card.ts';
+import {cardAmount,cardRawAmount,cardTrend} from '../src/market-card.ts';
 
 test('card amounts distinguish zero, unavailable and tiny rewards across asset decimals',()=>{
   assert.equal(cardAmount(1800000,true),'$1.8M');
@@ -10,13 +10,6 @@ test('card amounts distinguish zero, unavailable and tiny rewards across asset d
   assert.equal(cardRawAmount('12000000',9),'0.01');
   assert.equal(cardRawAmount('1500000',6),'1.5');
   for(const [raw,decimals] of [['bad',9],['-1',9],['1',-1],['1',2.5],['1',255],[undefined,9]])assert.equal(cardRawAmount(raw,decimals),'—');
-});
-
-test('jackpot first prize follows the existing five-winner allocation including dust',()=>{
-  assert.equal(cardJackpotTop('10000'),'5000');
-  assert.equal(cardJackpotTop('13'),'9');
-  assert.equal(cardJackpotTop('0'),'0');
-  assert.equal(cardJackpotTop('invalid'),undefined);
 });
 
 test('mini-chart uses ordered real observations and handles flat, sparse and invalid data',()=>{

@@ -39,7 +39,8 @@ test('AQUA market cards support every reward mode, pair and incomplete market da
   const cards=page.locator('.aqua-market-card');await expect(cards).toHaveCount(6);
   const aqua=cards.nth(0);await aqua.scrollIntoViewIfNeeded();
   await expect(aqua.locator('.card-cap > strong')).toHaveText('$1.8M');
-  await expect(aqua.locator('.card-reward-stats dd')).toHaveText(['$94.3K','$62.6K']);
+  await expect(aqua.locator('.card-reward-total')).toHaveText('$94.3K');
+  await expect(aqua.locator('.card-reward-strip')).not.toContainText(/Accumulated|Redeemable/);
   await expect(aqua.locator('.card-pair-medallion .asset-mark.solana')).toBeVisible();
   await expect(aqua.getByRole('img',{name:'24-hour price history'})).toBeVisible();
   await expect(aqua.locator('.card-trend')).toHaveClass(/is-falling/);
@@ -51,23 +52,37 @@ test('AQUA market cards support every reward mode, pair and incomplete market da
   await expect(page.getByRole('button',{name:'Remove AQUA',exact:true})).toHaveAttribute('aria-pressed','true');
   await expect(page).not.toHaveURL(/token\//);
   await expect(cards.nth(1).locator('.card-reward-heading')).toContainText('Burn BURN');
-  await expect(cards.nth(1).locator('.card-reward-stats dd')).toHaveText(['12.5','1.3M']);
+  await expect(cards.nth(1).locator('.card-reward-total')).toHaveText('1.3M BURN');
   await expect(cards.nth(1).locator('.card-pair-medallion .asset-mark.orca')).toHaveCount(1);
   await expect(cards.nth(2).locator('.card-reward-heading')).toContainText('Win USDC');
-  await expect(cards.nth(2).locator('.card-reward-stats dd')).toHaveText(['12.3','6.2']);
+  await expect(cards.nth(2).locator('.card-reward-total')).toHaveText('12.3 USDC');
   const custom=cards.nth(3);await custom.scrollIntoViewIfNeeded();
   await expect(custom.locator('.card-pair-medallion .generic-stock-mark')).toBeVisible();
   await expect(custom.locator('.card-reward-heading')).toContainText('Earn NVDAx');
-  await expect(custom.locator('.card-reward-stats dd')).toHaveText(['$0','—']);
+  await expect(custom.locator('.card-reward-total')).toHaveText('$0');
   await expect(custom.locator('.card-trend svg')).toHaveCount(0);
-  await expect(custom.locator('.market-social-links')).toHaveCount(0);
+  await expect(custom.locator('.market-social-links a')).toHaveCount(0);
   await expect(cards.nth(4).locator('.card-cap > strong')).toHaveText('Indexing');
-  await expect(cards.nth(4).locator('.market-social-links')).toHaveCount(0);
-  await expect(cards.nth(5).locator('.card-reward-stats dd')).toHaveText(['—','—']);
+  await expect(cards.nth(4).locator('.market-social-links a')).toHaveCount(0);
+  await expect(cards.nth(5).locator('.card-reward-total')).toHaveText('— SOL');
+  await expect(cards.getByRole('button',{name:'Copy contract address',exact:true})).toHaveCount(6);
+  for(const card of [aqua,custom]){
+    await expect(card.locator('.market-social-links > :last-child')).toHaveAttribute('aria-label','Copy contract address');
+  }
+  await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(text:string)=>{Object.assign(window,{copiedContract:text});}}}));
+  await aqua.getByRole('button',{name:'Copy contract address',exact:true}).click();
+  expect(await page.evaluate(()=>(window as unknown as {copiedContract:string}).copiedContract)).toBe(mint);
+  await custom.getByRole('button',{name:'Copy contract address',exact:true}).click();
+  expect(await page.evaluate(()=>(window as unknown as {copiedContract:string}).copiedContract)).toBe('custom');
+  await expect(page).not.toHaveURL(/token\//);
   expect(requests.some(path=>path.includes('/new/'))).toBe(false);
-  await aqua.scrollIntoViewIfNeeded();
+  await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:info.outputPath('compact-card-modes.png'),fullPage:true,animations:'disabled'});
+  await aqua.evaluate(el=>window.scrollTo(0,Math.max(0,el.getBoundingClientRect().top+window.scrollY-110)));
   await aqua.screenshot({path:info.outputPath('compact-aqua-card.png'),animations:'disabled'});
+  await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async()=>{throw new Error('Clipboard blocked');}}}));
+  await aqua.getByRole('button',{name:'Copy contract address',exact:true}).click();
+  await expect(page.getByText('Clipboard unavailable. Please try again.',{exact:true})).toBeVisible();
   expect(errors).toEqual([]);
 });
 

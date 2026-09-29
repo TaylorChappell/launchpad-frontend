@@ -44,11 +44,9 @@
 .card-reward-heading > div { min-width:0; }
 .aqua-market-card .card-reward-heading span { display:block; font:750 8px/1.4 "Manrope",sans-serif; letter-spacing:.05em; color:#63879b; }
 .aqua-market-card .card-reward-heading strong { display:block; margin:4px 0 0; color:#107cbb; font:750 16px/1.2 "Manrope",sans-serif; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
-.card-reward-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); flex:1.5; min-width:0; margin:0; }
-.card-reward-stats > div { display:flex; flex-direction:column-reverse; min-width:0; gap:4px; padding-left:8px; border-left:1px solid #b7dbee; }
-.card-reward-stats > div + div { margin-left:7px; }
-.card-reward-stats dt { font-size:9px; line-height:1.3; color:#567b91; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
-.card-reward-stats dd { margin:0; color:#204d68; font:750 14px/1.2 "Manrope",sans-serif; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.card-reward-total { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:flex-end; gap:3px 5px; flex:1; min-width:0; padding-left:10px; border-left:1px solid #b7dbee; text-align:right; color:#204d68; }
+.card-reward-total b { font:750 17px/1.3 "Manrope",sans-serif; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.aqua-market-card .card-reward-total > span { display:inline; font:650 11px/1.3 "Manrope",sans-serif; letter-spacing:0; color:#52758a; overflow-wrap:anywhere; }
 .aqua-market-card .mode-buyback .aqua-reward-mode-icon { color:#b64858; }
 .aqua-market-card .mode-jackpot .aqua-reward-mode-icon { color:#a17b14; }
 .explore-page .aqua-market-card .token-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:0; padding:0 2px; border:0; }
@@ -57,22 +55,27 @@
 .explore-page .aqua-market-card .token-stats .metric b { margin-top:5px; color:#1d4863; font:750 19px/1.2 "Manrope",sans-serif; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
 .aqua-market-card .card-footer { display:flex; align-items:center; flex-wrap:wrap; gap:5px 8px; margin-top:14px; padding-top:8px; border-top:1px solid #c3dfedaa; }
 .aqua-market-card .card-footer:empty { display:none; }
-.aqua-market-card .token-card-status { min-width:0; margin:0; gap:5px; flex:1; }
+.aqua-market-card .token-card-status { min-width:0; margin:0; gap:5px; flex:1 1 115px; }
 .aqua-market-card .token-card-status > span { flex:none; }
 .aqua-market-card .token-card-socials { margin:0 0 0 auto; padding:0; border:0; gap:1px; }
 .aqua-market-card .token-card-socials a { width:30px; height:32px; }
+.aqua-market-card .card-copy-ca { display:inline-flex; align-items:center; justify-content:center; flex:none; gap:4px; min-width:48px; height:32px; margin-left:3px; padding:0 5px; border:0; border-left:1px solid #c3dfed; border-radius:0 7px 7px 0; background:transparent; color:#45748f; font:700 10px/1 "Manrope",sans-serif; cursor:pointer; transition:background 160ms ease,color 160ms ease; }
+.aqua-market-card .card-copy-ca svg { width:14px; height:14px; }
+.aqua-market-card .card-copy-ca:hover { color:#106e9d; background:#e2f2fb; }
+.aqua-market-card .card-copy-ca:focus-visible { outline:2px solid #1686bb; outline-offset:2px; }
 .aqua-market-card .dex-status-badge { font-size:9px; padding:4px 6px; }
 .aqua-market-card .creator-lock-badge { font-size:9px; padding:0 6px; }
 @container (max-width:300px) {
   .card-reward-heading > .aqua-reward-mode-icon { display:none; }
   .aqua-market-card .card-reward-heading strong { font-size:15px; }
-  .card-reward-stats dd { font-size:13px; }
+  .card-reward-total b { font-size:15px; }
   .card-pair-medallion { width:60px; height:60px; top:25px; }
   .card-pair-medallion > .asset-mark { width:50px; height:50px; }
 }
 @media (max-width:600px) {
   .explore-page .aqua-market-card { padding:16px; }
   .aqua-market-card .token-card-socials a { width:44px; height:44px; }
+  .aqua-market-card .card-copy-ca { height:44px; min-width:48px; }
   .aqua-market-card .card-footer { gap:3px 8px; padding-top:5px; }
   .watch-card > .watch-button { min-width:44px; min-height:44px; top:9px; right:8px; }
   .watch-card .aqua-market-card .market-update-link { width:40px; height:40px; top:11px; right:56px; }
@@ -80,4 +83,5 @@
 @media (prefers-reduced-motion:reduce) {
   .explore-page .aqua-market-card { transition:none; }
   .explore-page .aqua-market-card:hover { transform:none; }
+  .aqua-market-card .card-copy-ca { transition:none; }
 }

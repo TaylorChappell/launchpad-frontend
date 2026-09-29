@@ -8,7 +8,7 @@ import { activeCreatorLock, creatorLockPercentLabel } from "../creator-lock";
 import type { Launch } from "../types";
 import { DexStatusBadge } from "./DexStatusBadge";
 import { dexBadgeState } from "../dex-status";
-import { cardAmount, cardJackpotTop, cardRawAmount } from "../market-card";
+import { cardAmount, cardRawAmount } from "../market-card";
 import { MarketCardTrend } from "./MarketCardTrend";
 import { RewardModeIcon } from "./RewardModeIcon";
 import { launchAge } from "../time";
@@ -42,14 +42,16 @@ function CardRewards({ launch }: { launch: Launch }) {
   const jackpot = launch.jackpotSummary;
   const rewardSymbol = jackpot?.rewardSymbol ?? "SOL";
   const title = mode === "buyback_burn" ? `Burn ${launch.symbol}` : mode === "jackpot" ? `Win ${rewardSymbol}` : `Earn ${launch.stockSymbol}`;
-  const stats = mode === "buyback_burn"
-    ? [{ label: "SOL spent", value: cardAmount(launch.burnSummary?.totalSol) }, { label: `${launch.symbol} burned`, value: cardRawAmount(launch.burnSummary?.totalTokenRaw, launch.tokenDecimals) }]
+  const value = mode === "buyback_burn"
+    ? cardRawAmount(launch.burnSummary?.totalTokenRaw, launch.tokenDecimals)
     : mode === "jackpot"
-    ? [{ label: `Pool · ${rewardSymbol}`, value: cardRawAmount(jackpot?.currentPotRaw, jackpot?.rewardDecimals ?? 9) }, { label: `1st prize · ${rewardSymbol}`, value: cardRawAmount(cardJackpotTop(jackpot?.currentPotRaw), jackpot?.rewardDecimals ?? 9) }]
-    : [{ label: "Accumulated", value: cardAmount(launch.rewardAccumulatedUsd, true) }, { label: "Redeemable", value: cardAmount(launch.rewardRedeemableUsd, true) }];
+    ? cardRawAmount(jackpot?.currentPotRaw, jackpot?.rewardDecimals ?? 9)
+    : cardAmount(launch.rewardAccumulatedUsd, true);
+  const unit = mode === "buyback_burn" ? launch.symbol : mode === "jackpot" ? rewardSymbol : "";
+  const valueLabel = mode === "buyback_burn" ? "Total burned" : mode === "jackpot" ? "Total pool" : "Accumulated holder rewards";
   return <div className={`reward-card-focus card-reward-strip ${mode === "buyback_burn" ? "mode-buyback" : mode === "jackpot" ? "mode-jackpot" : ""}`}>
     <div className="card-reward-heading"><RewardModeIcon mode={mode}/><div><span>{mode === "buyback_burn" ? "BUYBACK & BURN" : mode === "jackpot" ? "HOURLY JACKPOT" : "HOLDER REWARDS"}</span><strong title={title}>{title}</strong></div></div>
-    <dl className="card-reward-stats">{stats.map(stat => <div key={stat.label}><dt title={stat.label}>{stat.label}</dt><dd title={stat.value}>{stat.value}</dd></div>)}</dl>
+    <div className="card-reward-total" aria-label={`${valueLabel}: ${value}${unit ? ` ${unit}` : ""}`}><b>{value}</b>{unit && <span>{` ${unit}`}</span>}</div>
   </div>;
 }
 
@@ -73,7 +75,7 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
     </Link>
     <footer className="card-footer">
       {(dexStatus || creatorLock) && <div className="token-card-status"><DexStatusBadge state={dexStatus}/>{creatorLock && <span className="creator-lock-badge" title="Verified creator lock" aria-label={`${creatorLockPercentLabel(creatorLock)} of supply locked by the creator`}><LockKeyhole aria-hidden="true"/>{creatorLockPercentLabel(creatorLock)} locked</span>}</div>}
-      <MarketSocialLinks launch={launch} className="token-card-socials"/>
+      <MarketSocialLinks launch={launch} className="token-card-socials" copyAddress={launch.mint}/>
     </footer>
     <RecentUpdateBell at={launch.latestProjectUpdateAt} launchId={launch.id}/>
   </article>;

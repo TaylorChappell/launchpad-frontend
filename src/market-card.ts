@@ -14,13 +14,6 @@ export function cardRawAmount(raw: string | undefined, decimals: number): string
   return cardAmount(Number(raw) / 10 ** decimals);
 }
 
-export function cardJackpotTop(raw: string | undefined): string | undefined {
-  if (!raw || !/^\d+$/.test(raw)) return undefined;
-  const pot = BigInt(raw);
-  // The first winner also receives rounding dust from the other four prizes.
-  return (pot - 2n * (pot * 2000n / 10000n) - 2n * (pot * 500n / 10000n)).toString();
-}
-
 export function cardTrend(snapshots: Pick<MarketSnapshot, "sampledAt" | "priceUsd">[]) {
   const byTime = new Map<number, number>();
   for (const point of snapshots) {
