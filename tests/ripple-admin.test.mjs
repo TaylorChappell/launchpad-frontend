@@ -13,3 +13,11 @@ test('admin distinguishes unfunded, expired, historical and funded checks',()=>{
   assert.equal(rippleCheckLabel({...check,reason:'Repeated content'},100),'Excluded');
   assert.notEqual(rippleSol('1'),rippleSol('0'));
 });
+
+
+test('reach-policy checks distinguish partial funding and a closed legacy policy',()=>{
+  const partial={amountLamports:'10000000',targetUsdCents:450,paidMicroUsd:'1000000',effectiveScore:350,processedAt:null,expiresAt:Date.now()+10000,auditCandidate:false,reason:null};
+  assert.equal(rippleCheckLabel(partial),'Partially funded');
+  assert.equal(rippleCheckLabel({...partial,amountLamports:'0',paidMicroUsd:'0',targetUsdCents:0,effectiveScore:0,outcome:'no_reward_growth'}),'No increase in reward target');
+  assert.equal(rippleCheckLabel({...partial,amountLamports:'0',paidMicroUsd:'0',outcome:'policy_changed',processedAt:Date.now()}),'Old policy ended');
+});
