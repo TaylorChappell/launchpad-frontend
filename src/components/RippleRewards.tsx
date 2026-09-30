@@ -1,6 +1,6 @@
 import { Select } from "./Select";
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, Loader2, Eye, Heart, MessageCircle, Repeat2 } from "lucide-react";
+import { ExternalLink, Loader2, Eye, Heart, MessageCircle, Repeat2, CircleHelp, ChevronDown, RefreshCw, Wallet, Link2, Users, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { signInAccount } from "../account-api";
 import { useWallet } from "../context";
@@ -39,7 +39,17 @@ export function RippleRewards({ address, data, error: activityError, onRefresh }
       <button className="primary" disabled={busy || !xFeature.enabled} onClick={() => void link()}>{busy ? <Loader2 size={16} className="spin"/> : <XLogo/>}Connect X</button>
       {xFeature.loaded && !xFeature.enabled && <small>X connection is currently unavailable.</small>}
       {error && <p role="alert" className="danger-note">{error}</p>}
-    </div> : <RippleBalances key={address} address={address} data={data} error={activityError} onRefresh={onRefresh}/>}
+    </div> : <>
+      {profile.rippleLikesAuthorized===false&&<section className="ripple-reconnect" aria-label="X reconnection required">
+        <span className="ripple-reconnect-icon" aria-hidden="true"><XLogo/></span>
+        <div className="ripple-reconnect-copy"><h3>Reconnect X for Ripple rewards</h3><p>You need to reconnect your X account so Ripple can continue verifying your engagement. Your existing rewards are safe.</p>
+          {error&&<p className="danger-note" role="alert">{error}</p>}
+          {!xFeature.enabled&&<p>X connection is temporarily unavailable. Please try again shortly.</p>}
+        </div>
+        <button className="primary" disabled={busy||!xFeature.enabled||wallet.address!==address} onClick={()=>void link()}>{busy?<Loader2 size={15} className="spin"/>:<RefreshCw size={15}/>}Reconnect X</button>
+      </section>}
+      <RippleBalances key={address} address={address} data={data} error={activityError} onRefresh={onRefresh}/>
+    </>}
   </section>;
 }
 
@@ -77,19 +87,25 @@ function RippleBalances({ address, data, error, onRefresh }: RippleProps) {
     {data?.signedIn === false && <div className="ripple-sign-in"><span>Sign in to AQUA to earn new Ripple rewards.</span><button className="soft-button" disabled={signing} onClick={() => void signIn()}>{signing ? <Loader2 size={14} className="spin"/> : null}Sign in</button></div>}
     {signInError && <p className="danger-note ripple-session-error" role="alert">{signInError}</p>}
     <WalletRewards kind="ripple" compact onClaimed={onRefresh}/>
-    <div className="ripple-feed-tools"><details className="ripple-help"><summary>Missing a post?</summary><div>
-      <p>Posts belong to the X account linked to this wallet. Keep your AQUA sign-in active and hold the coin before posting and when rewards are allocated.</p>
-      <ul><li>Use the coin’s contract address, AQUA market link or explicit $ticker. Shared tickers need the address or market link.</li><li>{data?.rewardPolicyVersion===4?"Posts need at least 100 views and verified engagement from two other established accounts. Views determine the base reward; verified likes, replies and reposts count once per account, with a modest follower bonus.":"Views and new engagement affect rewards; a detected post is not a guaranteed payout."}</li>{data?.rewardPolicyVersion===4&&<li>The small-post boost is shared across your daily posts. Normal earnings have no daily or per-post cap and depend on available funding.</li>}<li>Previously counted engagement is not paid again. Unused rewards carry forward.</li></ul>
-      <p>{data?.signedIn===false?"Your AQUA sign-in needs renewing using the button above.":data?.signedIn?"Your AQUA session is active.":"Sign-in status is unavailable. Refresh to check."}</p>
-      {data?.reason&&<p>{data.reason}</p>}
-      {data?.posts.filter(post=>post.reason||post.rewardPolicy?.reason).map(post=><p key={post.launchId+post.id}><a href={`https://x.com/i/status/${post.id}`} target="_blank" rel="noreferrer">${post.symbol} post</a>: {post.reason??post.rewardPolicy?.reason}</p>)}
-      <button className="soft-button" onClick={onRefresh}>Refresh my posts</button>
-    </div></details><label>Sort posts<Select aria-label="Sort posts" value={order} onChange={e=>{setOrder(e.target.value as "earned"|"recent");setVisible(5);}}><option value="earned">Highest earned</option><option value="recent">Most recent</option></Select></label></div>
+    <div className="ripple-feed-tools"><h3>Your posts</h3><label><span className="sr-only">Sort posts</span><Select aria-label="Sort posts" value={order} onChange={e=>{setOrder(e.target.value as "earned"|"recent");setVisible(5);}}><option value="earned">Highest earned</option><option value="recent">Most recent</option></Select></label></div>
+    <details className="ripple-help"><summary><CircleHelp size={16}/><span>Missing a post?</span><ChevronDown size={16} className="ripple-help-chevron"/></summary><div className="ripple-help-content">
+      <ul className="ripple-help-checklist">
+        <li><Wallet size={18}/><div><b>Hold the coin</b><p>Use the X account linked to this wallet. Stay signed in to AQUA and hold the coin before posting and when rewards are allocated.</p></div></li>
+        <li><Link2 size={18}/><div><b>Include the coin</b><p>Add its contract address, AQUA market link or $ticker. If coins share a ticker, use the address or market link.</p></div></li>
+        <li><Users size={18}/><div><b>Check your engagement</b><p>{data?.rewardPolicyVersion===4?"Reach at least 100 views with verified engagement from two other established accounts. Views set the base reward; verified engagement and followers can increase it.":"Views and new engagement affect rewards. A detected post is not a guaranteed payout."}</p></div></li>
+      </ul>
+      {data?.rewardPolicyVersion===4&&<p className="ripple-help-note">Engagement counts once per account. The small-post boost is shared across your daily posts; normal earnings have no daily or per-post cap and depend on available funding. Previously counted engagement is not paid again. Unused rewards carry forward.</p>}
+      {(data?.reason||data?.posts.some(post=>post.reason||post.rewardPolicy?.reason))&&<div className="ripple-help-reasons">
+        {data?.reason&&<p>{data.reason}</p>}
+        {data?.posts.filter(post=>post.reason||post.rewardPolicy?.reason).map(post=><p key={post.launchId+post.id}><a href={`https://x.com/i/status/${post.id}`} target="_blank" rel="noreferrer">${post.symbol} post</a>: {post.reason??post.rewardPolicy?.reason}</p>)}
+      </div>}
+      <div className="ripple-help-footer"><span>{data?.signedIn&&<CheckCircle2 size={14}/ >}{data?.signedIn===false?"Renew your AQUA sign-in above.":data?.signedIn?"Your AQUA session is active.":"Refresh to check your sign-in."}</span><button className="soft-button" onClick={onRefresh}><RefreshCw size={14}/>Refresh my posts</button></div>
+    </div></details>
     <div className="ripple-posts">
       {delayed && <p className="ripple-service-notice" role="status">Post detection is temporarily delayed. Your saved posts and rewards are still here.</p>}
       {error && <p className="danger-note" role="alert">{error} <button className="text-button" onClick={onRefresh}>Try again</button></p>}
       {!data ? !error && <p className="ripple-empty">Loading your posts…</p> : !data.posts.length ? <p className="ripple-empty">{delayed ? "Your detected posts will appear here." : "No posts yet. Hold a coin, stay signed in and include its $ticker or contract address on X."}</p> : posts.slice(0, visible).map(post => <article key={`${post.launchId}:${post.id}`}>
-        <div className="ripple-post-top"><div className="ripple-post-identity"><a href={`https://x.com/i/status/${post.id}`} target="_blank" rel="noreferrer">{post.isReply ? "Reply on X" : "Post on X"}<ExternalLink size={13}/></a><small><Link to={`/token/${post.launchId}`}>${post.symbol}</Link> · {new Date(post.createdAt).toLocaleDateString()}</small></div>
+        <div className="ripple-post-top"><div className="ripple-post-identity"><a href={`https://x.com/i/status/${post.id}`} target="_blank" rel="noreferrer"><XLogo/>{post.isReply ? "Reply on X" : "Post on X"}<ExternalLink size={12}/></a><small><Link to={`/token/${post.launchId}`}>${post.symbol}</Link><time dateTime={new Date(post.createdAt).toISOString()}>{new Date(post.createdAt).toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"})}</time></small></div>
           <div className="ripple-post-amount"><b>{rippleDollars(post.earnedUsdCents,post.amountLamports)}</b><small title="USD value when rewards were allocated">Total earned</small></div>
         </div>
         {post.text && <p className="ripple-post-text">{post.text}</p>}

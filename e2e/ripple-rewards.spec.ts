@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 const address="11111111111111111111111111111111";
 const signature="ripple-confirmed-receipt";
-async function setup(page:Page,pending=false,linked=true,tracking="live",admin=false) {
+async function setup(page:Page,pending=false,linked=true,tracking="live",admin=false,likesAuthorized?:boolean) {
   await page.addInitScript(({address,signature,pending,admin})=>{
     sessionStorage.setItem("aqua:x-prompt:"+address,"1");localStorage.setItem("aqua:update:holder-workspace-v2","seen");localStorage.setItem("aqua:wallet","phantom");
     if(admin)sessionStorage.setItem("aqua-admin-session-v2:11111111111111111111111111111111","verified-admin");
@@ -24,7 +24,7 @@ async function setup(page:Page,pending=false,linked=true,tracking="live",admin=f
     return r.fulfill({json});
   });
   await page.route("**/account/x/config",r=>r.fulfill({json:{enabled:true}}));
-  await page.route("**/v1/wallets/x?*",r=>r.fulfill({json:{profiles:linked?{[address]:{id:"10",username:"aqua_tester",name:"Tester",avatarUrl:null,profileUrl:"https://x.com/aqua_tester",connectedAt:1,updatedAt:1}}:{}}}));
+  await page.route("**/v1/wallets/x?*",r=>r.fulfill({json:{profiles:linked?{[address]:{id:"10",username:"aqua_tester",name:"Tester",avatarUrl:null,profileUrl:"https://x.com/aqua_tester",connectedAt:1,updatedAt:1,rippleLikesAuthorized:likesAuthorized}}:{}}}));
   await page.route("https://rpc.invalid/**",r=>r.fulfill({json:{jsonrpc:"2.0",id:r.request().postDataJSON().id,result:{context:{slot:1},value:0}}}));
 }
 test("Ripple has its own tab with separate claims, post rewards and no mobile overflow",async({page})=>{
@@ -60,6 +60,48 @@ test("Ripple claim confirmation restores its own receipt without touching holder
   await panel.getByRole("button",{name:"Check confirmation",exact:true}).click();
   await expect(panel.getByText("$2.50 claimed",{exact:true})).toBeVisible();expect(confirmations).toBe(1);
   expect(await page.evaluate(key=>localStorage.getItem(key),"aqua:pending-reward:mainnet-beta:"+address+":ripple")).toBeNull();
+});
+
+test("Ripple requests renewed X permission without hiding saved rewards or starting authorization automatically",async({page},testInfo)=>{
+  await setup(page,true,true,"live",false,false);
+  let authorizations=0;
+  await page.route("**/account/auth/challenge",r=>r.fulfill({json:{id:"00000000-0000-4000-8000-000000000001",message:"Sign in to AQUA"}}));
+  await page.route("**/account/auth/session",r=>r.fulfill({json:{token:"a".repeat(64),expiresAt:Date.now()+86400000}}));
+  await page.route("**/account/x/connect",r=>{authorizations++;return r.fulfill({status:503,json:{error:"X connection is temporarily unavailable."}});});
+  await page.goto("/#/portfolio?tab=ripple");
+  const panel=page.getByRole("region",{name:"Ripple Rewards",exact:true});
+  const reconnect=panel.getByRole("region",{name:"X reconnection required"});
+  await expect(reconnect).toContainText("Your existing rewards are safe.");
+  await expect(panel.getByRole("button",{name:"Check confirmation",exact:true})).toBeVisible();
+  await expect(panel.getByText("$2.50",{exact:true})).toBeVisible();
+  expect(authorizations).toBe(0);
+  await page.screenshot({path:testInfo.outputPath("compact-ripple-reconnect.png"),fullPage:true});
+  await reconnect.getByRole("button",{name:"Reconnect X",exact:true}).click();
+  await expect(reconnect.getByRole("alert")).toHaveText("X connection is temporarily unavailable.");
+  expect(authorizations).toBe(1);
+  await expect(reconnect.getByRole("button",{name:"Reconnect X",exact:true})).toBeEnabled();
+  await expect(panel.getByRole("button",{name:"Check confirmation",exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
+});
+
+test("authorized Ripple accounts get keyboard-accessible post help and sorting without a reconnect panel",async({page},testInfo)=>{
+  await setup(page,false,true,"live",false,true);
+  await page.goto("/#/portfolio?tab=ripple");
+  const panel=page.getByRole("region",{name:"Ripple Rewards",exact:true});
+  await expect(panel.getByRole("heading",{name:"Your posts",exact:true})).toBeVisible();
+  await expect(panel.getByRole("region",{name:"X reconnection required"})).toHaveCount(0);
+  const help=panel.locator(".ripple-help");
+  await help.locator("summary").focus();await page.keyboard.press("Enter");
+  await expect(help).toHaveAttribute("open","");
+  await expect(help.getByText("Hold the coin",{exact:true})).toBeVisible();
+  await expect(help.getByRole("button",{name:"Refresh my posts",exact:true})).toBeVisible();
+  await panel.getByRole("combobox",{name:"Sort posts"}).click();
+  await page.getByRole("option",{name:"Most recent",exact:true}).click();
+  await expect(panel.locator(".ripple-post-text").first()).toHaveText("A new $OCEAN post");
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
+  await page.screenshot({path:testInfo.outputPath("compact-ripple-help.png"),fullPage:true});
+  await help.locator("summary").focus();await page.keyboard.press("Enter");
+  await expect(help).not.toHaveAttribute("open","");
 });
 
 test("unlinked wallets see a centered Connect X prompt in Ripple",async({page})=>{
