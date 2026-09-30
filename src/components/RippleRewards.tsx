@@ -35,11 +35,15 @@ export function RippleRewards({ address, data, error: activityError, onRefresh }
   return <section className="workspace-panel portfolio-rewards-panel ripple-panel" aria-label="Ripple Rewards">
     <header><h2>Ripple Rewards</h2>{profile && <a href={`https://x.com/${encodeURIComponent(profile.username)}`} target="_blank" rel="noreferrer">@{profile.username}<ExternalLink size={13}/></a>}</header>
     {!xFeature.loaded || (xFeature.enabled && !loaded) ? <div className="workspace-loading">Loading X connection…</div> : !profile ? <div className="workspace-empty ripple-connect-empty">
-      <XLogo/><h3>Connect X to your wallet</h3><p>Link your X account to see and claim your Ripple rewards.</p>
+      <XLogo/><h3>Connect X to your wallet</h3><p>Link your X account to see and claim your Ripple rewards. Read-only access lets AQUA verify engagement on your posts.</p>
       <button className="primary" disabled={busy || !xFeature.enabled} onClick={() => void link()}>{busy ? <Loader2 size={16} className="spin"/> : <XLogo/>}Connect X</button>
       {xFeature.loaded && !xFeature.enabled && <small>X connection is currently unavailable.</small>}
       {error && <p role="alert" className="danger-note">{error}</p>}
-    </div> : <RippleBalances key={address} address={address} data={data} error={activityError} onRefresh={onRefresh}/>}
+    </div> : <>
+      {profile.rippleLikesAuthorized===false&&<div className="ripple-sign-in" role="status"><span>Reconnect X once to let likes count toward your Ripple rewards. AQUA requests read-only access.</span><button className="soft-button" disabled={busy||wallet.address!==address} onClick={()=>void link()}>{busy?<Loader2 size={14} className="spin"/>:null}Reconnect X</button></div>}
+      {error&&<p role="alert" className="danger-note">{error}</p>}
+      <RippleBalances key={address} address={address} data={data} error={activityError} onRefresh={onRefresh}/>
+    </>}
   </section>;
 }
 

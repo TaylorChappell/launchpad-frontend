@@ -3,7 +3,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { API_URL } from "./api";
 import { ensureAccountSession } from "./account-api";
 import { studioSessionKey } from "./studio-api";
-export type XProfile = { id: string; username: string; name: string; avatarUrl: string | null; profileUrl: string; connectedAt: number; updatedAt: number };
+export type XProfile = { id: string; username: string; name: string; avatarUrl: string | null; profileUrl: string; connectedAt: number; updatedAt: number; rippleLikesAuthorized?:boolean };
 type Feature = { enabled: boolean; loaded: boolean };
 let feature: Feature = { enabled: false, loaded: false }, featureUntil = 0, featureLoading = false, featureRevision = 0;
 const featureListeners = new Set<() => void>();
