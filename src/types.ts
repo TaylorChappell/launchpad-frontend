@@ -688,10 +688,18 @@ export type AdminRippleOverview = {
     lastRound:RippleRoundDiagnostics|null;unpublishedEpochs:number;payoutStatus:string|null;payoutAttemptedAt:number|null;payoutSuccessAt:number|null;payoutMessage:string|null}>;
   rounds:Array<{launchId:string;symbol:string;endsAt:number;epochId:string|null;epochStatus:string|null;diagnostics:RippleRoundDiagnostics|null}>;
 };
+export type RippleRewardPolicy = {
+  version:4;views:number;baseCents:number;smallBoostCents:number;targetCents:number;followerCount:number|null;
+  engagementBps:number;followerBps:number;verified:{uniqueAccounts:number;points:number;likes:number;replies:number;reposts:number;quotes:number};
+  flags:string[];reason:string|null;evidenceCheckedAt:number;evidenceLimited:boolean;evidenceUnavailable:string[];
+};
 export type AdminRipplePostDetails = {
+  rewardPolicy?:RippleRewardPolicy|null;
   launchId:string;postId:string;scoringVersion:number;nextCheckAt:number|null;trackingEndedAt:number|null;trackingEndReason:string|null;
   excludedReason:string|null;highWater:Record<string,number>;catchupHours:number;
-  checks:Array<{number:number;measuredAt:number;processedAt:number|null;metrics:Record<string,number>;delta:Record<string,number>;score:number;effectiveScore:number;
+  checks:Array<{rewardPolicy?:RippleRewardPolicy|null;targetUsdCents?:number|null;paidMicroUsd?:string|null;
+    allocations?:Array<{epochId:string;amountLamports:string;earnedUsdCents:string|null;epochStatus:string;roundEndsAt:number;claimedSignature:string|null}>;
+    number:number;measuredAt:number;processedAt:number|null;metrics:Record<string,number>;delta:Record<string,number>;score:number;effectiveScore:number;
     expiresAt:number;pendingReason:string|null;outcome:string|null;reason:string|null;auditCandidate:boolean;epochId:string|null;epochStatus:string|null;
     roundEndsAt:number|null;amountLamports:string;earnedUsdCents:string|null;claimedSignature:string|null}>;
 };
@@ -702,6 +710,7 @@ export type RippleServiceStatus = {
  budget?:{requests:number;postReads:number;requestLimit:number;postReadLimit:number;resetsAt:number;requestCounts?:Record<string,number>};
 };
 export type RippleSummary = {
+ rewardPolicyVersion?:number;
  totalPosts?:number;
  service?:RippleServiceStatus;
  scanError?:string|null;nextPayoutAt?:number;
@@ -711,6 +720,7 @@ export type RippleSummary = {
  posts:Array<{id:string;launchId:string;symbol:string;wallet:string;isReply:boolean;createdAt:number;score:number;
  earnedUsdCents?:string|null;claimedUsdCents?:string|null;
  text?:string;checksCompleted?:number;totalChecks?:number;nextCheckAt?:number|null;lastCheckedAt?:number|null;
+ rewardPolicy?:RippleRewardPolicy|null;
  trackingStatus?:"tracking"|"settling"|"completed"|"excluded";
  metrics:{like_count?:number;reply_count?:number;retweet_count?:number;quote_count?:number;impression_count?:number};amountLamports:string;
  status:"excluded"|"claimed"|"claimable"|"allocated"|"ready"|"measuring"|"completed";reason:string|null}>;
