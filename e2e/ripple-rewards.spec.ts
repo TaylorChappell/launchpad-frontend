@@ -27,6 +27,55 @@ async function setup(page:Page,pending=false,linked=true,tracking="live",admin=f
   await page.route("**/v1/wallets/x?*",r=>r.fulfill({json:{profiles:linked?{[address]:{id:"10",username:"aqua_tester",name:"Tester",avatarUrl:null,profileUrl:"https://x.com/aqua_tester",connectedAt:1,updatedAt:1,rippleLikesAuthorized:likesAuthorized}}:{}}}));
   await page.route("https://rpc.invalid/**",r=>r.fulfill({json:{jsonrpc:"2.0",id:r.request().postDataJSON().id,result:{context:{slot:1},value:0}}}));
 }
+async function prepareXReturn(page:Page) {
+  await setup(page,false,true,"live",false,false);
+  const config=page.waitForRequest("**/account/x/config");
+  await page.goto("/#/portfolio?tab=ripple");
+  const api=(await config).url().replace(/\/account\/x\/config$/,"");
+  await expect(page.getByRole("region",{name:"X reconnection required"})).toBeVisible();
+  const state="a".repeat(64),receipt="b".repeat(64),key="aqua:x-link:"+api;
+  await page.evaluate(({key,state,address})=>{
+    sessionStorage.setItem(key,JSON.stringify({state,wallet:address,returnTo:"#/portfolio?tab=ripple"}));
+    localStorage.setItem("aqua:studio:"+address,JSON.stringify({token:"d".repeat(64),expiresAt:Date.now()+3600000}));
+  },{key,state,address});
+  return {state,receipt,key};
+}
+test("X reconnect completion renews permissions and returns directly to Ripple",async({page})=>{
+  const pending=await prepareXReturn(page),requests:string[]=[];
+  page.on("request",r=>{if(r.method()==="DELETE")requests.push(r.url());});
+  await page.route("**/account/x/complete",r=>{
+    expect(r.request().postDataJSON()).toEqual({state:pending.state,receipt:pending.receipt});
+    expect(r.request().headers().authorization).toBe("Bearer "+"d".repeat(64));
+    return r.fulfill({json:{profile:{id:"10",username:"aqua_tester",name:"Tester",avatarUrl:null,profileUrl:"https://x.com/aqua_tester",connectedAt:1,updatedAt:2,rippleLikesAuthorized:true}}});
+  });
+  await page.goto("/#/connect-x?state="+pending.state+"&receipt="+pending.receipt);
+  await page.getByRole("button",{name:"Finish reconnecting X",exact:true}).click();
+  await expect(page).toHaveURL(/#\/portfolio\?tab=ripple$/);
+  await expect(page.getByRole("region",{name:"Ripple Rewards",exact:true})).toBeVisible();
+  await expect(page.getByRole("region",{name:"X reconnection required"})).toHaveCount(0);
+  expect(await page.evaluate(key=>sessionStorage.getItem(key),pending.key)).toBeNull();
+  expect(requests).toEqual([]);
+});
+for(const callbackError of [false,true])test(`X account mismatch offers a fresh sign-in from ${callbackError?"the callback":"an older completion receipt"}`,async({page},testInfo)=>{
+  const pending=await prepareXReturn(page),mutations:string[]=[];
+  const message="X returned @another_account, but this wallet is linked to @aqua_tester. Switch to @aqua_tester on X, then try signing in again.";
+  page.on("request",r=>{if(r.url().includes("/account/x/")&&r.method()!=="GET")mutations.push(r.method()+" "+new URL(r.url()).pathname);});
+  await page.route("**/account/x/complete",r=>r.fulfill({status:409,json:{error:message}}));
+  const consent=new URL("/mock-x-consent",page.url()).toString(),state="c".repeat(64);
+  await page.route(consent,r=>r.fulfill({contentType:"text/html",body:"<h1>Mock X consent</h1>"}));
+  await page.route("**/account/x/connect",r=>r.fulfill({json:{state,url:consent}}));
+  await page.goto("/#/connect-x?state="+pending.state+(callbackError?"&error="+encodeURIComponent(message):"&receipt="+pending.receipt));
+  if(!callbackError)await page.getByRole("button",{name:"Finish reconnecting X",exact:true}).click();
+  await expect(page.getByRole("alert")).toHaveText(message);
+  await expect(page.getByRole("link",{name:"Open X to switch accounts"})).toHaveAttribute("href","https://x.com/");
+  await expect(page.getByRole("button",{name:"Finish reconnecting X",exact:true})).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
+  if(callbackError)await page.screenshot({path:testInfo.outputPath("compact-x-reconnect-recovery.png"),fullPage:true});
+  await page.getByRole("button",{name:"Try X sign-in again",exact:true}).click();
+  await expect(page.getByRole("heading",{name:"Mock X consent"})).toBeVisible();
+  expect(await page.evaluate(key=>JSON.parse(sessionStorage.getItem(key)??"null"),pending.key)).toEqual({state,wallet:address,returnTo:"#/portfolio?tab=ripple"});
+  expect(mutations).toEqual(callbackError?["POST /account/x/connect"]:["POST /account/x/complete","POST /account/x/connect"]);
+});
 test("Ripple has its own tab with separate claims, post rewards and no mobile overflow",async({page})=>{
   await setup(page);await page.goto("/#/portfolio");
   const nav=page.getByRole("tablist",{name:"Portfolio sections"});

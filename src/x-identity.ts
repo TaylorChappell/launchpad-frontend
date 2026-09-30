@@ -2,7 +2,7 @@ import { xReturnPath } from "./x-link-state";
 import { useEffect, useSyncExternalStore } from "react";
 import { API_URL } from "./api";
 import { ensureAccountSession } from "./account-api";
-import { studioSessionKey } from "./studio-api";
+import { StudioApiError, studioSessionKey } from "./studio-api";
 export type XProfile = { id: string; username: string; name: string; avatarUrl: string | null; profileUrl: string; connectedAt: number; updatedAt: number; rippleLikesAuthorized?:boolean };
 type Feature = { enabled: boolean; loaded: boolean };
 let feature: Feature = { enabled: false, loaded: false }, featureUntil = 0, featureLoading = false, featureRevision = 0;
@@ -66,17 +66,17 @@ export async function xRequest<T>(path: string, token = "", body?: unknown, meth
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     if (response.status === 401 && token) { try { for (const key of Object.keys(localStorage)) { if (key.startsWith(studioSessionKey("")) && JSON.parse(localStorage.getItem(key) ?? "null")?.token === token) localStorage.removeItem(key); } } catch { /* Storage may be disabled. */ } }
-    throw new Error(data.error ?? "X connection could not finish. Please try again.");
+    throw new StudioApiError(data.error ?? "X connection could not finish. Please try again.", response.status);
   }
   return data;
 }
 export const xPendingKey = `aqua:x-link:${API_URL}`;
-export async function connectX(wallet: string, sign: (message: string) => Promise<{ signature: string }>, isCurrent: () => boolean) {
+export async function connectX(wallet: string, sign: (message: string) => Promise<{ signature: string }>, isCurrent: () => boolean, returnTo = window.location.hash) {
   if (!feature.enabled) throw new Error("X connection is unavailable.");
-  const token = await ensureAccountSession(wallet, sign);
+  const token = await ensureAccountSession(wallet, sign, isCurrent);
   if (!isCurrent()) throw new Error("Wallet changed. Connect X again.");
   const result = await xRequest<{ url: string; state: string }>("/connect", token, {});
   if (!isCurrent()) throw new Error("Wallet changed. Connect X again.");
-  sessionStorage.setItem(xPendingKey, JSON.stringify({ state: result.state, wallet, returnTo: "#" + xReturnPath(window.location.hash) }));
+  sessionStorage.setItem(xPendingKey, JSON.stringify({ state: result.state, wallet, returnTo: "#" + xReturnPath(returnTo) }));
   window.location.assign(result.url);
 }

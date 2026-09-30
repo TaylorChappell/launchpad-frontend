@@ -22,6 +22,9 @@
 .x-callback h1 { color: #20576e; font-size: 26px; }
 .x-callback p { color: #6a8795; font-size: 14px; line-height: 1.75; }
 .x-callback .primary,.x-callback .soft-button { display: inline-flex; align-items: center; gap: 6px; margin: 8px; }
+.x-callback .creator-inline-error { padding:12px 14px; border:1px solid #edcec8; border-radius:10px; background:#fff6f3; color:#973e34; font-size:12px; overflow-wrap:anywhere; }
+.x-callback .x-retry-help { display:grid; gap:7px; font-size:12px; }
+.x-retry-help a { display:inline-flex; align-items:center; justify-content:center; gap:5px; color:#0878b4; font-weight:650; }
 @keyframes x-pop-in { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
 @media(prefers-reduced-motion:reduce) { .x-connect-popover { animation:none; } .x-connect-bubble { transition:none; } }
 @media(max-width:600px) { .wallet-menu-trigger .x-profile-link > span:not(.x-avatar) { max-width: 90px; } .x-connect-bubble { width: 32px; height: 32px; } .x-connect-popover { position: fixed; top: 80px; right: 16px; } .header-actions { gap: 6px; } }
