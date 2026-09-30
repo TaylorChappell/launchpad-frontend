@@ -6,18 +6,20 @@ const conversion={id:'conversion',launchId:'ocean',symbol:'OCEAN',name:'Ocean Cl
   withdrawSignature:null,poolSignature:signature,swapSignature:signature,payoutSignature:null,stepCount:1,
   steps:[{step:'pool',signature,status:'confirmed',bytes:1100,feeLamports:'5000',createdAt:now-3000,updatedAt:now-2000}]};
 const market={launchId:'ocean',symbol:'OCEAN',name:'Ocean Club',mint:'mint',decimals:6,vaultRaw:'9007199254740993',vaultUsd:1801.44,indexedAt:now-5000,status:'waiting',stage:'conversion',message:'Fee conversion is pacing sales; the next slice is not due yet.',lastAttemptAt:now-1000,lastSuccessAt:now-60000,batchBudgetRaw:'1000000000',batchRemainingRaw:'750000000',nextSliceAt:now+60000,pacing:{status:'scheduled',observedAt:now-1000,estimatedClearAt:now+7200000,catchup:{mode:'catch_up',reason:'buying_active',participationBps:750,buyBudgetRaw:'500000000'}},backlogRaw:'9007199254740993',backlogUsd:1801.44,incomingHourUsd:500,convertedHourUsd:1400,estimatedClearAt:now+7200000,conversionId:'pending',conversionStatus:'planned',plannedRaw:'125000000',plannedCurrentUsd:250,slicePolicy:conversion.slicePolicy,conversionError:null};
-async function setup(page:Page,authorized=true) {
+async function setup(page:Page,authorized:boolean | "secondary"=true) {
   const requests:URL[]=[],state={fail:false};
   await page.addInitScript(({address})=>{
-    sessionStorage.setItem('aqua-admin-session-v1','verified-admin');
+    sessionStorage.setItem(`aqua-admin-session-v2:${address}`,'verified-admin');
     localStorage.setItem('aqua:update:holder-workspace-v2','seen');localStorage.setItem('aqua:wallet','phantom');
-    Object.assign(window,{phantom:{solana:{isPhantom:true,publicKey:{toString:()=>address},connect:async()=>({publicKey:{toString:()=>address}}),on(){},removeListener(){},signMessage:async()=>({signature:new Uint8Array(64).fill(1)})}}});
+    const events=new Map<string,Set<(key:{toString:()=>string})=>void>>();
+    const provider={isPhantom:true,publicKey:{toString:()=>address},connect:async()=>({publicKey:provider.publicKey}),on(event:string,fn:(key:{toString:()=>string})=>void){if(!events.has(event))events.set(event,new Set());events.get(event)!.add(fn);},removeListener(event:string,fn:(key:{toString:()=>string})=>void){events.get(event)?.delete(fn);},signMessage:async()=>({signature:new Uint8Array(64).fill(1)})};
+    Object.assign(window,{phantom:{solana:provider},switchAdminWallet:(next:string)=>{provider.publicKey={toString:()=>next};events.get('accountChanged')?.forEach(fn=>fn(provider.publicKey));}});
   },{address});
   await page.route('**/studio/promotion',r=>r.fulfill({json:{active:false,endsAt:null,serverNow:now}}));
   await page.route('**/account/**',r=>r.fulfill({json:{enabled:false,profiles:[]}}));
   await page.route('**/api/**',r=>{
     const url=new URL(r.request().url()),path=url.pathname;
-    if(path==='/api/config')return r.fulfill({json:{brand:'AQUA',adminWallet:authorized?address:'other-wallet',network:'mainnet-beta',useTestnet:false,transactionsEnabled:false,marketGovernanceEnabled:false,publicRpcUrl:'https://rpc.invalid',whirlpools:{},fees:{transferFeeBps:200,platformBps:100,stockRewardsBps:100},creatorLocks:{minimumSeconds:86400,maximumSeconds:31536000,maximumFeeShareBps:5000},sniperDefense:{supported:false}}});
+    if(path==='/api/config')return r.fulfill({json:{brand:'AQUA',adminWallet:authorized==='secondary'?'primary-wallet':authorized?address:'other-wallet',...(authorized==='secondary'?{adminWallets:['primary-wallet',address]}:{}),network:'mainnet-beta',useTestnet:false,transactionsEnabled:false,marketGovernanceEnabled:false,publicRpcUrl:'https://rpc.invalid',whirlpools:{},fees:{transferFeeBps:200,platformBps:100,stockRewardsBps:100},creatorLocks:{minimumSeconds:86400,maximumSeconds:31536000,maximumFeeShareBps:5000},sniperDefense:{supported:false}}});
     if(path==='/api/admin/diagnostics')return r.fulfill({json:{generatedAt:now,proposals:[],diagnostics:[],launches:[],runtime:{available:false},conversions:[],settlements:[],rewardPurchases:[],rewardEpochs:[],counts:{},flags:{}}});
     if(path==='/api/admin/fee-keeper'){
       expect(r.request().headers().authorization).toBe('Bearer verified-admin');requests.push(url);
@@ -80,4 +82,18 @@ test('the active tab refreshes itself and stops fetching when the admin leaves i
   await page.getByRole('button',{name:'Overview',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Action queue'})).toBeVisible();
   const left=requests.length;await page.clock.fastForward(30_000);expect(requests.length).toBe(left);
+});
+
+test('a secondary admin sees navigation and diagnostics, and wallet changes require their own session',async({page})=>{
+  const {requests}=await setup(page,'secondary');await page.goto('/#/admin?section=keeper');
+  await expect(page.getByRole('heading',{name:'What the keeper is doing'})).toBeVisible();
+  await expect(page.getByRole('navigation',{name:'Footer navigation'}).getByRole('link',{name:'Admin',exact:true})).toBeVisible();
+  const count=requests.length;
+  await page.evaluate(()=>{(window as unknown as {switchAdminWallet:(wallet:string)=>void}).switchAdminWallet('primary-wallet');});
+  await expect(page.getByRole('heading',{name:'Verify your admin wallet'})).toBeVisible();
+  expect(requests).toHaveLength(count);
+  await page.evaluate(()=>{(window as unknown as {switchAdminWallet:(wallet:string)=>void}).switchAdminWallet('outsider');});
+  await expect(page.getByRole('heading',{name:'Access restricted'})).toBeVisible();
+  await expect(page.getByRole('navigation',{name:'Footer navigation'}).getByRole('link',{name:'Admin',exact:true})).toHaveCount(0);
+  expect(requests).toHaveLength(count);
 });

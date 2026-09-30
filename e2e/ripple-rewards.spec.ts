@@ -4,7 +4,7 @@ const signature="ripple-confirmed-receipt";
 async function setup(page:Page,pending=false,linked=true,tracking="live",admin=false) {
   await page.addInitScript(({address,signature,pending,admin})=>{
     sessionStorage.setItem("aqua:x-prompt:"+address,"1");localStorage.setItem("aqua:update:holder-workspace-v2","seen");localStorage.setItem("aqua:wallet","phantom");
-    if(admin)sessionStorage.setItem("aqua-admin-session-v1","verified-admin");
+    if(admin)sessionStorage.setItem("aqua-admin-session-v2:11111111111111111111111111111111","verified-admin");
     if(pending)localStorage.setItem("aqua:pending-reward:mainnet-beta:"+address+":ripple",JSON.stringify({wallet:address,launchId:"coin",name:"Ripple",signature,epochId:"epoch-ripple",amountUsd:250}));
     Object.assign(window,{phantom:{solana:{isPhantom:true,publicKey:{toString:()=>address},connect:async()=>({publicKey:{toString:()=>address}}),on(){},removeListener(){},signMessage:async()=>({signature:new Uint8Array(64)}),signAndSendTransaction(){throw Error("A pending receipt must not be resubmitted");}}}});
   },{address,signature,pending,admin});
@@ -140,7 +140,7 @@ test("admin Ripple lists every post with dollar earnings, pagination and server-
   });
   await page.goto("/#/portfolio");
   await expect(page.getByRole("heading",{name:"Your positions",exact:true})).toBeVisible();
-  await page.evaluate(()=>sessionStorage.setItem("aqua-admin-session-v1","verified-admin"));
+  await page.evaluate(()=>sessionStorage.setItem("aqua-admin-session-v2:11111111111111111111111111111111","verified-admin"));
   await page.goto("/#/admin?section=ripple");
   await expect(page.getByRole("navigation",{name:"Admin sections"}).getByRole("button",{name:"Ripple rewards",exact:true})).toHaveAttribute("aria-current","page");
   const records=page.getByRole("region",{name:"Ripple post records"});

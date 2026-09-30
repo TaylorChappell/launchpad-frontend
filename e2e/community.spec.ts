@@ -133,7 +133,7 @@ test('remembers market and community tabs on refresh and when opening another co
 });
 
 test('AQUA admin can review reports centrally and confirm deletion',async({page})=>{
- const state=await setup(page,'admin');await page.evaluate(()=>sessionStorage.setItem('aqua-admin-session-v1','verified-admin'));
+ const state=await setup(page,'admin');await page.evaluate(()=>sessionStorage.setItem('aqua-admin-session-v2:admin','verified-admin'));
  let reports=[{...state.posts[0],reports:2,reasons:['Scam','Spam']}];
  await page.route('**/api/admin/diagnostics?*',route=>route.fulfill({json:{generatedAt:Date.now(),proposals:[],diagnostics:[],launches:[],runtime:{available:false},conversions:[],settlements:[],rewardPurchases:[],rewardEpochs:[],counts:{},flags:{},alerts:{configured:true,valid:true}}}));
  await page.route('**/api/admin/community-reports?*',route=>{expect(route.request().headers().authorization).toBe('Bearer verified-admin');return route.fulfill({json:{posts:reports,hasMore:false}});});

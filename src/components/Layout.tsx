@@ -1,3 +1,4 @@
+import { isAdminWallet } from "../admin-wallets";
 import { XConnect } from "./XConnect";
 import { Compass, Menu, PanelsTopLeft, Plus, Search, X, WalletCards, ChevronDown } from "lucide-react";
 import { usePageScroll } from "../navigation-state";
@@ -121,7 +122,7 @@ export function Layout({ children }: { children: ReactNode }) {
     {children}
     <footer className="site-footer">
       <small>© {new Date().getFullYear()} AQUA. All rights reserved.</small>
-      <nav aria-label="Footer navigation"><NavLink to="/how-it-works">How it works</NavLink><NavLink to="/developers">API</NavLink><NavLink to="/terms">Terms of Service</NavLink><NavLink to="/privacy">Privacy Policy</NavLink>{wallet.address === config.adminWallet && <NavLink to="/admin">Admin</NavLink>}</nav>
+      <nav aria-label="Footer navigation"><NavLink to="/how-it-works">How it works</NavLink><NavLink to="/developers">API</NavLink><NavLink to="/terms">Terms of Service</NavLink><NavLink to="/privacy">Privacy Policy</NavLink>{isAdminWallet(wallet.address, config) && <NavLink to="/admin">Admin</NavLink>}</nav>
       <div className="footer-socials">
         <a href={xUrl} target="_blank" rel="noreferrer" aria-label="AQUA on X" title="AQUA on X"><XBrandIcon/></a>
         <a href="https://www.orca.so/" target="_blank" rel="noreferrer" aria-label="Visit Orca" title="Orca"><OrcaMark/></a>
