@@ -7,6 +7,7 @@ export type RuntimeConfig = {
   aquaProgramId: string | null;
   programId: string | null;
   adminWallet?: string;
+  adminWallets?: string[];
   programInitialized?: boolean;
   transactionsEnabled: boolean;
   marketGovernanceEnabled: boolean;

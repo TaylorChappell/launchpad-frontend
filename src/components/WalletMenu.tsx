@@ -1,3 +1,4 @@
+import { isAdminWallet } from "../admin-wallets";
 import { WalletIdentity } from "./WalletIdentity";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Copy, LogOut, Plus, Settings2, ShieldCheck, WalletCards } from "lucide-react";
@@ -58,7 +59,7 @@ export function WalletMenu() {
         {!loading && remainingCoins > 0 && <button className="wallet-coins-load-more" type="button" role="menuitem" onClick={() => setVisibleCoins((count) => Math.min(count + COINS_PER_PAGE, coins.length))}><span>Load more</span><small>{remainingCoins} remaining</small><ChevronDown size={14}/></button>}
       </section>
       <Link className="wallet-launch-link" to="/create" role="menuitem"><Plus size={15}/>Launch a coin</Link>
-      {address === config.adminWallet && <Link className="wallet-launch-link wallet-admin-link" to="/admin" role="menuitem"><ShieldCheck size={15}/>Admin diagnostics</Link>}
+      {isAdminWallet(address, config) && <Link className="wallet-launch-link wallet-admin-link" to="/admin" role="menuitem"><ShieldCheck size={15}/>Admin diagnostics</Link>}
       <button className="wallet-disconnect" role="menuitem" onClick={() => void wallet.disconnect()}><LogOut size={15}/>Sign out</button>
     </div>}
   </div>;

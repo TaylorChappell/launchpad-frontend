@@ -1,3 +1,4 @@
+import { isAdminWallet, adminSessionKey } from "../admin-wallets";
 import { AdminAutoRewards } from "../components/AdminAutoRewards";
 import { RefreshButton } from "../components/RefreshButton";
 import { Select } from "../components/Select";
@@ -16,7 +17,6 @@ import { DexScreenerIcon } from "../components/DexScreenerIcon";
 import type { DexProfile, AdminDiagnostics, MarketProposal } from "../types";
 import "./admin.css";
 
-const SESSION_KEY = "aqua-admin-session-v1";
 const sections = ["overview", "keeper", "studio", "community", "dex", "logs", "rewards", "auto-rewards", "ripple", "custody"] as const;
 type Section = typeof sections[number];
 type Row = Record<string, unknown>;
@@ -57,11 +57,18 @@ function DataTable({ rows, columns, render, empty }: { rows: Row[]; columns: str
 
 export function Admin() {
   const wallet = useWallet();
+  // Reset pending actions, snapshots and requests when the connected identity changes.
+  return <AdminForWallet key={wallet.address ?? "disconnected"}/>;
+}
+
+function AdminForWallet() {
+  const wallet = useWallet();
+  const sessionKey = adminSessionKey(wallet.address);
   const { config } = useRuntime();
   const [params, setParams] = useSearchParams();
   const section = sections.includes(params.get("section") as Section) ? params.get("section") as Section : "overview";
   const search = params.get("search") ?? "";
-  const [token, setToken] = useState(() => sessionStorage.getItem(SESSION_KEY));
+  const [token, setToken] = useState(() => sessionStorage.getItem(sessionKey));
   const [data, setData] = useState<AdminDiagnostics | null>(null);
   const [volumeRange, setVolumeRange] = useState<"1h" | "24h" | "max">("24h");
   const [busy, setBusy] = useState(false);
@@ -73,7 +80,7 @@ export function Admin() {
   const [logSource, setLogSource] = useState("keeper");
   const [errorsOnly, setErrorsOnly] = useState(false);
   const [page, setPage] = useState(0);
-  const authorizedWallet = Boolean(wallet.address && wallet.address === config.adminWallet);
+  const authorizedWallet = isAdminWallet(wallet.address, config);
   const requestId = useRef(0);
   const load = useCallback(async (session: string, includeRuntime = false) => {
     const id = ++requestId.current;
@@ -83,14 +90,14 @@ export function Admin() {
       if (id !== requestId.current) return;
       const message = reason instanceof Error ? reason.message : "Diagnostics could not be loaded.";
       setError(message);
-      if (/authorization|expired|verification/i.test(message)) { sessionStorage.removeItem(SESSION_KEY); setToken(null); setData(null); }
+      if (/authorization|expired|verification/i.test(message)) { sessionStorage.removeItem(sessionKey); setToken(null); setData(null); }
     } finally { if (id === requestId.current) setBusy(false); }
-  }, []);
+  }, [sessionKey]);
   useEffect(() => {
     if (authorizedWallet && token) void load(token); else setData(null);
     return () => { requestId.current++; };
   }, [authorizedWallet, load, token]);
-  useEffect(() => { if (!authorizedWallet) { sessionStorage.removeItem(SESSION_KEY); setToken(null); setPending(null); } }, [authorizedWallet]);
+  useEffect(() => { if (!authorizedWallet) { sessionStorage.removeItem(sessionKey); setToken(null); setPending(null); } }, [authorizedWallet, sessionKey]);
   useEffect(() => { setPage(0); }, [search, filter]);
   const navigate = (next: Section, query = "") => { setParams({ section: next, ...(query ? { search: query } : {}) }); };
   const verify = async () => {
@@ -100,7 +107,7 @@ export function Admin() {
       const challenge = await api.adminChallenge(wallet.address);
       const signed = await wallet.signMessage(challenge.message);
       const session = await api.adminSession({ wallet: wallet.address, challenge: challenge.challenge, ...signed });
-      sessionStorage.setItem(SESSION_KEY, session.token); setToken(session.token);
+      sessionStorage.setItem(sessionKey, session.token); setToken(session.token);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Admin verification failed."); }
     finally { setBusy(false); }
   };
