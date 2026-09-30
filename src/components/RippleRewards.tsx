@@ -39,11 +39,7 @@ export function RippleRewards({ address, data, error: activityError, onRefresh }
       <button className="primary" disabled={busy || !xFeature.enabled} onClick={() => void link()}>{busy ? <Loader2 size={16} className="spin"/> : <XLogo/>}Connect X</button>
       {xFeature.loaded && !xFeature.enabled && <small>X connection is currently unavailable.</small>}
       {error && <p role="alert" className="danger-note">{error}</p>}
-    </div> : <>
-      {profile.rippleLikesAuthorized===false&&<div className="ripple-sign-in" role="status"><span>Reconnect X once to let likes count toward your Ripple rewards. AQUA requests read-only access.</span><button className="soft-button" disabled={busy||wallet.address!==address} onClick={()=>void link()}>{busy?<Loader2 size={14} className="spin"/>:null}Reconnect X</button></div>}
-      {error&&<p role="alert" className="danger-note">{error}</p>}
-      <RippleBalances key={address} address={address} data={data} error={activityError} onRefresh={onRefresh}/>
-    </>}
+    </div> : <RippleBalances key={address} address={address} data={data} error={activityError} onRefresh={onRefresh}/>}
   </section>;
 }
 
