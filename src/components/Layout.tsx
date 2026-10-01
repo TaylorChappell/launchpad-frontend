@@ -13,6 +13,7 @@ import { Notifications } from "./Notifications";
 import { WalletMenu } from "./WalletMenu";
 import { createPortal } from "react-dom";
 import { useDialog } from "./useDialog";
+import { ThemeToggle } from "./ThemeToggle";
 
 const links = [
   { to: "/", label: "Explore", icon: Compass },
@@ -39,7 +40,6 @@ export function Layout({ children }: { children: ReactNode }) {
   const [mobile, setMobile] = useState(false);
   const header = useRef<HTMLElement>(null);
   const moreMenu = useRef<HTMLDetailsElement>(null);
-  useEffect(() => { document.documentElement.dataset.theme = "light"; }, []);
   useEffect(() => { if (moreMenu.current) moreMenu.current.open = false; setMobile(false); }, [currentPath]);
   useEffect(() => {
     const root = document.documentElement;
@@ -111,6 +111,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <nav aria-label="Primary navigation">{links.map((link) => <NavLink key={link.to} to={link.to} end={link.to === "/"}>{link.label}</NavLink>)}<details className="site-more" ref={moreMenu}><summary>More <ChevronDown size={13}/></summary><div className="site-more-panel">{moreLinks.map(link => <NavLink key={link.to} to={link.to}>{link.label}</NavLink>)}</div></details></nav>
         <div className="header-actions">
           <button className="header-search" onClick={() => { setMobile(false); setSearchOpen(true); }} aria-label="Search AQUA markets"><Search size={17}/><span>Search coins, stocks...</span><kbd>/</kbd></button>
+          <ThemeToggle/>
           {wallet.address && <Notifications key={wallet.address} wallet={wallet.address}/>}
           <WalletMenu/><XConnect/>
           <button className="mobile-menu" onClick={() => setMobile(!mobile)} aria-label="Toggle navigation" aria-expanded={mobile} aria-controls="mobile-navigation">{mobile ? <X /> : <Menu />}</button>

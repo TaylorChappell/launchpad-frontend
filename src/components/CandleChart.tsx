@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import type { IChartApi, ISeriesApi, UTCTimestamp, CandlestickData, WhitespaceData } from "lightweight-charts";
 import { candlePrice, initialCandleRange, spacedTradeCandles, type ChartCandle, type ChartPoint } from "../market-candles";
+import { useTheme } from "../theme";
+
+const chartPalette = (dark: boolean) => dark
+  ? { background: "#0e2332", text: "#a0becf", grid: "#244454", crosshair: "#73adc9", label: "#225c7b", up: "#53c9c4", down: "#f18599" }
+  : { background: "#ffffff", text: "#527083", grid: "#e9f1f6", crosshair: "#81a5b9", label: "#174c66", up: "#168fa8", down: "#df6679" };
 
 export function CandleChart({ candles, viewKey, currency="USD", mini = false, intervalSeconds, onInspect, onReachStart }: {
   candles: ChartCandle[]; viewKey: string; currency?:string; mini?: boolean; intervalSeconds?:number; onInspect?: (candle: ChartCandle | null) => void; onReachStart?: () => void;
 }) {
+  const { theme } = useTheme();
+  const currentTheme = useRef(theme); currentTheme.current = theme;
   const container = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const series = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -20,20 +27,21 @@ export function CandleChart({ candles, viewKey, currency="USD", mini = false, in
     let instance: IChartApi | undefined;
     void import("lightweight-charts").then(({createChart,CandlestickSeries,ColorType,CrosshairMode}) => {
       if (disposed || !container.current) return;
+      const colors = chartPalette(currentTheme.current === "dark");
       instance = createChart(container.current, {
         autoSize:true,
-        layout:{background:{type:ColorType.Solid,color:mini?"transparent":"#ffffff"},textColor:"#527083",fontFamily:"Manrope, sans-serif",fontSize:11,attributionLogo:!mini},
-        grid:{vertLines:{visible:false},horzLines:{visible:!mini,color:"#e9f1f6"}},
+        layout:{background:{type:ColorType.Solid,color:mini?"transparent":colors.background},textColor:colors.text,fontFamily:"Manrope, sans-serif",fontSize:11,attributionLogo:!mini},
+        grid:{vertLines:{visible:false},horzLines:{visible:!mini,color:colors.grid}},
         rightPriceScale:{visible:!mini,borderVisible:false,minimumWidth:68,scaleMargins:{top:.2,bottom:.18}},
         leftPriceScale:{visible:false},
         timeScale:{visible:!mini,borderVisible:false,timeVisible:true,secondsVisible:false,rightOffset:mini?1:3,barSpacing:mini?5:8,minBarSpacing:2},
-        crosshair:{mode:mini?CrosshairMode.Hidden:CrosshairMode.Normal,vertLine:{color:"#81a5b9",labelBackgroundColor:"#174c66"},horzLine:{color:"#81a5b9",labelBackgroundColor:"#174c66"}},
+        crosshair:{mode:mini?CrosshairMode.Hidden:CrosshairMode.Normal,vertLine:{color:colors.crosshair,labelBackgroundColor:colors.label},horzLine:{color:colors.crosshair,labelBackgroundColor:colors.label}},
         handleScroll:mini?false:{mouseWheel:false,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},
         handleScale:mini?false:{axisPressedMouseMove:true,axisDoubleClickReset:true,mouseWheel:true,pinch:true},
       });
       chart.current = instance;
       series.current = instance.addSeries(CandlestickSeries,{
-        upColor:"#168fa8",downColor:"#df6679",wickUpColor:"#168fa8",wickDownColor:"#df6679",borderVisible:false,
+        upColor:colors.up,downColor:colors.down,wickUpColor:colors.up,wickDownColor:colors.down,borderVisible:false,
         priceLineVisible:!mini,lastValueVisible:!mini,
       });
       if (!mini) instance.subscribeCrosshairMove(event => {
@@ -47,6 +55,17 @@ export function CandleChart({ candles, viewKey, currency="USD", mini = false, in
     }).catch(()=>{if(!disposed)setFailed(true);});
     return () => { disposed=true; instance?.remove(); chart.current=null; series.current=null; };
   },[mini]);
+  useEffect(() => {
+    if (!ready || !chart.current || !series.current) return;
+    const colors = chartPalette(theme === "dark");
+    // Recolour the live canvas without resetting candles, zoom, or the user's pan.
+    chart.current.applyOptions({
+      layout: { background: { color: mini ? "transparent" : colors.background }, textColor: colors.text },
+      grid: { horzLines: { color: colors.grid } },
+      crosshair: { vertLine: { color: colors.crosshair, labelBackgroundColor: colors.label }, horzLine: { color: colors.crosshair, labelBackgroundColor: colors.label } },
+    });
+    series.current.applyOptions({ upColor: colors.up, downColor: colors.down, wickUpColor: colors.up, wickDownColor: colors.down });
+  }, [theme, ready, mini]);
   useEffect(()=>{
     if (!ready || !series.current || !chart.current) return;
     const data = (mini?candles.slice(-32):spacedTradeCandles(candles,intervalSeconds)) as (CandlestickData<UTCTimestamp>|WhitespaceData<UTCTimestamp>)[];

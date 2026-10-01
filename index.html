@@ -4,6 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#D4EDFC" />
+    <script>
+      // Apply the explicit browser preference before CSS or React can paint.
+      // Light is the default, independently of the operating system setting.
+      (function () {
+        var theme = "light";
+        try { if (localStorage.getItem("aqua:theme") === "dark") theme = "dark"; } catch (_) {}
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        document.documentElement.style.backgroundColor = theme === "dark" ? "#071722" : "#D4EDFC";
+        document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#071722" : "#D4EDFC";
+      })();
+    </script>
     <meta name="application-name" content="AQUA" />
     <meta name="description" content="AQUA is a Solana token launchpad with direct Orca markets, permanently locked liquidity and time-weighted holder rewards." />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />

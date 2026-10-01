@@ -5,10 +5,10 @@
   border: 0;
   border-radius: 0;
   padding: 24px;
-  background: radial-gradient(circle at 50% 42%, #45b9ee33, transparent 35%), linear-gradient(145deg, #f8fdff, #d4edfc);
-  color: #174460;
+  background: radial-gradient(circle at 50% 42%, rgb(var(--theme-ocean-rgb, 69 185 238) / 0.2), transparent 35%), linear-gradient(145deg, rgb(var(--theme-surface-rgb, 248 253 255)), rgb(var(--theme-surface-soft-rgb, 212 237 252)));
+  color: rgb(var(--theme-ink-rgb, 23 68 96));
 }
 .launch-details-loading h1 { margin: 20px 0 10px; font-size: clamp(26px, 5vw, 38px); letter-spacing: -.8px; }
 .launch-details-loading p { max-width: 440px; margin: 0 auto; line-height: 1.6; }
 .launch-details-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 24px; }
-.launch-details-actions button, .launch-details-actions a { padding: 12px 18px; border: 1px solid #abd6eb; border-radius: 12px; background: white; color: #174460; text-decoration: none; font: inherit; cursor: pointer; }
+.launch-details-actions button, .launch-details-actions a { padding: 12px 18px; border: 1px solid rgb(var(--theme-border-rgb, 171 214 235)); border-radius: 12px; background: rgb(var(--theme-surface-rgb, 255 255 255)); color: rgb(var(--theme-ink-rgb, 23 68 96)); text-decoration: none; font: inherit; cursor: pointer; }

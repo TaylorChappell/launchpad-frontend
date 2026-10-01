@@ -8,6 +8,7 @@ import "monaco-editor/languages/definitions/typescript/register.js";
 import "monaco-editor/languages/definitions/markdown/register.js";
 import "monaco-editor/languages/definitions/yaml/register.js";
 import type { StudioFile } from "../studio-api";
+import { useTheme } from "../theme";
 (
   globalThis as typeof globalThis & { MonacoEnvironment: unknown }
 ).MonacoEnvironment = { getWorker: () => new EditorWorker() };
@@ -18,6 +19,7 @@ export default function StudioEditor({
   file: StudioFile;
   onChange: (value: string) => void;
 }) {
+  const { theme } = useTheme();
   const host = useRef<HTMLDivElement>(null),
     editor = useRef<monaco.editor.IStandaloneCodeEditor | undefined>(undefined),
     change = useRef(onChange);
@@ -43,7 +45,7 @@ export default function StudioEditor({
     const instance = monaco.editor.create(host.current, {
       value: file.content,
       language,
-      theme: "vs-dark",
+      theme: theme === "dark" ? "vs-dark" : "vs",
       automaticLayout: true,
       fontSize: 13,
       lineHeight: 21,
@@ -65,6 +67,7 @@ export default function StudioEditor({
       editor.current = undefined;
     };
   }, [file.path]);
+  useEffect(() => { monaco.editor.setTheme(theme === "dark" ? "vs-dark" : "vs"); }, [theme]);
   useEffect(() => {
     if (editor.current && editor.current.getValue() !== file.content)
       editor.current.setValue(file.content);

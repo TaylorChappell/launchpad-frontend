@@ -1,0 +1,103 @@
+/* Light keeps the existing per-component colours. Dark overrides their shared
+   colour roles, including gradients and keyframes, without replacing motion. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --theme-canvas-rgb: 7 23 34;
+  --theme-surface-rgb: 14 35 50;
+  --theme-surface-soft-rgb: 10 28 41;
+  --theme-surface-raised-rgb: 21 48 65;
+  --theme-ink-rgb: 227 243 250;
+  --theme-muted-rgb: 160 190 207;
+  --theme-quiet-rgb: 144 176 195;
+  --theme-accent-rgb: 108 211 249;
+  --theme-brand-rgb: 47 166 228;
+  --theme-ocean-rgb: 23 113 166;
+  --theme-tint-rgb: 25 67 91;
+  --theme-foam-rgb: 41 119 156;
+  --theme-border-rgb: 58 97 119;
+  --theme-shadow-rgb: 0 8 17;
+  --theme-on-accent-rgb: 244 252 255;
+  --theme-positive-rgb: 104 222 184;
+  --theme-negative-rgb: 255 148 165;
+  --theme-warning-rgb: 245 204 122;
+  --theme-surface-positive-rgb: 15 52 48;
+  --theme-surface-negative-rgb: 62 31 44;
+  --theme-surface-warning-rgb: 55 46 28;
+  --theme-border-positive-rgb: 48 117 96;
+  --theme-border-negative-rgb: 139 70 87;
+  --theme-border-warning-rgb: 132 108 57;
+  --bg: #071722;
+  --bg-raised: #0e2332;
+  --aqua-surface: #071722;
+  --line: #244454;
+  --line-strong: #44758d;
+  --aqua-border: #294b60;
+  --aqua-shallow: #164c6a;
+}
+
+:root[data-theme="dark"] body {
+  background: radial-gradient(ellipse at 5% 0%, #123c534d, transparent 45rem),
+    radial-gradient(ellipse at 95% 35%, #0f425a33, transparent 40rem), #071722;
+}
+
+.theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--aqua-ink);
+  background: rgb(var(--theme-surface-rgb, 255 255 255) / .65);
+  transition: background-color .2s ease, border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.theme-toggle:hover { transform: translateY(-2px); border-color: var(--line-strong); box-shadow: 0 5px 16px rgb(var(--theme-shadow-rgb, 30 143 232) / .14); }
+.theme-toggle:active { transform: translateY(0); }
+.theme-toggle-icons { position: relative; width: 19px; height: 19px; }
+.theme-toggle-icons svg { position: absolute; inset: 0; transition: transform .3s ease, opacity .2s ease; }
+.theme-sun { opacity: 0; transform: rotate(-75deg) scale(.5); }
+.theme-moon { opacity: 1; transform: rotate(0) scale(1); }
+[data-theme="dark"] .theme-sun { opacity: 1; transform: rotate(0) scale(1); }
+[data-theme="dark"] .theme-moon { opacity: 0; transform: rotate(75deg) scale(.5); }
+[data-theme="dark"] .theme-toggle { color: #8edcff; }
+
+/* Brand art keeps its original colours. Lift transparent artwork against navy;
+   never invert user-uploaded coin images, stock logos, or Studio previews. */
+[data-theme="dark"] .aqua-mark img,
+[data-theme="dark"] .at-brand-logo,
+[data-theme="dark"] .at-entry-logo {
+  filter: brightness(1.2) drop-shadow(0 2px 8px #39adf12e);
+}
+[data-theme="dark"] img[src$="dex-screener.svg"] { filter: brightness(0) invert(1); }
+[data-theme="dark"] :is(.primary, .wallet-button:not(.connected)) {
+  background: linear-gradient(120deg, #12679d, #187fab) !important;
+  color: #f4fcff !important;
+}
+[data-theme="dark"] :is(.primary, .wallet-button:not(.connected)):hover {
+  background: linear-gradient(120deg, #1978ae, #12679d) !important;
+  color: #f4fcff !important;
+}
+[data-theme="dark"] :is(button, a, input, select, textarea, summary):focus-visible { outline-color: #6cd3f9; }
+[data-theme="dark"] ::selection { background: #286284; color: #f4fcff; }
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder { color: #91b3c7; opacity: 1; }
+[data-theme="dark"] select option { color: var(--text); background: #0e2332; }
+[data-theme="dark"] { scrollbar-color: #38617a #0a1c29; }
+
+/* Opaque modal surfaces keep backdrop blur readable over busy market cards. */
+[data-theme="dark"] :is(.search-modal, .wallet-modal, .wallet-dropdown, .site-more-panel, .notifications-panel) {
+  background-color: #102b3c !important;
+}
+
+@media (max-width: 900px) {
+  .app-shell .theme-toggle { width: 44px; height: 44px; flex-basis: 44px; }
+}
+@media (max-width: 420px) {
+  .app-shell .header-inner .brand b { display: none; }
+  .app-shell .header-actions { gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle, .theme-toggle-icons svg { transition: none; }
+}

@@ -1,46 +1,46 @@
-.market-comments { min-width: 0; padding: 20px; border: 1px solid #c8e5f2; border-radius: 12px; background: rgba(255,255,255,.78); }
+.market-comments { min-width: 0; padding: 20px; border: 1px solid rgb(var(--theme-border-rgb, 200 229 242)); border-radius: 12px; background: rgb(var(--theme-surface-rgb, 255 255 255) / 0.78); }
 .market-comments-heading, .market-comments-heading > div { display: flex; align-items: center; gap: 12px; }
 .market-comments-heading { justify-content: space-between; margin-bottom: 18px; }
-.market-comments-heading h2 { margin: 0; font-size: 15px; font-weight: 650; color: #194e67; }
-.market-comments-heading > div > span { color: #668697; font-size: 11px; }
-.comment-refresh { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: #648797; cursor: pointer; }
-.comment-refresh:hover { background: #e4f3fa; color: #087fb5; }
-.market-comment-composer { display: flex; gap: 10px; padding-bottom: 18px; border-bottom: 1px solid #dcebf2; }
-.comment-avatar { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: 0 0 30px; overflow: hidden; border-radius: 50%; background: #e6f4fa; color: #4c8198; }
+.market-comments-heading h2 { margin: 0; font-size: 15px; font-weight: 650; color: rgb(var(--theme-ink-rgb, 25 78 103)); }
+.market-comments-heading > div > span { color: rgb(var(--theme-muted-rgb, 102 134 151)); font-size: 11px; }
+.comment-refresh { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: rgb(var(--theme-muted-rgb, 100 135 151)); cursor: pointer; }
+.comment-refresh:hover { background: rgb(var(--theme-surface-soft-rgb, 228 243 250)); color: rgb(var(--theme-accent-rgb, 8 127 181)); }
+.market-comment-composer { display: flex; gap: 10px; padding-bottom: 18px; border-bottom: 1px solid rgb(var(--theme-border-rgb, 220 235 242)); }
+.comment-avatar { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: 0 0 30px; overflow: hidden; border-radius: 50%; background: rgb(var(--theme-surface-soft-rgb, 230 244 250)); color: rgb(var(--theme-muted-rgb, 76 129 152)); }
 .comment-avatar > svg, .comment-avatar .x-avatar { display: block; width: 30px; height: 30px; object-fit: cover; }
 .comment-avatar > .comment-avatar-guest { width: 17px; height: 17px; }
-.comment-avatar .x-avatar-fallback { display: flex; align-items: center; justify-content: center; background: #e0f2fb; color: #24779c; font-size: 13px; }
+.comment-avatar .x-avatar-fallback { display: flex; align-items: center; justify-content: center; background: rgb(var(--theme-surface-soft-rgb, 224 242 251)); color: rgb(var(--theme-accent-rgb, 36 119 156)); font-size: 13px; }
 .comment-compose-content, .market-comment-content { flex: 1; min-width: 0; }
-.market-comment-composer textarea { display: block; width: 100%; box-sizing: border-box; min-height: 42px; max-height: 180px; resize: none; padding: 10px 12px; border: 1px solid #c8e1ee; border-radius: 8px; background: #f7fcff; color: #264e62; font: inherit; font-size: 13px; line-height: 1.55; }
-.market-comment-composer textarea:focus-visible { outline: 2px solid #169ddb; outline-offset: 2px; background: #fff; }
-.market-comment-composer textarea::placeholder { color: #718d9b; }
+.market-comment-composer textarea { display: block; width: 100%; box-sizing: border-box; min-height: 42px; max-height: 180px; resize: none; padding: 10px 12px; border: 1px solid rgb(var(--theme-border-rgb, 200 225 238)); border-radius: 8px; background: rgb(var(--theme-surface-rgb, 247 252 255)); color: rgb(var(--theme-ink-rgb, 38 78 98)); font: inherit; font-size: 13px; line-height: 1.55; }
+.market-comment-composer textarea:focus-visible { outline: 2px solid rgb(var(--theme-border-rgb, 22 157 219)); outline-offset: 2px; background: rgb(var(--theme-surface-rgb, 255 255 255)); }
+.market-comment-composer textarea::placeholder { color: rgb(var(--theme-muted-rgb, 113 141 155)); }
 .market-comment-composer footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; }
-.market-comment-composer footer > span { font-size: 10px; color: #638495; }
+.market-comment-composer footer > span { font-size: 10px; color: rgb(var(--theme-muted-rgb, 99 132 149)); }
 .market-comment-composer .primary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 7px 13px; border-radius: 7px; font-size: 12px; }
-.market-comments-connect { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 0 0 16px; border-bottom: 1px solid #dcebf2; }
-.market-comments-connect p { margin: 0; font-size: 12px; color: #527688; }
+.market-comments-connect { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 0 0 16px; border-bottom: 1px solid rgb(var(--theme-border-rgb, 220 235 242)); }
+.market-comments-connect p { margin: 0; font-size: 12px; color: rgb(var(--theme-muted-rgb, 82 118 136)); }
 .market-comments-connect .soft-button { min-height: 32px; font-size: 12px; padding: 7px 12px; }
-.market-comment { display: flex; align-items: flex-start; gap: 10px; padding: 16px 0; border-bottom: 1px solid #e2eef4; }
+.market-comment { display: flex; align-items: flex-start; gap: 10px; padding: 16px 0; border-bottom: 1px solid rgb(var(--theme-border-rgb, 226 238 244)); }
 .market-comment:last-child { border-bottom: 0; padding-bottom: 0; }
 .market-comment-content > header { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-width: 0; min-height: 20px; font-size: 12px; }
-.market-comment-content > header .wallet-identity-address { color: #1b81ac; font-weight: 600; }
-.market-comment-content time { color: #7a93a0; font-size: 10px; white-space: nowrap; }
+.market-comment-content > header .wallet-identity-address { color: rgb(var(--theme-accent-rgb, 27 129 172)); font-weight: 600; }
+.market-comment-content time { color: rgb(var(--theme-muted-rgb, 122 147 160)); font-size: 10px; white-space: nowrap; }
 .market-comment-content time::before { content: "·"; margin-right: 7px; }
-.market-comment-creator { padding: 1px 5px; border-radius: 4px; background: #dcf4ea; color: #287d68; font-size: 10px; line-height: 1.5; }
-.comment-text { margin: 5px 0 7px; white-space: pre-wrap; overflow-wrap: anywhere; color: #335b6e; font-size: 13px; line-height: 1.6; }
-.comment-reply-action, .comment-expand { display: inline-flex; align-items: center; gap: 5px; padding: 2px 0; border: 0; background: transparent; color: #6d8897; font: inherit; font-size: 11px; cursor: pointer; }
-.comment-reply-action:hover, .comment-expand:hover { color: #0787be; }
-.comment-expand { display: block; color: #1583b0; margin: -3px 0 6px; }
-.comment-reference { margin: 7px 0 8px; padding: 7px 10px; border-left: 2px solid #a7d6ea; border-radius: 0 5px 5px 0; background: #eef8fc; }
-.comment-reference > span, .comment-reply-draft > span { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; font-size: 11px; color: #6e8b9b; }
-.comment-reference p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: 12px; color: #58788a; line-height: 1.5; margin: 4px 0 0; white-space: pre-wrap; }
+.market-comment-creator { padding: 1px 5px; border-radius: 4px; background: rgb(var(--theme-surface-positive-rgb, 220 244 234)); color: rgb(var(--theme-positive-rgb, 40 125 104)); font-size: 10px; line-height: 1.5; }
+.comment-text { margin: 5px 0 7px; white-space: pre-wrap; overflow-wrap: anywhere; color: rgb(var(--theme-ink-rgb, 51 91 110)); font-size: 13px; line-height: 1.6; }
+.comment-reply-action, .comment-expand { display: inline-flex; align-items: center; gap: 5px; padding: 2px 0; border: 0; background: transparent; color: rgb(var(--theme-muted-rgb, 109 136 151)); font: inherit; font-size: 11px; cursor: pointer; }
+.comment-reply-action:hover, .comment-expand:hover { color: rgb(var(--theme-accent-rgb, 7 135 190)); }
+.comment-expand { display: block; color: rgb(var(--theme-accent-rgb, 21 131 176)); margin: -3px 0 6px; }
+.comment-reference { margin: 7px 0 8px; padding: 7px 10px; border-left: 2px solid rgb(var(--theme-border-rgb, 167 214 234)); border-radius: 0 5px 5px 0; background: rgb(var(--theme-surface-rgb, 238 248 252)); }
+.comment-reference > span, .comment-reply-draft > span { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; font-size: 11px; color: rgb(var(--theme-muted-rgb, 110 139 155)); }
+.comment-reference p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: 12px; color: rgb(var(--theme-muted-rgb, 88 120 138)); line-height: 1.5; margin: 4px 0 0; white-space: pre-wrap; }
 .comment-reply-draft { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 9px; }
-.comment-reply-draft > button { display: inline-flex; border: 0; padding: 4px; background: transparent; color: #638495; cursor: pointer; }
-.market-comments-empty, .market-comments-loading { padding: 20px 0 0; margin: 0; color: #638495; font-size: 12px; }
+.comment-reply-draft > button { display: inline-flex; border: 0; padding: 4px; background: transparent; color: rgb(var(--theme-muted-rgb, 99 132 149)); cursor: pointer; }
+.market-comments-empty, .market-comments-loading { padding: 20px 0 0; margin: 0; color: rgb(var(--theme-muted-rgb, 99 132 149)); font-size: 12px; }
 .market-comments-loading { display: flex; align-items: center; gap: 8px; }
-.market-comments-error { margin: 12px 0 0; color: #a43838; font-size: 12px; overflow-wrap: anywhere; }
+.market-comments-error { margin: 12px 0 0; color: rgb(var(--theme-negative-rgb, 164 56 56)); font-size: 12px; overflow-wrap: anywhere; }
 .market-comments .activity-load-more { margin-top: 18px; }
-.market-comments button:focus-visible { outline: 2px solid #169ddb; outline-offset: 3px; }
+.market-comments button:focus-visible { outline: 2px solid rgb(var(--theme-border-rgb, 22 157 219)); outline-offset: 3px; }
 .market-comments button:disabled { cursor: default; opacity: .5; }
 @media (max-width: 600px) {
   .market-comments { padding: 15px 12px; }

@@ -2,7 +2,7 @@
 .wallet-overlay.wallet-connect-overlay,
 .wallet-overlay.market-filter-overlay,
 .aqua-search-overlay {
-  background: rgba(17, 49, 70, .36);
+  background: rgb(var(--theme-surface-raised-rgb, 17 49 70) / 0.36);
   -webkit-backdrop-filter: blur(14px) saturate(.85);
   backdrop-filter: blur(14px) saturate(.85);
   animation: aqua-dialog-backdrop 260ms ease-out both;
@@ -12,7 +12,7 @@
 .wallet-connect-overlay .wallet-modal.aqua-wallet-picker,
 .aqua-search-overlay .market-search-palette,
 .market-filter-overlay .market-filter-modal {
-  box-shadow: 0 32px 100px #103e6b30, 0 8px 24px #103e6b14, inset 0 1px 0 #ffffff;
+  box-shadow: 0 32px 100px rgb(var(--theme-shadow-rgb, 16 62 107) / 0.18824), 0 8px 24px rgb(var(--theme-shadow-rgb, 16 62 107) / 0.07843), inset 0 1px 0 rgb(var(--theme-shadow-rgb, 255 255 255));
   animation: aqua-dialog-arrive 460ms cubic-bezier(.16, 1, .3, 1) both;
 }
 .wallet-modal.aqua-wallet-picker h2,
@@ -28,9 +28,9 @@
 .wallet-modal.aqua-wallet-picker .wallet-picker-note { animation-delay: 210ms; }
 .wallet-modal.aqua-wallet-picker .wallet-row:hover:not(:disabled) {
   transform: translateY(-3px);
-  border-color: #8acbdf;
-  background: #f2fbff;
-  box-shadow: 0 8px 20px #148db414;
+  border-color: rgb(var(--theme-border-rgb, 138 203 223));
+  background: rgb(var(--theme-surface-rgb, 242 251 255));
+  box-shadow: 0 8px 20px rgb(var(--theme-shadow-rgb, 20 141 180) / 0.07843);
 }
 .wallet-modal.aqua-wallet-picker .wallet-row:active:not(:disabled) { transform: translateY(0) scale(.985); }
 .aqua-wallet-picker .wallet-connect > svg,
@@ -55,7 +55,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, #69c9e8, #378be8, transparent);
+  background: linear-gradient(90deg, transparent, rgb(var(--theme-ocean-rgb, 105 201 232)), rgb(var(--theme-ocean-rgb, 55 139 232)), transparent);
   transform-origin: 50% 50%;
   animation: aqua-search-line 600ms 90ms cubic-bezier(.16, 1, .3, 1) both;
   pointer-events: none;
@@ -72,8 +72,8 @@
   transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 .market-search-palette .palette-result[aria-selected=true] {
-  background: linear-gradient(105deg, #e4f4ff, #f0fbff);
-  box-shadow: inset 3px 0 0 #54b6de;
+  background: linear-gradient(105deg, rgb(var(--theme-surface-soft-rgb, 228 244 255)), rgb(var(--theme-surface-rgb, 240 251 255)));
+  box-shadow: inset 3px 0 0 rgb(var(--theme-shadow-rgb, 84 182 222));
 }
 .market-search-palette .palette-result[aria-selected=true] > svg { transform: translate(2px, -2px); }
 .market-search-palette .workspace-empty { animation: aqua-dialog-detail 260ms ease-out backwards; }
@@ -86,7 +86,7 @@
 .palette-skeleton > i, .palette-skeleton b, .palette-skeleton small, .palette-skeleton > em {
   display: block;
   border-radius: 6px;
-  background: linear-gradient(100deg, #e6f0f7 20%, #f6fbff 45%, #e6f0f7 70%);
+  background: linear-gradient(100deg, rgb(var(--theme-surface-soft-rgb, 230 240 247)) 20%, rgb(var(--theme-surface-rgb, 246 251 255)) 45%, rgb(var(--theme-surface-soft-rgb, 230 240 247)) 70%);
   background-size: 250% 100%;
   animation: aqua-search-shimmer 1.5s ease-in-out infinite;
 }
