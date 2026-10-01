@@ -1,3 +1,5 @@
+import { RedirectRecipientPicker } from "../components/RedirectRecipientPicker";
+import { recipientLabel, type RedirectRecipient } from "../fee-redirect-api";
 import { RefreshButton } from "../components/RefreshButton";
 import { ChevronDown } from "lucide-react";
 import { Select } from "../components/Select";
@@ -33,8 +35,9 @@ import { PercentControl } from "../components/PercentControl";
 import type { DexProfile } from "../types";
 import type { Launch, LaunchBatchEnvelope, LaunchConfirmation, LaunchRelayStatus, StockOption, TransactionEnvelope } from "../types";
 
-type RewardMode = "holder_rewards" | "buyback_burn" | "jackpot";
+type RewardMode = "holder_rewards" | "buyback_burn" | "jackpot" | "fee_redirect";
 type Form = {
+  redirectRecipient?: RedirectRecipient | null;
   name: string; symbol: string; description: string; xUrl: string; websiteUrl: string;
   rewardFeeBps: number; rippleRewardBps: number;
   telegramUrl: string; devBuyCurrency: "SOL"; launchAmount: string; rewardMode: RewardMode;
@@ -378,7 +381,7 @@ export function Create() {
   const validForStep = [
     form.name.trim().length >= 2 && form.symbol.trim().length >= 2 && Boolean(file),
     Boolean(stock) && (!stock?.restricted || acknowledged),
-    form.rewardMode === "holder_rewards" || Boolean(config.rewardModes?.enabled && (form.rewardMode === "buyback_burn" || (form.rewardMode === "jackpot" && config.rewardModes.jackpot.enabled))),
+    form.rewardMode === "fee_redirect" ? Boolean(config.rewardModes?.feeRedirect?.enabled && form.redirectRecipient) : form.rewardMode === "holder_rewards" || Boolean(config.rewardModes?.enabled && (form.rewardMode === "buyback_burn" || (form.rewardMode === "jackpot" && config.rewardModes.jackpot.enabled))),
     Number.isInteger(form.rippleRewardBps) && form.rippleRewardBps >= 300 && form.rippleRewardBps <= 3000 && Number.isInteger(form.rewardFeeBps) && form.rewardFeeBps >= 100 && form.rewardFeeBps <= 400 && (form.rewardFeeBps === 100 || Boolean(config.launchSettings?.variableRewardFeesEnabled)),
     ...(dexProfileEnabled ? [dexDraftValid] : []),
     amountValid,
@@ -706,7 +709,7 @@ export function Create() {
         name: form.name.trim(), description: form.description.trim(), imageId,
         stockMint: stock.mint, poolPair: stock.mint === "So11111111111111111111111111111111111111112" ? "SOL" : "STOCK",
         devBuyStockRaw: "0", devBuyLamports: "0",
-        devBuyCurrency: "SOL", devBuyAmountRaw: initialBuyRaw, rewardMode: form.rewardMode, rewardFeeBps: form.rewardFeeBps, rippleRewardBps: form.rippleRewardBps, marketingMode, dexFundingMode,
+        devBuyCurrency: "SOL", devBuyAmountRaw: initialBuyRaw, rewardMode: form.rewardMode, ...(form.rewardMode === "fee_redirect" && form.redirectRecipient ? {redirectRecipient:{kind:form.redirectRecipient.kind,subject:form.redirectRecipient.subject}} : {}), rewardFeeBps: form.rewardFeeBps, rippleRewardBps: form.rippleRewardBps, marketingMode, dexFundingMode,
         sniperDefense: false, xUrl: normaliseUrl(form.xUrl), websiteUrl: normaliseUrl(form.websiteUrl), telegramUrl: normaliseTelegram(form.telegramUrl),
         ...(dexProfileEnabled ? { dexFundingEnabled, dexProfile: Object.fromEntries(Object.entries(dexProfile).filter(([, value]) => value.trim()).map(([key, value]) => [key, value.trim()])) } : {}),
       });
@@ -760,7 +763,7 @@ export function Create() {
         <span className="launch-complete-orb"><Rocket/></span>
         <small>Orca market live</small>
         <h1>${completedLaunch.symbol} launched</h1>
-        <p>Your pool is active, the full supply is committed to locked liquidity, and {completedLaunch.rewardMode === "holder_rewards" ? "holder rewards are accruing" : completedLaunch.rewardMode === "buyback_burn" ? "market buybacks and burns are active" : "hourly jackpot scoring is active"}.</p>
+        <p>Your pool is active, the full supply is committed to locked liquidity, and {completedLaunch.rewardMode === "fee_redirect" ? "rewards are split equally between your recipient and holders" : completedLaunch.rewardMode === "holder_rewards" ? "holder rewards are accruing" : completedLaunch.rewardMode === "buyback_burn" ? "market buybacks and burns are active" : "hourly jackpot scoring is active"}.</p>
         <div className="launch-complete-actions">
           <a className="complete-primary" href={`#/token/${completedLaunch.id}`}><span className="button-current"/>Go to coin <ArrowRight/></a>
           <button className="complete-secondary" onClick={launchAnother}>Launch another coin</button>
@@ -828,9 +831,13 @@ export function Create() {
             <ModeButton active={form.rewardMode === "jackpot"} disabled={!config.rewardModes?.enabled || !config.rewardModes.jackpot.enabled} onClick={() => update("rewardMode", "jackpot")} icon={<RewardModeIcon mode="jackpot"/>} title="Hourly Jackpot" eyebrow="5 winners · every hour">
               Five holders win each hour. Holding and buying earlier improves your score; selling reduces it.
             </ModeButton>
+            <ModeButton active={form.rewardMode === "fee_redirect"} disabled={!config.rewardModes?.feeRedirect?.enabled} onClick={() => update("rewardMode", "fee_redirect")} icon={<RewardModeIcon mode="fee_redirect"/>} title="Fee Redirect" eyebrow="50% recipient · 50% holders">
+              Share rewards with a wallet, X account or GitHub user. Holders keep earning the other half.
+            </ModeButton>
           </div>
+          {form.rewardMode === "fee_redirect" && <RedirectRecipientPicker value={form.redirectRecipient} onChange={value=>update("redirectRecipient",value)} providers={config.rewardModes?.feeRedirect?.providers}/>}
           {config.rippleRewards?.enabled && <div className="reward-mode-notice"><Info/> Set aside a share for Ripple Rewards in the next step.</div>}
-          {!config.rewardModes?.enabled && <div className="reward-mode-notice"><Info/> Alternative modes will unlock after the staged program upgrade is enabled. Holder Rewards remains available.</div>}
+          {!config.rewardModes?.enabled && <div className="reward-mode-notice"><Info/> Buyback &amp; Burn and Hourly Jackpot will unlock when their settlement services are enabled.</div>}
         </WizardSection>}
 
         {step === settingsStep && <WizardSection title="Coin settings" description="Set your fees and community funding.">
@@ -871,7 +878,8 @@ export function Create() {
           </div>}
           <p className="field-help">Liquidity, your optional first buy and permanent locking finish together. If the final transaction fails, the buy is reversed. Earlier setup and network fees still apply.</p>
           {wallet.canBatchSign && <p className="field-help">One signing request covers token creation, pool setup and permanent locking, including your optional first buy. Your wallet may show a review for each transaction.</p>}
-          <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} · {form.rewardMode === "holder_rewards" ? "Holder Rewards" : form.rewardMode === "buyback_burn" ? "Buyback & Burn" : "Hourly Jackpot"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
+          <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} · {form.rewardMode === "fee_redirect" ? "Fee Redirect" : form.rewardMode === "holder_rewards" ? "Holder Rewards" : form.rewardMode === "buyback_burn" ? "Buyback & Burn" : "Hourly Jackpot"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
+          {form.rewardMode === "fee_redirect" && form.redirectRecipient && <div className="redirect-review"><strong>50% to {recipientLabel(form.redirectRecipient)} · 50% to holders</strong><br/>Recipient fixed at launch. Split applies after operating costs, Ripple and community funding.</div>}
           <div className="launch-settings-review"><span>Rewards fee <b>{form.rewardFeeBps/100}%</b></span><span>Ripple share <b>{form.rippleRewardBps/100}%</b></span><button type="button" onClick={() => setStep(settingsStep)}>Edit settings</button></div>
           <p className="field-help">Fees and Ripple share are fixed at launch. Review them before continuing.</p><label className="terms-acceptance"><input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)}/><span>I have read and agree to the <Link to="/terms" target="_blank">Terms of Service</Link>, including the cryptoasset, permanent-liquidity and third-party risks.</span></label>
           <button className="wizard-launch-button" onClick={() => void beginLaunch()} disabled={!validForStep.every(Boolean) || launching || !acceptedTerms || Boolean(wallet.address && (!budget || !budget.sufficient))} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>

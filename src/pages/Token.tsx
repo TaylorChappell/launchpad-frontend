@@ -1,3 +1,4 @@
+import { RedirectMarketPanel } from "../components/RedirectMarketPanel";
 import { MarketTabPanel, RetainedMarketPanel } from "../components/MarketTabPanel";
 import { Select } from "../components/Select";
 import { lastExploreLocation } from "../navigation-state";
@@ -208,7 +209,7 @@ export function Token() {
   const lockedPercentLabel = creatorLockPercentLabel(verifiedCreatorLock);
   const creatorLockUrl = verifiedCreatorLock ? solscanAccountUrl(verifiedCreatorLock.vaultTokenAccount, config.network) : null;
   const rewardMode = launch.rewardMode ?? "holder_rewards";
-  const modeLabel = rewardMode === "buyback_burn" ? "BUYBACK & BURN" : rewardMode === "jackpot" ? "HOURLY JACKPOT" : "HOLDER REWARDS";
+  const modeLabel = rewardMode === "fee_redirect" ? "FEE REDIRECT" : rewardMode === "buyback_burn" ? "BUYBACK & BURN" : rewardMode === "jackpot" ? "HOURLY JACKPOT" : "HOLDER REWARDS";
   const jackpot = rewardModeState?.jackpot;
   const jackpotSeconds = Math.max(0, (jackpot?.nextDrawAt ?? nowSeconds + (config.rewardModes?.jackpot.drawSeconds ?? 3_600)) - nowSeconds);
 
@@ -243,7 +244,7 @@ export function Token() {
       <RetainedMarketPanel active={section==="Holders"}><MarketHolders key={launch.id} launch={launch} creatorLock={creatorLock}/></RetainedMarketPanel>
       {section==="Community"&&<Community launch={launch} onRead={markCommentsRead}/>}
       {section==="Proposals"&&<><CommunityProposalVotes/><DexFundingVote/></>}
-      <RetainedMarketPanel active={section==="Rewards"}>{rewardMode==="holder_rewards"&&<><section className="workspace-panel market-reward-activity"><header><h2>Market reward activity</h2></header><div className="info-grid single reward-mode-market-panel">
+      <RetainedMarketPanel active={section==="Rewards"}>{rewardMode==="fee_redirect"&&<><RedirectMarketPanel launch={launch} active={section==="Rewards"}/><WalletRewards launch={launch} active={section==="Rewards"}/></>}{rewardMode==="holder_rewards"&&<><section className="workspace-panel market-reward-activity"><header><h2>Market reward activity</h2></header><div className="info-grid single reward-mode-market-panel">
         {rewardMode === "holder_rewards" && <section className="market-reward-panel"><header><div><small>HOLDER REWARDS</small><h2>Earn {launch.stockSymbol}</h2></div><span className="reward-live-label">Accumulating</span></header><div className="reward-stat-row"><Metric label="Total accumulated" value={money.format(launch.rewardAccumulatedUsd)}/><Metric label="Available to all holders" value={money.format(launch.rewardRedeemableUsd)}/></div><footer>Rewards follow your balance and time held.</footer></section>}
       </div></section><WalletRewards active={section==="Rewards"} launch={launch}/></>}
       <div className="info-grid single reward-mode-market-panel">

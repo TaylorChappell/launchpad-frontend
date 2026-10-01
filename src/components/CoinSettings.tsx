@@ -9,7 +9,7 @@ export function CoinSettings({ launch }: { launch: Launch }) {
   const [open, setOpen] = useState(false);
   const marketing = launch.marketingMode ?? "automatic";
   const dex = launch.dexFundingMode ?? "automatic";
-  const mode = launch.rewardMode === "buyback_burn" ? "Buyback & Burn" : launch.rewardMode === "jackpot" ? "Hourly Jackpot" : "Holder Rewards";
+  const mode = launch.rewardMode === "fee_redirect" ? "Fee Redirect" : launch.rewardMode === "buyback_burn" ? "Buyback & Burn" : launch.rewardMode === "jackpot" ? "Hourly Jackpot" : "Holder Rewards";
   return <>
     <button className="market-more-details market-coin-settings" aria-haspopup="dialog" onClick={() => setOpen(true)}><SlidersHorizontal size={18}/><span>Coin settings</span><ChevronRight size={18}/></button>
     {open && <MarketSheet launch={launch} title="Coin settings" closeLabel="Close coin settings" onClose={() => setOpen(false)}>

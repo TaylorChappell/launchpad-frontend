@@ -55,8 +55,9 @@ export type RuntimeConfig = {
   };
   rippleRewards?: { enabled: boolean; reason: string | null; rewardBps: number; boostBps: number };
   rewardModes?: {
+    feeRedirect?: {enabled:boolean;recipientBps:number;holderBps:number;providers:{wallet:boolean;x:boolean;github:boolean}};
     enabled: boolean;
-    available: Array<"holder_rewards" | "buyback_burn" | "jackpot">;
+    available: Array<"holder_rewards" | "buyback_burn" | "jackpot" | "fee_redirect">;
     immutableAfterLaunch: boolean;
     jackpot: { enabled: boolean; drawSeconds: number; buyMaturitySeconds: number; minimumUsdCents: number; prizeBps: number[] };
   };
@@ -265,7 +266,8 @@ export type Launch = {
   pairSymbol: string;
   pairMint: string;
   tradingPair: { type: "sol" | "stock"; symbol: string; mint: string };
-  rewardMode: "holder_rewards" | "buyback_burn" | "jackpot";
+  redirectRecipient?: import("./fee-redirect-api").RedirectRecipient | null;
+  rewardMode: "holder_rewards" | "buyback_burn" | "jackpot" | "fee_redirect";
   rewardFeeBps?: number;
   rippleRewardBps?: number;
   orcaFeeRate?: number | null;
@@ -390,7 +392,8 @@ export type GovernanceMarket = {
   name: string;
   symbol: string;
   imageId: string | null;
-  rewardMode: "holder_rewards" | "buyback_burn" | "jackpot";
+  redirectRecipient?: import("./fee-redirect-api").RedirectRecipient | null;
+  rewardMode: "holder_rewards" | "buyback_burn" | "jackpot" | "fee_redirect";
 };
 
 export type GovernanceResponse = {
@@ -584,7 +587,8 @@ export type LaunchRelayStatus = {
   launchId: string;
   batchHash: string | null;
   symbol: string;
-  rewardMode: "holder_rewards" | "buyback_burn" | "jackpot";
+  redirectRecipient?: import("./fee-redirect-api").RedirectRecipient | null;
+  rewardMode: "holder_rewards" | "buyback_burn" | "jackpot" | "fee_redirect";
   mint: string;
   status: "not_submitted" | "queued" | "running" | "needs_approval" | "complete";
   step: "mint" | "pool" | "prepare" | "funding" | "liquidity" | "lock" | null;

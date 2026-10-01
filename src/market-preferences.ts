@@ -10,7 +10,7 @@ export function marketPreferences(params: URLSearchParams): URLSearchParams {
     const value = params.get(key)?.trim();
     if (!value || value === "all") continue;
     if (key === "pair") { if (value.length <= 32) saved.set(key, value); }
-    else if (key === "mode") { if (["holder_rewards", "buyback_burn", "jackpot"].includes(value)) saved.set(key, value); }
+    else if (key === "mode") { if (["holder_rewards", "buyback_burn", "jackpot", "fee_redirect"].includes(value)) saved.set(key, value); }
     else if (key === "dex") { if (["paid", "unpaid"].includes(value)) saved.set(key, value); }
     else if (key === "ageHours") { if (["1", "24", "168", "720"].includes(value)) saved.set(key, value); }
     else if (Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 1e15 && (key !== "minHolders" || Number.isInteger(Number(value)))) saved.set(key, value);

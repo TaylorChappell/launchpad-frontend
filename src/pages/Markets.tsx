@@ -20,7 +20,7 @@ import { launchAge } from "../time";
 import { readMarketPreferences, saveMarketPreferences } from "../market-preferences";
 
 const compact=new Intl.NumberFormat("en",{style:"currency",currency:"USD",notation:"compact",maximumFractionDigits:2});
-const modes=[["all","All reward modes"],["holder_rewards","Holder rewards"],["buyback_burn","Buyback & burn"],["jackpot","Jackpot"]];
+const modes=[["all","All reward modes"],["holder_rewards","Holder rewards"],["buyback_burn","Buyback & burn"],["jackpot","Jackpot"],["fee_redirect","Fee Redirect"]];
 // Hash history changes before React finishes a navigation render. Compose quick
 // consecutive controls from the current URL so a layout click cannot drop filters.
 function currentMarketParams(){const hash=window.location.hash,index=hash.indexOf("?");return new URLSearchParams(index<0?"":hash.slice(index+1));}

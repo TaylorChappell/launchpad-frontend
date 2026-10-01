@@ -23,6 +23,7 @@ const links = [
 ];
 const bottomLinks = links.map(link => ({ ...link, label: link.to === "/studio" ? "Studio" : link.to === "/portfolio" ? "Portfolio" : link.label }));
 const moreLinks = [
+  {to:"/fee-redirect",label:"Fee Redirect"},
   { to: "/boost", label: "Community Boost" },
   { to: "/promotions", label: "Promotions" },
   { to: "/analytics", label: "Analytics" },

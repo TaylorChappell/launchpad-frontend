@@ -41,16 +41,16 @@ function CardRewards({ launch }: { launch: Launch }) {
   const mode = launch.rewardMode ?? "holder_rewards";
   const jackpot = launch.jackpotSummary;
   const rewardSymbol = jackpot?.rewardSymbol ?? "SOL";
-  const title = mode === "buyback_burn" ? `Burn ${launch.symbol}` : mode === "jackpot" ? `Win ${rewardSymbol}` : `Earn ${launch.stockSymbol}`;
+  const title = mode === "fee_redirect" ? `Share ${launch.stockSymbol}` : mode === "buyback_burn" ? `Burn ${launch.symbol}` : mode === "jackpot" ? `Win ${rewardSymbol}` : `Earn ${launch.stockSymbol}`;
   const value = mode === "buyback_burn"
     ? cardRawAmount(launch.burnSummary?.totalTokenRaw, launch.tokenDecimals)
     : mode === "jackpot"
     ? cardRawAmount(jackpot?.currentPotRaw, jackpot?.rewardDecimals ?? 9)
     : cardAmount(launch.rewardAccumulatedUsd, true);
   const unit = mode === "buyback_burn" ? launch.symbol : mode === "jackpot" ? rewardSymbol : "";
-  const valueLabel = mode === "buyback_burn" ? "Total burned" : mode === "jackpot" ? "Total pool" : "Accumulated holder rewards";
+  const valueLabel = mode === "buyback_burn" ? "Total burned" : mode === "jackpot" ? "Total pool" : mode === "fee_redirect" ? "Total allocated rewards" : "Accumulated holder rewards";
   return <div className={`reward-card-focus card-reward-strip ${mode === "buyback_burn" ? "mode-buyback" : mode === "jackpot" ? "mode-jackpot" : ""}`}>
-    <div className="card-reward-heading">{mode === "holder_rewards" ? <Gift className="aqua-reward-mode-icon" strokeWidth={1.7} aria-hidden="true"/> : <RewardModeIcon mode={mode}/>}<div><span>{mode === "buyback_burn" ? "Buyback & burn" : mode === "jackpot" ? "Hourly jackpot" : "Holder rewards"}</span><strong title={title}>{title}</strong></div></div>
+    <div className="card-reward-heading">{mode === "holder_rewards" ? <Gift className="aqua-reward-mode-icon" strokeWidth={1.7} aria-hidden="true"/> : <RewardModeIcon mode={mode}/>}<div><span>{mode === "buyback_burn" ? "Buyback & burn" : mode === "jackpot" ? "Hourly jackpot" : mode === "fee_redirect" ? "Fee Redirect · 50/50" : "Holder rewards"}</span><strong title={title}>{title}</strong></div></div>
     <div className="card-reward-total" aria-label={`${valueLabel}: ${value}${unit ? ` ${unit}` : ""}`}><b>{value}</b>{unit && <span>{` ${unit}`}</span>}</div>
   </div>;
 }

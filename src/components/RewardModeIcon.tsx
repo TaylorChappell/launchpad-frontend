@@ -1,4 +1,4 @@
-export type AquaRewardMode = "holder_rewards" | "buyback_burn" | "jackpot";
+export type AquaRewardMode = "holder_rewards" | "buyback_burn" | "jackpot" | "fee_redirect";
 
 export function RewardModeIcon({ mode, className = "" }: { mode: AquaRewardMode; className?: string }) {
   const common = {
@@ -9,6 +9,7 @@ export function RewardModeIcon({ mode, className = "" }: { mode: AquaRewardMode;
     "aria-hidden": true,
   } as const;
 
+  if (mode === "fee_redirect") return <svg {...common}><path className="mode-icon-wash" d="M24 4c-4 6-8 10-8 15a8 8 0 0 0 16 0c0-5-4-9-8-15Z"/><path className="mode-icon-line" d="M24 4c-4 6-8 10-8 15a8 8 0 0 0 16 0c0-5-4-9-8-15ZM24 27v4M24 31H11v10M24 31h13v10M7 37l4 4 4-4M33 37l4 4 4-4"/></svg>;
   if (mode === "buyback_burn") {
     return <svg {...common}>
       <path className="mode-icon-wash" d="M24 5.5c-4.2 6.1-9.2 11.6-9.2 18.2A9.2 9.2 0 0 0 24 33a9.2 9.2 0 0 0 9.2-9.3C33.2 17.1 28.2 11.6 24 5.5Z"/>
