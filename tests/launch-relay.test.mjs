@@ -97,3 +97,32 @@ test('failed on-chain execution does not request dependent approvals',async()=>{
   const f=await sequentialFixture();f.input.api.submitLaunchBatch=async()=>({status:'needs_approval',approvalReady:false,error:'Transaction failed'});
   await assert.rejects(f.runSequentialLaunch(f.input),/Transaction failed/);assert.deepEqual(f.events,['simulate:pool','sign:pool']);
 });
+
+test('batch-capable wallets approve all remaining launch steps once',async()=>{
+  const f=await sequentialFixture();let approvals=0;let submissions=0;
+  f.input.batchSigning=true;
+  f.input.api.prepareLaunchBatch=async(_id,_creator,batch)=>{assert.deepEqual(batch,f.input.batch);f.events.push('prepare-batch');return {ready:true};};
+  f.input.sign=async batch=>{approvals++;assert.equal(batch.length,4);return batch.map(item=>({...item,signedTransactionBase64:'signed:'+item.step}));};
+  f.input.api.submitLaunchBatch=async(_id,batch)=>{submissions++;assert.equal(batch.length,4);return {status:'complete'};};
+  assert.equal((await f.runSequentialLaunch(f.input)).status,'complete');
+  assert.equal(approvals,1);assert.equal(submissions,1);assert.deepEqual(f.events,['prepare-batch']);
+});
+test('a rejected batch preflight or cancelled batch never submits any transaction',async()=>{
+  for(const cancel of [false,true]){
+    const f=await sequentialFixture();let approvals=0;
+    f.input.batchSigning=true;
+    f.input.api.prepareLaunchBatch=async()=>{if(!cancel)throw Error('Batch expired');return {ready:true};};
+    f.input.sign=async()=>{approvals++;throw Error('User declined');};
+    f.input.api.submitLaunchBatch=async()=>assert.fail('No transaction may be submitted');
+    await assert.rejects(f.runSequentialLaunch(f.input),cancel?/User declined/:/Batch expired/);
+    assert.equal(approvals,cancel?1:0);
+  }
+});
+test('batch execution failure stops without silently reopening the wallet',async()=>{
+  const f=await sequentialFixture();let approvals=0;
+  f.input.batchSigning=true;f.input.api.prepareLaunchBatch=async()=>({ready:true});
+  f.input.sign=async batch=>{approvals++;return batch.map(item=>({...item,signedTransactionBase64:'signed:'+item.step}));};
+  f.input.api.submitLaunchBatch=async()=>({status:'needs_approval',approvalReady:false,error:'Transaction failed'});
+  await assert.rejects(f.runSequentialLaunch(f.input),/Transaction failed/);
+  assert.equal(approvals,1);assert.deepEqual(f.events,[]);
+});

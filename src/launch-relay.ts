@@ -58,16 +58,18 @@ export async function watchLaunchSubmission(api: RelayApi, id: string, signal: A
 }
 
 
-/** Request each approval only after the prior receipt is confirmed. Never split
- * the liquidity instruction from its atomic opening buy. */
+/** Approve the remaining batch once where supported. The backend still submits
+ * it in order, validating each transaction after its prerequisites confirm. */
 export async function runSequentialLaunch(input: {
   api: RelayApi & {
     prepareLaunchApproval(id:string,creator:string,envelope:LaunchBatchEnvelope,signal?:AbortSignal):Promise<{ready:boolean}>;
+    prepareLaunchBatch?(id:string,creator:string,envelopes:LaunchBatchEnvelope[],signal?:AbortSignal):Promise<{ready:boolean}>;
     retryLaunchTransaction(id:string,creator:string):Promise<LaunchRetryResponse>;
   };
   id:string;creator:string;batch:LaunchBatchEnvelope[];signal:AbortSignal;
+  batchSigning?:boolean;
   sign(batch:LaunchBatchEnvelope[]):Promise<SignedTransactionEnvelope[]>;
-  onApproval(step:LaunchBatchEnvelope["step"]):void;
+  onApproval(step:LaunchBatchEnvelope["step"], transactionCount:number):void;
   onState(state:LaunchRelayStatus):void;
   reconnecting():void;
 }) {
@@ -76,11 +78,15 @@ export async function runSequentialLaunch(input: {
     input.signal.throwIfAborted();
     const next=batch[0];
     if (!next) throw new Error("The next launch transaction is unavailable.");
-    const prepared=await input.api.prepareLaunchApproval(input.id,input.creator,next,input.signal);
+    const grouped=Boolean(input.batchSigning && input.api.prepareLaunchBatch && batch.length>1);
+    const approvalBatch=grouped?batch:[next];
+    const prepared=grouped
+      ? await input.api.prepareLaunchBatch!(input.id,input.creator,approvalBatch,input.signal)
+      : await input.api.prepareLaunchApproval(input.id,input.creator,next,input.signal);
     input.signal.throwIfAborted();
     if (!prepared.ready) throw new Error("The next launch step is not ready for approval.");
-    input.onApproval(next.step);
-    const signed=await input.sign([next]);
+    input.onApproval(next.step,approvalBatch.length);
+    const signed=await input.sign(approvalBatch);
     input.signal.throwIfAborted();
     const accepted=await handoffLaunchBatch(input.api,input.id,signed,input.signal,input.reconnecting);
     input.onState(accepted);

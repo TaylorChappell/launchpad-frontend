@@ -95,6 +95,7 @@ type WalletValue = {
   sendTransaction: (envelope: TransactionEnvelope, onSubmitted?: (signature:string) => void) => Promise<string>;
   signTransaction: (envelope: TransactionEnvelope) => Promise<{ signedTransactionBase64: string }>;
   signTransactionBatch: (envelopes: LaunchBatchEnvelope[]) => Promise<SignedTransactionEnvelope[]>;
+  canBatchSign: boolean;
   submitSignedTransaction: (envelope: SignedTransactionEnvelope) => Promise<string>;
 };
 const WalletContext = createContext<WalletValue | null>(null);
@@ -431,7 +432,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [config.publicRpcUrl]);
 
-  const value = useMemo(() => ({ address, kind, connecting, modalOpen, setModalOpen, phantomInstalled, solflareInstalled, jupiterInstalled, connect, disconnect, signMessage, sendTransaction, signTransaction, signTransactionBatch, submitSignedTransaction }), [address, kind, connecting, modalOpen, phantomInstalled, solflareInstalled, jupiterInstalled, connect, disconnect, signMessage, sendTransaction, signTransaction, signTransactionBatch, submitSignedTransaction]);
+  const canBatchSign = Boolean(adapter.current && ("provider" in adapter.current
+    ? adapter.current.provider.signAllTransactions
+    : adapter.current.value.wallet.features["solana:signTransaction"]));
+  const value = useMemo(() => ({ address, kind, connecting, modalOpen, setModalOpen, phantomInstalled, solflareInstalled, jupiterInstalled, connect, disconnect, signMessage, sendTransaction, signTransaction, signTransactionBatch, canBatchSign, submitSignedTransaction }), [address, kind, connecting, modalOpen, phantomInstalled, solflareInstalled, jupiterInstalled, connect, disconnect, signMessage, sendTransaction, signTransaction, signTransactionBatch, canBatchSign, submitSignedTransaction]);
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 }
 

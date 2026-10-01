@@ -2,13 +2,13 @@ import { launchBudgetFixture, mockLaunchSafety } from "./fixtures/launch-safety"
 import { test, expect } from "@playwright/test";
 import { Keypair, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 
-test("launch approvals wait for confirmed prerequisites and keep activation with the buy", async ({ page }) => {
+for (const scenario of [{ pair: "SOL", buy: "1" }, { pair: "ORCA", buy: "1" }, { pair: "SOL", buy: "" }]) test(`two wallet requests launch ${scenario.pair} with ${scenario.buy || "no"} dev buy`, async ({ page }) => {
   const address = Keypair.generate().publicKey.toBase58();
   const payer = new (await import("@solana/web3.js")).PublicKey(address);
   const envelope = (amount: number) => ({ transactionVersion: 0, lastValidBlockHeight: 100,
     transactionBase64: Buffer.from(new VersionedTransaction(new TransactionMessage({ payerKey: payer, recentBlockhash: address,
       instructions: [SystemProgram.transfer({ fromPubkey: payer, toPubkey: payer, lamports: amount })] }).compileToV0Message()).serialize()).toString("base64") });
-  const batch = ["pool","prepare","liquidity"].map((step,index) => ({ step, ...envelope(index + 2) }));
+  const batch = ["pool","prepare",...(scenario.pair === "ORCA" ? ["funding"] : []),"liquidity"].map((step,index) => ({ step, ...envelope(index + 2) }));
   await page.addInitScript(address => {
     localStorage.setItem("aqua:update:holder-workspace-v2", "seen");
     localStorage.setItem("aqua:wallet", "phantom");
@@ -24,33 +24,33 @@ test("launch approvals wait for confirmed prerequisites and keep activation with
   await page.route("**/api/config", r => r.fulfill({ json: { brand: "AQUA", network: "mainnet-beta", useTestnet: false, transactionsEnabled: true,
     marketGovernanceEnabled: false, publicRpcUrl: "https://rpc.invalid", whirlpools: {}, fees: { transferFeeBps: 200, platformBps: 100, stockRewardsBps: 100 },
     creatorLocks: { minimumSeconds: 86400, maximumSeconds: 31536000, maximumFeeShareBps: 5000 }, sniperDefense: { supported: false } } }));
-  await page.route("**/api/stocks?**", r => r.fulfill({ json: { refreshing: false, stocks: [{ symbol: "SOL", underlyingSymbol: "SOL", name: "Solana",
-    mint: "So11111111111111111111111111111111111111112", verifiedAt: 1, restricted: false, orcaTvlUsd: 100000, orcaVolume24hUsd: 10000 }] } }));
+  await page.route("**/api/stocks?**", r => r.fulfill({ json: { refreshing: false, stocks: [{ symbol: scenario.pair, underlyingSymbol: scenario.pair, name: scenario.pair,
+    mint: scenario.pair === "SOL" ? "So11111111111111111111111111111111111111112" : "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE", verifiedAt: 1, restricted: false, orcaTvlUsd: 100000, orcaVolume24hUsd: 10000 }] } }));
   let walletLoaded = false;
   await page.route("**/api/launches?**", r => { if (r.request().url().includes(address)) walletLoaded = true; return r.fulfill({ json: { launches: [], hasMore: false } }); });
   await page.route("**/api/governance", r => r.fulfill({ json: { enabled: false } }));
   await page.route("**/api/uploads", r => r.fulfill({ json: { imageId: "artwork" } }));
   await page.route("**/api/launches", r => {
-    expect(r.request().postDataJSON().devBuyAmountRaw).toBe("1000000000");
+    expect(r.request().postDataJSON().devBuyAmountRaw).toBe(scenario.buy ? "1000000000" : "0");
     return r.fulfill({ json: { ...envelope(1), launchId: "test-launch", mint: address, step: "mint" } });
   });
   await page.route("https://rpc.invalid/**", r => {
     const request = r.request().postDataJSON();
     return r.fulfill({ json: { jsonrpc: "2.0", id: request.id, result: { context: { slot: 1 }, value: [{ slot: 1, confirmations: 1, err: null, confirmationStatus: "confirmed" }] } } });
   });
-  await page.route("**/api/launches/test-launch/confirm", r => r.fulfill({ json: { launchId: "test-launch", nextStep: "pool", batch, devBuyIncluded: true } }));
+  await page.route("**/api/launches/test-launch/confirm", r => r.fulfill({ json: { launchId: "test-launch", nextStep: "pool", batch, devBuyIncluded: Boolean(scenario.buy) } }));
   let submissions = 0; let lateBuys = 0;let simulations=0;
-  await page.route("**/api/launches/test-launch/prepare-approval",r=>{
-    expect(r.request().postDataJSON().step).toBe(batch[submissions].step);simulations++;
+  await page.route("**/api/launches/test-launch/prepare-batch",r=>{
+    expect(r.request().postDataJSON().transactions.map((tx: {step:string})=>tx.step)).toEqual(batch.map(tx=>tx.step));simulations++;
     return r.fulfill({json:{ready:true}});
   });
   await page.route("**/api/launches/test-launch/retry-transaction",r=>r.fulfill({json:{launchId:"test-launch",batch:batch.slice(submissions),devBuyIncluded:true}}));
   await page.route("**/api/launches/test-launch/submit-batch", async r => {
     submissions++;
     expect(simulations).toBe(submissions);
-    expect(r.request().postDataJSON().sequential).toBe(true);
-    expect(r.request().postDataJSON().transactions.map((tx: {step:string}) => tx.step)).toEqual([batch[submissions-1].step]);
-    return r.fulfill({ json: { launchId: "test-launch", status: submissions===3?"complete":"needs_approval",approvalReady:submissions<3, mint: address, symbol: "TEST", rewardMode: "holder_rewards", devBuyIncluded: true, devBuySignature: "activation-signature" } });
+    expect(r.request().postDataJSON().sequential).toBe(false);
+    expect(r.request().postDataJSON().transactions.map((tx: {step:string}) => tx.step)).toEqual(batch.map(tx=>tx.step));
+    return r.fulfill({ json: { launchId: "test-launch", status: "complete",approvalReady:false, mint: address, symbol: "TEST", rewardMode: "holder_rewards", devBuyIncluded: Boolean(scenario.buy), devBuySignature: "activation-signature" } });
   });
   await page.route("**/api/launches/test-launch/dev-buy-**", r => { lateBuys++; return r.fulfill({ status: 500, json: { error: "Buy already included" } }); });
   await mockLaunchSafety(page);
@@ -70,7 +70,7 @@ test("launch approvals wait for confirmed prerequisites and keep activation with
   await expect(page.getByRole("heading", { name: "Coin settings", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Review & launch" })).toBeVisible();
-  await page.getByLabel("Optional first buy in SOL").fill("1");
+  await page.getByLabel("Optional first buy in SOL").fill(scenario.buy);
   await page.getByRole("checkbox").check();
   await expect(page.getByText("More SOL needed",{exact:true})).toBeVisible();
   await expect(page.getByRole("button", { name: "Launch", exact: true })).toBeDisabled();
@@ -78,6 +78,6 @@ test("launch approvals wait for confirmed prerequisites and keep activation with
   await page.getByRole("button", { name: "Refresh balance", exact: true }).click();
   await page.getByRole("button", { name: "Launch", exact: true }).click();
   await expect(page.getByRole("heading", { name: "$TEST launched", exact: true })).toBeVisible();
-  expect(submissions).toBe(3); expect(lateBuys).toBe(0);
-  expect(await page.evaluate(() => (window as unknown as { launchTestWallet: unknown }).launchTestWallet)).toEqual({ sends: 1, approvals: 3, batches: [] });
+  expect(submissions).toBe(1); expect(lateBuys).toBe(0);
+  expect(await page.evaluate(() => (window as unknown as { launchTestWallet: unknown }).launchTestWallet)).toEqual({ sends: 1, approvals: 0, batches: [batch.length] });
 });

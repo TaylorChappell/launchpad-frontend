@@ -466,7 +466,7 @@ export function Create() {
 
   function relayState(state: LaunchRelayStatus) {
     if (state.step) { setPending({ launchId: state.launchId, stage: state.step }); setStage(state.step, "active"); }
-    setRelayMessage(state.approvalReady ? "Ready for your next wallet approval." : "Confirming your approved step. Keep this page open for the next approval.");
+    setRelayMessage(state.approvalReady ? "Ready for your next wallet approval." : "Completing your approved launch transactions. Progress is saved if you leave this page.");
   }
 
   async function observeRelay(id: string, controller: AbortController) {
@@ -512,12 +512,13 @@ export function Create() {
       setStage(activeStage, "active");
       try { localStorage.setItem(relayStorageKey, id); } catch { /* Storage may be unavailable. */ }
       const complete = await runSequentialLaunch({ api,id,creator:wallet.address!,batch,signal:controller.signal,
-        sign:wallet.signTransactionBatch,
-        onApproval:step=>{
+        sign:wallet.signTransactionBatch,batchSigning:wallet.canBatchSign,
+        onApproval:(step,transactionCount)=>{
           if (activeStage !== step) setStage(activeStage, "done");
           activeStage=step;setPending({launchId:id,stage:step});setStage(step,"active");
-          setRelayMessage("Review the next step in your wallet.");
-          showLaunchStatus(step==="liquidity" ? "Approve liquidity and launch" : step==="lock" ? "Approve permanent lock" : "Approve launch setup", "Each step confirms before the next approval. Keep this page open to finish.");
+          setRelayMessage(transactionCount>1 ? "Approve the remaining launch transactions together in your wallet." : "Review the next step in your wallet.");
+          showLaunchStatus(transactionCount>1 ? "Approve and finish launch" : step==="liquidity" ? "Approve liquidity and launch" : step==="lock" ? "Approve permanent lock" : "Approve launch setup",
+            transactionCount>1 ? "One batch approval covers the remaining setup and launch. AQUA confirms the transactions in order." : "Review the request in your wallet to continue.");
         },onState:relayState,reconnecting:()=>setRelayMessage("Reconnecting to AQUA. Your approved step is saved; do not resubmit it.")});
       controller.signal.throwIfAborted();
       setStage(activeStage, "done");
@@ -844,6 +845,7 @@ export function Create() {
             <button type="button" onClick={() => setBudgetVersion(value=>value+1)}>Refresh balance</button>
           </div>}
           <p className="field-help">Liquidity, your optional first buy and permanent locking finish together. If the final transaction fails, the buy is reversed. Earlier setup and network fees still apply.</p>
+          {wallet.canBatchSign && <p className="field-help">Normally two wallet approvals: create your token, then approve the remaining launch together. Your wallet may show a review for each transaction.</p>}
           <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} · {form.rewardMode === "holder_rewards" ? "Holder Rewards" : form.rewardMode === "buyback_burn" ? "Buyback & Burn" : "Hourly Jackpot"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
           <div className="launch-settings-review"><span>Rewards fee <b>{form.rewardFeeBps/100}%</b></span><span>Ripple share <b>{form.rippleRewardBps/100}%</b></span><button type="button" onClick={() => setStep(settingsStep)}>Edit settings</button></div>
           <p className="field-help">Fees and Ripple share are fixed at launch. Review them before continuing.</p><label className="terms-acceptance"><input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)}/><span>I have read and agree to the <Link to="/terms" target="_blank">Terms of Service</Link>, including the cryptoasset, permanent-liquidity and third-party risks.</span></label>
