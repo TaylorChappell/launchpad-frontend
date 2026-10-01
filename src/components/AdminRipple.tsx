@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ExternalLink, RefreshCw } from "lucide-react";
 import { api } from "../api";
-import type { AdminRippleResponse } from "../types";
+import type { AdminRippleResponse, AdminRippleSort } from "../types";
 import { rippleDollars } from "../ripple-display";
 import { WalletIdentity } from "./WalletIdentity";
 import { Select } from "./Select";
@@ -13,14 +13,16 @@ import { rippleStatusLabels } from "../ripple-admin";
 
 const count = (value?:number) => value == null ? "—" : new Intl.NumberFormat("en",{notation:"compact",maximumFractionDigits:1}).format(value);
 export function AdminRipple({token,search,refreshKey}:{token:string;search:string;refreshKey:number}) {
+  const [sort,setSort]=useState<AdminRippleSort>("highest");
   // Search changes remount the report, resetting pagination and stale rows together.
-  return <RippleReport key={`${token}:${search}`} token={token} search={search} refreshKey={refreshKey}/>;
+  return <RippleReport key={`${token}:${search}`} token={token} search={search} refreshKey={refreshKey} sort={sort} setSort={setSort}/>;
 }
-function RippleReport({token,search,refreshKey}:{token:string;search:string;refreshKey:number}) {
+type SortProps = {sort:AdminRippleSort;setSort:(value:AdminRippleSort)=>void};
+function RippleReport({token,search,refreshKey,sort,setSort}:{token:string;search:string;refreshKey:number}&SortProps) {
   const [status,setStatus]=useState("all");
-  return <FilteredReport key={status} token={token} search={search} refreshKey={refreshKey} status={status} setStatus={setStatus}/>;
+  return <FilteredReport key={`${status}:${sort}`} token={token} search={search} refreshKey={refreshKey} status={status} setStatus={setStatus} sort={sort} setSort={setSort}/>;
 }
-function FilteredReport({token,search,refreshKey,status,setStatus}:{token:string;search:string;refreshKey:number;status:string;setStatus:(value:string)=>void}) {
+function FilteredReport({token,search,refreshKey,status,setStatus,sort,setSort}:{token:string;search:string;refreshKey:number;status:string;setStatus:(value:string)=>void}&SortProps) {
   const [data,setData]=useState<AdminRippleResponse|null>(null),[offset,setOffset]=useState(0);
   const [selected,setSelected]=useState<{launchId:string;postId:string}|null>(null);
   const [busy,setBusy]=useState(true),[error,setError]=useState(""),[revision,setRevision]=useState(0);
@@ -28,13 +30,13 @@ function FilteredReport({token,search,refreshKey,status,setStatus}:{token:string
     const controller=new AbortController();let timer:ReturnType<typeof setTimeout>;
     async function load(){
       setBusy(true);
-      try{const next=await api.adminRipple(token,search,offset,controller.signal,status);if(!controller.signal.aborted){setData(next);setError("");}}
+      try{const next=await api.adminRipple(token,search,offset,controller.signal,status,sort);if(!controller.signal.aborted){setData(next);setError("");}}
       catch(e){if(!controller.signal.aborted)setError(e instanceof Error?e.message:"Ripple records could not load.");}
       finally{if(!controller.signal.aborted){setBusy(false);timer=setTimeout(()=>void load(),30_000);}}
     }
     const start=setTimeout(()=>void load(),search?250:0);
     return()=>{controller.abort();clearTimeout(start);clearTimeout(timer);};
-  },[token,search,offset,revision,refreshKey,status]);
+  },[token,search,offset,revision,refreshKey,status,sort]);
   const service=data?.service,budget=service?.budget,usage=budget?.requestCounts??{};
   return <div className="ops-ripple">
     <div className="ops-metrics ops-ripple-totals">
@@ -42,7 +44,7 @@ function FilteredReport({token,search,refreshKey,status,setStatus}:{token:string
       <article className="ops-metric"><span>Total earned</span><strong>{rippleDollars(data?.earnedUsdCents)}</strong><small>USD value at allocation</small></article>
       <article className="ops-metric"><span>Claimed</span><strong>{rippleDollars(data?.claimedUsdCents)}</strong><small>Confirmed reward claims</small></article>
     </div>
-    <div className="ops-ripple-controls"><label>Status<Select aria-label="Ripple status" value={status} onChange={e=>setStatus(e.target.value)}>{['all','tracking','awaiting_funding','awaiting_settlement','claimable','claimed','expired','excluded','audit'].map(value=><option key={value} value={value}>{rippleStatusLabels[value]}</option>)}</Select></label><span>{data?.pendingChecks??0} pending checks</span><button onClick={()=>setStatus('audit')}>{data?.auditChecks??0} historical $0 checks to review</button></div>
+    <div className="ops-ripple-controls"><label>Status<Select aria-label="Ripple status" value={status} onChange={e=>setStatus(e.target.value)}>{['all','tracking','awaiting_funding','awaiting_settlement','claimable','claimed','expired','excluded','audit'].map(value=><option key={value} value={value}>{rippleStatusLabels[value]}</option>)}</Select></label><label>Sort<Select aria-label="Sort Ripple posts" value={sort} onChange={e=>setSort(e.target.value as AdminRippleSort)}><option value="highest">Highest earnings</option><option value="recent">Recent</option></Select></label><span>{data?.pendingChecks??0} pending checks</span><button onClick={()=>setStatus('audit')}>{data?.auditChecks??0} historical $0 checks to review</button></div>
     {data?.overview&&<AdminRippleFunding data={data.overview}/>}
     {service&&<section className="ops-panel ops-ripple-health" aria-label="Ripple detection health">
       <header><h2>Detection</h2><span className={`ops-status is-${service.mode==='live'?'tracking':service.mode==='paused'?'excluded':'completed'}`}>{service.mode==='live'?'Live':service.mode==='polling'?'Scheduled':service.mode==='paused'?'Paused':service.mode==='idle'?'Idle':'Unavailable'}</span></header>
@@ -53,7 +55,7 @@ function FilteredReport({token,search,refreshKey,status,setStatus}:{token:string
       {!!service.providerBackoffs?.length&&<ul>{service.providerBackoffs.map(item=><li key={item.scope}>{item.message} Retry {new Date(item.retryAt).toLocaleTimeString()}.</li>)}</ul>}
     </section>}
     <section className="ops-panel" aria-label="Ripple posts">
-      <header className="ops-ripple-heading"><div><h2>All Ripple posts</h2><p>Highest earnings first · refreshes automatically</p></div><RefreshButton disabled={busy} onClick={()=>setRevision(n=>n+1)}><RefreshCw size={15} className={busy?"spin":""}/>Refresh posts</RefreshButton></header>
+      <header className="ops-ripple-heading"><div><h2>All Ripple posts</h2><p>{sort==="recent"?"Newest posts first":"Highest earnings first"} · refreshes automatically</p></div><RefreshButton disabled={busy} onClick={()=>setRevision(n=>n+1)}><RefreshCw size={15} className={busy?"spin":""}/>Refresh posts</RefreshButton></header>
       {error&&<div className="ops-error" role="alert">{error} <button onClick={()=>setRevision(n=>n+1)}>Try again</button></div>}
       {!!data?.unpricedPosts&&<p className="ops-ripple-note">{data.unpricedPosts} post(s) have incomplete historical dollar values and are excluded from dollar totals.</p>}
       {!data? <div className="ops-empty">{error?"Posts unavailable.":"Loading Ripple posts…"}</div> : <>

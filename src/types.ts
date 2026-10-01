@@ -682,6 +682,7 @@ export type WalletNotification = {
   claimed?: boolean; amountRaw?: string; rewardDecimals?: number; rewardSymbol?: string;
 };
 
+export type AdminRippleSort = "highest" | "recent";
 export type AdminRippleResponse = {
   service?:RippleServiceStatus;
   overview?:AdminRippleOverview;pendingChecks?:number;auditChecks?:number;
