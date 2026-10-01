@@ -5,11 +5,11 @@ import {cardAmount,cardRawAmount,cardTrend} from '../src/market-card.ts';
 test('card amounts distinguish zero, unavailable and tiny rewards across asset decimals',()=>{
   assert.equal(cardAmount(1800000,true),'$1.8M');
   assert.equal(cardAmount(0,true),'$0');
-  for(const value of [undefined,null,NaN,Infinity,-1])assert.equal(cardAmount(value,true),'—');
+  for(const value of [undefined,null,NaN,Infinity,-1])assert.equal(cardAmount(value,true),'-');
   assert.equal(cardRawAmount('1',9),'<0.01');
   assert.equal(cardRawAmount('12000000',9),'0.01');
   assert.equal(cardRawAmount('1500000',6),'1.5');
-  for(const [raw,decimals] of [['bad',9],['-1',9],['1',-1],['1',2.5],['1',255],[undefined,9]])assert.equal(cardRawAmount(raw,decimals),'—');
+  for(const [raw,decimals] of [['bad',9],['-1',9],['1',-1],['1',2.5],['1',255],[undefined,9]])assert.equal(cardRawAmount(raw,decimals),'-');
 });
 
 test('mini-chart uses ordered real observations and handles flat, sparse and invalid data',()=>{

@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 export function Promotions(){
   return <main className="page holder-workspace promotions-page">
-    <header className="workspace-heading"><div><h1>Promotions</h1></div><img src={import.meta.env.BASE_URL+"aqua-gift.webp"} alt="Blue gift box"/></header>
+    <header className="workspace-heading"><div><h1>Promotions</h1></div></header>
     <div className="promotion-grid">
       <article className="promotion-card"><small className="workspace-eyebrow">COMMUNITY BOOST</small><h2>Your coin. <strong>The next wave.</strong></h2><p>AQUA holders choose the next boosted market. Follow the live leaderboard and back your community in the daily vote.</p><footer><Link className="primary" to="/boost">See the race <ArrowRight size={16}/></Link></footer></article>
       <article className="promotion-card"><small className="workspace-eyebrow">COMMUNITY LAUNCH PROGRAM</small><h2><strong>$2,500</strong> in launch rewards</h2><p>Launch on AQUA and build your community. Our launch rewards program supports community and builder milestones.</p><a className="promotion-details" href="https://x.com/Aqua_Launchpad/status/2100283826693922893" target="_blank" rel="noreferrer">See milestones and program details <ArrowUpRight size={16}/></a><footer><Link className="primary" to="/create">Launch your token <ArrowRight size={16}/></Link></footer></article>

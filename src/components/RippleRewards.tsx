@@ -121,4 +121,4 @@ function RippleBalances({ address, data, error, onRefresh }: RippleProps) {
   </>;
 }
 
-const engagementCount = (value?: number) => value == null ? "—" : new Intl.NumberFormat(undefined, { notation:"compact", maximumFractionDigits:1 }).format(value);
+const engagementCount = (value?: number) => value == null ? "-" : new Intl.NumberFormat(undefined, { notation:"compact", maximumFractionDigits:1 }).format(value);

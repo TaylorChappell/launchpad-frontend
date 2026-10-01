@@ -3,14 +3,14 @@ import type { MarketSnapshot } from "./types";
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
 export function cardAmount(value: number | null | undefined, currency = false): string {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return "—";
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return "-";
   const prefix = currency ? "$" : "";
   if (value > 0 && value < .01) return `<${prefix}0.01`;
   return prefix + (value < 1 ? value.toLocaleString("en-US", { maximumFractionDigits: 2 }) : compact.format(value));
 }
 
 export function cardRawAmount(raw: string | undefined, decimals: number): string {
-  if (!raw || !/^\d+$/.test(raw) || !Number.isInteger(decimals) || decimals < 0 || decimals > 18) return "—";
+  if (!raw || !/^\d+$/.test(raw) || !Number.isInteger(decimals) || decimals < 0 || decimals > 18) return "-";
   return cardAmount(Number(raw) / 10 ** decimals);
 }
 

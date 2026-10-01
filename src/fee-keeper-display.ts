@@ -1,5 +1,5 @@
 export function keeperAmount(value: string | null | undefined, decimals = 9, places = 6): string {
-  if (value == null || !/^\d+$/.test(value) || !Number.isInteger(decimals) || decimals < 0 || decimals > 18) return "—";
+  if (value == null || !/^\d+$/.test(value) || !Number.isInteger(decimals) || decimals < 0 || decimals > 18) return "-";
   const raw = BigInt(value), scale = 10n ** BigInt(decimals);
   const precision = Math.min(decimals, Math.max(0, places));
   const fraction = (raw % scale).toString().padStart(decimals, "0").slice(0, precision).replace(/0+$/, "");
@@ -8,7 +8,7 @@ export function keeperAmount(value: string | null | undefined, decimals = 9, pla
 }
 
 export function keeperUsd(value: number | null | undefined): string {
-  return value == null || !Number.isFinite(value) ? "—" : value.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+  return value == null || !Number.isFinite(value) ? "-" : value.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 }
 
 export type KeeperRange = "1h" | "24h" | "7d" | "max";

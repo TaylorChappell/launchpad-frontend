@@ -11,7 +11,7 @@ import { AdminRippleDetails } from "./AdminRippleDetails";
 import { AdminRippleFunding } from "./AdminRippleFunding";
 import { rippleStatusLabels } from "../ripple-admin";
 
-const count = (value?:number) => value == null ? "—" : new Intl.NumberFormat("en",{notation:"compact",maximumFractionDigits:1}).format(value);
+const count = (value?:number) => value == null ? "-" : new Intl.NumberFormat("en",{notation:"compact",maximumFractionDigits:1}).format(value);
 export function AdminRipple({token,search,refreshKey}:{token:string;search:string;refreshKey:number}) {
   const [sort,setSort]=useState<AdminRippleSort>("highest");
   // Search changes remount the report, resetting pagination and stale rows together.
@@ -40,7 +40,7 @@ function FilteredReport({token,search,refreshKey,status,setStatus,sort,setSort}:
   const service=data?.service,budget=service?.budget,usage=budget?.requestCounts??{};
   return <div className="ops-ripple">
     <div className="ops-metrics ops-ripple-totals">
-      <article className="ops-metric"><span>Tracked posts</span><strong>{data?.totalPosts.toLocaleString()??"—"}</strong><small>{search?"Matching your search":"Across all AQUA coins"}</small></article>
+      <article className="ops-metric"><span>Tracked posts</span><strong>{data?.totalPosts.toLocaleString()??"-"}</strong><small>{search?"Matching your search":"Across all AQUA coins"}</small></article>
       <article className="ops-metric"><span>Total earned</span><strong>{rippleDollars(data?.earnedUsdCents)}</strong><small>USD value at allocation</small></article>
       <article className="ops-metric"><span>Claimed</span><strong>{rippleDollars(data?.claimedUsdCents)}</strong><small>Confirmed reward claims</small></article>
     </div>

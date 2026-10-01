@@ -35,7 +35,7 @@ export function CommunityBoost(){
   <section className="cb-hero">
    <div className="cb-water" aria-hidden="true"><i/><i/><i/></div>
    <div className="cb-hero-copy"><h1>Community<br/><em>Boost.</em></h1><p>Your community. The next wave.<br/>Back a coin to receive {enabled?enabled.bonusBps/100:10}% of AQUA treasury fees for 24 hours.</p></div>
-   <div className="cb-hero-display"><div className="cb-orbit" aria-hidden="true"><div><Zap/></div></div><div className="cb-countdown"><strong aria-label="Round countdown">{enabled?countdown(open?enabled.round.endsAt:enabled.round.startsAt,now):'— : — : —'}</strong><small>A new winner at 00:00 UTC</small></div></div>
+   <div className="cb-hero-display"><div className="cb-orbit" aria-hidden="true"><div><Zap/></div></div><div className="cb-countdown"><strong aria-label="Round countdown">{enabled?countdown(open?enabled.round.endsAt:enabled.round.startsAt,now):'- : - : -'}</strong><small>A new winner at 00:00 UTC</small></div></div>
   </section>
   {error&&<div className="cb-alert" role="alert"><span><b>Leaderboard connection interrupted.</b> {data?'Showing the last update. Voting is paused until refreshed.':error}</span><RefreshButton onClick={refresh} disabled={Boolean(busy)}><RefreshCw/> Retry</RefreshButton></div>}
   {data&&!data.enabled&&<section className="cb-unavailable"><h2>Voting is currently unavailable</h2><p>{data.reason}</p><button onClick={refresh}>Check again</button></section>}

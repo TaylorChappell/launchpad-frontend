@@ -64,7 +64,7 @@ function CreatorClaim({ launch, onClaimed, compact }: { launch: Launch; onClaime
     {busy ? "Requesting…" : processing ? "Claiming…" : "Claim"}
   </button>;
   if (compact) return <section className="creator-earnings creator-earnings-compact" aria-label="Creator earnings">
-    <div className="creator-earnings-main"><div className="creator-earnings-balance"><span className="creator-eyebrow">Available SOL</span><h3>{summary ? displayTokenAmount(balance.toString(), 9) : "—"} <span>SOL</span></h3></div><div className="creator-earnings-action">{claimButton}</div></div>
+    <div className="creator-earnings-main"><div className="creator-earnings-balance"><span className="creator-eyebrow">Available SOL</span><h3>{summary ? displayTokenAmount(balance.toString(), 9) : "-"} <span>SOL</span></h3></div><div className="creator-earnings-action">{claimButton}</div></div>
     {error && <p className="creator-earnings-error" role="alert">{error}</p>}
     {readError && <p className="creator-earnings-error" role="status">Balance unavailable. Retrying…</p>}
     {summary && !summary.claimsEnabled && <p className="creator-earnings-error" role="status">SOL payouts are temporarily unavailable.</p>}
@@ -73,7 +73,7 @@ function CreatorClaim({ launch, onClaimed, compact }: { launch: Launch; onClaime
     <div className="creator-earnings-main">
       <div className="creator-earnings-balance">
         <span className="creator-eyebrow">Available SOL</span>
-        <h3>{summary ? displayTokenAmount(balance.toString(), 9) : "—"} <span>SOL</span></h3>
+        <h3>{summary ? displayTokenAmount(balance.toString(), 9) : "-"} <span>SOL</span></h3>
         <p>Balances over $50 are paid automatically.</p>
       </div>
       <div className="creator-earnings-action">

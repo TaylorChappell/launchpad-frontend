@@ -96,7 +96,7 @@ export function withLiveCandle(history: CandleHistory, point?: { sampledAt: numb
 }
 
 export function candlePrice(value: number, currency = "USD"): string {
-  if (!Number.isFinite(value)) return "—";
+  if (!Number.isFinite(value)) return "-";
   if(currency!=="USD"){
     const amount=Math.abs(value)>=1000?new Intl.NumberFormat("en",{notation:"compact",maximumFractionDigits:2}).format(value)
       :value!==0&&Math.abs(value)<.000001?value.toExponential(2):new Intl.NumberFormat("en",{maximumSignificantDigits:5}).format(value);

@@ -172,7 +172,7 @@ test("claim all confirms coins sequentially and stops safely at an unconfirmed r
   });
   await page.goto("/#/portfolio?tab=rewards");
   await expect(page.locator(".portfolio-value > strong")).toHaveCSS("color","rgb(255, 255, 255)");
-  await expect(page.locator(".rewards-gift-art")).toBeVisible();
+  await expect(page.locator(".rewards-gift-art")).toHaveCount(0);
   await page.getByRole("button",{name:"Claim all",exact:true}).click();
   await expect(page.getByText("Claim submitted. Confirmation is pending; you can safely retry confirmation.")).toBeVisible();
   expect(prepared).toEqual(["m1","m2"]);expect(confirmed).toEqual(["m1"]);

@@ -7,10 +7,10 @@ import { useRuntime } from "../context";
 import { keeperHealth, keeperAmount, keeperSteps, keeperUsd, type AdminFeeKeeperResponse, type KeeperConversion, type KeeperMarket, type KeeperRange } from "../fee-keeper-display";
 import "./admin-fee-keeper.css";
 
-const date = (value: number | null | undefined) => value ? new Date(value).toLocaleString() : "—";
+const date = (value: number | null | undefined) => value ? new Date(value).toLocaleString() : "-";
 const label = (value: string | null | undefined) => value ? value.replaceAll("_", " ") : "Not checked";
-const percent = (value: number | null | undefined) => value == null ? "—" : `${(value / 100).toLocaleString(undefined, { maximumFractionDigits: 3 })}%`;
-const sol = (value: string | null | undefined) => value == null ? "—" : `${keeperAmount(value)} SOL`;
+const percent = (value: number | null | undefined) => value == null ? "-" : `${(value / 100).toLocaleString(undefined, { maximumFractionDigits: 3 })}%`;
+const sol = (value: string | null | undefined) => value == null ? "-" : `${keeperAmount(value)} SOL`;
 function Status({ value }: { value: string | null }) { return <span className={`ops-status is-${value ?? "unknown"}`}>{label(value)}</span>; }
 
 export function AdminFeeKeeper({ token, search, refreshKey }: { token: string; search: string; refreshKey: number }) {

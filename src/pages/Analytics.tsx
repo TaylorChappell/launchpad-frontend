@@ -58,7 +58,7 @@ export function Analytics(){
         <article><span><Coins size={18}/> AQUA buybacks</span><strong><SolAmount value={sol.format(data.totals.buybackSol)}/></strong><small>Verified purchases on-chain</small></article>
         <article><span><ArrowDownUp size={18}/> Trading volume</span><strong>{compactUsd.format((data.totals.volumeUsd??data.totals.volume24hUsd))}</strong><small>Across AQUA markets</small></article>
         <article><span><ChartNoAxesCombined size={18}/> Coins launched</span><strong>{data.totals.liveMarkets.toLocaleString()}</strong><small>{displayedRange==="all"?"On AQUA":periodLabel}</small></article>
-        <article><span><Coins size={18}/> AQUA DEX funded</span><strong>{data.totals.dexFundedMarkets?.toLocaleString() ?? "—"}</strong><small>Coins with profiles paid through AQUA</small></article>
+        <article><span><Coins size={18}/> AQUA DEX funded</span><strong>{data.totals.dexFundedMarkets?.toLocaleString() ?? "-"}</strong><small>Coins with profiles paid through AQUA</small></article>
       </section>
       <div className="analytics-focus-grid">
         <AnalyticsChart data={data} metric={metric} range={displayedRange} onMetricChange={setMetric}/>

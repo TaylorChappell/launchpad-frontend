@@ -67,7 +67,7 @@ test('AQUA market cards support every reward mode, pair and incomplete market da
   await expect(custom.locator('.market-social-links a')).toHaveCount(0);
   await expect(cards.nth(4).locator('.card-cap > strong')).toHaveText('Indexing');
   await expect(cards.nth(4).locator('.market-social-links a')).toHaveCount(0);
-  await expect(cards.nth(5).locator('.card-reward-total')).toHaveText('— SOL');
+  await expect(cards.nth(5).locator('.card-reward-total')).toHaveText('- SOL');
   await expect(cards.getByRole('button',{name:'Copy contract address',exact:true})).toHaveCount(6);
   for(const card of [aqua,custom]){
     await expect(card.locator('.market-social-links > :last-child')).toHaveAttribute('aria-label','Copy contract address');

@@ -7,9 +7,9 @@ test('token display preserves integers above the JS safe range and handles decim
   assert.equal(keeperAmount('5000',9),'0.000005');
   assert.equal(keeperAmount('1',9),'<0.000001');
   assert.equal(keeperAmount('0',6),'0');
-  assert.equal(keeperAmount(null),'—');
-  assert.equal(keeperAmount('bad'),'—');
-  assert.equal(keeperUsd(null),'—');
+  assert.equal(keeperAmount(null),'-');
+  assert.equal(keeperAmount('bad'),'-');
+  assert.equal(keeperUsd(null),'-');
   assert.equal(keeperUsd(0),'$0.00');
 });
 test('direct SOL swaps are not duplicated when legacy pool and final-swap signatures are the same', () => {

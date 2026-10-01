@@ -48,7 +48,7 @@ export function RewardPayouts({range='all'}:{range?:string}) {
   <div aria-busy={loading}>
    {data?.payouts.length?<div className="table-scroll"><table className="market-table"><thead><tr><th>Wallet</th><th>Coin</th><th>Payout</th><th>Type</th><th>Paid</th><th>Receipt</th></tr></thead><tbody>{data.payouts.map(p=><tr key={p.id}>
     <td><WalletIdentity wallet={p.wallet}/></td><td><Link to={'/token/'+p.launchId}>{p.name}</Link></td>
-    <td><b>{p.usdCents===null?'—':usd.format(Number(p.usdCents)/100)}</b><small className="reward-payout-asset">{p.amountRaw===null?'Amount unavailable':displayTokenAmount(p.amountRaw,p.rewardDecimals)+' '+p.rewardSymbol}</small></td>
+    <td><b>{p.usdCents===null?'-':usd.format(Number(p.usdCents)/100)}</b><small className="reward-payout-asset">{p.amountRaw===null?'Amount unavailable':displayTokenAmount(p.amountRaw,p.rewardDecimals)+' '+p.rewardSymbol}</small></td>
     <td>{p.method==='automatic'?'Automatic':labels[p.kind]??'Rewards'}</td><td><time dateTime={new Date(p.paidAt).toISOString()} title={new Date(p.paidAt).toLocaleString()}>{new Date(p.paidAt).toLocaleString(undefined,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</time></td>
     <td><a href={'https://solscan.io/tx/'+p.signature+(config.network==='devnet'?'?cluster=devnet':'')} target="_blank" rel="noreferrer">View</a></td>
    </tr>)}</tbody></table></div>:<div className="workspace-empty" role="status">{data?(wallet?'No completed payouts for this wallet in this period.':'No completed payouts in this period.'):error?'Payout activity unavailable.':'Loading reward payouts…'}</div>}
