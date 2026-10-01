@@ -1,5 +1,5 @@
 import { api, API_URL } from "./api";
-import { autoRewardsApi } from "./auto-rewards-api";
+import { rewardPayoutsApi } from "./reward-payouts-api";
 import { createAnalyticsCache } from "./analytics-cache";
 import type { AnalyticsResponse } from "./types";
 
@@ -22,5 +22,5 @@ export async function preloadAnalytics(activeRange: AnalyticsRange) {
   // The visible panels own this period's refresh timers. Warming it here can
   // finish just before the payout timer fires and cause a second forced read.
   await Promise.allSettled(analyticsRanges.filter(range => range !== activeRange)
-    .flatMap(range => [loadAnalytics(range), autoRewardsApi.activity(null, 0, "", range)]));
+    .flatMap(range => [loadAnalytics(range), rewardPayoutsApi.activity(range)]));
 }

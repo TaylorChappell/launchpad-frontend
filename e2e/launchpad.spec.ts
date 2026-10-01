@@ -48,7 +48,7 @@ test("analytics prioritizes totals, handles empty history and stays within the v
 });
 test.beforeEach(async({page})=>{
   await page.addInitScript(()=>localStorage.setItem("aqua:update:holder-workspace-v2","seen"));
-  await page.route("**/api/auto-rewards/activity?*",route=>route.fulfill({json:{running:false,nextPayoutAt:Date.now()+10800000,rounds:[],selectedRound:null,payouts:[],hasMore:false}}));
+  await page.route("**/api/reward-payouts?*",route=>route.fulfill({json:{range:new URL(route.request().url()).searchParams.get('range')??'all',wallet:null,sort:'recent',offset:0,generatedAt:Date.now(),payouts:[],hasMore:false}}));
   await page.route("**/api/auto-rewards/wallets/*",route=>route.fulfill({json:{wallet:new URL(route.request().url()).pathname.split("/").at(-1),enabled:false,enabledAt:null,nextPayoutAt:Date.now()+10800000,running:false}}));
   await page.route("**/api/config",route=>route.fulfill({json:{brand:"AQUA",network:"mainnet-beta",useTestnet:false,transactionsEnabled:false,marketGovernanceEnabled:false,publicRpcUrl:"https://rpc.invalid",whirlpools:{},fees:{transferFeeBps:200,platformBps:100,stockRewardsBps:100},creatorLocks:{minimumSeconds:86400,maximumSeconds:31536000,maximumFeeShareBps:5000},sniperDefense:{supported:false}}}));
   await page.route("**/api/launches?**",route=>route.fulfill({json:{launches:[],hasMore:false,nextOffset:0}}));
@@ -260,16 +260,16 @@ test('analytics preloads periods once, reuses them across navigation and refresh
   const range=new URL(r.request().url()).searchParams.get('range')??'all';overview[range]=(overview[range]??0)+1;
   return r.fulfill({json:{range,totals:{buybackSol:0,liveMarkets:1,volumeUsd:0,dexFundedMarkets:0,rewardsAccumulatedUsd:totals[range]+100*(overview[range]-1)},markets:[],claimedAssets:[],recentBuybacks:[],rewardHistory:[],buybackHistory:[]}});
  });
- await page.route('**/api/auto-rewards/activity?*',r=>{
+ await page.route('**/api/reward-payouts?*',r=>{
   const range=new URL(r.request().url()).searchParams.get('range')??'all';payouts[range]=(payouts[range]??0)+1;
-  return r.fulfill({json:{running:false,nextPayoutAt:Date.now(),rounds:[],selectedRound:null,payouts:[],hasMore:false}});
+  return r.fulfill({json:{range,wallet:null,sort:'recent',offset:0,generatedAt:Date.now(),payouts:[],hasMore:false}});
  });
  await page.goto('/#/analytics');
  await expect(page.locator('.network-metric-featured strong')).toHaveText('$50.00');
  const warmed={all:1,'24h':1,'7d':1,'30d':1};
  await expect.poll(()=>overview).toEqual(warmed);await expect.poll(()=>payouts).toEqual(warmed);
  // Wait for response bodies to reach the cache, not just for requests to begin.
- await expect.poll(()=>page.evaluate(()=>Object.keys(sessionStorage).filter(key=>key.startsWith('aqua:analytics')).map(key=>JSON.parse(sessionStorage.getItem(key)!).length))).toEqual([4,4]);
+ await expect.poll(()=>page.evaluate(()=>Object.keys(sessionStorage).filter(key=>key.startsWith('aqua:analytics')||key.startsWith('aqua:reward-payouts')).map(key=>JSON.parse(sessionStorage.getItem(key)!).length))).toEqual([4,4]);
  for(let cycle=0;cycle<2;cycle++)for(const [label,total] of [['24 hours',24],['7 days',70],['30 days',30],['All time',50]] as const){
   await page.getByRole('button',{name:label,exact:true}).click();
   await expect(page.locator('.network-metric-featured strong')).toHaveText('$'+total+'.00');
@@ -285,7 +285,7 @@ test('analytics preloads periods once, reuses them across navigation and refresh
  await page.getByRole('button',{name:'Refresh analytics',exact:true}).click();
  await expect(page.locator('.network-metric-featured strong')).toHaveText('$124.00');
  expect(overview).toEqual({...warmed,'24h':2});expect(payouts).toEqual(warmed);
- await page.getByRole('button',{name:'Refresh auto rewards',exact:true}).click();
+ await page.getByRole('button',{name:'Refresh reward payouts',exact:true}).click();
  await expect.poll(()=>payouts).toEqual({...warmed,'24h':2});
  await page.clock.fastForward(5*60_000);
  await expect(page.locator('.network-metric-featured strong')).toHaveText('$224.00');
