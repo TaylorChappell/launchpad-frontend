@@ -91,7 +91,7 @@
 [data-theme="dark"] textarea::placeholder { color: #91b3c7; opacity: 1; }
 [data-theme="dark"] select option { color: var(--text); background: #0e2332; }
 [data-theme="dark"] { scrollbar-color: #38617a #0a1c29; }
-[data-theme="dark"] [data-sonner-toaster] {
+:root[data-theme="dark"] [data-sonner-toaster] {
   --normal-bg: #102b3c;
   --normal-bg-hover: #153348;
   --normal-text: #e3f3fa;

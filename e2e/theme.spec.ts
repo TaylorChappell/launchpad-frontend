@@ -19,7 +19,7 @@ async function setup(page:Page,launchOverrides:Record<string,unknown>={}){
   else if(path.endsWith('/trade-candles'))json=history(url.searchParams.get('interval')??'5m',path.includes('stock')?'NVDAx':path.includes('custom')?'CUSTOM':'SOL');
   else if(path.endsWith('/market-data'))json={snapshots:[]};
   else if(path==='/api/stocks')json={stocks:[]};
-  else if(path==='/api/launches')json={launches:['holder_rewards','buyback_burn','jackpot'].map((rewardMode,i)=>({id:'coin-'+i,mint,creatorWallet:mint,name:['Aqua','Ocean Burn','Lucky Tide'][i],symbol:['AQUA','BURN','TIDE'][i],imageUrl:'/aqua-mark.svg',pairType:'sol',pairMint:mint,pairSymbol:'SOL',stockMint:mint,stockSymbol:'SOL',stock:{mint,symbol:'SOL',name:'Solana'},rewardMode,status:'live',marketCapUsd:1800000/(i+1),volume24hUsd:334900,holderCount:2800,aquaIndexed:true,tokenDecimals:6,createdAt:Date.now()-12*86400000,rewardAccumulatedUsd:94300,rewardRedeemableUsd:62600,dexPaid:true})),hasMore:false};
+  else if(path==='/api/launches'||path==='/api/search')json={launches:['holder_rewards','buyback_burn','jackpot'].map((rewardMode,i)=>({id:'coin-'+i,mint,creatorWallet:mint,name:['Aqua','Ocean Burn','Lucky Tide'][i],symbol:['AQUA','BURN','TIDE'][i],imageUrl:'/aqua-mark.svg',pairType:'sol',pairMint:mint,pairSymbol:'SOL',stockMint:mint,stockSymbol:'SOL',stock:{mint,symbol:'SOL',name:'Solana'},rewardMode,status:'live',marketCapUsd:1800000/(i+1),volume24hUsd:334900,holderCount:2800,aquaIndexed:true,tokenDecimals:6,createdAt:Date.now()-12*86400000,rewardAccumulatedUsd:94300,rewardRedeemableUsd:62600,dexPaid:true})),hasMore:false};
   else if(path.includes('/notifications/'))json={notifications:[]};
   else if(path.endsWith('/holdings'))json={holdings:[]};
   else if(path.endsWith('/claim-history'))json={claims:[],lifetime:[],hasMore:false};
@@ -51,7 +51,7 @@ test('light is the default even on dark systems; keyboard toggle is beside searc
   await expect(toggle(page, true)).toBeVisible();
   await page.goto('/#/portfolio');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await page.screenshot({ scale: 'css', path: info.outputPath('compact-dark-portfolio.png'), fullPage: true });
+  await page.screenshot({ animations: 'disabled', scale: 'css', path: info.outputPath('compact-dark-portfolio.png'), fullPage: true });
   await toggle(page, true).click();
   await page.reload();
   await expect(toggle(page)).toBeVisible();
@@ -104,7 +104,7 @@ test('dark chart updates its canvas without recreating it or changing selected c
   await expect(chart.getByRole('button', { name: '15m', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => canvas.evaluate(el => Array.from((el as HTMLCanvasElement).getContext('2d')!.getImageData(3, 3, 1, 1).data).slice(0, 3))).toEqual([14, 35, 50]);
   await chart.scrollIntoViewIfNeeded();
-  await chart.screenshot({ scale: 'css', path: info.outputPath('compact-dark-chart.png') });
+  await chart.screenshot({ animations: 'disabled', scale: 'css', path: info.outputPath('compact-dark-chart.png') });
   await toggle(page, true).click();
   await expect.poll(() => canvas.evaluate(el => Array.from((el as HTMLCanvasElement).getContext('2d')!.getImageData(3, 3, 1, 1).data).slice(0, 3))).toEqual([255, 255, 255]);
 });
@@ -122,20 +122,21 @@ test('dark pages, modals and animations stay legible and fit the viewport', asyn
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth), route).toBeLessThanOrEqual(1);
     const body = await page.locator('body').evaluate(el => ({ background: getComputedStyle(el).backgroundColor, text: getComputedStyle(el).color }));
     expect(body).toEqual({ background: 'rgb(7, 23, 34)', text: 'rgb(227, 243, 250)' });
-    await page.screenshot({ scale: 'css', path: info.outputPath(`compact-dark-${route || 'explore'}.png`), fullPage: !['how-it-works', 'developers'].includes(route) });
+    await page.screenshot({ animations: 'disabled', scale: 'css', path: info.outputPath(`compact-dark-${route || 'explore'}.png`), fullPage: !['how-it-works', 'developers'].includes(route) });
   }
   await page.getByRole('button', { name: 'Search AQUA markets' }).click();
   await expect(page.getByRole('dialog', { name: 'Search AQUA', exact: true })).toBeVisible();
   const searchStyle = await page.getByRole('dialog', { name: 'Search AQUA', exact: true }).evaluate(el => ({ bg: getComputedStyle(el).backgroundColor, color: getComputedStyle(el).color }));
   expect(searchStyle.bg).toBe('rgb(16, 43, 60)');
-  await page.screenshot({ scale: 'css', path: info.outputPath('compact-dark-search.png') });
+  await page.screenshot({ animations: 'disabled', scale: 'css', path: info.outputPath('compact-dark-search.png') });
   await page.keyboard.press('Escape');
   await page.goto('/#/');
   await page.getByRole('button', { name: 'Connect wallet', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Connect your wallet' })).toBeVisible();
-  await page.screenshot({ scale: 'css', path: info.outputPath('compact-dark-wallet.png') });
+  await page.screenshot({ animations: 'disabled', scale: 'css', path: info.outputPath('compact-dark-wallet.png') });
   await page.getByRole('button', { name: 'Close wallet dialog' }).click();
-  const motion = await page.locator('.wallet-button').evaluate(el => getComputedStyle(el, '::before').animationName);
+  await page.locator('.wallet-button').hover();
+  const motion = await page.locator('.wallet-button').evaluate(el => getComputedStyle(el, '::after').animationName);
   expect(motion).not.toBe('none');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   expect(await toggle(page, true).evaluate(el => getComputedStyle(el).transitionDuration)).toBe('0s');
