@@ -145,6 +145,8 @@ export function Create() {
   const [relayMessage, setRelayMessage] = useState("");
   const relayController = useRef<AbortController | null>(null);
   const relayStorageKey = `aqua:launch-relay:${config.network}:${wallet.address ?? "guest"}`;
+  const resumeDismissalKey = `aqua:launch-resume-cleared:${config.network}:${wallet.address ?? "guest"}`;
+  const resumeDismissals = useRef<Record<string, number>>({});
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [savedLaunchId, setSavedLaunchId] = useState<string | null>(null);
   const [recoverableLaunch, setRecoverableLaunch] = useState<Launch | null>(null);
@@ -332,15 +334,24 @@ export function Create() {
     return () => { controller.abort(); window.clearTimeout(timer); };
   }, [pairLoadVersion]);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  function resumeClearedBefore() {
+    let stored = 0;
+    try { stored = Number(localStorage.getItem(resumeDismissalKey) ?? 0); } catch { /* Keep the in-memory dismissal when storage is unavailable. */ }
+    return Math.max(resumeDismissals.current[resumeDismissalKey] ?? 0, Number.isFinite(stored) ? stored : 0);
+  }
   useEffect(() => {
     if (!wallet.address) { setRecoverableLaunch(null); return; }
     let active = true;
     api.launches({creator:wallet.address,status:"pending",limit:1,sort:"recent"}).then(({ launches }) => {
       if (!active) return;
-      setRecoverableLaunch(launches.find((item) => item.creatorWallet === wallet.address && item.status !== "live") ?? null);
+      // Read at response time too: a slow request must not restore an older
+      // resume after another launch has just completed.
+      const clearedBefore = resumeClearedBefore();
+      setRecoverableLaunch(launches.find((item) => item.creatorWallet === wallet.address && item.status !== "live"
+        && (!clearedBefore || item.createdAt > clearedBefore)) ?? null);
     }).catch(() => { if (active) setRecoverableLaunch(null); });
     return () => { active = false; };
-  }, [wallet.address]);
+  }, [wallet.address, resumeDismissalKey]);
 
   const pairOptions = useMemo(() => {
     const options = [...stocks];
@@ -421,6 +432,9 @@ export function Create() {
   }
 
   function finishLaunch(launchId: string, mint?: string, identity?: Pick<LaunchRelayStatus, "symbol" | "rewardMode">) {
+    const clearedBefore = Date.now();
+    resumeDismissals.current[resumeDismissalKey] = clearedBefore;
+    try { localStorage.setItem(resumeDismissalKey, String(clearedBefore)); } catch { /* Keep the in-memory dismissal. */ }
     if (draftIdentity.current.launchId === launchId) {
       draftWritable.current = false;
       void removeLaunchDraft(draftKey, draftIdentity.current.id).catch(() => setDraftError("Could not clear the completed draft."));
