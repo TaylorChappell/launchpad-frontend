@@ -25,8 +25,8 @@ export type AddressClaimMarket = { launchId: string; name: string; symbol: strin
 export type AddressClaimChallenge = { id: string; token: string; wallet: string; launchId: string; kind: "creator" | "cumulative" | "legacy"; epochId: string | null; depositAddress: string; amountLamports: number; usdc?: { mint: string; minimumRaw: string; decimals: number }; expiresAt: number; recoveryExpiresAt?: number };
 const addressClaimAuth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
-async function uncachedRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const signal = init?.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000);
+async function uncachedRequest<T>(path: string, init?: RequestInit, timeoutMs = 20_000): Promise<T> {
+  const signal = init?.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs);
   const perform=async()=>{
   const response = await fetch(`${API_URL}${path}`, { cache: "no-store", ...init, signal });
   const body = await response.json().catch(() => ({})) as T & { error?: string; code?: string; rebuildRequired?: boolean };
@@ -36,9 +36,9 @@ async function uncachedRequest<T>(path: string, init?: RequestInit): Promise<T> 
   return !init?.method||init.method==="GET"?readWithRetry(perform,signal):perform();
 }
 
-async function request<T>(path:string,init?:RequestInit):Promise<T>{
+async function request<T>(path:string,init?:RequestInit,timeoutMs=20_000):Promise<T>{
   const read=!init?.method||init.method==="GET";
-  if(!read){const result=await uncachedRequest<T>(path,init);clearReadCache();return result;}
+  if(!read){const result=await uncachedRequest<T>(path,init,timeoutMs);clearReadCache();return result;}
   if(init?.signal || new Headers(init?.headers).has("Authorization"))return uncachedRequest<T>(path,init);
   return cachedRead(path,()=>uncachedRequest<T>(path,init),path==="/api/stocks"?60_000:2000);
 }
@@ -104,8 +104,8 @@ export const api = {
   creatorLockReleaseTransaction: (id: string, creator: string) => request<TransactionEnvelope>(`/api/launches/${encodeURIComponent(id)}/creator-lock/release-transaction`, json({ creator })),
   confirmCreatorLock: (id: string, creator: string, signature: string) => request<{ confirmed: true; creatorLock: CreatorLock }>(`/api/launches/${encodeURIComponent(id)}/creator-lock/confirm`, json({ creator, signature })),
   upload: (body: FormData, token: string) => request<{ imageId: string; imageUrl: string }>("/api/uploads", { method: "POST", body, headers: { Authorization: `Bearer ${token}` } }),
-  createLaunch: (body: unknown) => request<LaunchIntentResponse>("/api/launches", json(body)),
-  retryLaunchTransaction: (id: string, creator: string) => request<LaunchRetryResponse>(`/api/launches/${encodeURIComponent(id)}/retry-transaction`, json({ creator })),
+  createLaunch: (body: unknown) => request<LaunchIntentResponse>("/api/launches", json(body),60_000),
+  retryLaunchTransaction: (id: string, creator: string) => request<LaunchRetryResponse>(`/api/launches/${encodeURIComponent(id)}/retry-transaction`, json({ creator }),60_000),
   submitLaunchBatch: (id: string, transactions: SignedTransactionEnvelope[], signal?: AbortSignal) => request<LaunchRelayStatus>(`/api/launches/${encodeURIComponent(id)}/submit-batch`, { ...json({ sequential:transactions.length===1, transactions: transactions.map(({ step, signedTransactionBase64 }) => ({ step, signedTransactionBase64 })) }), signal }),
   prepareLaunchBatch: (id:string,creator:string,envelopes:import("./types").LaunchBatchEnvelope[],signal?:AbortSignal) => request<{ready:boolean}>(`/api/launches/${encodeURIComponent(id)}/prepare-batch`,{...json({creator,transactions:envelopes.map(({step,transactionBase64})=>({step,transactionBase64}))}),signal}),
   prepareLaunchApproval: (id:string,creator:string,envelope:import("./types").LaunchBatchEnvelope,signal?:AbortSignal) => request<{ready:boolean}>(`/api/launches/${encodeURIComponent(id)}/prepare-approval`,{...json({creator,step:envelope.step,transactionBase64:envelope.transactionBase64}),signal}),
