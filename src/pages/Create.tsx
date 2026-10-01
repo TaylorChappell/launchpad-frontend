@@ -1,4 +1,5 @@
-import { RedirectRecipientPicker } from "../components/RedirectRecipientPicker";
+import { RedirectSettingsPanel } from "../components/RedirectSettingsPanel";
+import { dismissLaunchResume, isLaunchResumeDismissed } from "../launch-resume-dismissal";
 import { recipientLabel, type RedirectRecipient } from "../fee-redirect-api";
 import { RefreshButton } from "../components/RefreshButton";
 import { ChevronDown } from "lucide-react";
@@ -150,9 +151,14 @@ export function Create() {
   const relayStorageKey = `aqua:launch-relay:${config.network}:${wallet.address ?? "guest"}`;
   const resumeDismissalKey = `aqua:launch-resume-cleared:${config.network}:${wallet.address ?? "guest"}`;
   const resumeDismissals = useRef<Record<string, number>>({});
+  const [redirectSettingsOpen,setRedirectSettingsOpen]=useState(false);
+  const [,refreshResumeDismissals]=useState(0);
+  const resumeScope=`${config.network}:${wallet.address ?? "guest"}`;
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [savedLaunchId, setSavedLaunchId] = useState<string | null>(null);
   const [recoverableLaunch, setRecoverableLaunch] = useState<Launch | null>(null);
+  const resumeLaunchId=[pending?.launchId,recoverableLaunch?.id,savedLaunchId].find(id=>id&&!isLaunchResumeDismissed(resumeScope,id));
+  function hideResume(){if(resumeLaunchId){dismissLaunchResume(resumeScope,resumeLaunchId);refreshResumeDismissals(n=>n+1);}}
   const [budget, setBudget] = useState<LaunchBudget | null>(null);
   const [budgetError, setBudgetError] = useState("");
   const [budgetVersion, setBudgetVersion] = useState(0);
@@ -654,8 +660,8 @@ export function Create() {
 
   async function resumeExistingLaunch() {
     if (!wallet.address || launching) return;
-    if (pending) { await retryLaunch(); return; }
-    const launchId = recoverableLaunch?.id ?? savedLaunchId;
+    if (pending && pending.launchId===resumeLaunchId) { await retryLaunch(); return; }
+    const launchId = resumeLaunchId;
     if (!launchId) return;
     setExecutionOpen(true); setExecutionState("running"); setPending(null);
     showLaunchStatus("Resuming launch", "AQUA is checking confirmed steps and preparing what remains.");
@@ -745,9 +751,10 @@ export function Create() {
     {!launching && !completedLaunch && <div className="at-launch-entry"><span>Need artwork or a website? Atlantis Studio can help.</span><Link to="/studio">Open Studio ↗</Link></div>}
     {studioImportMessage && <div className="at-import-notice" role="status">{studioImportMessage}</div>}
     <PageBubbles count={6}/>
-    {(pending || recoverableLaunch || savedLaunchId) && wallet.address && !launching && !completedLaunch && <LaunchRecoveryPanel
-      key={`${wallet.address}:${pending?.launchId ?? recoverableLaunch?.id ?? savedLaunchId!}`} launchId={pending?.launchId ?? recoverableLaunch?.id ?? savedLaunchId!}
-      creator={wallet.address} disabled={draftLoading} onResume={() => void resumeExistingLaunch()} onNew={launchAnother}/>}
+    {resumeLaunchId && wallet.address && !launching && !completedLaunch && <LaunchRecoveryPanel
+      key={`${wallet.address}:${resumeLaunchId}`} launchId={resumeLaunchId}
+      creator={wallet.address} disabled={draftLoading} onResume={() => void resumeExistingLaunch()} onNew={launchAnother} onDismiss={hideResume}/>}
+    <RedirectSettingsPanel key={wallet.address ?? "guest"} open={redirectSettingsOpen && step===2} value={form.redirectRecipient} providers={config.rewardModes?.feeRedirect?.providers} onClose={()=>setRedirectSettingsOpen(false)} onSave={recipient=>{setForm(current=>({...current,rewardMode:"fee_redirect",redirectRecipient:recipient}));setRedirectSettingsOpen(false);}}/>
     <section className={`wizard-shell ${launching ? "is-launching" : ""}`}>
       <div className="wizard-caustics" aria-hidden="true"/>
       {launching && <div className="wizard-launching-screen" role="status" aria-live="polite" aria-label={`Launching ${form.symbol}`}>
@@ -825,17 +832,17 @@ export function Create() {
             <ModeButton active={form.rewardMode === "holder_rewards"} onClick={() => update("rewardMode", "holder_rewards")} icon={<RewardModeIcon mode="holder_rewards"/>} title="Holder Rewards" eyebrow="Steady rewards">
               Holders earn your pair asset based on their balance and time held.
             </ModeButton>
+            <ModeButton active={form.rewardMode === "fee_redirect"} disabled={!config.rewardModes?.feeRedirect?.enabled} onClick={() => setRedirectSettingsOpen(true)} icon={<RewardModeIcon mode="fee_redirect"/>} title="Fee Redirect" eyebrow="50% recipient · 50% holders">
+              Share rewards with a wallet, X account or GitHub user. Holders keep earning the other half.
+            </ModeButton>
             <ModeButton active={form.rewardMode === "buyback_burn"} disabled={!config.rewardModes?.enabled} onClick={() => update("rewardMode", "buyback_burn")} icon={<RewardModeIcon mode="buyback_burn"/>} title="Buyback & Burn" eyebrow="Reduce supply">
               Rewards buy back your coin and permanently burn the tokens.
             </ModeButton>
             <ModeButton active={form.rewardMode === "jackpot"} disabled={!config.rewardModes?.enabled || !config.rewardModes.jackpot.enabled} onClick={() => update("rewardMode", "jackpot")} icon={<RewardModeIcon mode="jackpot"/>} title="Hourly Jackpot" eyebrow="5 winners · every hour">
               Five holders win each hour. Holding and buying earlier improves your score; selling reduces it.
             </ModeButton>
-            <ModeButton active={form.rewardMode === "fee_redirect"} disabled={!config.rewardModes?.feeRedirect?.enabled} onClick={() => update("rewardMode", "fee_redirect")} icon={<RewardModeIcon mode="fee_redirect"/>} title="Fee Redirect" eyebrow="50% recipient · 50% holders">
-              Share rewards with a wallet, X account or GitHub user. Holders keep earning the other half.
-            </ModeButton>
           </div>
-          {form.rewardMode === "fee_redirect" && <RedirectRecipientPicker value={form.redirectRecipient} onChange={value=>update("redirectRecipient",value)} providers={config.rewardModes?.feeRedirect?.providers}/>}
+          {form.rewardMode === "fee_redirect" && form.redirectRecipient && <div className="redirect-selection"><Check size={18}/><span><strong>50% to {recipientLabel(form.redirectRecipient)}</strong><small>50% to holders · Recipient checked</small></span><button type="button" className="secondary-button" onClick={()=>setRedirectSettingsOpen(true)}>Edit recipient</button></div>}
           {config.rippleRewards?.enabled && <div className="reward-mode-notice"><Info/> Set aside a share for Ripple Rewards in the next step.</div>}
           {!config.rewardModes?.enabled && <div className="reward-mode-notice"><Info/> Buyback &amp; Burn and Hourly Jackpot will unlock when their settlement services are enabled.</div>}
         </WizardSection>}

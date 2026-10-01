@@ -184,7 +184,7 @@ test("connected wallet controls and menus fit a narrow phone with X linking enab
   await page.route("**/v1/wallets/x?*", route => route.fulfill({ json: { profiles: [] } }));
   await page.setViewportSize({ width: 320, height: 667 });
   await page.goto("/#/token/mobile?tab=community");
-  await expect(page.getByRole("button", { name: "Connect X account", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect accounts", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
   await page.locator(".wallet-menu-trigger").click();
   const dropdown = await page.locator(".wallet-dropdown").boundingBox();

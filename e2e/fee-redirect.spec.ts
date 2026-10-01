@@ -5,7 +5,7 @@ const pair={symbol:'SOL',underlyingSymbol:'SOL',name:'Solana',mint:'So1111111111
 const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
 const recipient={kind:'x',subject:'42',label:'@builder',avatarUrl:null,profileUrl:'https://x.com/i/user/42',wallet:null};
 async function setup(page:Page,dark=false,wrongOwner=false){
-  const calls={launches:[] as any[],resolve:[] as any[],activate:[] as any[],github:[] as any[]};let activated=false;
+  const calls={launches:[] as any[],resolve:[] as any[],activate:[] as any[],github:[] as any[],x:[] as any[]};let activated=false;
   await page.addInitScript(({address,dark})=>{
     localStorage.setItem('aqua:update:holder-workspace-v2','seen');localStorage.setItem('aqua:wallet','phantom');
     sessionStorage.setItem(`aqua:x-prompt:${address}`,'1');
@@ -18,6 +18,8 @@ async function setup(page:Page,dark=false,wrongOwner=false){
     if(path==='/api/config')return r.fulfill({json:{brand:'AQUA',network:'mainnet-beta',transactionsEnabled:true,marketGovernanceEnabled:true,publicRpcUrl:'https://rpc.invalid',launchSettings:{variableRewardFeesEnabled:true,orcaFeeRate:10000},rewardModes:{enabled:true,jackpot:{enabled:true},feeRedirect:{enabled:true,providers:{wallet:true,x:true,github:true}}},fees:{},whirlpools:{},creatorLocks:{},sniperDefense:{supported:false}}});
     if(path==='/api/stocks')return r.fulfill({json:{stocks:[pair],refreshing:false}});
     if(path==='/api/fee-redirect/config')return r.fulfill({json:{enabled:true,providers:{wallet:true,x:true,github:true}}});
+    if(path==='/account/integrations/github/identity')return r.fulfill({json:{enabled:true,connected:false,accounts:[]}});
+    if(path==='/account/x/connect'){calls.x.push(r.request().postDataJSON());return r.fulfill({status:503,json:{error:'X connection stopped before external sign-in'}});}
     if(path==='/account/x/config')return r.fulfill({json:{enabled:true}});
     if(path===`/studio/projects/${id}`)return r.fulfill({json:{id,name:'Tide',revision:1,state:{launch:{name:'Tide',symbol:'TIDE',description:'Supporting the people who build.',stockMint:pair.mint,rewardMode:'holder_rewards',imagePath:'assets/coin.png',xUrl:'',websiteUrl:'',telegramUrl:'',dexFundingEnabled:false,dexProfile:{description:'',bannerPath:'',bannerUrl:'',websiteUrl:'',xUrl:'',telegramUrl:''}},files:[{path:'assets/coin.png',encoding:'base64',content:png}]}}});
     if(path==='/api/uploads')return r.fulfill({json:{imageId:'artwork',imageUrl:'https://images.example.test/coin.png'}});
@@ -46,16 +48,18 @@ test('launch checks the recipient, invalidates edits and sends the provider ID',
   await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'Choose a trading pair',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'Choose the reward mode',exact:true})).toBeVisible();
   await page.getByRole('radio',{name:/Fee Redirect/}).click();
-  const next=page.getByRole('button',{name:'Continue',exact:true});await expect(next).toBeDisabled();
+  const next=page.getByRole('button',{name:'Continue',exact:true}),save=page.getByRole('button',{name:'Use Fee Redirect',exact:true});await expect(save).toBeDisabled();
+  await expect(page.getByRole('radio',{name:/Fee Redirect/})).not.toBeChecked();
   await page.getByRole('button',{name:'X account',exact:true}).click();
   await page.getByLabel('X handle or profile URL').fill('@builder');
   await page.getByRole('button',{name:'Check recipient',exact:true}).click();
-  await expect(page.getByText('Account found · ownership required to claim')).toBeVisible();await expect(next).toBeEnabled();
-  await page.getByLabel('X handle or profile URL').fill('@edited');await expect(next).toBeDisabled();
-  await page.getByRole('button',{name:'Check recipient',exact:true}).click();await expect(next).toBeEnabled();
+  await expect(page.getByText('Account found · ownership required to claim')).toBeVisible();await expect(save).toBeEnabled();
+  await page.getByLabel('X handle or profile URL').fill('@edited');await expect(save).toBeDisabled();
+  await page.getByRole('button',{name:'Check recipient',exact:true}).click();await expect(save).toBeEnabled();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
   await page.evaluate(()=>{(document.activeElement as HTMLElement)?.blur();window.scrollTo(0,0);});
   await page.screenshot({path:info.outputPath('compact-redirect-dark-launch.png'),fullPage:true});
+  await save.click();await expect(page.getByRole('dialog',{name:'Configure Fee Redirect'})).toHaveCount(0);await expect(page.getByRole('radio',{name:/Fee Redirect/})).toBeChecked();
   await next.click();await expect(page.getByRole('heading',{name:'Coin settings',exact:true})).toBeVisible();await next.click();await expect(page.getByRole('heading',{name:'DEX Screener profile',exact:true})).toBeVisible();await page.getByRole('button',{name:'Skip profile details'}).click();
   await expect(page.getByText('50% to @builder · 50% to holders')).toBeVisible();
   await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Launch',exact:true}).click();
@@ -70,6 +74,7 @@ test('wallet and GitHub recipients are selectable and returning to holders clear
   await page.getByRole('radio',{name:/Fee Redirect/}).click();await page.getByLabel('Solana wallet address').fill(address);await page.getByRole('button',{name:'Check recipient',exact:true}).click();await expect(page.getByText('Wallet address checked')).toBeVisible();
   await page.getByRole('button',{name:'GitHub',exact:true}).click();await page.getByLabel('GitHub username or profile URL').fill('github.com/builder');await page.getByRole('button',{name:'Check recipient',exact:true}).click();await expect(page.getByText('Account found · ownership required to claim')).toBeVisible();
   expect(calls.resolve.map(r=>r.kind)).toEqual(['wallet','github']);
+  await page.getByRole('button',{name:'Use Fee Redirect',exact:true}).click();await expect(page.getByRole('dialog',{name:'Configure Fee Redirect'})).toHaveCount(0);
   await page.getByRole('radio',{name:/Holder Rewards/}).click();
   await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'Coin settings',exact:true})).toBeVisible();await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'DEX Screener profile',exact:true})).toBeVisible();await page.getByRole('button',{name:'Skip profile details'}).click();await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Launch',exact:true}).click();
   await expect.poll(()=>calls.launches.length).toBe(1);expect(calls.launches[0].rewardMode).toBe('holder_rewards');expect(calls.launches[0]).not.toHaveProperty('redirectRecipient');
@@ -90,5 +95,77 @@ test('a wrong social identity stays unclaimed and GitHub verification requests i
   const calls=await setup(page,false,true);await page.goto(`/#/fee-redirect?market=${id}`);
   await page.getByRole('checkbox',{name:/fixed payout wallet/}).check();await page.getByRole('button',{name:'Activate payout wallet'}).click();
   await expect(page.getByRole('alert')).toHaveText('Connect the selected X account to this wallet first.');await expect(page.getByRole('heading',{name:'Your claimable rewards'})).toHaveCount(0);
-  await page.getByRole('button',{name:'Verify GitHub'}).click();await expect.poll(()=>calls.github.length).toBe(1);expect(calls.github[0]).toEqual({purpose:'redirect'});
+  await page.locator('.redirect-actions').getByRole('button',{name:'Connect accounts'}).click();
+  await page.getByRole('dialog',{name:'Connect accounts'}).getByRole('button',{name:/GitHub.*Connect GitHub/}).click();await expect.poll(()=>calls.github.length).toBe(1);expect(calls.github[0]).toEqual({purpose:'redirect'});
+});
+
+async function rewardStep(page:Page){
+  await page.goto(`/#/create?studio=${id}`);
+  await expect(page.getByPlaceholder('Aqua Robotics')).toHaveValue('Tide');
+  await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'Choose a trading pair',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'Choose the reward mode',exact:true})).toBeVisible();
+}
+test('redirect is second, and rejection or cancellation never changes the selected mode',async({page})=>{
+  await setup(page);await rewardStep(page);
+  const modes=page.getByRole('radiogroup',{name:'Reward mode'}).getByRole('radio');
+  await expect(modes.nth(1)).toContainText('Fee Redirect');
+  await page.getByRole('radio',{name:/Buyback & Burn/}).click();
+  await page.getByRole('radio',{name:/Fee Redirect/}).click();
+  const panel=page.getByRole('dialog',{name:'Configure Fee Redirect'});
+  await page.route('**/api/fee-redirect/resolve',r=>r.fulfill({status:400,json:{error:'Recipient account was not found.'}}));
+  await panel.getByLabel('Solana wallet address').fill('invalid');await panel.getByRole('button',{name:'Check recipient'}).click();
+  await expect(panel.getByRole('alert')).toHaveText('Recipient account was not found.');
+  await expect(panel.getByRole('button',{name:'Use Fee Redirect'})).toBeDisabled();
+  await panel.getByRole('button',{name:'Cancel',exact:true}).click();await expect(panel).toHaveCount(0);
+  await expect(page.getByRole('radio',{name:/Buyback & Burn/})).toBeChecked();
+  await expect(page.getByRole('radio',{name:/Fee Redirect/})).not.toBeChecked();
+  await page.getByRole('radio',{name:/Fee Redirect/}).click();await panel.getByRole('button',{name:'Close Configure Fee Redirect'}).click();
+  await expect(panel).toHaveCount(0);await expect(page.getByRole('radio',{name:/Buyback & Burn/})).toBeChecked();
+});
+test('cancelling an edit preserves the accepted recipient',async({page})=>{
+  await setup(page);await rewardStep(page);await page.getByRole('radio',{name:/Fee Redirect/}).click();
+  await page.getByLabel('Solana wallet address').fill(address);await page.getByRole('button',{name:'Check recipient'}).click();
+  await expect(page.getByText('Wallet address checked')).toBeVisible();await page.getByRole('button',{name:'Use Fee Redirect'}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button',{name:'Edit recipient'}).click();await page.getByLabel('Solana wallet address').fill('unfinished edit');
+  await expect(page.getByRole('button',{name:'Use Fee Redirect'})).toBeDisabled();await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('radio',{name:/Fee Redirect/})).toBeChecked();await expect(page.locator('.redirect-selection')).toContainText('111111…11111');
+});
+for(const dark of [false,true])test(`account chooser connects either provider in ${dark?'dark':'light'} mode`,async({page},info)=>{
+  const calls=await setup(page,dark);await page.goto('/#/fee-redirect');
+  const trigger=page.locator('.header-actions').getByRole('button',{name:'Connect accounts'});
+  await trigger.click();const panel=page.getByRole('dialog',{name:'Connect accounts'});
+  await expect(panel.getByRole('button',{name:/X \/ Twitter.*Connect X/})).toBeEnabled();
+  await expect(panel.getByRole('button',{name:/GitHub.*Connect GitHub/})).toBeEnabled();
+  expect(calls.x.length+calls.github.length).toBe(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
+  await page.screenshot({path:info.outputPath(`compact-redirect-accounts-${dark?'dark':'light'}.png`)});
+  await panel.getByRole('button',{name:/X \/ Twitter.*Connect X/}).click();await expect(panel.getByRole('alert')).toContainText('X connection stopped');expect(calls.x).toHaveLength(1);
+  await panel.getByRole('button',{name:/GitHub.*Connect GitHub/}).click();await expect(panel.getByRole('alert')).toContainText('Verification stopped');expect(calls.github).toEqual([{purpose:'redirect'}]);
+  await page.keyboard.press('Escape');await expect(panel).toHaveCount(0);await expect(trigger).toBeFocused();
+});
+test('linked X still allows connecting GitHub and displays both linked accounts',async({page})=>{
+  await setup(page);await page.route('**/v1/wallets/x?*',r=>r.fulfill({json:{profiles:{[address]:{...recipient,id:'42',username:'builder',name:'Builder'}}}}));
+  await page.route('**/account/integrations/github/identity',r=>r.fulfill({json:{enabled:true,connected:true,accounts:[{id:'78',login:'builder'}]}}));
+  await page.goto('/#/fee-redirect');await page.locator('.header-actions').getByRole('button',{name:'Connect accounts'}).click();
+  const panel=page.getByRole('dialog',{name:'Connect accounts'});
+  await expect(panel.getByRole('button',{name:/X \/ Twitter.*Connected/})).toBeDisabled();
+  await expect(panel.getByRole('button',{name:/GitHub.*Connected/})).toBeDisabled();
+});
+
+test('GitHub returns to the original page and rejects a callback for another wallet',async({page})=>{
+  await setup(page);await page.goto('/#/fee-redirect');
+  const state='b'.repeat(64);let completions=0;
+  await page.route('**/account/integrations/github/complete',r=>{completions++;return r.fulfill({json:{connected:false}});});
+  await page.evaluate(async({state,address})=>{
+    const {githubIdentityPendingKey}=await import('/src/github-identity.ts');
+    sessionStorage.setItem(githubIdentityPendingKey,JSON.stringify({state,wallet:'wrong-wallet',returnTo:'#/create'}));
+  },{state,address});
+  await page.goto('/#/fee-redirect?github=callback&state='+state+'&code=example-code');
+  await expect(page.getByRole('alert')).toHaveText('Connect the wallet that started GitHub verification in this browser.');expect(completions).toBe(0);
+  await page.evaluate(async({state,address})=>{
+    const {githubIdentityPendingKey}=await import('/src/github-identity.ts');
+    sessionStorage.setItem(githubIdentityPendingKey,JSON.stringify({state,wallet:address,returnTo:'#/create'}));
+  },{state,address});
+  await page.reload();await expect(page).toHaveURL(/#\/create$/);expect(completions).toBe(1);
 });

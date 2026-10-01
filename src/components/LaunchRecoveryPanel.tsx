@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Check, Loader2, RefreshCw } from "lucide-react";
+import { ArrowRight, Check, Loader2, RefreshCw, X } from "lucide-react";
 import { api } from "../api";
 import { ensureAccountSession } from "../account-api";
 import { useWallet } from "../context";
@@ -8,8 +8,8 @@ import type { LaunchRecovery } from "../types";
 const sol = (raw: string) => (Number(raw) / 1e9).toLocaleString("en", { maximumFractionDigits: 6 });
 const labels: Record<string, string> = { mint: "Coin created", pool: "Pool created", prepare: "Accounts prepared", funding: "Pair tokens received", liquidity: "Liquidity activated", lock: "Liquidity locked" };
 
-export function LaunchRecoveryPanel({ launchId, creator, onResume, onNew, disabled = false }: {
-  launchId: string; creator: string; onResume(): void; onNew(): void; disabled?: boolean;
+export function LaunchRecoveryPanel({ launchId, creator, onResume, onNew, onDismiss, disabled = false }: {
+  launchId: string; creator: string; onResume(): void; onNew(): void; onDismiss(): void; disabled?: boolean;
 }) {
   const wallet = useWallet();
   const [state, setState] = useState<LaunchRecovery | null>(null);
@@ -59,6 +59,7 @@ export function LaunchRecoveryPanel({ launchId, creator, onResume, onNew, disabl
     : state.fundingConfirmed ? `Your funding was converted to ${state.pairSymbol}. Resume to use those tokens, or recover the unused amount when eligible.`
     : "Your dev buy has not confirmed. Resume keeps the completed setup steps.";
   return <section className="launch-recovery-panel" aria-label="Resume your launch">
+    <button type="button" className="launch-recovery-dismiss" aria-label="Dismiss this launch reminder" title="Hide this launch reminder in this browser" onClick={onDismiss} disabled={busy}><X size={18}/></button>
     <header><span className="launch-recovery-icon">{complete || state?.locked ? <Check/> : <RefreshCw/>}</span>
       <div><h2>{complete ? "Funds recovered" : state ? `Continue $${state.symbol}` : "Check your launch"}</h2><p>{message}</p></div>
     </header>

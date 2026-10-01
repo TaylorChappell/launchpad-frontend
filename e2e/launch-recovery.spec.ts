@@ -66,3 +66,16 @@ test("pending transactions prevent another approval",async({page})=>{
   await expect(page.getByRole("button",{name:"Resume launch",exact:true})).toBeDisabled();
   await expect(page.getByRole("button",{name:"Get recovery quote"})).toHaveCount(0);
 });
+
+test('dismissal survives reload for this launch without hiding a different launch',async({page})=>{
+  const go=await setup(page);let candidate='old-launch';
+  await page.route('**/api/launches?*',r=>r.fulfill({json:{launches:[{id:candidate,creatorWallet:wallet,status:'pool_pending',createdAt:1}]}}));
+  await go();await expect(page.getByRole('region',{name:'Resume your launch'})).toBeVisible();
+  await page.getByRole('button',{name:'Dismiss this launch reminder'}).click();
+  await expect(page.getByRole('region',{name:'Resume your launch'})).toHaveCount(0);
+  await page.reload();await expect(page.getByPlaceholder('Aqua Robotics')).toBeVisible();
+  await expect(page.getByRole('region',{name:'Resume your launch'})).toHaveCount(0);
+  expect(await page.evaluate(()=>(window as any).recoveryApprovals)).toBe(0);
+  candidate='another-launch';await page.reload();
+  await expect(page.getByRole('region',{name:'Resume your launch'})).toBeVisible();
+});

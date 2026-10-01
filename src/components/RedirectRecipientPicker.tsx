@@ -12,6 +12,7 @@ export function RedirectRecipientPicker({value,onChange,providers}:{value?:Redir
   const revision=useRef(0);
   function change(next:string){revision.current++;setInput(next);setError('');onChange(null);}
   async function check(){
+    if(busy||!input.trim())return;
     if(!wallet.address){wallet.setModalOpen(true);return;}
     const address=wallet.address,version=revision.current;setBusy(true);setError('');
     try{

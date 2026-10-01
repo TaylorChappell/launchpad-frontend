@@ -91,3 +91,6 @@
   }
   .launch-wizard-page .launch-resume-banner button { justify-self: stretch; width: 100%; }
 }
+
+.launch-recovery-panel header{padding-right:36px}.launch-recovery-panel .launch-recovery-dismiss{position:absolute;right:12px;top:12px;display:grid;place-items:center;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted);transition:background 180ms,color 180ms,transform 180ms}.launch-recovery-panel .launch-recovery-dismiss:hover{background:var(--bg);color:var(--text);transform:rotate(90deg)}.launch-recovery-dismiss:focus-visible{outline:2px solid var(--aqua-blue);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.launch-recovery-panel .launch-recovery-dismiss{transition:none}.launch-recovery-panel .launch-recovery-dismiss:hover{transform:none}}

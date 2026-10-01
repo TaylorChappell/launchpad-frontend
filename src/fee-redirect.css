@@ -13,3 +13,7 @@
 @media (max-width:760px){
   body:has(.redirect-input-row:focus-within) .bottom-nav{display:none}
 }
+
+.redirect-settings-panel .redirect-picker{padding:0;margin:0;border:0;background:transparent}.redirect-settings-panel .redirect-picker h3{font-size:15px}.redirect-selection{display:flex;align-items:center;gap:12px;padding:16px;margin-top:18px;border:1px solid var(--line);border-radius:16px;background:var(--bg-raised);color:var(--aqua-blue);animation:aqua-panel-enter 300ms ease-out both}.redirect-selection>span{flex:1;min-width:0}.redirect-selection strong,.redirect-selection small{display:block;overflow-wrap:anywhere}.redirect-selection small{margin-top:5px;color:var(--muted);font-size:12px}.redirect-settings-panel .redirect-checked{animation:aqua-panel-enter 250ms ease-out both}
+@media(max-width:600px){.redirect-selection{flex-wrap:wrap}.redirect-selection button{width:100%;justify-content:center}}
+@media(prefers-reduced-motion:reduce){.redirect-selection,.redirect-settings-panel .redirect-checked{animation:none}}

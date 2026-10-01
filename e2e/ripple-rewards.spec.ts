@@ -327,7 +327,7 @@ for(const blockedStorage of [false,true])test(`X return recovers without the ori
   const panel=page.locator('.x-callback');
   await expect(panel).toContainText('@mobile_user');
   await expect(page).toHaveURL(/receipt=/);
-  await expect(page.getByRole('button',{name:'Connect X account',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Connect accounts',exact:true})).toHaveCount(0);
   expect(completions()).toBe(0);
   await panel.getByRole('button',{name:'Link X to this wallet',exact:true}).click();
   await expect(page).toHaveURL(/#\/portfolio\?tab=ripple$/);
