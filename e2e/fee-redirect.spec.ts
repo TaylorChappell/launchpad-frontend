@@ -43,7 +43,8 @@ async function setup(page:Page,dark=false,wrongOwner=false){
 test('launch checks the recipient, invalidates edits and sends the provider ID',async({page},info)=>{
   const calls=await setup(page,true);await page.goto(`/#/create?studio=${id}`);
   await expect(page.getByPlaceholder('Aqua Robotics')).toHaveValue('Tide');
-  for(let n=0;n<2;n++)await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'Choose a trading pair',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'Choose the reward mode',exact:true})).toBeVisible();
   await page.getByRole('radio',{name:/Fee Redirect/}).click();
   const next=page.getByRole('button',{name:'Continue',exact:true});await expect(next).toBeDisabled();
   await page.getByRole('button',{name:'X account',exact:true}).click();
@@ -55,7 +56,7 @@ test('launch checks the recipient, invalidates edits and sends the provider ID',
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
   await page.evaluate(()=>{(document.activeElement as HTMLElement)?.blur();window.scrollTo(0,0);});
   await page.screenshot({path:info.outputPath('compact-redirect-dark-launch.png'),fullPage:true});
-  await next.click();await next.click();await page.getByRole('button',{name:'Skip profile details'}).click();
+  await next.click();await expect(page.getByRole('heading',{name:'Coin settings',exact:true})).toBeVisible();await next.click();await expect(page.getByRole('heading',{name:'DEX Screener profile',exact:true})).toBeVisible();await page.getByRole('button',{name:'Skip profile details'}).click();
   await expect(page.getByText('50% to @builder · 50% to holders')).toBeVisible();
   await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Launch',exact:true}).click();
   await expect.poll(()=>calls.launches.length).toBe(1);
@@ -64,12 +65,13 @@ test('launch checks the recipient, invalidates edits and sends the provider ID',
 });
 test('wallet and GitHub recipients are selectable and returning to holders clears the payload',async({page})=>{
   const calls=await setup(page);await page.goto(`/#/create?studio=${id}`);await expect(page.getByPlaceholder('Aqua Robotics')).toHaveValue('Tide');
-  for(let n=0;n<2;n++)await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'Choose a trading pair',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'Choose the reward mode',exact:true})).toBeVisible();
   await page.getByRole('radio',{name:/Fee Redirect/}).click();await page.getByLabel('Solana wallet address').fill(address);await page.getByRole('button',{name:'Check recipient',exact:true}).click();await expect(page.getByText('Wallet address checked')).toBeVisible();
   await page.getByRole('button',{name:'GitHub',exact:true}).click();await page.getByLabel('GitHub username or profile URL').fill('github.com/builder');await page.getByRole('button',{name:'Check recipient',exact:true}).click();await expect(page.getByText('Account found · ownership required to claim')).toBeVisible();
   expect(calls.resolve.map(r=>r.kind)).toEqual(['wallet','github']);
   await page.getByRole('radio',{name:/Holder Rewards/}).click();
-  for(let n=0;n<2;n++)await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('button',{name:'Skip profile details'}).click();await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Launch',exact:true}).click();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'Coin settings',exact:true})).toBeVisible();await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'DEX Screener profile',exact:true})).toBeVisible();await page.getByRole('button',{name:'Skip profile details'}).click();await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Launch',exact:true}).click();
   await expect.poll(()=>calls.launches.length).toBe(1);expect(calls.launches[0].rewardMode).toBe('holder_rewards');expect(calls.launches[0]).not.toHaveProperty('redirectRecipient');
 });
 for(const dark of [false,true])test(`recipient activation is explicit and usable in ${dark?'dark':'light'} mode`,async({page},info)=>{
