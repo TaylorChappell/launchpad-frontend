@@ -152,6 +152,7 @@ export function Create() {
   const resumeDismissalKey = `aqua:launch-resume-cleared:${config.network}:${wallet.address ?? "guest"}`;
   const resumeDismissals = useRef<Record<string, number>>({});
   const [redirectSettingsOpen,setRedirectSettingsOpen]=useState(false);
+  useEffect(()=>setRedirectSettingsOpen(false),[wallet.address]);
   const [,refreshResumeDismissals]=useState(0);
   const resumeScope=`${config.network}:${wallet.address ?? "guest"}`;
   const [pending, setPending] = useState<PendingAction | null>(null);
@@ -207,7 +208,7 @@ export function Create() {
         migratedGuest.current = { key: previousKey, id: draftIdentity.current.id };
       }
       if (draft?.form) {
-        setForm({...empty,...draft.form,devBuyCurrency:"SOL",launchAmount:draft.form.devBuyCurrency==="USDC"?"":draft.form.launchAmount??""});
+        setForm({...empty,...draft.form,rewardMode:draft.form.rewardMode==="fee_redirect"&&!draft.form.redirectRecipient?"holder_rewards":draft.form.rewardMode,devBuyCurrency:"SOL",launchAmount:draft.form.devBuyCurrency==="USDC"?"":draft.form.launchAmount??""});
         setDexFundingEnabled(Boolean(draft.dexFundingEnabled));
         setMarketingMode(draft.marketingMode??"automatic"); setDexFundingMode(draft.dexFundingMode??"automatic");
         if (draft.dexProfile) setDexProfile(draft.dexProfile);
@@ -754,7 +755,7 @@ export function Create() {
     {resumeLaunchId && wallet.address && !launching && !completedLaunch && <LaunchRecoveryPanel
       key={`${wallet.address}:${resumeLaunchId}`} launchId={resumeLaunchId}
       creator={wallet.address} disabled={draftLoading} onResume={() => void resumeExistingLaunch()} onNew={launchAnother} onDismiss={hideResume}/>}
-    <RedirectSettingsPanel key={wallet.address ?? "guest"} open={redirectSettingsOpen && step===2} value={form.redirectRecipient} providers={config.rewardModes?.feeRedirect?.providers} onClose={()=>setRedirectSettingsOpen(false)} onSave={recipient=>{setForm(current=>({...current,rewardMode:"fee_redirect",redirectRecipient:recipient}));setRedirectSettingsOpen(false);}}/>
+    <RedirectSettingsPanel key={wallet.address ?? "guest"} open={redirectSettingsOpen && step===2} value={form.redirectRecipient} providers={config.rewardModes?.feeRedirect?.providers} onClose={()=>setRedirectSettingsOpen(false)} onSave={recipient=>{editDraft();setForm(current=>({...current,rewardMode:"fee_redirect",redirectRecipient:recipient}));setRedirectSettingsOpen(false);}}/>
     <section className={`wizard-shell ${launching ? "is-launching" : ""}`}>
       <div className="wizard-caustics" aria-hidden="true"/>
       {launching && <div className="wizard-launching-screen" role="status" aria-live="polite" aria-label={`Launching ${form.symbol}`}>
