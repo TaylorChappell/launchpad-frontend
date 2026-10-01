@@ -8,3 +8,7 @@
 @keyframes recipient-step-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}@keyframes recipient-float{50%{transform:translateY(-5px) rotate(-2deg)}}@keyframes recipient-tide{to{transform:translateY(-22px) rotate(4deg)}}@keyframes recipient-celebrate{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.15) rotate(-7deg)}100%{transform:scale(1);opacity:1}}
 @media(max-width:600px){.recipient-claim-page{padding:24px 14px 38px;place-items:start center}.recipient-claim-card{border-radius:22px}.recipient-coin{padding:20px}.recipient-claim-step{padding:28px 22px}.recipient-progress{margin:20px 20px 0;gap:4px}.recipient-progress li{font-size:11px;gap:4px}.recipient-claim-footer{padding:16px 20px;gap:8px}.recipient-coin .recipient-share{font-size:22px!important}.recipient-shell .recipient-header-note{display:none}.recipient-device-options{gap:10px}.recipient-device-options button{padding:22px 7px}.recipient-claim-step .reward-row-amount{max-width:130px}}
 @media(prefers-reduced-motion:reduce){.recipient-claim-water:after,.recipient-icon-orb,.recipient-claim-step,.recipient-celebrate{animation:none}.recipient-device-options button{transition:none}.recipient-device-options button:hover{transform:none}}
+
+.recipient-claim-step .recipient-fee-note{font-size:12px;margin:-10px auto 20px;color:var(--muted)}
+
+.recipient-shell .site-header{position:relative;top:auto}.recipient-shell .header-inner .brand b{display:block}

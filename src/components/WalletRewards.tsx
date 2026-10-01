@@ -55,7 +55,7 @@ function RewardContent({guided,onConfirmed,launch,data,launches,onClaimed,kind,c
     remember(null);
     if(alive.current){
       setSuccess({signature:receipt.signature,amount});
-      setStatus("");setRevision(n=>n+1);onClaimed?.();onConfirmed?.();
+      setStatus("");setRevision(n=>n+1);onClaimed?.();if(!launch||receipt.launchId===launch.id)onConfirmed?.();
     }
     return {name:receipt.name,signature:receipt.signature,amount};
   }
@@ -180,6 +180,6 @@ function RewardContent({guided,onConfirmed,launch,data,launches,onClaimed,kind,c
         <div className="reward-row-amount"><strong>{usd(eligible?m.claimableUsdCents:m.grossRedeemableUsdCents+m.pendingUsdCents)}</strong><small>{eligible?`${usd(m.netClaimableUsdCents)} after estimated costs`:m.claimMode!=="cumulative"&&m.claimableEpochIds.length>1?"Preparing a combined claim":`Claim minimum ${usd(m.minimumClaimUsdCents)} net`}</small></div>
         <button className="primary" disabled={busy||Boolean(pending)||!eligible} onClick={()=>void claimBatch([m])}>{busy&&status?<Loader2 size={15} className="spin"/>:null}{eligible?"Claim":"Pending"}</button>
       </article>;
-    })}</div>:rewardData&&<div className="workspace-empty"><Gift/><h3>{launch?.rewardMode==="buyback_burn"?"This market buys back and burns tokens.":"No rewards to claim yet."}</h3><p>{launch?.rewardMode==="buyback_burn"?"Buybacks reduce supply; this mode does not pay a wallet reward.":kind==="ripple"?"Rewards from your qualifying X posts will appear here after settlement.":"Your allocations will appear here once they’re indexed."}</p>{!launch&&<Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link>}</div>)}
+    })}</div>:rewardData&&!(guided&&success)&&<div className="workspace-empty"><Gift/><h3>{launch?.rewardMode==="buyback_burn"?"This market buys back and burns tokens.":"No rewards to claim yet."}</h3><p>{launch?.rewardMode==="buyback_burn"?"Buybacks reduce supply; this mode does not pay a wallet reward.":kind==="ripple"?"Rewards from your qualifying X posts will appear here after settlement.":"Your allocations will appear here once they’re indexed."}</p>{!launch&&<Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link>}</div>)}
   </div>;
 }

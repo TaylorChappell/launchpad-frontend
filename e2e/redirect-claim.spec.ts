@@ -83,6 +83,8 @@ test('direct wallet recipients skip social sign-in, claim once and earn a public
   await page.getByRole('button',{name:'Claim',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Nice. Rewards received.'})).toBeVisible();await expect(page.getByText('1 SOL claimed',{exact:true})).toBeVisible();
   expect(calls.prepared).toBe(1);expect(calls.confirmed).toBe(1);expect(calls.activate).toHaveLength(0);
+  await expect(page.getByText('No rewards to claim yet.')).toHaveCount(0);
+  await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:info.outputPath('compact-recipient-success.png'),fullPage:true});
   await page.goto('/#/');await expect(page.getByText('Recipient claimed',{exact:true})).toBeVisible();
 });
