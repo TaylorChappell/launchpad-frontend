@@ -1076,3 +1076,7 @@
 @media (max-width: 760px){.aqua-docs-summary { margin-top: 46px !important; }}
 @media (max-width: 760px){.aqua-docs-summary > div,
   .aqua-docs-summary > div:first-child { padding: 18px 16px !important; }}
+
+@media (min-width: 881px) {
+  .reward-mode-docs { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}

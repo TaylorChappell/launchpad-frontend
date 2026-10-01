@@ -8,6 +8,7 @@ async function setup(page:Page,dark=false,wrongOwner=false){
   const calls={launches:[] as any[],resolve:[] as any[],activate:[] as any[],github:[] as any[]};let activated=false;
   await page.addInitScript(({address,dark})=>{
     localStorage.setItem('aqua:update:holder-workspace-v2','seen');localStorage.setItem('aqua:wallet','phantom');
+    sessionStorage.setItem(`aqua:x-prompt:${address}`,'1');
     localStorage.setItem('aqua:theme',dark?'dark':'light');
     localStorage.setItem(`aqua:studio:${address}`,JSON.stringify({token:'a'.repeat(64),expiresAt:Date.now()+3600000}));
     (window as any).phantom={solana:{isPhantom:true,publicKey:{toString:()=>address},connect:async()=>({publicKey:{toString:()=>address}}),on(){},removeListener(){}}};
@@ -52,6 +53,7 @@ test('launch checks the recipient, invalidates edits and sends the provider ID',
   await page.getByLabel('X handle or profile URL').fill('@edited');await expect(next).toBeDisabled();
   await page.getByRole('button',{name:'Check recipient',exact:true}).click();await expect(next).toBeEnabled();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
+  await page.evaluate(()=>{(document.activeElement as HTMLElement)?.blur();window.scrollTo(0,0);});
   await page.screenshot({path:info.outputPath('compact-redirect-dark-launch.png'),fullPage:true});
   await next.click();await next.click();await page.getByRole('button',{name:'Skip profile details'}).click();
   await expect(page.getByText('50% to @builder · 50% to holders')).toBeVisible();
@@ -76,6 +78,7 @@ for(const dark of [false,true])test(`recipient activation is explicit and usable
   const activate=page.getByRole('button',{name:'Activate payout wallet',exact:true});await expect(activate).toBeDisabled();
   await expect(page.getByText('Their share is reserved while holders keep earning.',{exact:false})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
+  await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:info.outputPath(`compact-redirect-${dark?'dark':'light'}-recipient.png`),fullPage:true});
   await page.getByRole('checkbox',{name:/fixed payout wallet/}).check();await activate.click();
   await expect(page.getByRole('heading',{name:'Your claimable rewards'})).toBeVisible();expect(calls.activate).toEqual([{kind:'x',subject:'42'}]);

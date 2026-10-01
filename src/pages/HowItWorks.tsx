@@ -334,8 +334,8 @@ export function HowItWorks() {
           </Callout>
         </DocSection>
 
-        <DocSection id="reward-modes" eyebrow="FEES AND REWARDS" title="Three permanent ways to use the reward share">
-          <p>Every creator chooses one reward mode in the launch wizard. The choice is written to a separate on-chain market-policy account and is immutable, so the creator or AQUA operator cannot quietly redirect a successful coin later.</p>
+        <DocSection id="reward-modes" eyebrow="FEES AND REWARDS" title="Four permanent ways to use the reward share">
+          <p>Every creator chooses one reward mode in the launch wizard. Fee Redirect fixes the recipient in AQUA’s launch record and uses the existing on-chain reward claims. Holder Rewards, Buyback &amp; Burn and Hourly Jackpot retain their immutable on-chain market policy.</p>
           <div className="reward-mode-docs">
             <article><span><RewardModeIcon mode="holder_rewards"/></span><small>MODE 01</small><h3>Holder Rewards</h3><p>The remaining reward share buys the selected pair asset and allocates it proportionally by balance × time held. Cumulative Merkle checkpoints let each wallet collect its outstanding market rewards in one claim.</p><b>Fairness</b><p>Continuous balance history replaces a single snapshot. Infrastructure accounts and the creator wallet are excluded.</p></article>
             <article><span><RewardModeIcon mode="buyback_burn"/></span><small>MODE 02</small><h3>Buyback &amp; Burn</h3><p>The reward share is settled into SOL, swapped back through the live market for that launch token, and the purchased tokens are permanently burned.</p><b>Fairness</b><p>The buy and burn use public Solana transactions. AQUA records the SOL spent, token amount bought, buy signature and burn signature.</p></article>

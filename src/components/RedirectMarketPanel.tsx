@@ -15,6 +15,6 @@ export function RedirectMarketPanel({launch,active=true}:{launch:Launch;active?:
     {data?.totals.map(t=><dl className="redirect-totals" key={t.mint}><div><dt>Recipient allocated</dt><dd>{amount(t.allocatedRaw,t.decimals)} {t.symbol}</dd></div><div><dt>Recipient claimable</dt><dd>{amount(t.claimableRaw,t.decimals)} {t.symbol}</dd></div><div><dt>Recipient paid</dt><dd>{amount(t.claimedRaw,t.decimals)} {t.symbol}</dd></div></dl>)}
     {data?.pending.some(p=>p.amountRaw!=='0')&&<p>More recipient rewards are reserved for the next settlement.</p>}
     {error&&<p role="status">{error}</p>}
-    <footer><span>The net pool is split after operating costs, Ripple and community funding.</span><Link className="secondary" to={`/fee-redirect?market=${encodeURIComponent(launch.id)}`}>Recipient rewards <ArrowUpRight size={16}/></Link></footer>
+    <footer><span>The net pool is split after operating costs, Ripple and community funding.</span><Link className="secondary-button" to={`/fee-redirect?market=${encodeURIComponent(launch.id)}`}>Recipient rewards <ArrowUpRight size={16}/></Link></footer>
   </section>;
 }
