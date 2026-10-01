@@ -561,7 +561,7 @@ export type CumulativeRewardClaimConfirmation = {
   stockDecimals: number;
 };
 
-export type LaunchBatchEnvelope = TransactionEnvelope & { step: "pool" | "prepare" | "funding" | "liquidity" | "lock" };
+export type LaunchBatchEnvelope = TransactionEnvelope & { step: "mint" | "pool" | "prepare" | "funding" | "liquidity" | "lock" };
 export type LaunchBudget = {
   availableLamports: string; requiredLamports: string; reserveLamports: string; buyLamports: string;
   shortfallLamports: string; maximumBuyLamports: string; sufficient: boolean;
@@ -587,15 +587,16 @@ export type LaunchRelayStatus = {
   rewardMode: "holder_rewards" | "buyback_burn" | "jackpot";
   mint: string;
   status: "not_submitted" | "queued" | "running" | "needs_approval" | "complete";
-  step: "pool" | "prepare" | "funding" | "liquidity" | "lock" | null;
+  step: "mint" | "pool" | "prepare" | "funding" | "liquidity" | "lock" | null;
   error: string | null;
   rebuildRequired: boolean;
 };
-export type BatchStepValidation = { ready: true; step: "pool" | "prepare" | "funding" | "liquidity" | "lock"; alreadyConfirmed?: boolean; confirmationRecorded?: boolean; signature?: string };
+export type BatchStepValidation = { ready: true; step: "mint" | "pool" | "prepare" | "funding" | "liquidity" | "lock"; alreadyConfirmed?: boolean; confirmationRecorded?: boolean; signature?: string };
 
 export type LaunchIntentResponse = TransactionEnvelope & {
   launchId: string;
   step: "mint";
+  batch?: LaunchBatchEnvelope[];
   mint: string;
   market: string;
   next: string;
@@ -603,7 +604,7 @@ export type LaunchIntentResponse = TransactionEnvelope & {
 
 export type LaunchRetryResponse = Partial<TransactionEnvelope> & {
   launchId: string;
-  step?: "pool" | "prepare" | "funding" | "liquidity" | "lock";
+  step?: "mint" | "pool" | "prepare" | "funding" | "liquidity" | "lock";
   status?: "live";
   whirlpoolAddress?: string;
   positionMint?: string;

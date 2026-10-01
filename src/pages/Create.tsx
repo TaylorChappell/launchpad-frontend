@@ -465,7 +465,16 @@ export function Create() {
   }
 
   function relayState(state: LaunchRelayStatus) {
-    if (state.step) { setPending({ launchId: state.launchId, stage: state.step }); setStage(state.step, "active"); }
+    if (state.step) {
+      setPending({ launchId: state.launchId, stage: state.step });
+      const order: ChainStage[] = ["mint", "pool", "prepare", "funding", "liquidity", "lock"];
+      setProgress(current => {
+        const updated = { ...current };
+        for (const step of order.slice(0, order.indexOf(state.step!))) updated[step] = "done";
+        updated[state.step!] = "active";
+        return updated;
+      });
+    }
     setRelayMessage(state.approvalReady ? "Ready for your next wallet approval." : "Completing your approved launch transactions. Progress is saved if you leave this page.");
   }
 
@@ -516,7 +525,7 @@ export function Create() {
         onApproval:(step,transactionCount)=>{
           if (activeStage !== step) setStage(activeStage, "done");
           activeStage=step;setPending({launchId:id,stage:step});setStage(step,"active");
-          setRelayMessage(transactionCount>1 ? "Approve the remaining launch transactions together in your wallet." : "Review the next step in your wallet.");
+          setRelayMessage(transactionCount>1 ? "Approve your launch transactions together in your wallet." : "Review the next step in your wallet.");
           showLaunchStatus(transactionCount>1 ? "Approve and finish launch" : step==="liquidity" ? "Approve liquidity and launch" : step==="lock" ? "Approve permanent lock" : "Approve launch setup",
             transactionCount>1 ? "One batch approval covers the remaining setup and launch. AQUA confirms the transactions in order." : "Review the request in your wallet to continue.");
         },onState:relayState,reconnecting:()=>setRelayMessage("Reconnecting to AQUA. Your approved step is saved; do not resubmit it.")});
@@ -602,7 +611,6 @@ export function Create() {
     try {
       setExecutionOpen(true); setExecutionState("running"); setStage(pending.stage, "active");
       showLaunchStatus("Resuming launch", "AQUA is rebuilding the next safe transaction.");
-      if (pending.stage === "mint") { await beginLaunch(); return; }
       if (pending.stage === "devBuy") {
         const envelope = await api.tradeTransaction(pending.launchId, {
           trader: wallet.address,
@@ -644,12 +652,14 @@ export function Create() {
       }
       if (fresh.batch?.length) {
         const first = fresh.batch[0]?.step;
+        if (first === "mint") restored.mint = "waiting";
         if (first === "liquidity" || first === "lock") restored.pool = "done";
         if (first === "lock") restored.liquidity = "done";
         setProgress(restored);
         await executeLaunchBatch(launchId, fresh.batch);
       } else {
         if (!fresh.step || !isEnvelope(fresh)) throw new Error("The backend returned an incomplete recovery step.");
+        if (fresh.step === "mint") restored.mint = "waiting";
         if (fresh.step === "liquidity" || fresh.step === "lock") restored.pool = "done";
         if (fresh.step === "lock") restored.liquidity = "done";
         setProgress(restored);
@@ -677,7 +687,7 @@ export function Create() {
       const imageId = (await api.upload(body, await ensureAccountSession(wallet.address!,wallet.signMessage))).imageId;
       const initialBuyRaw = hasInitialBuy ? decimalToRaw(form.launchAmount, currencyDecimals) : "0";
       const intent = await api.createLaunch({
-        creatorWallet: wallet.address, clientRequestId, symbol, stockSymbol: stock.symbol,
+        creatorWallet: wallet.address, clientRequestId, symbol, stockSymbol: stock.symbol, batchSigning: wallet.canBatchSign,
         ...(importedStudio.current === `${wallet.address}:${searchParams.get("studio")}` ? { studioProjectId: searchParams.get("studio") } : {}),
         name: form.name.trim(), description: form.description.trim(), imageId,
         stockMint: stock.mint, poolPair: stock.mint === "So11111111111111111111111111111111111111112" ? "SOL" : "STOCK",
@@ -695,7 +705,8 @@ export function Create() {
         if (guest) { await removeLaunchDraft(guest.key, guest.id); if (migratedGuest.current === guest) migratedGuest.current = null; }
       } catch { setDraftError("Draft could not save. Keep this page open until launch."); }
       setStage("approval", "done");
-      await continueLaunch({ envelope: intent, stage: "mint", launchId: intent.launchId });
+      if (intent.batch?.length) await executeLaunchBatch(intent.launchId, intent.batch);
+      else await continueLaunch({ envelope: intent, stage: "mint", launchId: intent.launchId });
     } catch (error) {
       setStage("approval", "error");
       showLaunchError(error, "The launch could not be prepared.");
@@ -845,7 +856,7 @@ export function Create() {
             <button type="button" onClick={() => setBudgetVersion(value=>value+1)}>Refresh balance</button>
           </div>}
           <p className="field-help">Liquidity, your optional first buy and permanent locking finish together. If the final transaction fails, the buy is reversed. Earlier setup and network fees still apply.</p>
-          {wallet.canBatchSign && <p className="field-help">Normally two wallet approvals: create your token, then approve the remaining launch together. Your wallet may show a review for each transaction.</p>}
+          {wallet.canBatchSign && <p className="field-help">One signing request covers token creation, pool setup and permanent locking, including your optional first buy. Your wallet may show a review for each transaction.</p>}
           <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} · {form.rewardMode === "holder_rewards" ? "Holder Rewards" : form.rewardMode === "buyback_burn" ? "Buyback & Burn" : "Hourly Jackpot"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
           <div className="launch-settings-review"><span>Rewards fee <b>{form.rewardFeeBps/100}%</b></span><span>Ripple share <b>{form.rippleRewardBps/100}%</b></span><button type="button" onClick={() => setStep(settingsStep)}>Edit settings</button></div>
           <p className="field-help">Fees and Ripple share are fixed at launch. Review them before continuing.</p><label className="terms-acceptance"><input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)}/><span>I have read and agree to the <Link to="/terms" target="_blank">Terms of Service</Link>, including the cryptoasset, permanent-liquidity and third-party risks.</span></label>
