@@ -103,6 +103,11 @@ export function Layout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", openWithShortcut);
   }, [searchOpen, wallet.modalOpen]);
 
+  if(currentPath.startsWith("/claim-redirect/"))return <div className="app-shell recipient-shell">
+    <header className="site-header" ref={header}><div className="header-inner"><NavLink to="/" className="brand" aria-label="AQUA home"><AquaMark/><b>AQUA</b></NavLink><div className="header-actions"><span className="recipient-header-note">A little reward goes a long way.</span><ThemeToggle/></div></div></header>
+    {children}<WalletModal/>
+  </div>;
+
   return <div className={`app-shell ${trading ? "trading-shell" : ""} ${currentPath.startsWith("/studio")?"studio-shell":""}`}>
     <a className="skip-link" href="#main-content" onClick={event=>{event.preventDefault();const main=document.querySelector("main");if(main){main.tabIndex=-1;main.focus();main.scrollIntoView({block:"start"});}}}>Skip to content</a>
     {isPreview && <div className="environment-bar"><span>{config.useTestnet ? "DEVNET PREVIEW" : "TRANSACTIONS PAUSED"}</span><p>{config.useTestnet ? "No live funds are used." : "The live program is not currently accepting transactions."}</p></div>}

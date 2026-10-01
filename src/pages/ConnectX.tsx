@@ -61,6 +61,12 @@ function FinishXConnection() {
       if(current.current===pending.wallet){setError(e instanceof Error?e.message:"Could not finish connecting X.");if(e instanceof StudioApiError&&e.status===409)setRestartRequired(true);}
     } finally { setBusy(false); }
   }
+  const autoFinished=useRef('');
+  useEffect(()=>{
+    if(!pending?.receipt||!pending.returnTo.startsWith('#/claim-redirect/')||wallet.address!==pending.wallet||restartRequired||autoFinished.current===pending.state)return;
+    autoFinished.current=pending.state;
+    void finish();
+  },[pending,wallet.address,restartRequired]);
   async function restart(){
     if(!pending||current.current!==pending.wallet||busy)return;
     setBusy(true);setError("");

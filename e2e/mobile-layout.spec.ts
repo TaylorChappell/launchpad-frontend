@@ -432,9 +432,9 @@ test('restored market cards and filter dialog fit both layouts and keep draft ch
  await dialog.getByRole('button',{name:'Paid',exact:true}).click();
  await page.screenshot({path:info.outputPath('compact-filters.png')});
  await dialog.getByRole('combobox',{name:'Rewards',exact:true}).focus();await page.keyboard.press('ArrowDown');await page.keyboard.press('End');await page.keyboard.press('Enter');
- await expect(dialog.getByRole('combobox',{name:'Rewards',exact:true})).toHaveText('Jackpot');
+ await expect(dialog.getByRole('combobox',{name:'Rewards',exact:true})).toHaveText('Fee Redirect');
  await dialog.getByRole('button',{name:'Apply filters'}).click();
- await expect(dialog).toHaveCount(0);await expect(opener).toBeFocused();await expect(page).toHaveURL(/minCap=1000/);await expect(page).toHaveURL(/mode=jackpot/);
+ await expect(dialog).toHaveCount(0);await expect(opener).toBeFocused();await expect(page).toHaveURL(/minCap=1000/);await expect(page).toHaveURL(/mode=fee_redirect/);
  await opener.click();await dialog.getByRole('button',{name:'Reset',exact:true}).click();await dialog.getByRole('button',{name:'Close filters'}).click();await expect(page).toHaveURL(/minCap=1000/);
  await page.goto('/#/portfolio');await expect(page.getByRole('heading',{name:'Your portfolio'})).toBeVisible();await expect(page.getByRole('tablist')).toHaveCount(0);
  await expect(page.locator('.portfolio-welcome')).toHaveCSS('display','block');

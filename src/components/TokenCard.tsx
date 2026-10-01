@@ -1,3 +1,4 @@
+import { RedirectClaimedBadge } from "./RedirectClaimedBadge";
 import { MarketSocialLinks } from "./MarketSocialLinks";
 import { RecentUpdateBell } from "./RecentUpdateBell";
 import { assetLogoUrl } from "../asset-logo";
@@ -73,7 +74,7 @@ export function TokenCard({ launch, featured = false, boosted = false }: { launc
       <div className="token-stats"><Metric label="24h volume" value={indexed ? cardAmount(launch.volume24hUsd, true) : "Indexing"}/><Metric label="Holders" value={indexed ? cardAmount(launch.holderCount) : "Indexing"}/></div>
     </Link>
     <footer className="card-footer">
-      {(dexStatus || creatorLock) && <div className="token-card-status"><DexStatusBadge state={dexStatus} compact/>{creatorLock && <span className="creator-lock-badge" title="Verified creator lock" aria-label={`${creatorLockPercentLabel(creatorLock)} of supply locked by the creator`}><LockKeyhole aria-hidden="true"/>{creatorLockPercentLabel(creatorLock)} locked</span>}</div>}
+      {(dexStatus || creatorLock || launch.redirectClaimed) && <div className="token-card-status"><DexStatusBadge state={dexStatus} compact/><RedirectClaimedBadge launch={launch}/>{creatorLock && <span className="creator-lock-badge" title="Verified creator lock" aria-label={`${creatorLockPercentLabel(creatorLock)} of supply locked by the creator`}><LockKeyhole aria-hidden="true"/>{creatorLockPercentLabel(creatorLock)} locked</span>}</div>}
       <MarketSocialLinks launch={launch} className="token-card-socials" copyAddress={launch.mint}/>
     </footer>
     <RecentUpdateBell at={launch.latestProjectUpdateAt} launchId={launch.id}/>

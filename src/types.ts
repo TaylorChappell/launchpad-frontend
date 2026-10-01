@@ -267,6 +267,7 @@ export type Launch = {
   pairMint: string;
   tradingPair: { type: "sol" | "stock"; symbol: string; mint: string };
   redirectRecipient?: import("./fee-redirect-api").RedirectRecipient | null;
+  redirectClaimed?: boolean;
   rewardMode: "holder_rewards" | "buyback_burn" | "jackpot" | "fee_redirect";
   rewardFeeBps?: number;
   rippleRewardBps?: number;
@@ -493,6 +494,7 @@ export type AnalyticsResponse = {
 };
 
 export type WalletReward = {
+  distributionMode?: string;
   epochId: string;
   launchId: string;
   stockSymbol: string;

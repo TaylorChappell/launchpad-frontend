@@ -1,3 +1,4 @@
+import { RedirectClaimLink } from "../components/RedirectClaimLink";
 import { RedirectSettingsPanel } from "../components/RedirectSettingsPanel";
 import { dismissLaunchResume, isLaunchResumeDismissed } from "../launch-resume-dismissal";
 import { recipientLabel, type RedirectRecipient } from "../fee-redirect-api";
@@ -772,6 +773,7 @@ export function Create() {
         <small>Orca market live</small>
         <h1>${completedLaunch.symbol} launched</h1>
         <p>Your pool is active, the full supply is committed to locked liquidity, and {completedLaunch.rewardMode === "fee_redirect" ? "rewards are split equally between your recipient and holders" : completedLaunch.rewardMode === "holder_rewards" ? "holder rewards are accruing" : completedLaunch.rewardMode === "buyback_burn" ? "market buybacks and burns are active" : "hourly jackpot scoring is active"}.</p>
+        {completedLaunch.rewardMode === "fee_redirect" && <div className="launch-recipient-link"><p>Send this to your recipient so they can claim.</p><RedirectClaimLink id={completedLaunch.id}/></div>}
         <div className="launch-complete-actions">
           <a className="complete-primary" href={`#/token/${completedLaunch.id}`}><span className="button-current"/>Go to coin <ArrowRight/></a>
           <button className="complete-secondary" onClick={launchAnother}>Launch another coin</button>

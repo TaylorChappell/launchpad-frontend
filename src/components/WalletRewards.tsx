@@ -13,13 +13,13 @@ type PendingClaim={wallet:string;launchId:string;name:string;signature:string;se
 function savedClaim(key:string):PendingClaim|null{
   try { const value=JSON.parse(localStorage.getItem(key)??"null");return value&&typeof value.wallet==="string"&&typeof value.launchId==="string"&&typeof value.signature==="string"&&(typeof value.sequence==="string"||typeof value.epochId==="string"||Array.isArray(value.epochIds)&&value.epochIds.length>0)?value:null; }catch{return null;}
 }
-export function WalletRewards({launch,data,launches=[],onClaimed,kind="normal",compact=false,active=true}:{active?:boolean;compact?:boolean;kind?:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches?:Launch[];onClaimed?:()=>void}){
+export function WalletRewards({guided=false,onConfirmed,launch,data,launches=[],onClaimed,kind="normal",compact=false,active=true}:{guided?:boolean;onConfirmed?:()=>void;active?:boolean;compact?:boolean;kind?:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches?:Launch[];onClaimed?:()=>void}){
   const wallet=useWallet(),{config}=useRuntime();
   if(launch?.showcase)return <div className="wallet-rewards"><div className="reward-claim-list"><article className="reward-claim-row ready"><div className="reward-claim-coin"><TokenMark launch={launch}/><div><b>{launch.name}</b><small>Sample allocation</small></div></div><div className="reward-row-amount"><strong>$12.50</strong><small>Preview only</small></div><button className="primary" disabled>Claim</button></article></div></div>;
   // Remount on wallet/network change: pending receipts always belong to their signer.
-  return <RewardContent key={config.network+":"+wallet.address+":"+(launch?.id??"all")+":"+kind} active={active} kind={kind} compact={compact} launch={launch} data={data} launches={launches} onClaimed={onClaimed}/>;
+  return <RewardContent key={config.network+":"+wallet.address+":"+(launch?.id??"all")+":"+kind} guided={guided} onConfirmed={onConfirmed} active={active} kind={kind} compact={compact} launch={launch} data={data} launches={launches} onClaimed={onClaimed}/>;
 }
-function RewardContent({launch,data,launches,onClaimed,kind,compact,active}:{active:boolean;compact:boolean;kind:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches:Launch[];onClaimed?:()=>void}){
+function RewardContent({guided,onConfirmed,launch,data,launches,onClaimed,kind,compact,active}:{guided:boolean;onConfirmed?:()=>void;active:boolean;compact:boolean;kind:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches:Launch[];onClaimed?:()=>void}){
   const wallet=useWallet(),{config}=useRuntime(),address=wallet.address;
   const storageKey=["aqua:pending-reward",config.network,address].join(":")+(kind==="ripple"?":ripple":"");
   const [loaded,setLoaded]=useState<WalletRewardsResponse|null>(null),[known,setKnown]=useState<Launch[]>([]);
@@ -55,7 +55,7 @@ function RewardContent({launch,data,launches,onClaimed,kind,compact,active}:{act
     remember(null);
     if(alive.current){
       setSuccess({signature:receipt.signature,amount});
-      setStatus("");setRevision(n=>n+1);onClaimed?.();
+      setStatus("");setRevision(n=>n+1);onClaimed?.();onConfirmed?.();
     }
     return {name:receipt.name,signature:receipt.signature,amount};
   }
@@ -81,7 +81,7 @@ function RewardContent({launch,data,launches,onClaimed,kind,compact,active}:{act
   }
   async function retry(){
     if(!pending||running.current)return;running.current=true;setBusy(true);setError("");setStatus("Checking confirmation…");
-    try{const receipt=await confirm(pending);if(alive.current){setShare({wallet:address!,network:config.network,receipts:[receipt]});setShareOpen(true);}}
+    try{const receipt=await confirm(pending);if(alive.current){setShare({wallet:address!,network:config.network,receipts:[receipt]});setShareOpen(!guided);}}
     catch{
       try{
         const state=await submittedState(pending);
@@ -135,7 +135,7 @@ function RewardContent({launch,data,launches,onClaimed,kind,compact,active}:{act
       const signature=await wallet.sendTransaction(envelope,onSubmitted);
       if(!submitted)onSubmitted(signature);
       const receipt=await confirm(submitted!);
-      if(alive.current){setShare({wallet:address,network:config.network,receipts:[receipt]});setShareOpen(true);}
+      if(alive.current){setShare({wallet:address,network:config.network,receipts:[receipt]});setShareOpen(!guided);}
     }catch(e){
       if(submitted){
         try{const state=await submittedState(submitted);
@@ -159,7 +159,7 @@ function RewardContent({launch,data,launches,onClaimed,kind,compact,active}:{act
       }
       if(alive.current&&eligible.length>1)setStatus(`${completed} rewards claimed.`);
     }catch{/* executeClaim keeps the submitted receipt and stops the queue. */}
-    finally{running.current=false;if(alive.current){setBusy(false);if(receipts.length){setShare({wallet:address,network:config.network,receipts});setShareOpen(true);}}}
+    finally{running.current=false;if(alive.current){setBusy(false);if(receipts.length){setShare({wallet:address,network:config.network,receipts});setShareOpen(!guided);}}}
   }
   const claimable=markets.filter(m=>m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1));
   if(launch&&address&&rewardData&&!markets.length&&!pending&&!success&&!error)return <div className="market-wallet-rewards"><p className="reward-scope-note">Your rewards will appear here when this market allocates them.</p></div>;
@@ -176,7 +176,7 @@ function RewardContent({launch,data,launches,onClaimed,kind,compact,active}:{act
       const coin=allLaunches.find(l=>l.id===m.launchId);
       const eligible=m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1);
       return <article className={"reward-claim-row"+(eligible?" ready":"")} key={m.launchId+":"+(m.claimableEpochIds[0]??m.claimSequence??"pending")}>
-        <div className="reward-claim-coin">{coin?<TokenMark launch={coin}/>:<Gift size={24}/>}<div>{coin&&!launch?<Link to={"/token/"+coin.id}>{coin.name}</Link>:<b>{coin?.name??"AQUA reward"}</b>}<small>{kind==="ripple"?"Ripple · SOL · ":""}{eligible?"Ready to claim":m.pendingUsdCents>0?"Awaiting settlement":m.canClaim?"Preparing claim":"Below claim minimum"}</small></div></div>
+        <div className="reward-claim-coin">{coin?<TokenMark launch={coin}/>:<Gift size={24}/>}<div>{coin&&!launch?<Link to={"/token/"+coin.id}>{coin.name}</Link>:<b>{coin?.name??"AQUA reward"}</b>}<small>{kind==="normal"&&rewardData?.rewards?.some(r=>r.launchId===m.launchId&&r.distributionMode==="redirect")?"Redirect + holder rewards · ":""}{kind==="ripple"?"Ripple · SOL · ":""}{eligible?"Ready to claim":m.pendingUsdCents>0?"Awaiting settlement":m.canClaim?"Preparing claim":"Below claim minimum"}</small></div></div>
         <div className="reward-row-amount"><strong>{usd(eligible?m.claimableUsdCents:m.grossRedeemableUsdCents+m.pendingUsdCents)}</strong><small>{eligible?`${usd(m.netClaimableUsdCents)} after estimated costs`:m.claimMode!=="cumulative"&&m.claimableEpochIds.length>1?"Preparing a combined claim":`Claim minimum ${usd(m.minimumClaimUsdCents)} net`}</small></div>
         <button className="primary" disabled={busy||Boolean(pending)||!eligible} onClick={()=>void claimBatch([m])}>{busy&&status?<Loader2 size={15} className="spin"/>:null}{eligible?"Claim":"Pending"}</button>
       </article>;
