@@ -562,6 +562,20 @@ export type CumulativeRewardClaimConfirmation = {
 };
 
 export type LaunchBatchEnvelope = TransactionEnvelope & { step: "pool" | "prepare" | "funding" | "liquidity" | "lock" };
+export type LaunchBudget = {
+  availableLamports: string; requiredLamports: string; reserveLamports: string; buyLamports: string;
+  shortfallLamports: string; maximumBuyLamports: string; sufficient: boolean;
+};
+export type LaunchRecovery = {
+  launchId: string; symbol: string; pairSymbol: string; pairMint: string; pairBalanceRaw: string;
+  recoverableRaw: string; canRecover: boolean; locked: boolean; positionActive: boolean; activationConfirmed: boolean;
+  devBuyConfirmed: boolean; fundingConfirmed: boolean; unresolved: boolean; approvalsExpired: boolean;
+  recoveryState: "none" | "approval" | "pending" | "complete" | "failed" | "expired";
+  recoverySignature: string | null;
+  recoveryTransaction: (TransactionEnvelope & { minimumOutputRaw: string }) | null;
+  steps: Array<{ step: string; confirmed: boolean; signature: string | null }>;
+  budget: LaunchBudget; positionAddress: string | null;
+};
 export type SignedTransactionEnvelope = LaunchBatchEnvelope & { signedTransactionBase64: string };
 export type LaunchRelayStatus = {
   approvalReady?: boolean;

@@ -1,3 +1,4 @@
+import { mockLaunchSafety } from "./fixtures/launch-safety";
 import { test, expect, type Page } from '@playwright/test';
 import { PublicKey, TransactionMessage, VersionedTransaction } from '@solana/web3.js';
 
@@ -32,6 +33,7 @@ async function setup(page:Page,listed=true,retryBatch=false) {
     return r.fulfill({json});
   });
   await page.route('**/account/**',r=>r.fulfill({json:{enabled:false}}));
+  await mockLaunchSafety(page);
   return calls;
 }
 

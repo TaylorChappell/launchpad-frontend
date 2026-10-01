@@ -1,4 +1,31 @@
 /* Keep recovery readable with either coin artwork or the fallback icon. */
+.launch-recovery-panel { position: relative; margin-bottom: 18px; padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--bg-raised); }
+.launch-recovery-panel header { display: flex; align-items: flex-start; gap: 12px; }
+.launch-recovery-icon { display: grid; place-items: center; flex: 0 0 36px; height: 36px; border-radius: 10px; background: var(--bg); color: var(--aqua-blue); }
+.launch-recovery-icon svg { width: 18px; }
+.launch-recovery-panel h2 { margin: 0 0 5px; font-size: 1rem; color: var(--text); }
+.launch-recovery-panel p { margin: 6px 0; font-size: .8rem; line-height: 1.6; color: var(--muted); }
+.launch-recovery-receipts { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+.launch-recovery-receipts > span { display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: .7rem; }
+.launch-recovery-receipts > .confirmed { color: var(--aqua-blue); }
+.launch-recovery-receipts a { color: inherit; text-decoration: none; }
+.launch-recovery-receipts a:hover { text-decoration: underline; }
+.launch-recovery-panel .launch-recovery-notice { padding: 10px 12px; border-radius: 8px; background: var(--bg); color: var(--text); }
+.launch-recovery-panel .launch-recovery-note { font-size: .75rem; }
+.launch-recovery-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.launch-recovery-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 10px 14px; border: 1px solid transparent; border-radius: 8px; background: #1473b8; color: white; font-size: .78rem; }
+.launch-recovery-actions button.secondary { background: var(--bg); border-color: var(--line); color: var(--text); }
+.launch-recovery-actions button.text { background: transparent; color: var(--muted); }
+.launch-recovery-actions button:disabled { opacity: .5; cursor: not-allowed; }
+.launch-recovery-link { display: inline-block; font-size: .75rem; margin-top: 10px; color: var(--aqua-blue); }
+.launch-budget-card { border: 1px solid var(--line); border-radius: 10px; padding: 14px; font-size: .8rem; }
+.launch-budget-card p { margin: 6px 0; color: var(--muted); line-height: 1.5; }
+.launch-budget-card button { padding: 5px 0; background: transparent; border: 0; color: var(--aqua-blue); font-size: .75rem; }
+@media (max-width: 560px) {
+  .launch-recovery-panel { padding: 16px; }
+  .launch-recovery-actions { align-items: stretch; }
+  .launch-recovery-actions button { flex: 1 1 140px; }
+}
 .launch-wizard-page .launch-resume-banner {
   grid-template-columns: 42px minmax(0, 1fr) auto;
   grid-template-areas: "icon copy action";

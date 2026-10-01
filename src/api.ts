@@ -46,6 +46,10 @@ async function request<T>(path:string,init?:RequestInit):Promise<T>{
 const json = (body: unknown): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 export const api = {
+  launchBudget: (creator: string, amountRaw: string, signal?: AbortSignal) => request<import("./types").LaunchBudget>("/api/launches/budget", { ...json({creator,amountRaw}), signal }),
+  launchRecovery: (id: string, creator: string, signal?: AbortSignal) => request<import("./types").LaunchRecovery>(`/api/launches/${encodeURIComponent(id)}/recovery`, { ...json({creator}), signal }),
+  prepareLaunchRecovery: (id: string, token: string) => request<TransactionEnvelope & {minimumOutputRaw: string}>(`/api/launches/${encodeURIComponent(id)}/recovery/transaction`, { ...json({}), headers: {"Content-Type":"application/json", Authorization:`Bearer ${token}`} }),
+  submitLaunchRecovery: (id: string, token: string, signedTransactionBase64?: string) => request<{signature:string}>(`/api/launches/${encodeURIComponent(id)}/recovery/submit`, { ...json({signedTransactionBase64}), headers: {"Content-Type":"application/json", Authorization:`Bearer ${token}`} }),
   rippleActivity: (wallet: string, signal?: AbortSignal) => request<import("./types").RippleSummary>(`/api/ripple/${encodeURIComponent(wallet)}/activity`, { signal }),
   rippleRewards: (wallet: string) => request<WalletRewardsResponse>(`/api/ripple/${encodeURIComponent(wallet)}/rewards`),
   rippleClaim: (claimant: string) => request<TransactionEnvelope & {epochIds:string[];amountUsdCents:number}>("/api/ripple/claim-transaction",json({claimant})),

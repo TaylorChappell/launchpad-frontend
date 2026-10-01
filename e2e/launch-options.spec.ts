@@ -1,3 +1,4 @@
+import { mockLaunchSafety } from "./fixtures/launch-safety";
 import { test, expect, type Page } from '@playwright/test';
 
 const address = '11111111111111111111111111111111';
@@ -34,6 +35,7 @@ async function setup(page: Page, failBanner = false, variableFees = true) {
     if (path === '/api/launches' && r.request().method() === 'POST') { calls.launches.push(r.request().postDataJSON()); return r.fulfill({ status: 503, json: { error: 'Test launch preparation stopped' } }); }
     return r.fulfill({ json: { launches: [], notifications: [], enabled: false } });
   });
+  await mockLaunchSafety(page);
   await page.goto(`/#/create?studio=${id}`);
   return { calls, releaseProject, releaseBanner };
 }

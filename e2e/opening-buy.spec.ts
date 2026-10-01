@@ -1,3 +1,4 @@
+import { launchBudgetFixture, mockLaunchSafety } from "./fixtures/launch-safety";
 import { test, expect } from "@playwright/test";
 import { Keypair, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 
@@ -7,7 +8,7 @@ test("launch approvals wait for confirmed prerequisites and keep activation with
   const envelope = (amount: number) => ({ transactionVersion: 0, lastValidBlockHeight: 100,
     transactionBase64: Buffer.from(new VersionedTransaction(new TransactionMessage({ payerKey: payer, recentBlockhash: address,
       instructions: [SystemProgram.transfer({ fromPubkey: payer, toPubkey: payer, lamports: amount })] }).compileToV0Message()).serialize()).toString("base64") });
-  const batch = ["pool","prepare","liquidity","lock"].map((step,index) => ({ step, ...envelope(index + 2) }));
+  const batch = ["pool","prepare","liquidity"].map((step,index) => ({ step, ...envelope(index + 2) }));
   await page.addInitScript(address => {
     localStorage.setItem("aqua:update:holder-workspace-v2", "seen");
     localStorage.setItem("aqua:wallet", "phantom");
@@ -49,9 +50,12 @@ test("launch approvals wait for confirmed prerequisites and keep activation with
     expect(simulations).toBe(submissions);
     expect(r.request().postDataJSON().sequential).toBe(true);
     expect(r.request().postDataJSON().transactions.map((tx: {step:string}) => tx.step)).toEqual([batch[submissions-1].step]);
-    return r.fulfill({ json: { launchId: "test-launch", status: submissions===4?"complete":"needs_approval",approvalReady:submissions<4, mint: address, symbol: "TEST", rewardMode: "holder_rewards", devBuyIncluded: true, devBuySignature: "activation-signature" } });
+    return r.fulfill({ json: { launchId: "test-launch", status: submissions===3?"complete":"needs_approval",approvalReady:submissions<3, mint: address, symbol: "TEST", rewardMode: "holder_rewards", devBuyIncluded: true, devBuySignature: "activation-signature" } });
   });
   await page.route("**/api/launches/test-launch/dev-buy-**", r => { lateBuys++; return r.fulfill({ status: 500, json: { error: "Buy already included" } }); });
+  await mockLaunchSafety(page);
+  let funded=false;
+  await page.route("**/api/launches/budget",route=>route.fulfill({json:funded?launchBudgetFixture:{...launchBudgetFixture,availableLamports:"1000000000",requiredLamports:"1120000000",shortfallLamports:"120000000",maximumBuyLamports:"880000000",sufficient:false}}));
   await page.goto("/#/create");
   await expect(page.getByPlaceholder("Aqua Robotics")).toBeVisible();
   await expect.poll(() => walletLoaded).toBe(true);
@@ -68,8 +72,12 @@ test("launch approvals wait for confirmed prerequisites and keep activation with
   await expect(page.getByRole("heading", { name: "Review & launch" })).toBeVisible();
   await page.getByLabel("Optional first buy in SOL").fill("1");
   await page.getByRole("checkbox").check();
+  await expect(page.getByText("More SOL needed",{exact:true})).toBeVisible();
+  await expect(page.getByRole("button", { name: "Launch", exact: true })).toBeDisabled();
+  funded=true;
+  await page.getByRole("button", { name: "Refresh balance", exact: true }).click();
   await page.getByRole("button", { name: "Launch", exact: true }).click();
   await expect(page.getByRole("heading", { name: "$TEST launched", exact: true })).toBeVisible();
-  expect(submissions).toBe(4); expect(lateBuys).toBe(0);
-  expect(await page.evaluate(() => (window as unknown as { launchTestWallet: unknown }).launchTestWallet)).toEqual({ sends: 1, approvals: 4, batches: [] });
+  expect(submissions).toBe(3); expect(lateBuys).toBe(0);
+  expect(await page.evaluate(() => (window as unknown as { launchTestWallet: unknown }).launchTestWallet)).toEqual({ sends: 1, approvals: 3, batches: [] });
 });

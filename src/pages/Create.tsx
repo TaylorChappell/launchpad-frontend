@@ -21,8 +21,9 @@ import { ApiError, api } from "../api";
 import { useRuntime, useWallet } from "../context";
 import { decimalToRaw } from "../launch";
 import { LaunchDetailsLoading } from "../components/LaunchDetailsLoading";
+import { LaunchRecoveryPanel } from "../components/LaunchRecoveryPanel";
+import type { LaunchBudget } from "../types";
 import { PageBubbles } from "../components/PageBubbles";
-import { TokenMark } from "../components/TokenCard";
 import { RewardModeIcon } from "../components/RewardModeIcon";
 import { DexProfileFields } from "../components/MarketProposals";
 import { CoinFeeBreakdown } from "../components/CoinFeeBreakdown";
@@ -147,6 +148,9 @@ export function Create() {
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [savedLaunchId, setSavedLaunchId] = useState<string | null>(null);
   const [recoverableLaunch, setRecoverableLaunch] = useState<Launch | null>(null);
+  const [budget, setBudget] = useState<LaunchBudget | null>(null);
+  const [budgetError, setBudgetError] = useState("");
+  const [budgetVersion, setBudgetVersion] = useState(0);
   const [completedLaunch, setCompletedLaunch] = useState<{ id: string; mint?: string; symbol: string; rewardMode: RewardMode } | null>(null);
 
   const draftKey = "launch:" + config.network + ":" + (wallet.address ?? "guest");
@@ -373,6 +377,20 @@ export function Create() {
   const currencyDecimals = 9;
   const launching = executionOpen && executionState === "running";
   const activeProgress = chainSteps.find((item) => progress[item.key] === "active")?.label ?? "Preparing launch";
+  useEffect(() => {
+    setBudget(null); setBudgetError("");
+    if (!wallet.address || step !== devBuyStep || !amountValid || launching) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      let raw: string;
+      try { raw = amount > 0 ? decimalToRaw(form.launchAmount, 9) : "0"; }
+      catch { setBudgetError("Use no more than 9 decimal places for SOL."); return; }
+      api.launchBudget(wallet.address!, raw, controller.signal).then(setBudget).catch(error => {
+        if (!controller.signal.aborted) setBudgetError(error instanceof Error ? error.message : "Could not check your SOL balance.");
+      });
+    }, 300);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [wallet.address, step, devBuyStep, amountValid, form.launchAmount, launching, budgetVersion]);
 
   function chooseArtwork(next: File | null) {
     if (next && next.size > 3_000_000) { toast.error("Artwork must be 3 MB or smaller."); return; }
@@ -415,6 +433,8 @@ export function Create() {
   }
 
   function launchAnother() {
+    setSavedLaunchId(null); setRecoverableLaunch(null); setExecutionOpen(false);
+    try { localStorage.removeItem(relayStorageKey); } catch { /* Storage may be unavailable. */ }
     if (preview) URL.revokeObjectURL(preview);
     draftIdentity.current = { id: crypto.randomUUID(), launchId: undefined, legacy: false };
     draftWritable.current = true; setDraftError(""); setRestoredPair("default");
@@ -501,6 +521,7 @@ export function Create() {
         },onState:relayState,reconnecting:()=>setRelayMessage("Reconnecting to AQUA. Your approved step is saved; do not resubmit it.")});
       controller.signal.throwIfAborted();
       setStage(activeStage, "done");
+      setStage("lock", "done");
       if (complete.devBuyIncluded) setStage("devBuy", "done");
       if (hasInitialBuy && !complete.devBuyIncluded) {
         try {
@@ -695,16 +716,9 @@ export function Create() {
     {!launching && !completedLaunch && <div className="at-launch-entry"><span>Need artwork or a website? Atlantis Studio can help.</span><Link to="/studio">Open Studio ↗</Link></div>}
     {studioImportMessage && <div className="at-import-notice" role="status">{studioImportMessage}</div>}
     <PageBubbles count={6}/>
-    {(pending || recoverableLaunch || savedLaunchId) && !launching && !completedLaunch && <section className="launch-resume-banner" aria-label="Resume your launch">
-      <span className="resume-coin-bubble" aria-hidden="true">
-        {recoverableLaunch && (!pending || pending.launchId === recoverableLaunch.id) ? <TokenMark launch={recoverableLaunch}/> : <RefreshCw/>}
-      </span>
-      <div className="launch-resume-copy">
-        <b>{pending ? form.symbol ? `Continue $${form.symbol}` : "Continue your launch" : recoverableLaunch ? `Continue $${recoverableLaunch.symbol}` : "Continue your previous launch"}</b>
-        <small>{pending ? `Next: ${chainSteps.find(item=>item.key===pending.stage)?.label??"confirm launch"}. Completed steps are kept.` : "Resume the existing coin. Completed steps will not be repeated."}</small>
-      </div>
-      <button type="button" disabled={draftLoading} onClick={() => void resumeExistingLaunch()}><span>Resume launch</span><ArrowRight aria-hidden="true"/></button>
-    </section>}
+    {(pending || recoverableLaunch || savedLaunchId) && wallet.address && !launching && !completedLaunch && <LaunchRecoveryPanel
+      key={pending?.launchId ?? recoverableLaunch?.id ?? savedLaunchId!} launchId={pending?.launchId ?? recoverableLaunch?.id ?? savedLaunchId!}
+      creator={wallet.address} onResume={() => void resumeExistingLaunch()} onNew={launchAnother}/>}
     <section className={`wizard-shell ${launching ? "is-launching" : ""}`}>
       <div className="wizard-caustics" aria-hidden="true"/>
       {launching && <div className="wizard-launching-screen" role="status" aria-live="polite" aria-label={`Launching ${form.symbol}`}>
@@ -822,10 +836,18 @@ export function Create() {
             <div><span><b>Estimated total</b><small>including your optional first buy</small></span><strong>{(launchCost.estimatedTotalSol.minimum+(amountValid?amount:0)).toFixed(2)}–{(launchCost.estimatedTotalSol.maximum+(amountValid?amount:0)).toFixed(2)} SOL</strong></div>
             <p>Includes the {launchCost.platformFeeSol.toFixed(2)} SOL launch fee and estimated network costs{hasInitialBuy?`, plus your ${form.launchAmount} SOL first buy`:""}.</p>
           </div>}
+          {wallet.address && <div className="launch-budget-card" role="status">
+            <b>{budget ? budget.sufficient ? "Enough SOL to finish launch setup" : "More SOL needed" : budgetError ? "Balance check unavailable" : "Checking your SOL balance…"}</b>
+            {budget && <p>Wallet: {(Number(budget.availableLamports)/1e9).toFixed(4)} SOL · Setup allowance: {(Number(budget.reserveLamports)/1e9).toFixed(3)} SOL. Unused SOL stays in your wallet.</p>}
+            {budget && !budget.sufficient && <p>Add {(Number(budget.shortfallLamports)/1e9).toFixed(6)} SOL or lower your first buy to {(Number(budget.maximumBuyLamports)/1e9).toFixed(6)} SOL or less.</p>}
+            {budgetError && <p>{budgetError}</p>}
+            <button type="button" onClick={() => setBudgetVersion(value=>value+1)}>Refresh balance</button>
+          </div>}
+          <p className="field-help">Liquidity, your optional first buy and permanent locking finish together. If the final transaction fails, the buy is reversed. Earlier setup and network fees still apply.</p>
           <div className="launch-final-summary"><div className="review-token-art">{preview ? <img src={preview} alt=""/> : <Droplets/>}</div><div><b>{form.name || "Unnamed coin"}</b><span>${form.symbol || "TICKER"} / {stock?.symbol ?? "PAIR"} · {form.rewardMode === "holder_rewards" ? "Holder Rewards" : form.rewardMode === "buyback_burn" ? "Buyback & Burn" : "Hourly Jackpot"}</span></div><strong>{hasInitialBuy ? `${form.launchAmount} ${currencySymbol}` : "No initial buy"}</strong></div>
           <div className="launch-settings-review"><span>Rewards fee <b>{form.rewardFeeBps/100}%</b></span><span>Ripple share <b>{form.rippleRewardBps/100}%</b></span><button type="button" onClick={() => setStep(settingsStep)}>Edit settings</button></div>
           <p className="field-help">Fees and Ripple share are fixed at launch. Review them before continuing.</p><label className="terms-acceptance"><input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)}/><span>I have read and agree to the <Link to="/terms" target="_blank">Terms of Service</Link>, including the cryptoasset, permanent-liquidity and third-party risks.</span></label>
-          <button className="wizard-launch-button" onClick={() => void beginLaunch()} disabled={!validForStep.every(Boolean) || launching || !acceptedTerms} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
+          <button className="wizard-launch-button" onClick={() => void beginLaunch()} disabled={!validForStep.every(Boolean) || launching || !acceptedTerms || Boolean(wallet.address && (!budget || !budget.sufficient))} aria-busy={launching}><span className="button-current"/><span className="launch-button-bubbles" aria-hidden="true"><i/><i/><i/><i/></span>{launching && <Loader2 className="spin"/>}<span>{launching ? "Launching" : wallet.address ? "Launch" : "Connect wallet to launch"}</span></button>
         </WizardSection>}
 
         {!validForStep[step]&&<p className="wizard-validation" role="status">{step===0?[form.name.trim().length<2?"Add a name (at least 2 characters)":null,form.symbol.trim().length<2?"add a ticker (at least 2 characters)":null,!file?"add artwork":null].filter(Boolean).join(" · "):step===1?"Choose a pair and accept its acknowledgement if required.":step===2?"Choose an available reward mode.":step===settingsStep?"Choose an available fee and Ripple share.":dexProfileEnabled&&step===dexProfileStep?"Fix the profile links, or skip this optional step.":"Enter a valid first-buy amount, or leave it empty."}</p>}
