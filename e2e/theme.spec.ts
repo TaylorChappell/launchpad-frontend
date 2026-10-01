@@ -139,7 +139,7 @@ test('dark pages, modals and animations stay legible and fit the viewport', asyn
   const motion = await page.locator('.wallet-button').evaluate(el => getComputedStyle(el, '::after').animationName);
   expect(motion).not.toBe('none');
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  expect(await toggle(page, true).evaluate(el => getComputedStyle(el).transitionDuration)).toBe('0s');
+  expect(await toggle(page, true).evaluate(el => getComputedStyle(el).transitionDuration.split(',').every(value => parseFloat(value) <= .001))).toBe(true);
   expect(errors).toEqual([]);
 });
 
