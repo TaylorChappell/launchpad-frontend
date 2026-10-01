@@ -1,13 +1,13 @@
 import { test, expect, type Page } from "@playwright/test";
 const address="11111111111111111111111111111111";
 const signature="ripple-confirmed-receipt";
-async function setup(page:Page,pending=false,linked=true,tracking="live",admin=false,likesAuthorized?:boolean) {
-  await page.addInitScript(({address,signature,pending,admin})=>{
-    sessionStorage.setItem("aqua:x-prompt:"+address,"1");localStorage.setItem("aqua:update:holder-workspace-v2","seen");localStorage.setItem("aqua:wallet","phantom");
+async function setup(page:Page,pending=false,linked=true,tracking="live",admin=false,likesAuthorized?:boolean,injected=true) {
+  await page.addInitScript(({address,signature,pending,admin,injected})=>{
+    sessionStorage.setItem("aqua:x-prompt:"+address,"1");localStorage.setItem("aqua:update:holder-workspace-v2","seen");if(injected)localStorage.setItem("aqua:wallet","phantom");
     if(admin)sessionStorage.setItem("aqua-admin-session-v2:11111111111111111111111111111111","verified-admin");
     if(pending)localStorage.setItem("aqua:pending-reward:mainnet-beta:"+address+":ripple",JSON.stringify({wallet:address,launchId:"coin",name:"Ripple",signature,epochId:"epoch-ripple",amountUsd:250}));
-    Object.assign(window,{phantom:{solana:{isPhantom:true,publicKey:{toString:()=>address},connect:async()=>({publicKey:{toString:()=>address}}),on(){},removeListener(){},signMessage:async()=>({signature:new Uint8Array(64)}),signAndSendTransaction(){throw Error("A pending receipt must not be resubmitted");}}}});
-  },{address,signature,pending,admin});
+    if(injected)Object.assign(window,{phantom:{solana:{isPhantom:true,publicKey:{toString:()=>address},connect:async()=>({publicKey:{toString:()=>address}}),on(){},removeListener(){},signMessage:async()=>({signature:new Uint8Array(64)}),signAndSendTransaction(){throw Error("A pending receipt must not be resubmitted");}}}});
+  },{address,signature,pending,admin,injected});
   await page.route("**/api/**",r=>{
     const path=new URL(r.request().url()).pathname;
     let json:unknown={};
@@ -287,4 +287,93 @@ test("admin inspects deferred Ripple engagement, audit flags and funding rounds"
   await page.screenshot({path:testInfo.outputPath('compact-ripple-history.png'),fullPage:true});
   await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(inspect).toBeFocused();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2);
+});
+
+
+const mobileReturn={state:'f'.repeat(64),receipt:'e'.repeat(64)};
+const mobileReturnPath='/#/connect-x?'+new URLSearchParams(mobileReturn);
+async function mockMobileReturn(page:Page,owner=address){
+  await page.route('**/account/x/return',r=>{
+    expect(r.request().postDataJSON()).toEqual(mobileReturn);
+    expect(r.request().headers().authorization).toBeUndefined();
+    return r.fulfill({json:{wallet:owner,username:'mobile_user',expiresAt:Date.now()+600000}});
+  });
+  await page.route('**/account/auth/challenge',r=>r.fulfill({json:{id:'00000000-0000-4000-8000-000000000001',message:'Sign in to AQUA'}}));
+  await page.route('**/account/auth/session',r=>{
+    expect(r.request().postDataJSON().wallet).toBe(address);
+    expect(r.request().postDataJSON().signature).toBeTruthy();
+    return r.fulfill({json:{token:'d'.repeat(64),expiresAt:Date.now()+3600000}});
+  });
+  let completions=0;
+  await page.route('**/account/x/complete',r=>{
+    expect(r.request().headers().authorization).toBe('Bearer '+'d'.repeat(64));
+    expect(r.request().postDataJSON()).toEqual(mobileReturn);completions++;
+    return r.fulfill({json:{profile:{id:'10',username:'mobile_user',name:'Mobile User',avatarUrl:null,profileUrl:'https://x.com/mobile_user',connectedAt:1,updatedAt:2,rippleLikesAuthorized:true}}});
+  });
+  return ()=>completions;
+}
+for(const blockedStorage of [false,true])test(`X return recovers without the original tab${blockedStorage?' even when session storage is blocked':''}`,async({page})=>{
+  await setup(page,false,false);const completions=await mockMobileReturn(page);
+  if(blockedStorage)await page.addInitScript(()=>{
+    for(const method of ['getItem','setItem','removeItem'] as const){
+      const original=Storage.prototype[method];
+      Object.defineProperty(Storage.prototype,method,{value:function(key:string,...args:unknown[]){
+        if(key.startsWith('aqua:x-link:'))throw new DOMException('Storage unavailable','SecurityError');
+        return Reflect.apply(original,this,[key,...args]);
+      }});
+    }
+  });
+  await page.goto(mobileReturnPath);
+  const panel=page.locator('.x-callback');
+  await expect(panel).toContainText('@mobile_user');
+  await expect(page).toHaveURL(/receipt=/);
+  await expect(page.getByRole('button',{name:'Connect X account',exact:true})).toHaveCount(0);
+  expect(completions()).toBe(0);
+  await panel.getByRole('button',{name:'Link X to this wallet',exact:true}).click();
+  await expect(page).toHaveURL(/#\/portfolio\?tab=ripple$/);
+  expect(completions()).toBe(1);
+  await expect(page.getByRole('region',{name:'X reconnection required'})).toHaveCount(0);
+});
+test('mobile X return carries its receipt through Phantom and Solflare into a fresh wallet browser',async({page,browser,isMobile})=>{
+  test.skip(!isMobile,'Wallet browser links are mobile-only.');
+  await setup(page,false,false,'live',false,undefined,false);const initialCompletions=await mockMobileReturn(page);
+  await page.goto(mobileReturnPath);
+  await page.locator('.x-callback').getByRole('button',{name:'Connect wallet',exact:true}).click();
+  const modal=page.getByRole('dialog',{name:'Connect your wallet'});await expect(modal).toBeVisible();
+  const links=await Promise.all(['Phantom','Solflare'].map(name=>modal.locator('.wallet-list').getByRole('link',{name:new RegExp(name)}).getAttribute('href')));
+  const returns=links.map(link=>new URL(decodeURIComponent(new URL(link!).pathname.split('/browse/')[1])));
+  for(const returned of returns)expect(Object.fromEntries(new URLSearchParams(returned.hash.split('?')[1]))).toEqual(mobileReturn);
+  expect(initialCompletions()).toBe(0);
+  const fresh=await browser.newContext();
+  try{
+    const next=await fresh.newPage();await setup(next,false,false);const completions=await mockMobileReturn(next);
+    await next.goto(returns[0].toString());
+    await next.locator('.x-callback').getByRole('button',{name:'Link X to this wallet',exact:true}).click();
+    await expect(next).toHaveURL(/#\/portfolio\?tab=ripple$/);expect(completions()).toBe(1);
+  }finally{await fresh.close();}
+});
+test('recovering X in a different wallet does not allow linking',async({page})=>{
+  await setup(page,false,false);const completions=await mockMobileReturn(page,'So11111111111111111111111111111111111111112');
+  await page.goto(mobileReturnPath);const panel=page.locator('.x-callback');
+  await expect(panel).toContainText('Your connected wallet is different.');
+  await expect(panel.getByRole('button',{name:'Link X to this wallet',exact:true})).toHaveCount(0);
+  await expect(panel.getByRole('button',{name:'Connect wallet',exact:true})).toBeEnabled();expect(completions()).toBe(0);
+});
+test('an expired mobile X callback shows recovery instructions without linking',async({page})=>{
+  await setup(page,false,false);const completions=await mockMobileReturn(page);
+  await page.route('**/account/x/return',r=>r.fulfill({status:409,json:{error:'X sign-in expired or was cancelled. Open Ripple and connect X again.'}}));
+  await page.goto(mobileReturnPath);const panel=page.locator('.x-callback');
+  await expect(panel.getByRole('alert')).toContainText('X sign-in expired');
+  await expect(panel.getByRole('link',{name:'Open Ripple'})).toBeVisible();
+  await expect(panel.getByRole('button',{name:'Link X to this wallet',exact:true})).toHaveCount(0);
+  expect(completions()).toBe(0);
+});
+test('a temporary mobile return error can retry without restarting X authorization',async({page})=>{
+  await setup(page,false,false);const completions=await mockMobileReturn(page);let attempts=0;
+  await page.route('**/account/x/return',r=>++attempts===1?r.fulfill({status:503,json:{error:'Connection temporarily unavailable.'}}):r.fallback());
+  await page.goto(mobileReturnPath);const panel=page.locator('.x-callback');
+  await expect(panel.getByRole('alert')).toHaveText('Connection temporarily unavailable.');
+  await panel.getByRole('button',{name:'Retry connection check'}).click();
+  await expect(panel.getByRole('button',{name:'Link X to this wallet',exact:true})).toBeEnabled();
+  expect(attempts).toBe(2);expect(completions()).toBe(0);
 });

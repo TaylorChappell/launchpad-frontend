@@ -77,6 +77,7 @@ export async function connectX(wallet: string, sign: (message: string) => Promis
   if (!isCurrent()) throw new Error("Wallet changed. Connect X again.");
   const result = await xRequest<{ url: string; state: string }>("/connect", token, {});
   if (!isCurrent()) throw new Error("Wallet changed. Connect X again.");
-  sessionStorage.setItem(xPendingKey, JSON.stringify({ state: result.state, wallet, returnTo: "#" + xReturnPath(returnTo) }));
+  try { sessionStorage.setItem(xPendingKey, JSON.stringify({ state: result.state, wallet, returnTo: "#" + xReturnPath(returnTo) })); }
+  catch { /* Mobile callback recovery verifies the receipt when storage is unavailable. */ }
   window.location.assign(result.url);
 }

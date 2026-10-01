@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Plus, X } from "lucide-react";
 import { useWallet } from "../context";
 import { connectX, useWalletX, useXFeature } from "../x-identity";
+import { useLocation } from "react-router-dom";
 export function XLogo() { return <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3L12 14.6 5.5 22H2.3l7.7-8.8L1.8 2h6.5l4.5 6.8L18.9 2Zm-1.1 18h1.7L7.3 3.9H5.5L17.8 20Z"/></svg>; }
 export function XConnect() {
   const wallet = useWallet(), { enabled } = useXFeature();
   const { profile, loaded } = useWalletX(wallet.address);
-  return enabled && wallet.address && loaded && !profile ? <ConnectedX key={wallet.address} address={wallet.address}/> : null;
+  const returning = useLocation().pathname === "/connect-x";
+  return !returning && enabled && wallet.address && loaded && !profile ? <ConnectedX key={wallet.address} address={wallet.address}/> : null;
 }
 function ConnectedX({ address }: { address: string }) {
   const wallet = useWallet();

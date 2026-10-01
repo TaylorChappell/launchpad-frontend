@@ -1,4 +1,11 @@
-export type XPending = { state: string; wallet: string; returnTo: string; receipt?: string; error?: string };
+export type XPending = { state: string; wallet: string; returnTo: string; receipt?: string; error?: string; username?: string };
+export function xReturnReceipt(params: URLSearchParams) {
+  const state=params.get("state"), receipt=params.get("receipt");
+  return !params.has("error") && state && receipt && /^[a-f0-9]{64}$/.test(state) && /^[a-f0-9]{64}$/.test(receipt) ? {state,receipt} : null;
+}
+export function xConnectionPath(pending: Pick<XPending,"state"|"receipt">) {
+  return pending.receipt ? "/connect-x?"+new URLSearchParams({state:pending.state,receipt:pending.receipt}) : "/connect-x";
+}
 type Storage = Pick<globalThis.Storage,"getItem"|"setItem">;
 export function readPendingX(storage: Storage, key: string): XPending | null {
   try {
