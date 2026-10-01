@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>How AQUA works | Solana and Orca launch protocol</title>
-  <meta name="description" content="A detailed, crawlable guide to AQUA launches, permanent Orca liquidity, Token-2022 fees, holder rewards and capped creator locks.">
+  <meta name="description" content="A guide to AQUA launches, Fee Redirect, recipient claim links, holder rewards, Ripple, auto payouts, community and Atlantis Studio.">
   <link rel="canonical" href="https://aquafamily.fun/how-aqua-works.html">
   <style>body{margin:0;background:#020d14;color:#c6dfe1;font:16px/1.7 system-ui,sans-serif}main{width:min(850px,calc(100% - 36px));margin:auto;padding:72px 0 110px}a{color:#67dfe3}small{color:#58cdd2;letter-spacing:.12em}h1{margin:.2em 0;font-size:clamp(3rem,8vw,5.4rem);line-height:.95;letter-spacing:-.06em;color:#e7ffff}h2{margin-top:2.2em;color:#d7f4f5}p,li{color:#809da3}aside{margin:26px 0;padding:18px;border-left:3px solid #d7a55f;background:#36281655}nav{display:flex;gap:18px;flex-wrap:wrap;padding-bottom:35px;border-bottom:1px solid #15313a}</style>
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How AQUA works","description":"AQUA protocol guide for launches, liquidity, fees and rewards","dateModified":"2026-09-23","mainEntityOfPage":"https://aquafamily.fun/how-aqua-works.html"}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"How AQUA works","description":"AQUA protocol guide for launches, liquidity, fees and rewards","dateModified":"2026-10-01","mainEntityOfPage":"https://aquafamily.fun/how-aqua-works.html"}</script>
 <script>try{document.documentElement.dataset.theme=localStorage.getItem("aqua:theme")==="dark"?"dark":"light"}catch(_){document.documentElement.dataset.theme="light"}</script>
 <link rel="stylesheet" href="./document-theme.css">
 </head>
@@ -15,43 +15,81 @@
   <nav><a href="https://aquafamily.fun/#/">Open AQUA</a><a href="https://aquafamily.fun/#/how-it-works">Interactive guide</a><a href="https://aquafamily.fun/terms-of-service.html">Terms</a></nav>
   <small>AQUA PROTOCOL GUIDE</small>
   <h1>How AQUA works</h1>
-  <p>AQUA is a non-custodial Solana launchpad for creating a direct Orca market with a fixed Token-2022 supply, permanently locked opening liquidity and time-weighted holder rewards.</p>
-  <h2>Direct Orca launch, no bonding curve</h2>
-  <p>AQUA does not sell tokens from a bonding curve and does not keep an escrow wallet containing unsold supply. The launch flow creates the mint, metadata, Whirlpool and active concentrated-liquidity position directly. The full configured launch-token allocation is committed to that opening liquidity plan.</p>
-  <h2>What 100% liquidity means</h2>
-  <p>It means the fixed launch-token allocation goes into the opening Orca liquidity position rather than a separate AQUA reserve. It does not mean the pool forever owns every circulating token. As users trade, token and pair-asset reserves move between the Whirlpool and trader wallets. Market price follows the pool state.</p>
-  <h2>Permanent liquidity lock</h2>
-  <p>AQUA verifies that the opening position is active before permanently locking its position authority. This is intended to prevent the launcher from withdrawing that position. A lock does not guarantee price, volume, depth or uninterrupted trading.</p>
-  <h2>Pairs and rewards</h2>
-  <p>The trading pair can be SOL, a supported tokenized-stock asset or an eligible custom token when custom pairs are enabled. Each market records one immutable reward asset. AQUA market cards display the actual paired-asset logo and identify the separate holder reward.</p>
-  <h2>Fees and keeper settlement</h2>
-  <p>The current default fee is 2%: 1% feeds platform allocation and 1% feeds holder rewards. AQUA settles collected fee value in SOL before routing treasury, buyback and creator allocations. The holder allocation is converted from SOL into the selected reward asset when required. Settlement can be delayed or fail and therefore is not promised at an exact frequency.</p>
-  <h2>Time-weighted holder rewards</h2>
-  <p>An eligible balance earns weight for the time it remains held during each 20-minute target epoch. AQUA attempts to allocate every collected amount without an application-level funding minimum; unusable dust carries forward. The interface groups unclaimed epochs by market and displays values in US dollars. A claim unlocks only when the combined reward is worth more than the configured minimum after estimated Solana costs, then wallet-signed proofs deliver the selected reward asset. Opening liquidity and designated protocol accounts are excluded from ordinary holder weighting.</p>
-  <h2>Capped creator alignment</h2>
-  <p>A creator can lock tokens acquired after launch. The quote combines amount and duration. Amount scoring stops at the configured supply target and time scoring stops at the configured maximum duration. The live backend configuration provides the supply target, maximum scoring duration and maximum share of the platform stream. A tiny lock for 1,000 years therefore stays small: the time input is capped and cannot compensate for a tiny amount.</p>
-  <h2>Wallets and interrupted launches</h2>
-  <p>Connect Phantom, MetaMask or Solflare using the Solana account that holds your tokens. Mobile Phantom can open its app to complete the connection. A saved launch resumes only when you press Resume launch. Existing on-chain progress is checked before preparing remaining steps; a refresh does not restart or sign a launch.</p>
-  <h2>Reward modes</h2>
-  <p>Creators choose a permanent reward mode: time-weighted holder rewards, buyback and burn of the launched coin, or an hourly jackpot. The jackpot selects five distinct eligible holders for 50%, 20%, 20%, 5% and 5% of the pot, with committed holding scores and verifiable draw data. Trading activity and successfully settled fees are required for any mode.</p>
-  <h2>DEX profile funding and governance</h2>
-  <p>Holders with at least 0.5% of supply can create eligible proposals once proposals unlock. Voting requires 0.1% current and time-weighted holdings. Approved DEX profile funding reserves 80% of incoming market rewards toward the $300 initial profile target. Update Dex and Community Takeover have separate votes. Governance approval, funding and external fulfillment are distinct stages.</p>
-  <h2>Community Boost</h2>
-  <p>Community Boost is the daily AQUA-holder vote for the next market to receive a share of AQUA platform fees for 24 hours. The leaderboard at https://aquafamily.fun/#/boost shows ranked coins, today’s boosted market and your vote. Vote next to a coin or search by name, ticker or CA. One choice per holder, changeable until 00:00 UTC. Voting power uses average AQUA holdings capped by the current balance. This is separate from DEX Screener funding.</p>
-  <h2>DEX boost polls</h2>
-  <p>A paid DEX profile is required. Holders choose 5%, 10%, 20% or No; the winning approved percentage funds a one-hour campaign from incoming market rewards. At closing, the largest affordable boost is selected and surplus SOL returns to holder rewards. Configured packs are 10× for $99 (12 hours), 30× for $249 (12 hours), 50× for $399 (12 hours), 100× for $899 (24 hours), and 500× for $3,999 (24 hours). Affordability is checked again before purchase.</p>
+  <p>AQUA creates Solana coins with direct Orca markets, a fixed Token-2022 supply and permanently locked opening liquidity. Creators choose Holder Rewards, Fee Redirect, Buyback &amp; Burn or Hourly Jackpot.</p>
+  <h2>Connect your wallet and accounts</h2>
+  <p>Use Phantom, MetaMask, Solflare or Jupiter with the Solana account that holds your coins or receives redirected fees. Mobile Phantom can open its app to finish connecting. Signing in proves wallet ownership; transactions require their own approval.</p>
+  <p>Open Connect accounts near the wallet button to link X, GitHub or both. X supports your identity, Ripple and redirected rewards. GitHub profile verification is saved to your AQUA wallet account and survives signing out or changing browsers. It does not grant repository access; Atlantis requests export permissions separately.</p>
+  <h2>Light and dark mode</h2>
+  <p>Use the sun or moon button to the right of search. Light mode is the default. Dark mode uses deeper ocean blues with matching text, controls and water animations. Your choice is saved in the local browser.</p>
+  <h2>Direct Orca launch and permanent liquidity</h2>
+  <p>The launch creates the mint, metadata, Whirlpool and opening concentrated-liquidity position. AQUA has no bonding curve or separate reserve of unsold launch tokens. The full launch allocation goes into the permanent opening liquidity position. As users buy and sell, tokens move between the pool and their wallets, so the pool will not always hold 100% of supply.</p>
+  <p>AQUA verifies the opening position and its permanent lock before showing the coin as live. A lock prevents withdrawal of that position; it does not guarantee market price, depth or trading activity.</p>
+  <h2>Pairs and first buys</h2>
+  <p>Choose SOL, a supported tokenized stock or an eligible custom token when enabled. The chosen pair also defines the asset used for token rewards. Pair checks and the launch review show what is currently supported.</p>
+  <p>An optional creator first buy is funded with SOL. Liquidity activation and the buy execute in one transaction, so another purchase cannot land between them. For other pairs, SOL is converted to the pair asset first. Network costs and the optional first buy are separate from any configured launch fee.</p>
+  <h2>Interrupted launches</h2>
+  <p>A saved launch resumes only when you press Resume launch. AQUA checks existing on-chain progress before preparing the remaining steps. The X on the resume panel hides it for that launch in this browser. Hiding the panel does not cancel a submitted transaction, and refreshing never signs one.</p>
+  <h2>Trading fees and settlement</h2>
+  <p>The default token fee is 2%: a 1% reward stream plus AQUA’s fixed 1% platform stream. Where the fee upgrade is enabled, creators can choose a 1–4% reward fee, making the fixed token fee 2–5%. Orca’s pool fee is separate. The coin’s settings show its breakdown.</p>
+  <p>Collected fees are settled in SOL. Half of the platform stream funds buybacks; the treasury and any earned creator share divide the other half. Reward funding has a base operating reserve of 1% of the reward stream, equivalent to 0.01% of trade value at the default reward fee. Applicable settlement costs, operating recovery, Ripple and community funding are accounted for before the net reward pool reaches the chosen mode.</p>
+  <p>Settlement is periodic, not a payout on every trade. Pending amounts, conversion dust and temporarily failed operations can carry forward. The live app shows the current claimable balance.</p>
+  <h2>The four reward modes</h2>
+  <ol>
+    <li><strong>Holder Rewards:</strong> the pair asset is allocated by eligible balance multiplied by time held. Outstanding allocations are combined into one claim per coin.</li>
+    <li><strong>Fee Redirect:</strong> 50% of the net reward pool goes to a fixed wallet, X account or personal GitHub account. The other 50% goes to eligible holders by balance and time held.</li>
+    <li><strong>Buyback &amp; Burn:</strong> reward funding buys the launched coin through its market and permanently burns the purchased tokens. This mode does not pay holder claims.</li>
+    <li><strong>Hourly Jackpot:</strong> five distinct eligible holders receive 50%, 20%, 20%, 5% and 5% of a qualifying pot. Winnings appear in the normal reward list.</li>
+  </ol>
+  <p>The selected mode and any redirect recipient are fixed at launch. Availability follows the network configuration. Jackpot scores reflect holding behaviour through the hour; purchases mature over 15 minutes and outbound transfers remove the corresponding earned score. Scores are committed before a future finalized Solana block supplies draw randomness. Pots below $10 or with fewer than five eligible wallets roll forward.</p>
+  <h2>Set up Fee Redirect</h2>
+  <p>Fee Redirect is the second reward option in the launch wizard. Open its settings panel, enter a Solana wallet, X handle or personal GitHub account, then check and save the recipient. The mode is selected only after the settings are accepted. The 50/50 split applies to the remaining reward pool after operating costs, Ripple and community funding.</p>
+  <p>Recipients do not need to hold the coin. Their share stays reserved while they verify their account and activate a payout wallet; holder rewards continue. Social recipients explicitly choose one permanent payout wallet for that account’s redirected rewards across AQUA.</p>
+  <h2>Share the recipient claim link</h2>
+  <p>Use Copy claim link after launch or in the coin’s Rewards panel. The link guides the recipient through four short steps:</p>
+  <ol>
+    <li>Choose desktop or mobile. A short Phantom setup guide is available if they do not have a wallet.</li>
+    <li>Connect and sign in with a wallet. Direct wallet recipients must use the exact selected address.</li>
+    <li>For X or GitHub, connect the exact account shown and confirm its permanent payout wallet.</li>
+    <li>Once rewards are settled and eligible, press Claim and approve the wallet prompt. Keep some SOL for transaction costs.</li>
+  </ol>
+  <p>Redirected coins also appear as ordinary cards in Portfolio → Rewards, labelled Redirected fees. Holder and redirected allocations for the same coin use one claim. The public Recipient claimed badge appears only after a confirmed recipient payout.</p>
+  <h2>Holder weighting and manual claims</h2>
+  <p>Holder allocations use balance multiplied by time held, rather than a single snapshot. The creator and designated protocol infrastructure accounts are excluded from ordinary holder weighting. The live guide shows the configured allocation interval and claim minimum.</p>
+  <p>In Portfolio → Rewards, each coin shows its available amount and Claim button. The settled value must be more than the configured minimum, normally $5, after estimated Solana costs. Dollar values describe rewards paid in the selected pair asset. Claim all processes eligible coins in sequence, with an approval for each coin.</p>
+  <p>A submitted claim keeps its receipt across refreshes. Use Check confirmation while it is pending. A verified failed or expired transaction can be retried. Confirmed payouts appear in Activity and can be shared from the success message.</p>
+  <h2>Auto rewards</h2>
+  <p>Enable Auto rewards in Portfolio, or use the wallet-address activation page. When running, payouts are checked every three hours. Each coin needs more than $5 in newly earned, funded rewards after opt-in and more than $5 of that coin held in the wallet at a current price.</p>
+  <p>Smaller balances carry forward. Older rewards remain available for manual claims and Ripple stays separate. Redirect recipients who do not hold the coin can claim manually. The activation page shows whether payouts are running or awaiting activation.</p>
+  <h2>Claim without connecting a wallet app</h2>
+  <p>Claim with your address finds supported rewards and creator fees by Solana address. Prove ownership from that same wallet using the displayed verification prompt, then claim to it. No private-key export is needed.</p>
+  <p>Verification currently accepts at least 0.001 SOL or 0.01 USDC sent within the request’s payment window to the displayed destination. This is a separate, non-refundable payment. AQUA checks for it automatically and also lets you check the transaction.</p>
+  <h2>Ripple Rewards</h2>
+  <p>Sign in, connect X and hold the coin before posting its contract address, AQUA market link or explicit $TICKER. Use the address or market link when tickers are shared. Eligible original posts and replies are discovered automatically, and you must still hold the coin at allocation.</p>
+  <p>Under reach-based scoring, at least 100 recorded views and verified engagement from two other established accounts are required. Views set a dollar target; verified engagement and followers can add limited bonuses. Only target growth earns new credit. The small-post boost is shared across the author’s daily posts.</p>
+  <p>Posts are checked through an eight-hour tracking window. Each recorded check can wait up to 72 hours for settlement funding. Targets are different from claimable rewards. Portfolio → Ripple shows tracking, pending funding, exclusions and available SOL rewards.</p>
+  <p>When Ripple is active, its chosen 3–30% share, 15% by default, comes from newly settled reward funding after existing operating and campaign allocations. Another 10% of Community Boost funds Ripple. This adds no extra token fee. Direct creator top-ups are unchanged and unused Ripple funding carries forward.</p>
+  <h2>DEX funding and holder governance</h2>
+  <p>Eligible holders can propose Fund Dex, DEX Boost, Update Dex or Community Takeover. Creating a proposal requires 0.5% of the coin’s supply. Voting requires 0.1% in both current and time-weighted holdings. Yes/no proposals pass with more than half of the eligible voting weight cast, with no minimum turnout. Ties and no turnout do not pass.</p>
+  <p>Fund Dex and Update Dex normally vote for 15 minutes; Community Takeover votes for 24 hours. Approved initial DEX profile funding reserves 80% of incoming market rewards toward the $300 target while the remaining 20% continues through the selected reward mode. Funding, external purchase and completion are separate stages. A paid profile receives the green DEX badge.</p>
+  <h2>Community Boost and DEX boosts</h2>
+  <p>Community Boost is the daily AQUA-holder vote for a live coin to receive the configured share of AQUA platform fees for the following 24 hours. Vote from the leaderboard or search by name, ticker or contract address. One choice per holder can be changed or removed until 00:00 UTC. Weight uses average AQUA holdings capped by the current balance.</p>
+  <p>Separate DEX boost polls require a paid DEX profile. Holders choose 5%, 10%, 20% or No. The winning funding percentage reserves incoming rewards for an initial one-hour campaign. Reaching $100, $250, $400, $900 or $4,000 adds 20 minutes per milestone, once each. At closing, the largest affordable configured pack is selected and unused SOL returns to rewards.</p>
   <h2>Automatic momentum funds</h2>
-  <p>Sustained, verified volume and trader activity can start a mini fund. Unpaid profiles reserve 10% toward DEX funding for up to 24 hours; an unmet target returns funds to holders. Paid profiles can reserve 10% for a mini boost lasting up to one hour, closing earlier after ten minutes of insufficient activity. Mini boosts under $100 return all funds; at $100 or more they select the largest affordable pack and return excess. Successful holder votes inherit accumulated funds and change the percentage; an inherited boost keeps its original deadline. All eligible coins, including AQUA, can have mini boosts. AQUA has no ordinary market proposals or automatic profile fund. Team AQUA can prepare missing profile details for a successful automatic profile fund; later changes go through Update Dex.</p>
+  <p>Sustained verified trading can start a mini fund. An unpaid profile can reserve 10% toward DEX funding for up to 24 hours; an unmet target returns funds to holders. A paid profile can reserve 10% for a mini boost starting at 90 minutes, with 20-minute milestone extensions. It can close early after 30 minutes without a qualifying trade.</p>
+  <p>Mini boosts under $100 return all funds. At $100 or more, the largest affordable pack is selected and excess returns. Eligible coins include AQUA. Automatic mini boosts appear as funding activity, not holder-created proposals in proposal history. Approved holder votes can take over accumulated funding; the live campaign shows the percentage and deadline.</p>
   <h2>Community chat, updates and polls</h2>
-  <p>Each coin has Community chat with pictures, replies and counted reactions, plus separate creator Updates and Polls feeds. Updates support formatted text and images, with reactions but no replies. Polls show their closing time and can require at least 0.1% holdings to vote. Community polls do not authorize spending. Unread indicators and locally remembered tabs help you follow activity. Reports go to AQUA admins through the moderation system and Discord webhook; creators have no special moderation rights.</p>
-  <h2>Atlantis Studio</h2>
-  <p>Build websites, artwork and community tools in one workspace. Tailored multiple-choice surveys clarify uncertain creative details and include custom answers; Skip survey lets Atlantis proceed from the brief. Review proposed edits or enable Auto apply. When free access is enabled, each wallet receives a $10 total AI budget across projects. Usage does not reset on project deletion, and unused generation reservations are released. Editing and exporting remain available after the budget is spent.</p>
-  <h2>Website publishing and variables</h2>
-  <p>Publish a project to an available name on aquafamily.fun. Draft edits stay private and failed publishes preserve the previous version. The separate Variables menu stores public CA, custom backend URL and other frontend values. Automatic CA filling requires explicit consent. When enabled, a confirmed launch fills connected fields and trading links and queues the hosted update. Hardcoded legacy fields must first be connected. Custom backends are exported and deployed separately; never put secrets in frontend variables.</p>
-  <h2>Public AQUA API</h2>
-  <p>Use https://aquaapi.fun/v1 for public markets, trades, charts, rewards, buybacks, burns, jackpots, governance and events. The previous production Railway API address remains supported. Public data reads work from third-party websites without an API key, with a limit of 60 requests per minute per IP. Webhook management requires a wallet session. Atlantis uses this canonical API for AQUA data and keeps it separate from a generated project’s own backend URL.</p>
-  <h2>Charts and data</h2>
-  <p>Market pages offer USD price and market-cap snapshot lines, plus separately labelled transaction-derived candles denominated in the pair asset. Indexing can lag Solana and Orca, so explorers and onchain state remain authoritative.</p>
+  <p>Each coin has chat with images, replies and counted reactions, plus creator Updates and Polls feeds. Updates support formatted text and images, with reactions but no replies. Polls show their closing time and can be limited to holders. Community polls collect opinions and do not authorize spending.</p>
+  <p>Unread indicators and remembered tabs help you follow activity. New creator updates can show a bell on the coin for one hour. Reports go to AQUA admins; creators do not gain special moderation powers simply by launching the coin.</p>
+  <h2>Creator locks and management</h2>
+  <p>Creators can lock tokens they bought after launch to earn a share of the platform stream. The quote combines amount and duration, with both inputs capped by the live configuration. An active lock does not reduce the holder reward stream or platform buyback share. Additional locks show the combined amount and unlock date before approval.</p>
+  <p>Portfolio → Created lists live coins and links to Manage coin. Coins without an active lock show Set up creator fees. Creator fees are paid in SOL, with manual claims and automatic payouts for balances over $50 when running. Deposit SOL adds reward funding; review the conversion and destination before signing. Deposits cannot be withdrawn.</p>
+  <h2>Atlantis Studio and publishing</h2>
+  <p>Build websites, artwork, apps and mini-games in one workspace. Optional surveys clarify creative choices; Skip survey lets Atlantis work from your brief. Review edits or enable Auto apply. Current generation budgets and credit availability are shown in Studio.</p>
+  <p>Publish to an available aquafamily.fun address. Drafts and published versions have separate states, and a failed publish preserves the previous version. Variables &amp; Secrets separates public frontend settings from private backend values. Never place secrets in frontend variables.</p>
+  <p>Fill on launch is an explicit project choice. When enabled, a confirmed launch fills connected contract-address fields and trading links and queues the website update. Older hardcoded fields must be connected first. Supported hosted APIs publish with the site; external backends need their deployed URL. GitHub export creates a new repository after you grant the required permissions.</p>
+  <h2>Public API and market data</h2>
+  <p>Use https://aquaapi.fun/v1 for public markets, trades, charts, rewards, buybacks, burns, jackpots, governance and events. Public reads need no API key and allow 60 requests per minute per IP. Webhook management requires a wallet session. The previous production Railway API address remains supported.</p>
+  <p>Market pages show price and market-cap charts. Indexing and price conversion can lag the chain; pending or unavailable values are not guaranteed quotes. Atlantis uses the same public API for AQUA data.</p>
   <aside><strong>Cryptoasset risk warning</strong><br>Cryptoassets are high risk. You could lose all the money you invest, and protections may be limited or unavailable.</aside>
   <h2>Verify before signing</h2>
   <p>Review the mint, AQUA program, token program, Orca accounts, amounts, fees and destinations in every wallet approval. Solana transactions are generally irreversible.</p>
