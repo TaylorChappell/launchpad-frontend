@@ -8,8 +8,8 @@ import type { LaunchRecovery } from "../types";
 const sol = (raw: string) => (Number(raw) / 1e9).toLocaleString("en", { maximumFractionDigits: 6 });
 const labels: Record<string, string> = { mint: "Coin created", pool: "Pool created", prepare: "Accounts prepared", funding: "Pair tokens received", liquidity: "Liquidity activated", lock: "Liquidity locked" };
 
-export function LaunchRecoveryPanel({ launchId, creator, onResume, onNew }: {
-  launchId: string; creator: string; onResume(): void; onNew(): void;
+export function LaunchRecoveryPanel({ launchId, creator, onResume, onNew, disabled = false }: {
+  launchId: string; creator: string; onResume(): void; onNew(): void; disabled?: boolean;
 }) {
   const wallet = useWallet();
   const [state, setState] = useState<LaunchRecovery | null>(null);
@@ -33,7 +33,7 @@ export function LaunchRecoveryPanel({ launchId, creator, onResume, onNew }: {
     return () => clearTimeout(timer);
   }, [state]);
   async function recover() {
-    if (!state || wallet.address !== creator || busy) return;
+    if (!state || wallet.address !== creator || busy || disabled) return;
     setBusy(true); setError("");
     try {
       const token = await ensureAccountSession(creator, wallet.signMessage);
@@ -78,9 +78,9 @@ export function LaunchRecoveryPanel({ launchId, creator, onResume, onNew }: {
     {(state?.devBuyConfirmed || state?.positionActive) && !state.locked && <p className="launch-recovery-note">A completed buy cannot be automatically refunded. Liquidity withdrawal needs a separate review of the pool and other traders.</p>}
     {error && <p className="launch-recovery-notice" role="alert">{error}</p>}
     <div className="launch-recovery-actions">
-      {complete ? <button type="button" onClick={onNew}>Start a new launch <ArrowRight size={15}/></button>
-        : <button type="button" onClick={onResume} disabled={busy || recoveryPending || state?.unresolved}>Resume launch <ArrowRight size={15}/></button>}
-      {(state?.canRecover || recoveryPending) && <button type="button" className="secondary" onClick={() => void recover()} disabled={busy}>
+      {complete ? <button type="button" onClick={onNew} disabled={disabled}>Start a new launch <ArrowRight size={15}/></button>
+        : <button type="button" onClick={onResume} disabled={disabled || busy || recoveryPending || state?.unresolved}>Resume launch <ArrowRight size={15}/></button>}
+      {(state?.canRecover || recoveryPending) && <button type="button" className="secondary" onClick={() => void recover()} disabled={disabled || busy}>
         {busy && <Loader2 size={14} className="spin"/>}{state?.recoveryState === "pending" ? "Retry recovery submission" : state?.recoveryTransaction ? "Approve recovery" : "Get recovery quote"}
       </button>}
       <button type="button" className="text" onClick={() => setVersion(value => value + 1)} disabled={busy}><RefreshCw size={14}/> Refresh status</button>

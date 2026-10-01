@@ -718,7 +718,7 @@ export function Create() {
     <PageBubbles count={6}/>
     {(pending || recoverableLaunch || savedLaunchId) && wallet.address && !launching && !completedLaunch && <LaunchRecoveryPanel
       key={`${wallet.address}:${pending?.launchId ?? recoverableLaunch?.id ?? savedLaunchId!}`} launchId={pending?.launchId ?? recoverableLaunch?.id ?? savedLaunchId!}
-      creator={wallet.address} onResume={() => void resumeExistingLaunch()} onNew={launchAnother}/>}
+      creator={wallet.address} disabled={draftLoading} onResume={() => void resumeExistingLaunch()} onNew={launchAnother}/>}
     <section className={`wizard-shell ${launching ? "is-launching" : ""}`}>
       <div className="wizard-caustics" aria-hidden="true"/>
       {launching && <div className="wizard-launching-screen" role="status" aria-live="polite" aria-label={`Launching ${form.symbol}`}>
