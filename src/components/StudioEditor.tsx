@@ -9,6 +9,15 @@ import "monaco-editor/languages/definitions/markdown/register.js";
 import "monaco-editor/languages/definitions/yaml/register.js";
 import type { StudioFile } from "../studio-api";
 import { useTheme } from "../theme";
+monaco.editor.defineTheme("aqua-night", {
+  base: "vs-dark", inherit: true, rules: [],
+  colors: {
+    "editor.background": "#0a1c29", "editor.foreground": "#e3f3fa",
+    "editorLineNumber.foreground": "#91b3c7", "editorCursor.foreground": "#6cd3f9",
+    "editor.selectionBackground": "#22516c", "editor.inactiveSelectionBackground": "#1b3d52",
+    "editor.lineHighlightBackground": "#102b3c", "editorGutter.background": "#0a1c29",
+  },
+});
 (
   globalThis as typeof globalThis & { MonacoEnvironment: unknown }
 ).MonacoEnvironment = { getWorker: () => new EditorWorker() };
@@ -45,7 +54,7 @@ export default function StudioEditor({
     const instance = monaco.editor.create(host.current, {
       value: file.content,
       language,
-      theme: theme === "dark" ? "vs-dark" : "vs",
+      theme: theme === "dark" ? "aqua-night" : "vs",
       automaticLayout: true,
       fontSize: 13,
       lineHeight: 21,
@@ -67,7 +76,7 @@ export default function StudioEditor({
       editor.current = undefined;
     };
   }, [file.path]);
-  useEffect(() => { monaco.editor.setTheme(theme === "dark" ? "vs-dark" : "vs"); }, [theme]);
+  useEffect(() => { monaco.editor.setTheme(theme === "dark" ? "aqua-night" : "vs"); }, [theme]);
   useEffect(() => {
     if (editor.current && editor.current.getValue() !== file.content)
       editor.current.setValue(file.content);

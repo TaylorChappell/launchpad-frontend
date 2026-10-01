@@ -79,15 +79,43 @@
   background: linear-gradient(120deg, #1978ae, #12679d) !important;
   color: #f4fcff !important;
 }
+[data-theme="dark"] .wizard-next:not(:disabled),
+[data-theme="dark"] .stock-picker > button.selected > i,
+[data-theme="dark"] .launch-currency-grid button.selected em {
+  background: #126d9c !important;
+  color: #f4fcff !important;
+}
 [data-theme="dark"] :is(button, a, input, select, textarea, summary):focus-visible { outline-color: #6cd3f9; }
 [data-theme="dark"] ::selection { background: #286284; color: #f4fcff; }
 [data-theme="dark"] input::placeholder,
 [data-theme="dark"] textarea::placeholder { color: #91b3c7; opacity: 1; }
 [data-theme="dark"] select option { color: var(--text); background: #0e2332; }
 [data-theme="dark"] { scrollbar-color: #38617a #0a1c29; }
+[data-theme="dark"] [data-sonner-toaster] {
+  --normal-bg: #102b3c;
+  --normal-bg-hover: #153348;
+  --normal-text: #e3f3fa;
+  --normal-border: #294b60;
+  --success-bg: #0f3430;
+  --success-text: #68deb8;
+  --success-border: #307560;
+  --error-bg: #3e1f2c;
+  --error-text: #ff94a5;
+  --error-border: #8b4657;
+  --warning-bg: #372e1c;
+  --warning-text: #f5cc7a;
+  --warning-border: #846c39;
+  --info-bg: #102b3c;
+  --info-text: #6cd3f9;
+  --info-border: #294b60;
+}
+
+/* Snapshot crossfade changes the whole palette together without overriding any
+   component's existing hover transitions, water keyframes, or transforms. */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .22s; animation-timing-function: ease-out; }
 
 /* Opaque modal surfaces keep backdrop blur readable over busy market cards. */
-[data-theme="dark"] :is(.search-modal, .wallet-modal, .wallet-dropdown, .site-more-panel, .notifications-panel) {
+[data-theme="dark"] :is(.search-modal, .market-search-palette, .wallet-modal, .wallet-dropdown, .site-more-panel, .notifications-panel) {
   background-color: #102b3c !important;
 }
 
@@ -100,4 +128,5 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .theme-toggle, .theme-toggle-icons svg { transition: none; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }

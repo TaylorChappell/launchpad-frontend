@@ -1,0 +1,10 @@
+/* Crawlable companion pages follow the same explicit browser preference. */
+:root { color-scheme: light; --doc-bg: #eef9ff; --doc-ink: #123e5a; --doc-muted: #547a94; --doc-link: #116c9b; --doc-line: #c5dfed; --doc-note: #fff7df; }
+:root[data-theme="dark"] { color-scheme: dark; --doc-bg: #071722; --doc-ink: #e3f3fa; --doc-muted: #a0becf; --doc-link: #6cd3f9; --doc-line: #294b60; --doc-note: #372e1c; }
+body { background: var(--doc-bg); color: var(--doc-ink); }
+h1, h2, h3, strong, b { color: var(--doc-ink); }
+p, li { color: var(--doc-muted); }
+a, small { color: var(--doc-link); }
+nav { border-color: var(--doc-line); }
+aside { background: var(--doc-note); }
+a:focus-visible { outline: 2px solid var(--doc-link); outline-offset: 4px; }

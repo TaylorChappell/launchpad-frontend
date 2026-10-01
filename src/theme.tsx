@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { Toaster } from "sonner";
 
 export type Theme = "light" | "dark";
@@ -33,7 +34,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
-    applyTheme(next); setTheme(next);
+    const update = () => { applyTheme(next); flushSync(() => setTheme(next)); };
+    if (document.startViewTransition && document.visibilityState === "visible" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      // A rapid second toggle or a hidden tab can skip the optional animation.
+      void document.startViewTransition(update).ready.catch(() => {});
+    } else update();
     try { localStorage.setItem(THEME_KEY, next); } catch { /* Keep the toggle usable when storage is blocked. */ }
   };
   return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
