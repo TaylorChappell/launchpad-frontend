@@ -18,7 +18,7 @@ export function LaunchRecoveryPanel({ launchId, creator, onResume, onNew }: {
   const [version, setVersion] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
-    setState(null); setError("");
+    setState(current => current?.launchId === launchId ? current : null); setError("");
     api.launchRecovery(launchId, creator, controller.signal).then(result => {
       if (!Array.isArray(result.steps) || !result.budget) throw new Error("Launch recovery status is unavailable. Refresh to try again.");
       setState(result);

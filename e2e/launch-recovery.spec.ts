@@ -30,7 +30,7 @@ test("a completed buy offers lock-only resume and no automated withdrawal",async
   await expect(page.getByRole("button",{name:"Get recovery quote"})).toHaveCount(0);
   await expect(page.getByRole("button",{name:"Resume launch",exact:true})).toBeEnabled();
   expect(await page.evaluate(()=>(window as any).recoveryApprovals)).toBe(0);
-  await page.screenshot({path:info.outputPath("launch-recovery.png"),fullPage:true});
+  await page.screenshot({path:info.outputPath("compact-launch-recovery.png"),fullPage:true});
 });
 test("unused funding recovery shows its quote before requesting a wallet signature",async({page})=>{
   let state:any={...launchRecoveryFixture,canRecover:true,fundingConfirmed:true};

@@ -717,7 +717,7 @@ export function Create() {
     {studioImportMessage && <div className="at-import-notice" role="status">{studioImportMessage}</div>}
     <PageBubbles count={6}/>
     {(pending || recoverableLaunch || savedLaunchId) && wallet.address && !launching && !completedLaunch && <LaunchRecoveryPanel
-      key={pending?.launchId ?? recoverableLaunch?.id ?? savedLaunchId!} launchId={pending?.launchId ?? recoverableLaunch?.id ?? savedLaunchId!}
+      key={`${wallet.address}:${pending?.launchId ?? recoverableLaunch?.id ?? savedLaunchId!}`} launchId={pending?.launchId ?? recoverableLaunch?.id ?? savedLaunchId!}
       creator={wallet.address} onResume={() => void resumeExistingLaunch()} onNew={launchAnother}/>}
     <section className={`wizard-shell ${launching ? "is-launching" : ""}`}>
       <div className="wizard-caustics" aria-hidden="true"/>
