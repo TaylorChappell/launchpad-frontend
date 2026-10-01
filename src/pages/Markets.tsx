@@ -24,7 +24,7 @@ const modes=[["all","All reward modes"],["holder_rewards","Holder rewards"],["bu
 // Hash history changes before React finishes a navigation render. Compose quick
 // consecutive controls from the current URL so a layout click cannot drop filters.
 function currentMarketParams(){const hash=window.location.hash,index=hash.indexOf("?");return new URLSearchParams(index<0?"":hash.slice(index+1));}
-const sorts=[["volume","Top volume"],["trending","Trending"],["recent","New"],["watchlist","Watchlist"]];
+const sorts=[["volume","Top volume"],["market_cap","Top market cap"],["trending","Trending"],["recent","New"],["watchlist","Watchlist"]];
 export function Markets(){
   const [urlParams,setUrlParams]=useSearchParams(),watch=useWatchlist(),prices=useMarketPrices();
   const [savedParams,setSavedParams]=useState(readMarketPreferences);

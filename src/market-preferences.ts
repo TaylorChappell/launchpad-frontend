@@ -5,7 +5,7 @@ export const marketPreferencesKey = "aqua:market-preferences:v1";
 export function marketPreferences(params: URLSearchParams): URLSearchParams {
   const saved = new URLSearchParams();
   const sort = params.get("sort") ?? "volume";
-  saved.set("sort", ["volume", "trending", "recent", "watchlist"].includes(sort) ? sort : "volume");
+  saved.set("sort", ["volume", "market_cap", "trending", "recent", "watchlist"].includes(sort) ? sort : "volume");
   for (const key of marketFilterKeys) {
     const value = params.get(key)?.trim();
     if (!value || value === "all") continue;

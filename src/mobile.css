@@ -202,8 +202,8 @@ body:has(.mobile-trade-backdrop) .wallet-overlay { z-index: 450; }
   .app-shell .explore-intro h1 { font-size: clamp(25px, 7vw, 34px); line-height: 1.15; }
   .app-shell .explore-intro p { font-size: 13px; line-height: 1.6; }
   .app-shell .discovery-toolbar { align-items: stretch; gap: 12px; }
-  .app-shell .discovery-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 4px; }
-  .app-shell .discovery-tabs button { min-height: 44px; min-width: 0; padding: 8px 4px; font-size: 12px; justify-content: center; }
+  .app-shell .discovery-tabs { display: flex; flex-wrap: nowrap; width: 100%; gap: 16px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+  .app-shell .discovery-tabs button { flex: 0 0 auto; min-height: 44px; min-width: 0; padding: 8px 4px; font-size: 12px; justify-content: center; }
   .app-shell .discovery-tools { justify-content: space-between; width: 100%; }
   .app-shell .discovery-filter-toggle, .app-shell .discovery-view button { min-height: 44px; }
   .app-shell .discovery-view button { min-width: 44px; }
