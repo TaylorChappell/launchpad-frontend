@@ -1,4 +1,3 @@
-import { RedirectRewardsDiscovery } from "../components/RedirectRewardsDiscovery";
 import { AutoRewardsToggle } from "../components/AutoRewardsToggle";
 import { RefreshButton } from "../components/RefreshButton";
 import { SectionTabs } from "../components/SectionTabs";
@@ -97,7 +96,7 @@ function PortfolioContent({address}:{address:string|null}){
       })}</tbody></table></div>:<div className="workspace-empty"><Coins/><h3>Your first position starts here.</h3><p>Coins held in this wallet appear once they’re indexed.</p><Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link></div>}
     </section>}
     {tab==="Ripple"&&<RippleRewards key={address} address={address} data={ripple} error={rippleError} onRefresh={refreshRipple}/>}
-    {tab==="Rewards"&&<section className="workspace-panel portfolio-rewards-panel"><header><h2>Your rewards</h2></header><RedirectRewardsDiscovery/><WalletRewards data={rewards} launches={(holdings??[]).map(h=>h.launch)} onClaimed={refresh}/></section>}
+    {tab==="Rewards"&&<section className="workspace-panel portfolio-rewards-panel"><header><h2>Your rewards</h2></header><WalletRewards discoverRedirects data={rewards} launches={(holdings??[]).map(h=>h.launch)} onClaimed={refresh}/></section>}
     {tab==="Activity"&&<><section className="workspace-panel"><header><h2>Reward claim history</h2><span>Confirmed claims and updates from your holdings</span>{history?.hasMore&&<span>Latest 200 receipts</span>}</header>
       {history?.lifetime.length?<div className="lifetime-rewards">{history.lifetime.map(t=><div key={t.stock_mint}><small>Total {t.symbol} claimed</small><strong>{displayTokenAmount(t.amount_raw,t.decimals)} <span>{t.symbol}</span></strong></div>)}</div>:null}
       {history===null?<div className="workspace-loading">{errors.activity?"History unavailable":"Loading claim receipts…"}</div>:history.claims.length?<div className="table-scroll"><table className="market-table"><thead><tr><th>Market</th><th>Claimed</th><th>Date</th><th>Receipt</th></tr></thead><tbody>{history.claims.map(c=><tr key={c.signature+c.launch_id}><td><Link to={"/token/"+c.launch_id}>{c.name}</Link></td><td>{displayTokenAmount(c.amount_raw,Number(c.stock_decimals))} {c.reward_symbol}</td><td>{new Date(Number(c.claimed_at)).toLocaleDateString()}</td><td><a href={"https://solscan.io/tx/"+c.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View <ArrowUpRight size={13}/></a></td></tr>)}</tbody></table></div>:<div className="workspace-empty"><Gift/><h3>No claims yet.</h3><p>Your confirmed reward claims will appear here.</p></div>}

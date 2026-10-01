@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, ArrowUpRight, Check, Gift, Loader2 } from "lucide-react";
 import { api } from "../api";
+import { useRedirectRewards, type RedirectRewardMarket } from "../use-redirect-rewards";
 import { useRuntime, useWallet } from "../context";
 import type { Launch, WalletRewardMarket, WalletRewardsResponse } from "../types";
 import { TokenMark } from "./TokenCard";
@@ -13,14 +14,15 @@ type PendingClaim={wallet:string;launchId:string;name:string;signature:string;se
 function savedClaim(key:string):PendingClaim|null{
   try { const value=JSON.parse(localStorage.getItem(key)??"null");return value&&typeof value.wallet==="string"&&typeof value.launchId==="string"&&typeof value.signature==="string"&&(typeof value.sequence==="string"||typeof value.epochId==="string"||Array.isArray(value.epochIds)&&value.epochIds.length>0)?value:null; }catch{return null;}
 }
-export function WalletRewards({guided=false,onConfirmed,launch,data,launches=[],onClaimed,kind="normal",compact=false,active=true}:{guided?:boolean;onConfirmed?:()=>void;active?:boolean;compact?:boolean;kind?:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches?:Launch[];onClaimed?:()=>void}){
+export function WalletRewards({discoverRedirects=false,guided=false,onConfirmed,launch,data,launches=[],onClaimed,kind="normal",compact=false,active=true}:{discoverRedirects?:boolean;guided?:boolean;onConfirmed?:()=>void;active?:boolean;compact?:boolean;kind?:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches?:Launch[];onClaimed?:()=>void}){
   const wallet=useWallet(),{config}=useRuntime();
   if(launch?.showcase)return <div className="wallet-rewards"><div className="reward-claim-list"><article className="reward-claim-row ready"><div className="reward-claim-coin"><TokenMark launch={launch}/><div><b>{launch.name}</b><small>Sample allocation</small></div></div><div className="reward-row-amount"><strong>$12.50</strong><small>Preview only</small></div><button className="primary" disabled>Claim</button></article></div></div>;
   // Remount on wallet/network change: pending receipts always belong to their signer.
-  return <RewardContent key={config.network+":"+wallet.address+":"+(launch?.id??"all")+":"+kind} guided={guided} onConfirmed={onConfirmed} active={active} kind={kind} compact={compact} launch={launch} data={data} launches={launches} onClaimed={onClaimed}/>;
+  return <RewardContent key={config.network+":"+wallet.address+":"+(launch?.id??"all")+":"+kind} discoverRedirects={discoverRedirects} guided={guided} onConfirmed={onConfirmed} active={active} kind={kind} compact={compact} launch={launch} data={data} launches={launches} onClaimed={onClaimed}/>;
 }
-function RewardContent({guided,onConfirmed,launch,data,launches,onClaimed,kind,compact,active}:{guided:boolean;onConfirmed?:()=>void;active:boolean;compact:boolean;kind:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches:Launch[];onClaimed?:()=>void}){
+function RewardContent({discoverRedirects,guided,onConfirmed,launch,data,launches,onClaimed,kind,compact,active}:{discoverRedirects:boolean;guided:boolean;onConfirmed?:()=>void;active:boolean;compact:boolean;kind:"normal"|"ripple";launch?:Launch;data?:WalletRewardsResponse|null;launches:Launch[];onClaimed?:()=>void}){
   const wallet=useWallet(),{config}=useRuntime(),address=wallet.address;
+  const redirects=useRedirectRewards(discoverRedirects&&active&&kind==="normal"&&!launch);
   const storageKey=["aqua:pending-reward",config.network,address].join(":")+(kind==="ripple"?":ripple":"");
   const [loaded,setLoaded]=useState<WalletRewardsResponse|null>(null),[known,setKnown]=useState<Launch[]>([]);
   const [error,setError]=useState(""),[revision,setRevision]=useState(0),[busy,setBusy]=useState(false),[status,setStatus]=useState("");
@@ -42,6 +44,9 @@ function RewardContent({guided,onConfirmed,launch,data,launches,onClaimed,kind,c
   useEffect(()=>{let active=true;if(missingIds)api.launches({ids:missingIds,limit:100}).then(r=>{if(active)setKnown(r.launches);}).catch(()=>{});return()=>{active=false;};},[missingIds]);
   const allLaunches=[...launches,...known,...(launch?[launch]:[])];
   const markets=(rewardData?.markets??[]).filter(m=>(!launch||m.launchId===launch.id)&&(m.grossRedeemableUsdCents>0||m.accumulatingUsdCents>0||m.pendingUsdCents>0)).sort((a,b)=>Number(b.canClaim)-Number(a.canClaim)||b.accumulatingUsdCents-a.accumulatingUsdCents);
+  // Recipient markets share the same row and claim as any holder allocation.
+  const rows:Array<{launchId:string;market?:WalletRewardMarket;redirect?:RedirectRewardMarket}>=markets.map(m=>({launchId:m.launchId,market:m,redirect:redirects.markets.find(r=>r.id===m.launchId)}));
+  for(const redirect of redirects.markets)if(!rows.some(row=>row.launchId===redirect.id))rows.push({launchId:redirect.id,redirect});
   function remember(value:PendingClaim|null){try{if(value)localStorage.setItem(storageKey,JSON.stringify(value));else localStorage.removeItem(storageKey);}catch{/* Receipt remains visible if browser storage is unavailable. */}if(alive.current)setPending(value);}
   async function confirm(receipt:PendingClaim){
     if(receipt.wallet!==address)throw Error("Connect the wallet that submitted this claim.");
@@ -101,7 +106,7 @@ function RewardContent({guided,onConfirmed,launch,data,launches,onClaimed,kind,c
       if(!alive.current)throw Error("Wallet changed. Remaining claims were stopped.");
       setStatus("Approve the claim in your wallet");
       const onSubmitted=(signature:string)=>{
-        submitted={wallet:address,launchId:market.launchId,name:allLaunches.find(l=>l.id===market.launchId)?.name??"Reward",signature,amountUsd:market.claimableUsdCents,lastValidBlockHeight:envelope.lastValidBlockHeight,submittedAt:Date.now(),...("sequence" in envelope?{sequence:String(envelope.sequence)}:{epochId})};
+        submitted={wallet:address,launchId:market.launchId,name:allLaunches.find(l=>l.id===market.launchId)?.name??redirects.markets.find(r=>r.id===market.launchId)?.name??"Reward",signature,amountUsd:market.claimableUsdCents,lastValidBlockHeight:envelope.lastValidBlockHeight,submittedAt:Date.now(),...("sequence" in envelope?{sequence:String(envelope.sequence)}:{epochId})};
         remember(submitted);if(alive.current)setStatus("Confirming your reward…");
       };
       const signature=await wallet.sendTransaction(envelope,onSubmitted);
@@ -172,14 +177,17 @@ function RewardContent({guided,onConfirmed,launch,data,launches,onClaimed,kind,c
     {pending&&<div className="claim-notice"><Loader2 size={20} className={busy?"spin":""}/><div><b>{pending.name} · claim submitted</b><a href={"https://solscan.io/tx/"+pending.signature+(config.network==="devnet"?"?cluster=devnet":"")} target="_blank" rel="noreferrer">View transaction <ArrowUpRight size={13}/></a></div><button className="soft-button" disabled={busy} onClick={()=>void retry()}>Check confirmation</button></div>}
     {status&&<p className="claim-status" role="status">{busy&&<Loader2 className="spin" size={16}/>}{status}</p>}
     {error&&<p className="danger-note" role="alert">{error} {!pending&&!busy&&<button className="text-button" onClick={()=>{setRevision(n=>n+1);onClaimed?.();}}>Try again</button>}</p>}
-    {!compact&&(!rewardData&&!error?<div className={launch?"market-reward-skeleton":"workspace-loading"} role="status" aria-label="Loading rewards">{launch?<><span/><span/><span/></>:"Loading your rewards…"}</div>:markets.length?<div className="reward-claim-list">{markets.map(m=>{
-      const coin=allLaunches.find(l=>l.id===m.launchId);
-      const eligible=m.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1);
-      return <article className={"reward-claim-row"+(eligible?" ready":"")} key={m.launchId+":"+(m.claimableEpochIds[0]??m.claimSequence??"pending")}>
-        <div className="reward-claim-coin">{coin?<TokenMark launch={coin}/>:<Gift size={24}/>}<div>{coin&&!launch?<Link to={"/token/"+coin.id}>{coin.name}</Link>:<b>{coin?.name??"AQUA reward"}</b>}<small>{kind==="normal"&&rewardData?.rewards?.some(r=>r.launchId===m.launchId&&r.distributionMode==="redirect")?"Redirect + holder rewards · ":""}{kind==="ripple"?"Ripple · SOL · ":""}{eligible?"Ready to claim":m.pendingUsdCents>0?"Awaiting settlement":m.canClaim?"Preparing claim":"Below claim minimum"}</small></div></div>
-        <div className="reward-row-amount"><strong>{usd(eligible?m.claimableUsdCents:m.grossRedeemableUsdCents+m.pendingUsdCents)}</strong><small>{eligible?`${usd(m.netClaimableUsdCents)} after estimated costs`:m.claimMode!=="cumulative"&&m.claimableEpochIds.length>1?"Preparing a combined claim":`Claim minimum ${usd(m.minimumClaimUsdCents)} net`}</small></div>
-        <button className="primary" disabled={busy||Boolean(pending)||!eligible} onClick={()=>void claimBatch([m])}>{busy&&status?<Loader2 size={15} className="spin"/>:null}{eligible?"Claim":"Pending"}</button>
+    {!compact&&(!rewardData&&!error||!rows.length&&redirects.loading?<div className={launch?"market-reward-skeleton":"workspace-loading"} role="status" aria-label="Loading rewards">{launch?<><span/><span/><span/></>:"Loading your rewards…"}</div>:rows.length?<div className="reward-claim-list">{rows.map(({launchId,market:m,redirect})=>{
+      const coin=allLaunches.find(l=>l.id===launchId)??redirect;
+      const eligible=Boolean(m?.canClaim&&(m.claimMode==="cumulative"||m.claimableEpochIds.length===1));
+      const needsSetup=Boolean(redirect&&!redirect.recipient.wallet);
+      const setupUrl=`/claim-redirect/${encodeURIComponent(launchId)}`;
+      return <article className={"reward-claim-row"+(eligible?" ready":"")} key={launchId}>
+        <div className="reward-claim-coin">{coin?<TokenMark launch={coin}/>:<Gift size={24}/>}<div>{coin&&!launch?<Link to={"/token/"+coin.id}>{coin.name}</Link>:<b>{coin?.name??"AQUA reward"}</b>}<small>{kind==="ripple"?"Ripple · SOL · ":""}{eligible?"Ready to claim":m&&m.pendingUsdCents>0?"Awaiting settlement":m?.canClaim?"Preparing claim":needsSetup?"Account setup needed":m?"Below claim minimum":"Awaiting rewards"}</small>{needsSetup&&eligible&&<Link className="reward-setup-link" to={setupUrl}>Set up redirected rewards</Link>}</div></div>
+        <div className="reward-row-amount"><strong>{m?usd(eligible?m.claimableUsdCents:m.grossRedeemableUsdCents+m.pendingUsdCents):needsSetup?"-":usd(0)}</strong><small>{eligible?`${usd(m!.netClaimableUsdCents)} after estimated costs`:m&&m.claimMode!=="cumulative"&&m.claimableEpochIds.length>1?"Preparing a combined claim":m?`Claim minimum ${usd(m.minimumClaimUsdCents)} net`:needsSetup?"Set up to view rewards":"Pending allocation"}</small></div>
+        {needsSetup&&!eligible?<Link className="primary" to={setupUrl}>Set up & claim</Link>:<button className="primary" disabled={busy||Boolean(pending)||!eligible} onClick={()=>{if(m)void claimBatch([m]);}}>{busy&&status?<Loader2 size={15} className="spin"/>:null}{eligible?"Claim":"Pending"}</button>}
       </article>;
     })}</div>:rewardData&&!(guided&&success)&&<div className="workspace-empty"><Gift/><h3>{launch?.rewardMode==="buyback_burn"?"This market buys back and burns tokens.":"No rewards to claim yet."}</h3><p>{launch?.rewardMode==="buyback_burn"?"Buybacks reduce supply; this mode does not pay a wallet reward.":kind==="ripple"?"Rewards from your qualifying X posts will appear here after settlement.":"Your allocations will appear here once they’re indexed."}</p>{!launch&&<Link className="primary" to="/">Explore markets <ArrowRight size={15}/></Link>}</div>)}
+    {discoverRedirects&&(!redirects.signedIn||redirects.error)&&<p className="reward-account-discovery">{redirects.error&&<span role="alert">{redirects.error} </span>}<button className="text-button" disabled={redirects.busy} onClick={()=>void redirects.find()}>{redirects.busy?"Checking accounts…":redirects.error?"Retry account rewards":"Find account rewards"}</button></p>}
   </div>;
 }

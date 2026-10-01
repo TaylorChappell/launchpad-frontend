@@ -105,14 +105,21 @@ test('pending confirmation survives refresh and retries without another claim tr
   await page.reload();await page.getByRole('button',{name:'Check confirmation'}).click();
   await expect(page.getByRole('heading',{name:'Nice. Rewards received.'})).toBeVisible();expect(calls.prepared).toBe(1);expect(calls.confirmed).toBe(2);
 });
-test('linked non-holders discover and claim redirects from the Rewards tab',async({page})=>{
+test('linked non-holders claim redirects in one normal reward card',async({page},info)=>{
   const calls=await setup(page,{activated:true});await page.goto('/#/portfolio?tab=rewards');
-  await expect(page.getByRole('region',{name:'Redirected rewards'})).toContainText('Tide');
-  await expect(page.getByText('Redirect + holder rewards · Ready to claim')).toBeVisible();
+  const row=page.locator('.reward-claim-row');
+  await expect(row).toHaveCount(1);await expect(row).toContainText('Tide');await expect(row).toContainText('$20.00');
+  await expect(row.getByText('Ready to claim',{exact:true})).toBeVisible();await expect(row.locator('.token-mark')).toBeVisible();
+  await expect(page.getByRole('region',{name:'Redirected rewards'})).toHaveCount(0);await expect(page.getByText('Redirected to you',{exact:true})).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('compact-recipient-portfolio-rewards.png'),fullPage:true});
   await page.getByRole('button',{name:'Claim',exact:true}).click();await expect.poll(()=>calls.confirmed).toBe(1);
 });
 test('unactivated account rewards appear in Rewards and the coin panel copies the guided link',async({page})=>{
-  await setup(page);await page.goto('/#/portfolio?tab=rewards');await page.getByRole('link',{name:/Tide.*Set up & claim/}).click();
+  await setup(page,{empty:true});await page.goto('/#/portfolio?tab=rewards');
+  const row=page.locator('.reward-claim-row');await expect(row).toHaveCount(1);await expect(row).toContainText('Tide');
+  await expect(page.getByText('No rewards to claim yet.',{exact:true})).toHaveCount(0);
+  await row.getByRole('link',{name:'Set up & claim',exact:true}).click();
   await expect(page.getByRole('heading',{name:'That’s you.'})).toBeVisible();
   await page.goto(`/#/fee-redirect?market=${id}`);await page.getByRole('button',{name:'Copy claim link'}).click();
   await expect(page.getByRole('button',{name:'Claim link copied'})).toBeVisible();
@@ -121,4 +128,16 @@ test('unactivated account rewards appear in Rewards and the coin panel copies th
 test('an empty settled balance cannot submit a claim',async({page})=>{
   const calls=await setup(page,{activated:true,empty:true});await page.goto(`/#/claim-redirect/${id}`);
   await expect(page.getByText('Your rewards will appear here when this market allocates them.')).toBeVisible();await expect(page.getByRole('button',{name:'Claim',exact:true})).toHaveCount(0);expect(calls.prepared).toBe(0);
+});
+
+test('a redirect awaiting allocation uses a normal pending coin card',async({page},info)=>{
+  const calls=await setup(page,{activated:true,empty:true,dark:true});await page.goto('/#/portfolio?tab=rewards');
+  const row=page.locator('.reward-claim-row');await expect(row).toHaveCount(1);await expect(row).toContainText('Tide');
+  await expect(row).toContainText('$0.00');await expect(row.getByRole('button',{name:'Pending',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Claim all',exact:true})).toBeDisabled();
+  await expect(page.getByText('No rewards to claim yet.',{exact:true})).toHaveCount(0);
+  await expect(page.getByText('Redirected to you',{exact:true})).toHaveCount(0);
+  expect(calls.prepared).toBe(0);expect(calls.confirmed).toBe(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('compact-recipient-portfolio-pending.png'),fullPage:true});
 });

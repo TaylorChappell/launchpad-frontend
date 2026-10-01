@@ -14,13 +14,13 @@ import { MarketCardTrend } from "./MarketCardTrend";
 import { RewardModeIcon } from "./RewardModeIcon";
 import { launchAge } from "../time";
 
-export function TokenMark({ launch, large=false }: { launch: Launch; large?: boolean }) {
+export function TokenMark({ launch, large=false }: { launch: Pick<Launch,"symbol"> & {imageUrl?:string|null}; large?: boolean }) {
   const [imageFailed, setImageFailed] = useState(false);
   const hue = [...launch.symbol].reduce((a,c) => a + c.charCodeAt(0), 0) % 55 + 175;
   useEffect(() => setImageFailed(false), [launch.imageUrl]);
   const showImage = Boolean(launch.imageUrl && !imageFailed);
   return <span className={"token-mark " + (large ? "large" : "")} style={!showImage ? { backgroundImage: "linear-gradient(145deg,hsl(" + hue + " 72% 47%),hsl(" + (hue + 38) + " 76% 18%))" } : undefined}>
-    {showImage ? <img src={launch.imageUrl} alt="" loading={large?"eager":"lazy"} decoding="async" onError={() => setImageFailed(true)}/> : launch.symbol.slice(0,2)}
+    {showImage ? <img src={launch.imageUrl??undefined} alt="" loading={large?"eager":"lazy"} decoding="async" onError={() => setImageFailed(true)}/> : launch.symbol.slice(0,2)}
   </span>;
 }
 
