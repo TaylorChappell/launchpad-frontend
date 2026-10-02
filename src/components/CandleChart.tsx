@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import type { IChartApi, ISeriesApi, UTCTimestamp, CandlestickData, WhitespaceData } from "lightweight-charts";
-import { candlePrice, initialCandleRange, spacedTradeCandles, type ChartCandle, type ChartPoint } from "../market-candles";
+import type { IChartApi, ISeriesApi, UTCTimestamp, CandlestickData } from "lightweight-charts";
+import { candlePrice, initialCandleRange, type ChartCandle } from "../market-candles";
 import { useTheme } from "../theme";
 
 const chartPalette = (dark: boolean) => dark
   ? { background: "#0e2332", text: "#a0becf", grid: "#244454", crosshair: "#73adc9", label: "#225c7b", up: "#53c9c4", down: "#f18599" }
   : { background: "#ffffff", text: "#527083", grid: "#e9f1f6", crosshair: "#81a5b9", label: "#174c66", up: "#168fa8", down: "#df6679" };
 
-export function CandleChart({ candles, viewKey, currency="USD", mini = false, intervalSeconds, onInspect, onReachStart }: {
-  candles: ChartCandle[]; viewKey: string; currency?:string; mini?: boolean; intervalSeconds?:number; onInspect?: (candle: ChartCandle | null) => void; onReachStart?: () => void;
+export function CandleChart({ candles, viewKey, currency="USD", mini = false, onInspect, onReachStart }: {
+  candles: ChartCandle[]; viewKey: string; currency?:string; mini?: boolean; onInspect?: (candle: ChartCandle | null) => void; onReachStart?: () => void;
 }) {
   const { theme } = useTheme();
   const currentTheme = useRef(theme); currentTheme.current = theme;
@@ -18,7 +18,7 @@ export function CandleChart({ candles, viewKey, currency="USD", mini = false, in
   const inspect = useRef(onInspect); inspect.current = onInspect;
   const reachStart = useRef(onReachStart); reachStart.current=onReachStart;
   const userPanned=useRef(false);
-  const previous = useRef<ChartPoint[]>([]);
+  const previous = useRef<ChartCandle[]>([]);
   const fitted = useRef<string | null>(null);
   const [ready,setReady] = useState(false);
   const [failed,setFailed] = useState(false);
@@ -68,14 +68,17 @@ export function CandleChart({ candles, viewKey, currency="USD", mini = false, in
   }, [theme, ready, mini]);
   useEffect(()=>{
     if (!ready || !series.current || !chart.current) return;
-    const data = (mini?candles.slice(-32):spacedTradeCandles(candles,intervalSeconds)) as (CandlestickData<UTCTimestamp>|WhitespaceData<UTCTimestamp>)[];
+    // TradingView spaces actual bars evenly and retains their real timestamps.
+    // Adding empty slots for idle intervals can hide hundreds of valid candles
+    // behind a nearly blank viewport on quieter markets. Never fabricate OHLC.
+    const data = (mini?candles.slice(-32):candles) as CandlestickData<UTCTimestamp>[];
     const smallest = candles.reduce((lowest,p)=>Math.min(lowest,p.low),Infinity);
     if (smallest>0 && Number.isFinite(smallest)) series.current.applyOptions({priceFormat:{type:"custom",formatter:(value:number)=>candlePrice(value,currency).replace(` ${currency}`,""),minMove:Math.pow(10,Math.max(-15,Math.floor(Math.log10(smallest))-4))}});
     const old=previous.current;
     const visible=chart.current.timeScale().getVisibleLogicalRange();
     const sameView=fitted.current===viewKey;
     const samePrefix=sameView && old.length>0 && data.length>=old.length && old.slice(0,-1).every((p,i)=>{
-      const n=data[i] as ChartPoint;return n.time===p.time&&n.open===p.open&&n.high===p.high&&n.low===p.low&&n.close===p.close;
+      const n=data[i];return n.time===p.time&&n.open===p.open&&n.high===p.high&&n.low===p.low&&n.close===p.close;
     }) && data[old.length-1]?.time===old.at(-1)?.time;
     if(samePrefix) for(const bar of data.slice(old.length-1)) series.current.update(bar);
     else series.current.setData(data);
@@ -97,7 +100,7 @@ export function CandleChart({ candles, viewKey, currency="USD", mini = false, in
       chart.current.timeScale().setVisibleLogicalRange({from:visible.from+shift,to:visible.to+shift});
     }
     previous.current=data;
-  },[candles,viewKey,mini,ready,currency,intervalSeconds]);
+  },[candles,viewKey,mini,ready,currency]);
   return <div className={`tradingview-canvas ${mini?"is-mini":""}`} ref={container} role="img"
     aria-label={mini?"24-hour price history":`${currency} trade candlestick chart`} data-bars={candles.length}
     onPointerDown={()=>{userPanned.current=true;}} onWheel={()=>{userPanned.current=true;}}>

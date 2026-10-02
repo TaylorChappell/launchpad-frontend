@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {snapshotCandles,chartCandles,withLiveCandle,compactCandles,candlePrice,usdTradeCandles,initialCandleRange,spacedTradeCandles,mergeCandlePage} from '../src/market-candles.ts';
+import {snapshotCandles,chartCandles,withLiveCandle,compactCandles,candlePrice,usdTradeCandles,initialCandleRange,preferredCandleInterval,mergeCandlePage} from '../src/market-candles.ts';
 const t=1790640000000;
 const point=(offset,price,cap=price*1000000000)=>({sampledAt:t+offset*60000,priceUsd:price,fdvUsd:cap});
 test('USD OHLC aggregates ordered samples, retaining both wicks and the historic cap',()=>{
@@ -75,26 +75,25 @@ test('initial chart view focuses recent trading and right-aligns sparse markets'
   assert.ok((width-90)/(sparse.to-sparse.from)<=5);
   assert.ok(sparse.to-1<=6);
   const full=initialCandleRange(500,width);
-  assert.ok(full.to-full.from<=64);assert.ok(full.from>420);
+  assert.ok(full.to-full.from<=48);assert.ok(full.from>440);
   assert.ok(full.to>499);assert.ok(full.to-499<=6);
   const growing=initialCandleRange(20,width);
   assert.ok(growing.from<19);assert.ok(growing.to>19);assert.ok(growing.to-19<=6);
  }
 });
 
-test('a 25-hour repair gap leaves the opening view on the recent cluster without creating candles',()=>{
- const candles=[...Array.from({length:8},(_,i)=>({time:300*i,open:150,high:160,low:140,close:155})),
-  ...Array.from({length:4},(_,i)=>({time:25*3600+300*i,open:45,high:46,low:44,close:45}))];
- const points=spacedTradeCandles(candles,300);
- assert.equal(points.filter(p=>'open' in p).length,12);
- assert.equal(points.length,76);
- assert.ok(points.every((p,i)=>i===0||p.time>points[i-1].time));
+test('thin market history keeps real timestamps and OHLC across hours of inactivity',()=>{
+ const history=snapshotCandles(Array.from({length:270},(_,i)=>point(i*300,10+i)), '1h');
+ const candles=usdTradeCandles({...history,currency:'USD'},'price');
+ assert.equal(candles.length,270);
+ assert.deepEqual(candles.map(c=>c.time),history.candles.map(c=>c.time));
+ assert.deepEqual(candles.map(({time,...bar})=>bar),history.candles.map(c=>c.price));
+ assert.ok(candles.every((c,i)=>i===0||c.time-candles[i-1].time===18000));
  for(const width of [320,390,812,1440]){
-  const range=initialCandleRange(points.length,width);
-  const visible=points.filter((_,i)=>i>=range.from&&i<=range.to).filter(p=>'open' in p);
-  assert.equal(visible.length,4);assert.ok(visible.every(p=>p.close===45));
+  const range=initialCandleRange(candles.length,width);
+  const visible=candles.filter((_,i)=>i>=range.from&&i<=range.to);
+  assert.ok(visible.length>=29);assert.equal(visible.at(-1).time,candles.at(-1).time);
  }
- assert.deepEqual(spacedTradeCandles(candles.slice(-4),300),candles.slice(-4));
 });
 
 test('a repaired page removes invalid cached candles and accepts corrected earlier timestamps',()=>{
@@ -106,4 +105,22 @@ test('a repaired page removes invalid cached candles and accepts corrected earli
  assert.equal(merged.candles[1].lastSampleAt,repaired.candles[0].lastSampleAt);
  const empty=mergeCandlePage(merged,{...repaired,candles:[],coverage:{from:0,to:t/1000+1000}});
  assert.deepEqual(empty.candles,[]);
+});
+
+test('auto timeframe keeps active coins at 5m and groups quiet activity without changing source data',()=>{
+ const quiet=snapshotCandles(Array.from({length:270},(_,i)=>point(i*35,10+i)), '1h');
+ const original=structuredClone(quiet);
+ assert.equal(preferredCandleInterval(quiet),'1h');
+ assert.deepEqual(quiet,original);
+ const busy={...quiet,candles:quiet.candles.map(c=>({...c,price:{...c.price,close:c.price.open+1,high:c.price.high+1}}))};
+ assert.equal(preferredCandleInterval(busy),'5m');
+ assert.equal(preferredCandleInterval({...quiet,candles:quiet.candles.slice(0,3)}),'5m');
+ assert.equal(preferredCandleInterval({...quiet,intervalSeconds:3600}),'5m');
+});
+
+test('auto timeframe retains enough bars instead of collapsing short histories to a few candles',()=>{
+ const quiet=snapshotCandles(Array.from({length:16},(_,i)=>point(i*35,10+i)), '1h');
+ assert.equal(preferredCandleInterval(quiet),'1h');
+ const flat={...quiet,candles:quiet.candles.map(c=>({...c,price:{open:10,high:10,low:10,close:10}}))};
+ assert.equal(preferredCandleInterval(flat),'5m');
 });

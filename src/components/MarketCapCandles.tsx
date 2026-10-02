@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Info, RotateCcw } from "lucide-react";
 import { loadCandlePage } from "../candle-history";
 import { readCandlePreview } from "../candle-preview-cache";
-import { candlePrice, candleIntervals, usdTradeCandles, mergeCandlePage, type CandlePage, type ChartCandle, type CandleInterval } from "../market-candles";
+import { candlePrice, candleIntervals, preferredCandleInterval, usdTradeCandles, mergeCandlePage, type CandlePage, type ChartCandle, type CandleInterval } from "../market-candles";
 import type { Launch } from "../types";
 import { CandleChart } from "./CandleChart";
 
 export function MarketCapCandles({ launch }: { launch: Launch }) {
-  const [interval,setInterval]=useState<CandleInterval>("5m");
+  const [selection,setSelection]=useState<CandleInterval|"auto">("auto");
+  const [automatic,setAutomatic]=useState<{id:string;interval:CandleInterval}>({id:launch.id,interval:"5m"});
+  const autoResolved=useRef<string|null>(null);
+  const interval=selection==="auto"?(automatic.id===launch.id?automatic.interval:"5m"):selection;
   const [metric,setMetric]=useState<"cap"|"price">("cap");
   const [loaded,setLoaded]=useState<{interval:CandleInterval;history:CandlePage} | null>(()=>{
     const history=readCandlePreview(launch.id,"5m");
@@ -32,6 +35,10 @@ export function MarketCapCandles({ launch }: { launch: Launch }) {
       try{
         const history=await loadCandlePage(launch.id,interval);
         delay=history.historyPending?5000:15_000;
+        if(active&&selection==="auto"&&interval==="5m"&&autoResolved.current!==launch.id&&history.candles.length>=12){
+          autoResolved.current=launch.id;
+          setAutomatic({id:launch.id,interval:preferredCandleInterval(history)});
+        }
         if(active){setLoaded(previous=>previous?.interval===interval && !(history.nextBefore!==null && history.nextBefore>(previous.history.candles.at(-1)?.time??0))
           ? {interval,history:{...history,...mergeCandlePage(previous.history,history),nextBefore:history.nextBefore===null?null:(previous.history.candles[0]?.time??Infinity)<history.nextBefore?previous.history.nextBefore:history.nextBefore}}
           : {interval,history});setError("");}
@@ -43,7 +50,7 @@ export function MarketCapCandles({ launch }: { launch: Launch }) {
     document.addEventListener("visibilitychange",resume);
     window.addEventListener("focus",resume);
     return()=>{active=false;generation.current++;window.clearTimeout(timer);document.removeEventListener("visibilitychange",resume);window.removeEventListener("focus",resume);};
-  },[launch.id,interval,retry]);
+  },[launch.id,interval,selection,retry]);
   const loadOlder=useCallback(async()=>{
     if(olderPending.current||Date.now()<retryOlderAt.current||loaded?.interval!==interval||loaded.history.nextBefore===null)return;
     const current=generation.current,token=Symbol();olderPending.current=token;setLoadingOlder(true);setOlderError(false);
@@ -63,13 +70,13 @@ export function MarketCapCandles({ launch }: { launch: Launch }) {
   const current=inspected??candles.at(-1);
   const loading=loaded?.interval!==interval&&!error;
   return <div className="market-cap-line interactive-market-chart candle-market" aria-busy={loading}>
-    <div className="chart-controls"><div aria-label="Candle timeframe">{(Object.keys(candleIntervals) as CandleInterval[]).map(value=><button key={value} aria-pressed={interval===value} onClick={()=>setInterval(value)}>{value}</button>)}</div>
+    <div className="chart-controls"><div aria-label="Candle timeframe"><button aria-pressed={selection==="auto"} title="Choose a readable timeframe from recent trading" onClick={()=>{autoResolved.current=null;setAutomatic({id:launch.id,interval:"5m"});setSelection("auto");setRetry(n=>n+1);}}>Auto</button>{(Object.keys(candleIntervals) as CandleInterval[]).map(value=><button key={value} aria-pressed={selection===value} onClick={()=>setSelection(value)}>{value}</button>)}</div>
       <div aria-label="Chart value"><button aria-pressed={metric==="cap"} onClick={()=>setMetric("cap")}>Market cap</button><button aria-pressed={metric==="price"} onClick={()=>setMetric("price")}>Price</button></div></div>
     <div className="candle-legend"><span>{currency} · {loaded?.interval??interval} candles</span><span className="candle-ohlc">{current&&(["open","high","low","close"] as const).map(field=><span key={field}>{field[0].toUpperCase()} <b>{candlePrice(current[field],currency)}</b></span>)}</span>
-      <button title="Candles represent indexed trades only. Dollar values use the latest available pair/USD rate, so historical USD values are estimates. Exchange-rate changes do not create candles. Pan left to load earlier trades automatically." aria-label="About chart data"><Info size={14}/></button>
+      <button title="Candles represent indexed trades only. Intervals without indexed trades are skipped; timestamps retain the actual trade intervals. Dollar values use the latest available pair/USD rate, so historical USD values are estimates. Exchange-rate changes do not create candles. Pan left to load earlier trades automatically." aria-label="About chart data"><Info size={14}/></button>
       <button title="Reset chart view" aria-label="Reset chart view" onClick={()=>setReset(n=>n+1)}><RotateCcw size={14}/></button></div>
     <div className="chart-canvas candle-stage">
-      <CandleChart candles={candles} intervalSeconds={loaded?.history.intervalSeconds} currency={currency} viewKey={`${launch.id}:${loaded?.interval}:${metric}:${reset}`} onInspect={setInspected} onReachStart={loadOlder}/>
+      <CandleChart candles={candles} currency={currency} viewKey={`${launch.id}:${loaded?.interval}:${metric}:${reset}`} onInspect={setInspected} onReachStart={loadOlder}/>
       {loading&&<div className={`candle-overlay ${candles.length?"candle-refreshing":""}`} role="status">Loading candles…</div>}
       {!loading&&!candles.length&&!error&&<div className="candle-overlay"><span>{hasTrades
         ? missingUsd?"USD reference price is temporarily unavailable.":canShowPrice?"Market-cap data is temporarily unavailable.":"Chart data is temporarily unavailable."

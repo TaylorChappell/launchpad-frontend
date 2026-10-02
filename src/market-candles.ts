@@ -5,7 +5,6 @@ export type OHLC = { open: number; high: number; low: number; close: number };
 export type UsdCandle = { time: number; lastSampleAt: number; price: OHLC; cap: OHLC | null };
 export type CandleHistory = { intervalSeconds: number; candles: UsdCandle[] };
 export type ChartCandle = OHLC & { time: number };
-export type ChartPoint = {time:number} & Partial<OHLC>;
 const positive = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v > 0;
 const valid = (v: OHLC | null | undefined): v is OHLC => !!v && [v.open,v.high,v.low,v.close].every(positive)
   && v.high >= Math.max(v.open,v.close) && v.low <= Math.min(v.open,v.close);
@@ -56,28 +55,10 @@ export function usdTradeCandles(history: CandleHistory & {currency:string}, metr
 export function initialCandleRange(count:number,width:number) {
   const plotWidth=Math.max(0,width-90);
   const visible=count<10?Math.max(80,Math.ceil(plotWidth/5))
-    :Math.max(32,Math.min(64,Math.ceil(plotWidth/12)));
+    :Math.max(32,Math.min(48,Math.ceil(plotWidth/16)));
   const right=Math.max(3,Math.min(6,Math.round(visible*.08)));
   const to=Math.max(0,count-1)+right;
   return {from:to-visible,to};
-}
-
-/** Empty time points separate missing intervals without inventing candles.
- * Bound very long gaps so paging an old, thin market stays inexpensive. The
- * newest 64 missing slots also keep a distant cluster out of the opening view.
- */
-export function spacedTradeCandles(candles:ChartCandle[],intervalSeconds?:number):ChartPoint[] {
-  if(!positive(intervalSeconds))return candles;
-  const points:ChartPoint[]=[];
-  for(const bar of candles){
-    const previous=points.at(-1);
-    if(previous){
-      const missing=Math.min(64,Math.max(0,Math.floor((bar.time-previous.time)/intervalSeconds)-1));
-      for(let i=missing;i>0;i--)points.push({time:bar.time-i*intervalSeconds});
-    }
-    points.push(bar);
-  }
-  return points;
 }
 
 // Only extend the latest candle with a newer, live indexed price. Do not join
@@ -119,6 +100,31 @@ export function compactCandles(candles: ChartCandle[], limit = 32): ChartCandle[
 
 export const candleIntervals = {"5m":300,"15m":900,"1h":3600,"4h":14400,"1d":86400} as const;
 export type CandleInterval = keyof typeof candleIntervals;
+/** Choose an opening resolution from real 5m history. Quiet markets often have
+ * one execution per bucket, so a larger interval reveals price movement better.
+ * This is only a recommendation: the chart fetches authoritative server OHLC at
+ * that resolution and never displays these temporary comparison buckets.
+ */
+export function preferredCandleInterval(history:CandleHistory):CandleInterval {
+  const candles=chartCandles(history,"price");
+  if(history.intervalSeconds!==300||candles.length<12)return "5m";
+  const minimum=Math.min(24,Math.ceil(candles.length/2));
+  let best:CandleInterval="5m",bestScore=0;
+  for(const [interval,seconds] of Object.entries(candleIntervals) as [CandleInterval,number][]){
+    const grouped:ChartCandle[]=[];
+    for(const candle of candles){
+      const time=Math.floor(candle.time/seconds)*seconds,previous=grouped.at(-1);
+      if(previous?.time===time){previous.close=candle.close;previous.high=Math.max(previous.high,candle.high);previous.low=Math.min(previous.low,candle.low);}
+      else grouped.push({...candle,time});
+    }
+    if(grouped.length<minimum)break;
+    const recent=grouped.slice(-60);
+    const score=recent.filter(c=>c.open!==c.close).length/recent.length;
+    if(score>bestScore){best=interval;bestScore=score;}
+    if(score>=.5)return interval;
+  }
+  return best;
+}
 export type CandlePage = CandleHistory & { source:"indexed_pool_trades"; currency:string; nextBefore: number | null; historyPending?:boolean; coverage?:{from:number;to:number} };
 /** A repaired page is authoritative over its covered time range. Old candles
  * can disappear or have an earlier last trade after a bad receipt is removed.

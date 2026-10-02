@@ -45,8 +45,8 @@ test('TradingView candles render SOL, stock and custom coins with seamless contr
   await chart.getByRole('button',{name:'Price',exact:true}).click();
   await expect(chart.locator('.candle-ohlc')).toContainText('$');
   await chart.locator('canvas').first().evaluate(el=>el.setAttribute('data-original','true'));
-  await expect(chart.locator('[aria-label="Candle timeframe"] button')).toHaveText(['5m','15m','1h','4h','1d']);
-  await expect(chart.getByRole('button',{name:'5m',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(chart.locator('[aria-label="Candle timeframe"] button')).toHaveText(['Auto','5m','15m','1h','4h','1d']);
+  await expect(chart.getByRole('button',{name:'Auto',exact:true})).toHaveAttribute('aria-pressed','true');
   for(const frame of ['15m','1h','4h','1d']){
     await chart.getByRole('button',{name:frame,exact:true}).click();
     await expect(chart.locator('.candle-legend')).toContainText(`USD · ${frame} candles`);
@@ -162,6 +162,105 @@ test('sparse trade charts show USD market cap with a wider initial view',async({
  await chart.getByRole('button',{name:'Price',exact:true}).click();
  await expect(chart.locator('.candle-ohlc')).toContainText('$0.0000024');
  await expect(chart.locator('.tradingview-canvas')).toHaveAttribute('data-bars','2');
+});
+
+test('quiet markets render consecutive real candles instead of blank interval padding',async({page},info)=>{
+ await setup(page);
+ await page.route('**/trade-candles?*',route=>{
+  const interval=new URL(route.request().url()).searchParams.get('interval')??'5m';
+  const data=history(interval),end=data.candles.at(-1)!.time;
+  // Trades are five hours apart on 5m. The old padding exposed only one bar.
+  const candles=data.candles.map((c,i)=>({...c,time:end-(59-i)*data.intervalSeconds*60,
+   lastSampleAt:(end-(59-i)*data.intervalSeconds*60)*1000}));
+  return route.fulfill({json:{...data,candles}});
+ });
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('/#/token/quiet-market');
+ const chart=page.locator('#market-chart');
+ await expect(chart.locator('.tradingview-canvas')).toHaveAttribute('data-bars','60');
+ await chart.scrollIntoViewIfNeeded();
+ const renderedCandles=()=>chart.locator('.tradingview-canvas canvas').first().evaluate((canvas:HTMLCanvasElement)=>{
+  const ctx=canvas.getContext('2d')!;
+  const {data}=ctx.getImageData(0,0,canvas.width,canvas.height);
+  let bars=0,previous=false;
+  for(let x=0;x<canvas.width;x++){
+   let pixels=0;
+   for(let y=0;y<canvas.height;y++){
+    const p=(y*canvas.width+x)*4,r=data[p],g=data[p+1],b=data[p+2];
+    if((r===22&&g===143&&b===168)||(r===223&&g===102&&b===121)
+      ||(r===83&&g===201&&b===196)||(r===241&&g===133&&b===153))pixels++;
+   }
+   const candle=pixels>=3;
+   if(candle&&!previous)bars++;
+   previous=candle;
+  }
+  return bars;
+ });
+ for(const frame of ['5m','1h','1d']){
+  await chart.getByRole('button',{name:frame,exact:true}).click();
+  await expect(chart.locator('.candle-legend')).toContainText(`USD · ${frame} candles`);
+  await expect.poll(renderedCandles).toBeGreaterThanOrEqual(24);
+ }
+ await chart.getByRole('button',{name:'5m',exact:true}).click();
+ await chart.getByRole('button',{name:'Price',exact:true}).click();
+ await chart.getByRole('button',{name:'Reset chart view',exact:true}).click();
+ await expect.poll(renderedCandles).toBeGreaterThanOrEqual(24);
+ await chart.screenshot({path:info.outputPath('compact-quiet-market-light.png')});
+ await page.getByRole('button',{name:'Switch to dark mode'}).click();
+ await expect.poll(renderedCandles).toBeGreaterThanOrEqual(24);
+ await chart.screenshot({path:info.outputPath('compact-quiet-market-dark.png')});
+ expect(errors).toEqual([]);
+});
+
+test('auto picks an active timeframe for quiet coins and respects manual selection',async({page})=>{
+ await setup(page);
+ await page.clock.install();
+ const requests:string[]=[];
+ await page.route('**/trade-candles?*',route=>{
+  const interval=new URL(route.request().url()).searchParams.get('interval')??'5m';
+  requests.push(interval);
+  const data=history(interval),end=data.candles.at(-1)!.time;
+  const candles=interval==='5m'?Array.from({length:270},(_,i)=>{
+   const value=(100+i)*1e-8,time=end-(269-i)*2100;
+   return {time,lastSampleAt:time*1000,price:{open:value,high:value,low:value,close:value},cap:{open:value*1e9,high:value*1e9,low:value*1e9,close:value*1e9}};
+  }):data.candles;
+  return route.fulfill({json:{...data,candles}});
+ });
+ await page.goto('/#/token/auto-timeframe');
+ const chart=page.locator('#market-chart');
+ await expect(chart.locator('.candle-legend')).toContainText('USD · 1h candles');
+ await expect(chart.getByRole('button',{name:'Auto',exact:true})).toHaveAttribute('aria-pressed','true');
+ expect(requests).toEqual(['5m','1h']);
+ await chart.getByRole('button',{name:'5m',exact:true}).click();
+ await expect(chart.locator('.candle-legend')).toContainText('USD · 5m candles');
+ await expect(chart.locator('.tradingview-canvas')).toHaveAttribute('data-bars','270');
+ await expect(chart.getByRole('button',{name:'Auto',exact:true})).toHaveAttribute('aria-pressed','false');
+ await page.clock.fastForward(16000);
+ await expect(chart.locator('.candle-legend')).toContainText('USD · 5m candles');
+ expect(requests.filter(value=>value==='1h')).toHaveLength(1);
+ await chart.getByRole('button',{name:'Auto',exact:true}).click();
+ await expect(chart.locator('.candle-legend')).toContainText('USD · 1h candles');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+});
+
+test('a late auto response cannot override a manually selected timeframe',async({page})=>{
+ await setup(page);
+ let release!:()=>void,requested=false;
+ const ready=new Promise<void>(resolve=>{release=resolve;});
+ await page.route('**/trade-candles?interval=5m',async route=>{
+  requested=true;await ready;
+  const data=history('5m');
+  await route.fulfill({json:{...data,candles:data.candles.map((c,i)=>({...c,time:c.time-i%2*300,price:{...c.price,close:c.price.open}}))}});
+ });
+ await page.goto('/#/token/manual-timeframe');
+ await expect.poll(()=>requested).toBe(true);
+ const chart=page.locator('#market-chart');
+ await chart.getByRole('button',{name:'15m',exact:true}).click();
+ await expect(chart.locator('.candle-legend')).toContainText('USD · 15m candles');
+ release();
+ await expect(chart.getByRole('button',{name:'15m',exact:true})).toHaveAttribute('aria-pressed','true');
+ await expect(chart.getByRole('button',{name:'Auto',exact:true})).toHaveAttribute('aria-pressed','false');
+ await expect(chart.locator('.candle-legend')).toContainText('USD · 15m candles');
 });
 
 test('non-SOL history distinguishes indexing, missing supply and missing USD from no trades',async({page})=>{
